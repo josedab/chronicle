@@ -1,0 +1,66 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+chronicle
+*.test
+
+# Test and coverage
+*.out
+coverage.html
+coverage.txt
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go workspace
+go.work
+go.work.sum
+
+# Build output
+/bin/
+/dist/
+
+# Grafana plugin
+grafana-plugin/node_modules/
+grafana-plugin/dist/
+grafana-plugin/package-lock.json
+
+# WASM output
+wasm/chronicle.wasm
+
+# Database files (for local testing)
+*.db
+*.db.wal
+*.db.wal.*
+*.db.compact
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Vendor (if not using)
+# vendor/
+
+# Debug
+__debug_bin*
+
+# Profiling
+*.prof
+*.pprof
+
+# Website build artifacts
+website/node_modules/
+website/build/
+website/.docusaurus/
+website/.cache-loader/

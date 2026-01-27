@@ -1,0 +1,39 @@
+version: 2
+project_name: chronicle
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - skip: true  # Library-only, no binaries
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+  groups:
+    - title: Features
+      regexp: "^.*feat.*"
+      order: 0
+    - title: Bug Fixes
+      regexp: "^.*fix.*"
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: chronicle-db
+    name: chronicle
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Chronicle {{ .Tag }}
+    
+    Install: `go get github.com/chronicle-db/chronicle@{{ .Tag }}`
