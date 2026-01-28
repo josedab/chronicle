@@ -1,0 +1,20 @@
+{
+  "name": "Chronicle Development",
+  "image": "mcr.microsoft.com/devcontainers/go:1.23",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "GitHub.copilot"
+      ],
+      "settings": {
+        "go.lintTool": "golangci-lint",
+        "go.testFlags": ["-race"]
+      }
+    }
+  },
+  "postCreateCommand": "go mod download && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+}
