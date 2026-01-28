@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -277,11 +276,6 @@ func (ui *AdminUI) handleAPIHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, health)
-}
-
-func writeJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
 }
 
 func formatBytes(b uint64) string {
