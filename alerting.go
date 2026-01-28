@@ -101,7 +101,7 @@ type AlertNotification struct {
 
 // AlertManager manages alert rules and evaluations.
 type AlertManager struct {
-	db          *DB
+	executor    QueryExecutor
 	mu          sync.RWMutex
 	rules       map[string]*AlertRule
 	alerts      map[string]*Alert
@@ -122,10 +122,18 @@ func WithHTTPClient(client HTTPDoer) AlertManagerOption {
 	}
 }
 
+// WithQueryExecutor sets a custom query executor for testing.
+func WithQueryExecutor(executor QueryExecutor) AlertManagerOption {
+	return func(am *AlertManager) {
+		am.executor = executor
+	}
+}
+
 // NewAlertManager creates a new alert manager.
+// The db parameter implements QueryExecutor interface for query execution.
 func NewAlertManager(db *DB, opts ...AlertManagerOption) *AlertManager {
 	am := &AlertManager{
-		db:          db,
+		executor:    db,
 		rules:       make(map[string]*AlertRule),
 		alerts:      make(map[string]*Alert),
 		stop:        make(chan struct{}),
@@ -248,7 +256,7 @@ func (m *AlertManager) evaluate(rule *AlertRule) {
 
 	if rule.Condition == AlertConditionAbsent {
 		// Check for absence of data
-		result, err := m.db.Execute(&Query{
+		result, err := m.executor.Execute(&Query{
 			Metric: rule.Metric,
 			Tags:   rule.Tags,
 			Start:  now.Add(-rule.EvalInterval * 2).UnixNano(),
@@ -259,7 +267,7 @@ func (m *AlertManager) evaluate(rule *AlertRule) {
 		}
 	} else {
 		// Query for latest value
-		result, err := m.db.Execute(&Query{
+		result, err := m.executor.Execute(&Query{
 			Metric: rule.Metric,
 			Tags:   rule.Tags,
 			Aggregation: &Aggregation{
