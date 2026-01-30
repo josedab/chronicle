@@ -544,6 +544,11 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	setupAlertingRoutes(mux, db)
 	setupFeatureRoutes(mux, db)
 
+	// Setup ClickHouse-compatible routes if enabled
+	if db.config.ClickHouse != nil && db.config.ClickHouse.Enabled {
+		setupClickHouseRoutes(mux, db, *db.config.ClickHouse)
+	}
+
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
