@@ -695,16 +695,19 @@ func (db *DB) Metrics() []string {
 }
 
 // ExemplarStore returns the exemplar store for direct access.
+// Deprecated: Use db.Features().ExemplarStore() instead for cleaner architecture.
 func (db *DB) ExemplarStore() *ExemplarStore {
 	return db.exemplarStore
 }
 
 // HistogramStore returns the histogram store for direct access.
+// Deprecated: Use db.Features().HistogramStore() instead for cleaner architecture.
 func (db *DB) HistogramStore() *HistogramStore {
 	return db.histogramStore
 }
 
 // CardinalityTracker returns the cardinality tracker for direct access.
+// Deprecated: Use db.Features().CardinalityTracker() instead for cleaner architecture.
 func (db *DB) CardinalityTracker() *CardinalityTracker {
 	return db.cardinalityTracker
 }
@@ -718,8 +721,15 @@ func (db *DB) CardinalityStats() CardinalityStats {
 }
 
 // AlertManager returns the alert manager for direct access.
+// Deprecated: Use db.Features().AlertManager() instead for cleaner architecture.
 func (db *DB) AlertManager() *AlertManager {
 	return db.alertManager
+}
+
+// Features returns the feature manager for accessing optional features.
+// This is the preferred way to access features like alerting, histograms, etc.
+func (db *DB) Features() *FeatureManager {
+	return db.features
 }
 
 // WriteHistogram writes a histogram point to the database.
