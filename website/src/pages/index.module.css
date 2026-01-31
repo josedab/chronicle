@@ -1,0 +1,170 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  color: white;
+}
+
+.heroBanner h1 {
+  font-size: 4rem;
+  font-weight: 800;
+}
+
+.installCommand {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  display: inline-block;
+  margin-bottom: 2rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1.1rem;
+}
+
+.installCommand code {
+  background: none;
+  color: #93c5fd;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.buttons .button--primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.buttons .button--primary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.buttons .button--secondary {
+  background: transparent;
+  border-color: white;
+  color: white;
+}
+
+.buttons .button--secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.badges {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.badges img {
+  height: 20px;
+}
+
+.features {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.codeSection {
+  padding: 4rem 0;
+  background: var(--ifm-background-color);
+}
+
+.codeSection h2 {
+  margin-bottom: 1.5rem;
+}
+
+.codeSection ul {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+
+.codeSection li {
+  padding: 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.useCases {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.useCase {
+  padding: 2rem;
+  border-radius: 12px;
+  background: var(--ifm-background-color);
+  height: 100%;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.useCase h3 {
+  margin-bottom: 1rem;
+}
+
+.howItWorks {
+  padding: 4rem 0;
+  background: var(--ifm-background-color);
+}
+
+.architectureDiagram {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.archRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.archBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  min-width: 140px;
+  text-align: center;
+}
+
+.archBox strong {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.archBox span:last-child {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.archIcon {
+  font-size: 2rem;
+}
+
+.archArrow {
+  font-size: 1.5rem;
+  color: var(--ifm-color-primary);
+  font-weight: bold;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner h1 {
+    font-size: 2.5rem;
+  }
+  
+  .buttons {
+    flex-direction: column;
+  }
+}
