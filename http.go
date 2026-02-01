@@ -399,8 +399,7 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(queryResponse{Points: result.Points})
+		writeJSON(w, queryResponse{Points: result.Points})
 	}))
 }
 
@@ -451,8 +450,7 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB) {
 // setupAdminRoutes configures admin and operational endpoints
 func setupAdminRoutes(mux *http.ServeMux, db *DB) {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		writeJSON(w, map[string]string{"status": "ok"})
 	})
 
 	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
@@ -460,8 +458,7 @@ func setupAdminRoutes(mux *http.ServeMux, db *DB) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(db.Metrics())
+		writeJSON(w, db.Metrics())
 	})
 
 	mux.HandleFunc("/schemas", func(w http.ResponseWriter, r *http.Request) {
@@ -770,18 +767,11 @@ func handlePromQuery(db *DB, w http.ResponseWriter, r *http.Request, isRange boo
 
 	// Format response
 	resp := promResponse(result, pq.Metric, isRange)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, resp)
 }
 
 func promError(w http.ResponseWriter, errorType, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "error",
-		"errorType": errorType,
-		"error":     message,
-	})
+	jsonError(w, http.StatusBadRequest, errorType, message)
 }
 
 func promResponse(result *Result, metric string, isRange bool) map[string]interface{} {
@@ -861,17 +851,16 @@ func handleSchemas(db *DB, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		schemas := db.ListSchemas()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(schemas)
+		writeJSON(w, schemas)
 
 	case http.MethodPost:
 		var schema MetricSchema
 		if err := json.NewDecoder(r.Body).Decode(&schema); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if err := db.RegisterSchema(schema); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
@@ -879,7 +868,7 @@ func handleSchemas(db *DB, w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		name := r.URL.Query().Get("name")
 		if name == "" {
-			http.Error(w, "name parameter required", http.StatusBadRequest)
+			writeError(w, "name parameter required", http.StatusBadRequest)
 			return
 		}
 		db.UnregisterSchema(name)
@@ -899,7 +888,7 @@ func handleAlerts(db *DB, w http.ResponseWriter, r *http.Request) {
 
 	am := db.AlertManager()
 	if am == nil {
-		http.Error(w, "alert manager not initialized", http.StatusServiceUnavailable)
+		writeError(w, "alert manager not initialized", http.StatusServiceUnavailable)
 		return
 	}
 	alerts := am.ListAlerts()
@@ -907,16 +896,15 @@ func handleAlerts(db *DB, w http.ResponseWriter, r *http.Request) {
 	resp := make([]map[string]interface{}, len(alerts))
 	for i, a := range alerts {
 		resp[i] = map[string]interface{}{
-			"name":     a.Rule.Name,
-			"state":    a.State.String(),
-			"value":    a.Value,
-			"firedAt":  a.FiredAt,
-			"labels":   a.Labels,
+			"name":    a.Rule.Name,
+			"state":   a.State.String(),
+			"value":   a.Value,
+			"firedAt": a.FiredAt,
+			"labels":  a.Labels,
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"status": "success",
 		"data":   map[string]interface{}{"alerts": resp},
 	})
@@ -926,7 +914,7 @@ func handleAlerts(db *DB, w http.ResponseWriter, r *http.Request) {
 func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 	am := db.AlertManager()
 	if am == nil {
-		http.Error(w, "alert manager not initialized", http.StatusServiceUnavailable)
+		writeError(w, "alert manager not initialized", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -943,8 +931,7 @@ func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 				"forDuration": r.ForDuration.String(),
 			}
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSON(w, map[string]interface{}{
 			"status": "success",
 			"data":   map[string]interface{}{"groups": []interface{}{map[string]interface{}{"rules": resp}}},
 		})
@@ -952,11 +939,11 @@ func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		var rule AlertRule
 		if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if err := am.AddRule(rule); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
@@ -964,7 +951,7 @@ func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		name := r.URL.Query().Get("name")
 		if name == "" {
-			http.Error(w, "name parameter required", http.StatusBadRequest)
+			writeError(w, "name parameter required", http.StatusBadRequest)
 			return
 		}
 		am.RemoveRule(name)
@@ -991,7 +978,7 @@ func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -1008,12 +995,12 @@ func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.Execute(query)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if len(result.Points) < 2 {
-		http.Error(w, "insufficient data for forecasting", http.StatusBadRequest)
+		writeError(w, "insufficient data for forecasting", http.StatusBadRequest)
 		return
 	}
 
@@ -1043,12 +1030,11 @@ func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 	forecaster := NewForecaster(config)
 	forecast, err := forecaster.Forecast(data, req.Periods)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"predictions": forecast.Predictions,
 		"anomalies":   forecast.Anomalies,
 		"rmse":        forecast.RMSE,
@@ -1062,24 +1048,23 @@ func handleHistogram(db *DB, w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		name := r.URL.Query().Get("name")
 		if name == "" {
-			http.Error(w, "name parameter required", http.StatusBadRequest)
+			writeError(w, "name parameter required", http.StatusBadRequest)
 			return
 		}
 
 		if db.histogramStore == nil {
-			http.Error(w, "histogram store not initialized", http.StatusServiceUnavailable)
+			writeError(w, "histogram store not initialized", http.StatusServiceUnavailable)
 			return
 		}
 
 		results, err := db.histogramStore.Query(name, nil, 0, 0)
 		if err != nil || len(results) == 0 {
-			http.Error(w, "histogram not found", http.StatusNotFound)
+			writeError(w, "histogram not found", http.StatusNotFound)
 			return
 		}
 
 		h := results[len(results)-1].Histogram
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSON(w, map[string]interface{}{
 			"name":    name,
 			"count":   h.Count,
 			"sum":     h.Sum,
@@ -1093,12 +1078,12 @@ func handleHistogram(db *DB, w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if db.histogramStore == nil {
-			http.Error(w, "histogram store not initialized", http.StatusServiceUnavailable)
+			writeError(w, "histogram store not initialized", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -1110,7 +1095,7 @@ func handleHistogram(db *DB, w http.ResponseWriter, r *http.Request) {
 			Histogram: h,
 			Timestamp: time.Now().UnixNano(),
 		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
