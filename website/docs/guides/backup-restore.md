@@ -6,6 +6,43 @@ sidebar_position: 5
 
 Chronicle provides multiple backup strategies to protect your data.
 
+## Backup Strategy Overview
+
+```mermaid
+flowchart TB
+    subgraph Methods["Backup Methods"]
+        FC[File Copy]
+        SS[Snapshot]
+        DB[Delta Backup]
+        EX[Export]
+    end
+    
+    subgraph Storage["Storage Destinations"]
+        LOCAL[Local Disk]
+        S3[S3/Cloud]
+        NFS[Network Storage]
+    end
+    
+    subgraph Recovery["Recovery Options"]
+        FULL[Full Restore]
+        PIT[Point-in-Time]
+        PART[Partial Restore]
+    end
+    
+    FC --> LOCAL
+    SS --> LOCAL
+    SS --> S3
+    DB --> LOCAL
+    DB --> S3
+    EX --> LOCAL
+    EX --> NFS
+    
+    LOCAL --> FULL
+    S3 --> FULL
+    S3 --> PIT
+    LOCAL --> PART
+```
+
 ## Backup Methods
 
 | Method | Use Case | Recovery Time | Storage |
@@ -245,6 +282,22 @@ log.Printf("Restored %d metrics", len(metrics))
 ```
 
 ## Disaster Recovery
+
+### Recovery Flow
+
+```mermaid
+flowchart LR
+    A[Incident Detected] --> B{Assess Damage}
+    B -->|Data Corruption| C[Stop Chronicle]
+    B -->|Hardware Failure| C
+    C --> D[Identify Latest Backup]
+    D --> E[Restore to New Location]
+    E --> F[Verify Data Integrity]
+    F -->|Pass| G[Update Config]
+    F -->|Fail| D
+    G --> H[Start Chronicle]
+    H --> I[Monitor & Validate]
+```
 
 ### Recovery Procedure
 
