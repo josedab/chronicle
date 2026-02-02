@@ -3,6 +3,7 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   docsSidebar: [
     'intro',
+    'why-chronicle',
     {
       type: 'category',
       label: 'Getting Started',
@@ -35,6 +36,7 @@ const sidebars: SidebarsConfig = {
         'guides/backup-restore',
         'guides/encryption',
         'guides/multi-tenancy',
+        'guides/recipes',
       ],
     },
     {
@@ -60,9 +62,12 @@ const sidebars: SidebarsConfig = {
       ],
     },
     'benchmarks',
+    'architecture-decisions',
+    'case-studies',
     'faq',
     'troubleshooting',
     'comparison',
+    'changelog',
     'contributing',
   ],
 };
