@@ -95,6 +95,10 @@ type Config struct {
 	// RateLimitPerSecond is the maximum requests per second per IP.
 	// Default: 1000. Set to 0 to disable rate limiting.
 	RateLimitPerSecond int
+
+	// ClickHouse configures ClickHouse-compatible HTTP interface.
+	// If nil or Enabled is false, ClickHouse protocol is disabled.
+	ClickHouse *ClickHouseConfig
 }
 
 // AuthConfig configures HTTP API authentication.
