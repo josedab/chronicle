@@ -15,6 +15,13 @@ type FeatureManager struct {
 	alertManager       *AlertManager
 	schemaRegistry     *SchemaRegistry
 
+	// Next-gen features
+	cqlEngine         *CQLEngine
+	observability     *ObservabilitySuite
+	materializedViews *MaterializedViewEngine
+	chaosInjector     *FaultInjector
+	offlineSync       *OfflineSyncManager
+
 	mu sync.RWMutex
 }
 
@@ -24,6 +31,9 @@ type FeatureManagerConfig struct {
 	CardinalityConfig  CardinalityConfig
 	StrictSchema       bool
 	Schemas            []MetricSchema
+	CQL                CQLConfig
+	Observability      ObservabilitySuiteConfig
+	MaterializedViews  MaterializedViewConfig
 }
 
 // DefaultFeatureManagerConfig returns sensible defaults for feature management.
@@ -32,6 +42,9 @@ func DefaultFeatureManagerConfig() FeatureManagerConfig {
 		ExemplarConfig:    DefaultExemplarConfig(),
 		CardinalityConfig: DefaultCardinalityConfig(),
 		StrictSchema:      false,
+		CQL:               DefaultCQLConfig(),
+		Observability:     DefaultObservabilitySuiteConfig(),
+		MaterializedViews: DefaultMaterializedViewConfig(),
 	}
 }
 
@@ -55,6 +68,13 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.cardinalityTracker = NewCardinalityTracker(db, cfg.CardinalityConfig)
 	fm.alertManager = NewAlertManager(db)
 
+	// Initialize next-gen features
+	fm.cqlEngine = NewCQLEngine(db, cfg.CQL)
+	fm.observability = NewObservabilitySuite(cfg.Observability)
+	fm.materializedViews = NewMaterializedViewEngine(db, cfg.MaterializedViews)
+	fm.chaosInjector = NewFaultInjector(DefaultChaosConfig())
+	fm.offlineSync = NewOfflineSyncManager(DefaultOfflineSyncConfig())
+
 	return fm, nil
 }
 
@@ -66,6 +86,15 @@ func (fm *FeatureManager) Start() {
 	if fm.alertManager != nil {
 		fm.alertManager.Start()
 	}
+	if fm.observability != nil {
+		fm.observability.Start()
+	}
+	if fm.materializedViews != nil {
+		fm.materializedViews.Start()
+	}
+	if fm.offlineSync != nil {
+		fm.offlineSync.Start()
+	}
 }
 
 // Stop stops all background feature processes.
@@ -75,6 +104,15 @@ func (fm *FeatureManager) Stop() {
 
 	if fm.alertManager != nil {
 		fm.alertManager.Stop()
+	}
+	if fm.observability != nil {
+		fm.observability.Stop()
+	}
+	if fm.materializedViews != nil {
+		fm.materializedViews.Stop()
+	}
+	if fm.offlineSync != nil {
+		fm.offlineSync.Stop()
 	}
 }
 
@@ -111,6 +149,41 @@ func (fm *FeatureManager) SchemaRegistry() *SchemaRegistry {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.schemaRegistry
+}
+
+// CQLEngine returns the CQL query engine.
+func (fm *FeatureManager) CQLEngine() *CQLEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.cqlEngine
+}
+
+// Observability returns the observability suite.
+func (fm *FeatureManager) Observability() *ObservabilitySuite {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.observability
+}
+
+// MaterializedViews returns the materialized view engine.
+func (fm *FeatureManager) MaterializedViews() *MaterializedViewEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.materializedViews
+}
+
+// ChaosInjector returns the fault injector.
+func (fm *FeatureManager) ChaosInjector() *FaultInjector {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.chaosInjector
+}
+
+// OfflineSync returns the offline sync manager.
+func (fm *FeatureManager) OfflineSync() *OfflineSyncManager {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.offlineSync
 }
 
 // ValidatePoint validates a point against registered schemas.
