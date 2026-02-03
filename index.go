@@ -280,3 +280,105 @@ func (idx *Index) Count() int {
 	defer idx.mu.RUnlock()
 	return len(idx.partitions)
 }
+
+// TagKeys returns all unique tag keys in the index.
+func (idx *Index) TagKeys() []string {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+
+	keys := make([]string, 0, len(idx.tagSeries))
+	for k := range idx.tagSeries {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// TagKeysForMetric returns tag keys used by a specific metric.
+func (idx *Index) TagKeysForMetric(metric string) []string {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+
+	seriesIDs, ok := idx.metricSeries[metric]
+	if !ok {
+		return nil
+	}
+
+	// Collect all tag keys from series belonging to this metric
+	keySet := make(map[string]struct{})
+	for seriesID := range seriesIDs {
+		if series, ok := idx.seriesByID[seriesID]; ok {
+			for k := range series.Tags {
+				keySet[k] = struct{}{}
+			}
+		}
+	}
+
+	keys := make([]string, 0, len(keySet))
+	for k := range keySet {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// TagValues returns all unique values for a given tag key.
+func (idx *Index) TagValues(key string) []string {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+
+	valueMap, ok := idx.tagSeries[key]
+	if !ok {
+		return nil
+	}
+
+	values := make([]string, 0, len(valueMap))
+	for v := range valueMap {
+		values = append(values, v)
+	}
+	sort.Strings(values)
+	return values
+}
+
+// TagValuesForMetric returns tag values for a key filtered by metric.
+func (idx *Index) TagValuesForMetric(metric, key string) []string {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+
+	seriesIDs, ok := idx.metricSeries[metric]
+	if !ok {
+		return nil
+	}
+
+	// Collect values for the key from series belonging to this metric
+	valueSet := make(map[string]struct{})
+	for seriesID := range seriesIDs {
+		if series, ok := idx.seriesByID[seriesID]; ok {
+			if v, hasKey := series.Tags[key]; hasKey {
+				valueSet[v] = struct{}{}
+			}
+		}
+	}
+
+	values := make([]string, 0, len(valueSet))
+	for v := range valueSet {
+		values = append(values, v)
+	}
+	sort.Strings(values)
+	return values
+}
+
+// SeriesCount returns the total number of series in the index.
+func (idx *Index) SeriesCount() int {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+	return len(idx.seriesByID)
+}
+
+// GetSeries returns a series by ID.
+func (idx *Index) GetSeries(id uint64) (Series, bool) {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+	s, ok := idx.seriesByID[id]
+	return s, ok
+}
