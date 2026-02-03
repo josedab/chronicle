@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 )
@@ -84,6 +85,11 @@ func TestBackendDataStore(t *testing.T) {
 	}
 	if string(readData) != string(data) {
 		t.Errorf("expected %q, got %q", data, readData)
+	}
+
+	// ReadPartitionAt should be unsupported for backend storage
+	if _, err := ds.ReadPartitionAt(ctx, 0, 10); !errors.Is(err, ErrUnsupportedOperation) {
+		t.Errorf("expected ErrUnsupportedOperation, got %v", err)
 	}
 
 	// Test Stat
