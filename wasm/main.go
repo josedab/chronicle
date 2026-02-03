@@ -43,11 +43,11 @@ func jsOpen(this js.Value, args []js.Value) interface{} {
 	if len(args) > 1 && args[1].Type() == js.TypeObject {
 		configObj := args[1]
 		if v := configObj.Get("bufferSize"); v.Type() == js.TypeNumber {
-			cfg.BufferSize = v.Int()
+			cfg.Storage.BufferSize = v.Int()
 		}
 		if v := configObj.Get("partitionDuration"); v.Type() == js.TypeString {
 			if d, err := time.ParseDuration(v.String()); err == nil {
-				cfg.PartitionDuration = d
+				cfg.Storage.PartitionDuration = d
 			}
 		}
 	}

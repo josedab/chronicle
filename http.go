@@ -62,11 +62,13 @@ type writeRequest struct {
 }
 
 type queryRequest struct {
-	Query  string            `json:"query"`
-	Metric string            `json:"metric"`
-	Start  int64             `json:"start"`
-	End    int64             `json:"end"`
-	Tags   map[string]string `json:"tags"`
+	Query       string            `json:"query"`
+	Metric      string            `json:"metric"`
+	Start       int64             `json:"start"`
+	End         int64             `json:"end"`
+	Tags        map[string]string `json:"tags"`
+	Aggregation string            `json:"aggregation,omitempty"`
+	Window      string            `json:"window,omitempty"`
 }
 
 type queryResponse struct {
@@ -391,6 +393,28 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				End:    req.End,
 				Tags:   req.Tags,
 			}
+			if req.Aggregation != "" {
+				agg := parseAggFunc(req.Aggregation)
+				if agg == AggNone {
+					http.Error(w, "invalid aggregation function", http.StatusBadRequest)
+					return
+				}
+				window := time.Minute
+				if req.Window != "" {
+					parsedWindow, err := parseDuration(req.Window)
+					if err != nil {
+						http.Error(w, "invalid aggregation window", http.StatusBadRequest)
+						return
+					}
+					if parsedWindow > 0 {
+						window = parsedWindow
+					}
+				}
+				q.Aggregation = &Aggregation{
+					Function: agg,
+					Window:   window,
+				}
+			}
 		}
 
 		result, err := db.Execute(q)
@@ -404,9 +428,9 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 }
 
 // setupPrometheusRoutes configures Prometheus-compatible endpoints
-func setupPrometheusRoutes(mux *http.ServeMux, db *DB) {
-	mux.HandleFunc("/prometheus/write", func(w http.ResponseWriter, r *http.Request) {
-		if !db.config.PrometheusRemoteWriteEnabled {
+func setupPrometheusRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
+	mux.HandleFunc("/prometheus/write", wrap(func(w http.ResponseWriter, r *http.Request) {
+		if !db.config.HTTP.PrometheusRemoteWriteEnabled {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -436,75 +460,182 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB) {
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
-	})
+	}))
 
-	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/query", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handlePromQuery(db, w, r, false)
-	})
+	}))
 
-	mux.HandleFunc("/api/v1/query_range", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/query_range", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handlePromQuery(db, w, r, true)
-	})
+	}))
 }
 
 // setupAdminRoutes configures admin and operational endpoints
-func setupAdminRoutes(mux *http.ServeMux, db *DB) {
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
+	mux.HandleFunc("/health", wrap(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
-	})
+	}))
 
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/metrics", wrap(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		writeJSON(w, db.Metrics())
-	})
+	}))
 
-	mux.HandleFunc("/schemas", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/schemas", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleSchemas(db, w, r)
-	})
+	}))
 
 	adminUI := NewAdminUI(db, AdminConfig{Prefix: "/admin"})
-	mux.Handle("/admin", adminUI)
-	mux.Handle("/admin/", adminUI)
+	mux.Handle("/admin", wrap(adminUI.ServeHTTP))
+	mux.Handle("/admin/", wrap(adminUI.ServeHTTP))
 }
 
 // setupAlertingRoutes configures alerting-related endpoints
-func setupAlertingRoutes(mux *http.ServeMux, db *DB) {
-	mux.HandleFunc("/api/v1/alerts", func(w http.ResponseWriter, r *http.Request) {
+func setupAlertingRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
+	mux.HandleFunc("/api/v1/alerts", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleAlerts(db, w, r)
-	})
+	}))
 
-	mux.HandleFunc("/api/v1/rules", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/rules", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleRules(db, w, r)
-	})
+	}))
 }
 
 // setupFeatureRoutes configures advanced feature endpoints
-func setupFeatureRoutes(mux *http.ServeMux, db *DB) {
+func setupFeatureRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	// OTLP metrics endpoint
 	otlpReceiver := NewOTLPReceiver(db, DefaultOTLPConfig())
-	mux.HandleFunc("/v1/metrics", otlpReceiver.Handler())
+	mux.HandleFunc("/v1/metrics", wrap(otlpReceiver.Handler()))
 
 	// Streaming WebSocket endpoint
 	streamHub := NewStreamHub(db, DefaultStreamConfig())
-	mux.HandleFunc("/stream", streamHub.WebSocketHandler())
+	mux.HandleFunc("/stream", wrap(streamHub.WebSocketHandler()))
 
 	// GraphQL endpoint
 	graphqlServer := NewGraphQLServer(db)
-	mux.Handle("/graphql", graphqlServer.Handler())
-	mux.Handle("/graphql/playground", graphqlServer.ServePlayground())
+	mux.Handle("/graphql", wrap(func(w http.ResponseWriter, r *http.Request) {
+		graphqlServer.Handler().ServeHTTP(w, r)
+	}))
+	mux.Handle("/graphql/playground", wrap(func(w http.ResponseWriter, r *http.Request) {
+		graphqlServer.ServePlayground().ServeHTTP(w, r)
+	}))
 
 	// Forecast endpoint
-	mux.HandleFunc("/api/v1/forecast", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/forecast", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleForecast(db, w, r)
-	})
+	}))
 
 	// Histogram endpoints
-	mux.HandleFunc("/api/v1/histogram", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/histogram", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleHistogram(db, w, r)
-	})
+	}))
+}
+
+// setupNextGenRoutes configures next-generation feature endpoints
+func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
+	// CQL query endpoint
+	if db.features != nil && db.features.CQLEngine() != nil {
+		cqlEngine := db.features.CQLEngine()
+		mux.HandleFunc("/api/v1/cql", wrap(func(w http.ResponseWriter, r *http.Request) {
+			handleCQLQuery(cqlEngine, w, r)
+		}))
+		mux.HandleFunc("/api/v1/cql/validate", wrap(func(w http.ResponseWriter, r *http.Request) {
+			handleCQLValidate(cqlEngine, w, r)
+		}))
+		mux.HandleFunc("/api/v1/cql/explain", wrap(func(w http.ResponseWriter, r *http.Request) {
+			handleCQLExplain(cqlEngine, w, r)
+		}))
+	}
+
+	// Observability endpoints
+	if db.features != nil && db.features.Observability() != nil {
+		db.features.Observability().RegisterHTTPHandlers(mux)
+	}
+
+	// OpenAPI spec
+	specGen := NewOpenAPIGenerator(DefaultOpenAPIGeneratorConfig())
+	mux.HandleFunc("/openapi.json", wrap(OpenAPIHandler(specGen)))
+	mux.HandleFunc("/swagger", wrap(SwaggerUIHandler()))
+
+	// Materialized views
+	if db.features != nil && db.features.MaterializedViews() != nil {
+		mvEngine := db.features.MaterializedViews()
+		mux.HandleFunc("/api/v1/views", wrap(func(w http.ResponseWriter, r *http.Request) {
+			handleMaterializedViews(mvEngine, w, r)
+		}))
+	}
+}
+
+func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, "failed to read body", http.StatusBadRequest)
+		return
+	}
+	result, err := engine.Execute(r.Context(), string(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func handleCQLValidate(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, "failed to read body", http.StatusBadRequest)
+		return
+	}
+	if err := engine.Validate(string(body)); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"valid": false, "error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"valid": true})
+}
+
+func handleCQLExplain(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, "failed to read body", http.StatusBadRequest)
+		return
+	}
+	result, err := engine.Explain(string(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func handleMaterializedViews(engine *MaterializedViewEngine, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		views := engine.ListViews()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(views)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func startHTTPServer(db *DB, port int) (*httpServer, error) {
@@ -539,14 +670,15 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	// Setup route groups
 	setupWriteRoutes(mux, db, wrap)
 	setupQueryRoutes(mux, db, wrap)
-	setupPrometheusRoutes(mux, db)
-	setupAdminRoutes(mux, db)
-	setupAlertingRoutes(mux, db)
-	setupFeatureRoutes(mux, db)
+	setupPrometheusRoutes(mux, db, wrap)
+	setupAdminRoutes(mux, db, wrap)
+	setupAlertingRoutes(mux, db, wrap)
+	setupFeatureRoutes(mux, db, wrap)
+	setupNextGenRoutes(mux, db, wrap)
 
 	// Setup ClickHouse-compatible routes if enabled
 	if db.config.ClickHouse != nil && db.config.ClickHouse.Enabled {
-		setupClickHouseRoutes(mux, db, *db.config.ClickHouse)
+		setupClickHouseRoutes(mux, db, *db.config.ClickHouse, wrap)
 	}
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
