@@ -30,6 +30,9 @@ var (
 
 	// ErrWALSync is returned when WAL sync operations fail.
 	ErrWALSync = errors.New("WAL sync failed")
+
+	// ErrUnsupportedOperation is returned when a storage operation isn't supported.
+	ErrUnsupportedOperation = errors.New("operation not supported")
 )
 
 // QueryErrorType categorizes query errors.

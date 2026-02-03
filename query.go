@@ -60,9 +60,9 @@ type TagFilter struct {
 // This is a convenience wrapper around ExecuteContext with a background context.
 func (db *DB) Execute(q *Query) (*Result, error) {
 	ctx := context.Background()
-	if db.config.QueryTimeout > 0 {
+	if db.config.Query.QueryTimeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, db.config.QueryTimeout)
+		ctx, cancel = context.WithTimeout(ctx, db.config.Query.QueryTimeout)
 		defer cancel()
 	}
 	return db.ExecuteContext(ctx, q)
@@ -82,7 +82,7 @@ func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 	db.mu.RUnlock()
 
 	if q.Aggregation != nil {
-		buckets := newAggBuckets(db.config.MaxMemory)
+		buckets := newAggBuckets(db.config.Storage.MaxMemory)
 		window := q.Aggregation.Window
 		if window <= 0 {
 			window = time.Second
@@ -127,9 +127,9 @@ func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 			return nil, err
 		}
 		points = append(points, pts...)
-		if db.config.MaxMemory > 0 {
+		if db.config.Storage.MaxMemory > 0 {
 			usedBytes += int64(len(pts)) * 48
-			if usedBytes > db.config.MaxMemory {
+			if usedBytes > db.config.Storage.MaxMemory {
 				return nil, newQueryError(QueryErrorTypeMemory, "query memory budget exceeded", q, nil)
 			}
 		}
