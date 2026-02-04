@@ -865,3 +865,267 @@ Profile types:
 - [ARCHITECTURE](./ARCHITECTURE.md) - System design
 - [CONFIGURATION](./CONFIGURATION.md) - All options
 - [API](./API.md) - HTTP endpoints
+
+---
+
+## Next-Gen Features (v0.5.0)
+
+### Chronicle Query Language (CQL)
+
+A purpose-built query language unifying SQL, PromQL, and time-series operations.
+
+```go
+engine := chronicle.NewCQLEngine(db, chronicle.DefaultCQLConfig())
+
+// Execute a CQL query
+result, err := engine.Execute(ctx, `
+    SELECT avg(value) FROM cpu_usage 
+    WHERE host = 'server1' 
+    WINDOW 5m 
+    GAP_FILL linear
+`)
+
+// Validate syntax
+err = engine.Validate("SELECT value FROM temperature LAST 1h")
+
+// Explain query plan
+plan, err := engine.Explain("SELECT sum(value) FROM requests GROUP BY host WINDOW 1m")
+```
+
+**CQL-specific features:**
+- `WINDOW` clause for time-based windowed aggregation
+- `GAP_FILL` with linear interpolation, previous value, or zero fill
+- `ALIGN` for calendar-aware bucketing
+- `ASOF JOIN` for temporal joins with tolerance
+- `LAST` shorthand for recent time ranges
+- `rate()`, `delta()`, `increase()` functions
+
+**HTTP API:**
+- POST `/api/v1/cql` — Execute CQL query
+- POST `/api/v1/cql/validate` — Validate CQL syntax
+- POST `/api/v1/cql/explain` — Show query plan
+
+### Streaming ETL Pipelines
+
+Declarative stream processing with fluent API for transforming time-series data in-flight.
+
+```go
+pipeline := chronicle.NewETLPipeline(chronicle.DefaultETLPipelineConfig())
+pipeline.
+    From(chronicle.NewETLChannelSource(inputCh)).
+    Filter(func(p *chronicle.Point) bool { return p.Value > 0 }).
+    Transform(func(p *chronicle.Point) (*chronicle.Point, error) {
+        p.Tags["processed"] = "true"
+        return p, nil
+    }).
+    Aggregate(chronicle.ETLAggregateConfig{
+        Window:   time.Minute,
+        Function: chronicle.AggMean,
+        GroupBy:  []string{"host"},
+    }).
+    To(chronicle.NewETLDatabaseSink(db))
+
+pipeline.Start()
+defer pipeline.Stop()
+```
+
+**Features:**
+- Fluent pipeline builder API
+- Built-in sources: database polling, Go channels
+- Built-in sinks: database writer, channels, multi-sink fan-out
+- Windowed aggregation with configurable emit modes
+- Backpressure strategies: drop, block, or sample
+- JSON-based checkpointing for crash recovery
+- Pipeline registry for managing multiple pipelines
+
+### Adaptive Tiered Storage
+
+Intelligent data lifecycle management that auto-migrates partitions between storage tiers based on access patterns.
+
+```go
+config := chronicle.DefaultAdaptiveTieredConfig()
+backend, err := chronicle.NewAdaptiveTieredBackend(config)
+
+stats := backend.Stats() // partition distribution across tiers
+```
+
+**Storage tiers:** Hot → Warm → Cold → Archive
+
+**Features:**
+- Per-partition access pattern tracking with recency-weighted scoring
+- Background migration engine with configurable cooldown periods
+- Cost optimizer with monthly budget tracking and recommendations
+- Cost projection for capacity planning
+
+### Distributed Consensus Hardening
+
+Production-grade extensions to the Raft consensus implementation.
+
+```go
+// Snapshot management
+snapMgr := chronicle.NewSnapshotManager(chronicle.DefaultSnapshotManagerConfig())
+snapshot, err := snapMgr.CreateSnapshot(lastIndex, lastTerm, stateData)
+snapMgr.PruneSnapshots() // keep only N most recent
+
+// Log compaction
+compactor := chronicle.NewLogCompactor(raftLog, snapMgr, chronicle.DefaultLogCompactorConfig())
+compactor.Start()
+
+// Two-phase membership changes
+jc := chronicle.NewJointConsensus(chronicle.DefaultJointConsensusConfig())
+transition, err := jc.ProposeChange(change)
+err = jc.CommitTransition(transition.ID)
+
+// Correctness verification
+verifier := chronicle.NewConsensusVerifier()
+err = verifier.VerifyLinearizability()
+err = verifier.VerifyElectionSafety()
+```
+
+### Hybrid Vector + Time-Series Index
+
+Composite index combining temporal B-tree partitioning with HNSW vector search.
+
+```go
+index := chronicle.NewTemporalPartitionedIndex(chronicle.DefaultHybridIndexConfig())
+
+// Insert points with vector embeddings
+index.Insert(&chronicle.HybridPoint{
+    ID: "p1", Vector: embedding, Timestamp: ts,
+    Metric: "anomaly_score", Value: 0.95,
+})
+
+// Search: "find similar anomaly patterns in last 24h"
+results, err := index.Search(&chronicle.HybridSearchQuery{
+    Vector: queryEmbedding, K: 10,
+    StartTime: now - 86400*1e9, EndTime: now,
+})
+
+// Built-in pattern library
+lib := chronicle.NewPatternLibrary()
+matches := lib.FindSimilarPatterns(timeSeries, 5)
+```
+
+### Production Observability Suite
+
+Self-monitoring: internal metrics, health checks, and HTTP endpoints.
+
+```go
+suite := chronicle.NewObservabilitySuite(chronicle.DefaultObservabilitySuiteConfig())
+suite.Start()
+
+// Record custom metrics
+suite.Metrics().IncrCounter("writes_total", 1)
+suite.Metrics().RecordDuration("query_latency", elapsed)
+
+// Register health checks
+suite.Health().RegisterCheck("wal", chronicle.WALHealthCheck(db))
+suite.Health().RegisterCheck("storage", chronicle.StorageHealthCheck(db))
+
+// HTTP endpoints (auto-registered)
+// GET /internal/metrics — metrics snapshot
+// GET /internal/health — health status
+// GET /internal/status — combined overview
+```
+
+### Incremental Materialized Views
+
+Materialized query results that update incrementally as new data arrives.
+
+```go
+engine := chronicle.NewMaterializedViewEngine(db, chronicle.DefaultMaterializedViewConfig())
+engine.Start()
+
+engine.CreateView(&chronicle.MaterializedViewDefinition{
+    Name:         "cpu_avg_5m",
+    SourceMetric: "cpu_usage",
+    Aggregation:  chronicle.AggMean,
+    Window:       5 * time.Minute,
+    GroupBy:      []string{"host"},
+    RefreshMode:  chronicle.RefreshEager,
+})
+
+// Query from materialized data (100x faster than full scan)
+result, err := engine.Query("cpu_avg_5m", startTime, endTime)
+
+// Incremental updates on every write
+engine.OnWrite(&point)
+```
+
+### OpenAPI Specification & SDK Generation
+
+Auto-generated OpenAPI 3.0 spec and multi-language SDK templates.
+
+```go
+gen := chronicle.NewOpenAPIGenerator(chronicle.DefaultOpenAPIGeneratorConfig())
+spec := gen.Generate()
+jsonBytes, _ := gen.ToJSON()
+
+// SDK generation
+sdkGen := chronicle.NewSDKGenerator(spec, chronicle.DefaultSDKGeneratorConfig(chronicle.SDKPython))
+output, _ := sdkGen.GenerateClient()
+// output.Files contains generated Python client code
+
+// HTTP endpoints
+// GET /openapi.json — OpenAPI spec
+// GET /swagger — Swagger UI redirect
+```
+
+### Chaos Engineering Framework
+
+Built-in fault injection and testing toolkit.
+
+```go
+injector := chronicle.NewFaultInjector(chronicle.DefaultChaosConfig())
+
+// Inject faults
+fault, _ := injector.InjectFault(&chronicle.FaultConfig{
+    Type:     chronicle.FaultNetworkDelay,
+    Duration: 5 * time.Second,
+    Target:   "node-2",
+})
+
+// Network simulation
+netSim := chronicle.NewNetworkFaultSimulator(injector)
+netSim.PartitionNodes("node-1", "node-2")
+
+// Declarative test scenarios
+scenario := chronicle.NetworkPartitionScenario("node-1", "node-2", 10*time.Second)
+result, err := scenario.Execute(ctx, injector)
+
+// Built-in scenarios
+chronicle.SplitBrainScenario(nodes)
+chronicle.RollingRestartScenario(nodes, interval)
+chronicle.DiskFailureScenario(path, duration)
+```
+
+### Offline-First CRDT Sync Protocol
+
+CRDT-based conflict resolution for edge nodes with unreliable connectivity.
+
+```go
+mgr := chronicle.NewOfflineSyncManager(chronicle.OfflineSyncConfig{
+    NodeID:           "edge-001",
+    ConflictStrategy: chronicle.CRDTLastWriterWins,
+})
+mgr.Start()
+
+// Track local writes
+mgr.RecordWrite(&point)
+
+// Prepare delta for peer sync
+delta, _ := mgr.PrepareSyncDelta("cloud-node")
+
+// Receive and apply remote delta
+result, _ := mgr.ReceiveSyncDelta(remoteDelta)
+// result.Conflicts contains any resolved conflicts
+```
+
+**CRDT primitives:**
+- `GCounter` — grow-only distributed counter
+- `LWWRegister` — last-writer-wins register
+- `ORSet` — observed-remove set
+- `VectorClock` — causal ordering with happens-before
+- `BloomFilter` — space-efficient change detection
+
+**Conflict strategies:** Last-Writer-Wins, Max-Value-Wins, Merge-All
