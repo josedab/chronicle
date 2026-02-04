@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation and examples
 - CI/CD pipeline with GitHub Actions
 
+#### Phase 2 Next-Gen Features (v0.5.0)
+- **Chronicle Query Language (CQL)**: Purpose-built query language with WINDOW, GAP_FILL, ALIGN, ASOF JOIN
+- **Streaming ETL Pipelines**: Declarative fluent-API stream processing with backpressure and checkpointing
+- **Adaptive Tiered Storage**: Cost-aware automatic data migration across Hot/Warm/Cold/Archive tiers
+- **Distributed Consensus Hardening**: Log compaction, snapshot transfer, joint consensus, leader transfer
+- **Hybrid Vector+Temporal Index**: HNSW approximate nearest-neighbor search combined with temporal partitioning
+- **Production Observability Suite**: Self-monitoring metrics, health checks, and HTTP status endpoints
+- **Incremental Materialized Views**: Delta-apply materialized query results with shadow verification
+- **OpenAPI Specification & SDK Generation**: Auto-generated OpenAPI 3.0 spec with Python/TypeScript SDK templates
+- **Chaos Engineering Framework**: Fault injection, network/disk simulation, declarative test scenarios
+- **Offline-First CRDT Sync**: Vector clocks, bloom filters, G-counters, LWW-registers, OR-sets for edge sync
+
 #### Next-Gen Features (v0.2.0)
 - **Pluggable Storage Backends**: FileBackend, MemoryBackend, S3Backend (placeholder), TieredBackend
 - **Grafana Data Source Plugin**: TypeScript scaffold for visualization integration

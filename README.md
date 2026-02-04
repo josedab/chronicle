@@ -30,10 +30,14 @@ import (
 
 func main() {
     db, err := chronicle.Open("sensors.db", chronicle.Config{
-        MaxMemory:         64 * 1024 * 1024,
-        PartitionDuration: time.Hour,
-        RetentionDuration: 7 * 24 * time.Hour,
-        BufferSize:        10_000,
+        Storage: chronicle.StorageConfig{
+            MaxMemory:         64 * 1024 * 1024,
+            PartitionDuration: time.Hour,
+            BufferSize:        10_000,
+        },
+        Retention: chronicle.RetentionConfig{
+            RetentionDuration: 7 * 24 * time.Hour,
+        },
     })
     if err != nil {
         log.Fatal(err)
@@ -110,21 +114,31 @@ func main() {
 
 ## Configuration
 
+Legacy flat fields (for example, `MaxMemory`) remain supported, but new grouped config is preferred.
+
 ```go
 cfg := chronicle.Config{
-    Path:              "data.db",        // Database file path
-    MaxMemory:         64 * 1024 * 1024, // Max memory for buffers (64MB)
-    MaxStorageBytes:   0,                // Max storage size (0 = unlimited)
-    PartitionDuration: time.Hour,        // Time span per partition
-    RetentionDuration: 7 * 24 * time.Hour, // Data retention period
-    BufferSize:        10_000,           // Write buffer size
-    QueryTimeout:      30 * time.Second, // Query timeout
-    HTTPEnabled:       false,            // Enable HTTP API
-    HTTPPort:          8086,             // HTTP port
-    StrictSchema:      false,            // Enforce schema validation
+    Path: "data.db", // Database file path
+    Storage: chronicle.StorageConfig{
+        MaxMemory:         64 * 1024 * 1024, // Max memory for buffers (64MB)
+        MaxStorageBytes:   0,                // Max storage size (0 = unlimited)
+        PartitionDuration: time.Hour,        // Time span per partition
+        BufferSize:        10_000,           // Write buffer size
+    },
+    Retention: chronicle.RetentionConfig{
+        RetentionDuration: 7 * 24 * time.Hour, // Data retention period
+    },
+    Query: chronicle.QueryConfig{
+        QueryTimeout: 30 * time.Second,
+    },
+    HTTP: chronicle.HTTPConfig{
+        HTTPEnabled: false, // Enable HTTP API
+        HTTPPort:    8086,  // HTTP port
+    },
+    StrictSchema: false, // Enforce schema validation
     Encryption: &chronicle.EncryptionConfig{
-        Enabled:     false,              // Enable encryption at rest
-        KeyPassword: "",                 // Password for key derivation
+        Enabled:     false, // Enable encryption at rest
+        KeyPassword: "",    // Password for key derivation
     },
 }
 ```
