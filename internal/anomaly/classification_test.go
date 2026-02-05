@@ -1,4 +1,4 @@
-package chronicle
+package anomaly
 
 import (
 	"testing"
