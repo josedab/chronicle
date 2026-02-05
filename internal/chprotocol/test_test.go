@@ -1,14 +1,17 @@
-package chronicle
+package chprotocol
 
 import (
 	"context"
 	"testing"
+	"time"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
 
 func TestNewCHNativeServer(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -44,8 +47,8 @@ func TestClickHouseProtocolConfig(t *testing.T) {
 
 func TestCHQueryTranslatorSelectOne(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -72,8 +75,8 @@ func TestCHQueryTranslatorSelectOne(t *testing.T) {
 
 func TestCHQueryTranslatorShowDatabases(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -97,16 +100,17 @@ func TestCHQueryTranslatorShowDatabases(t *testing.T) {
 
 func TestCHQueryTranslatorShowTables(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	defer db.Close()
 
 	// Write some data to create series
-	db.Write(Point{Metric: "cpu_usage", Timestamp: 1000000000, Value: 50.0})
-	db.Write(Point{Metric: "memory_usage", Timestamp: 1000000000, Value: 70.0})
+	db.Write(chronicle.Point{Metric: "cpu_usage", Timestamp: 1000000000, Value: 50.0})
+	db.Write(chronicle.Point{Metric: "memory_usage", Timestamp: 1000000000, Value: 70.0})
+	db.Flush()
 
 	translator := &CHQueryTranslator{db: db}
 	ctx := context.Background()
@@ -123,8 +127,8 @@ func TestCHQueryTranslatorShowTables(t *testing.T) {
 
 func TestCHQueryTranslatorDescribe(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -164,17 +168,19 @@ func TestCHQueryTranslatorDescribe(t *testing.T) {
 
 func TestCHQueryTranslatorSelect(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	defer db.Close()
 
 	// Write test data
-	db.Write(Point{Metric: "test_metric", Timestamp: 1000000000, Value: 10.0})
-	db.Write(Point{Metric: "test_metric", Timestamp: 2000000000, Value: 20.0})
-	db.Write(Point{Metric: "test_metric", Timestamp: 3000000000, Value: 30.0})
+	now := time.Now().UnixNano()
+	db.Write(chronicle.Point{Metric: "test_metric", Timestamp: now - 1000000000, Value: 10.0})
+	db.Write(chronicle.Point{Metric: "test_metric", Timestamp: now - 500000000, Value: 20.0})
+	db.Write(chronicle.Point{Metric: "test_metric", Timestamp: now, Value: 30.0})
+	db.Flush()
 
 	translator := &CHQueryTranslator{db: db}
 	ctx := context.Background()
@@ -191,17 +197,19 @@ func TestCHQueryTranslatorSelect(t *testing.T) {
 
 func TestCHQueryTranslatorSelectAggregate(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	defer db.Close()
 
 	// Write test data
-	db.Write(Point{Metric: "agg_metric", Timestamp: 1000000000, Value: 10.0})
-	db.Write(Point{Metric: "agg_metric", Timestamp: 2000000000, Value: 20.0})
-	db.Write(Point{Metric: "agg_metric", Timestamp: 3000000000, Value: 30.0})
+	now := time.Now().UnixNano()
+	db.Write(chronicle.Point{Metric: "agg_metric", Timestamp: now - 1000000000, Value: 10.0})
+	db.Write(chronicle.Point{Metric: "agg_metric", Timestamp: now - 500000000, Value: 20.0})
+	db.Write(chronicle.Point{Metric: "agg_metric", Timestamp: now, Value: 30.0})
+	db.Flush()
 
 	translator := &CHQueryTranslator{db: db}
 	ctx := context.Background()
@@ -236,8 +244,8 @@ func TestCHQueryTranslatorSelectAggregate(t *testing.T) {
 
 func TestCHQueryTranslatorInsert(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -250,22 +258,28 @@ func TestCHQueryTranslatorInsert(t *testing.T) {
 	if err2 != nil {
 		t.Fatalf("Execute(INSERT) error = %v", err2)
 	}
+	db.Flush()
 
-	// Verify data was written
-	result, err := translator.Execute(ctx, "SELECT * FROM insert_test")
+	// Verify data was written using chronicle.DB directly (INSERT timestamp is epoch-relative
+	// and falls outside the CH translator's default 1-hour query window)
+	result, err := db.Execute(&chronicle.Query{
+		Metric: "insert_test",
+		Start:  0,
+		End:    time.Now().UnixNano() + int64(time.Hour),
+	})
 	if err != nil {
-		t.Fatalf("Execute(SELECT) error = %v", err)
+		t.Fatalf("Execute() error = %v", err)
 	}
 
-	if result.RowCount < 1 {
+	if len(result.Points) < 1 {
 		t.Error("Expected inserted data to be queryable")
 	}
 }
 
 func TestParseSelect(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -313,8 +327,8 @@ func TestParseSelect(t *testing.T) {
 
 func TestParseSelectWithTime(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -404,8 +418,8 @@ func TestTypeConversions(t *testing.T) {
 
 func TestCHServerStats(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -456,8 +470,8 @@ func TestVarUIntEncoding(t *testing.T) {
 
 func TestSystemQueries(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -493,8 +507,8 @@ func TestSystemQueries(t *testing.T) {
 
 func TestUnsupportedQuery(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -511,8 +525,8 @@ func TestUnsupportedQuery(t *testing.T) {
 
 func TestSelectWithOrderBy(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

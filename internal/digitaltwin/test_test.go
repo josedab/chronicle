@@ -1,4 +1,4 @@
-package chronicle
+package digitaltwin
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
 
 func TestDigitalTwinEngine(t *testing.T) {
@@ -462,7 +464,7 @@ func TestTwinCallbacks(t *testing.T) {
 	engine.OnSyncError(func(conn *TwinConnection, err error) {
 		errorCalled = true
 	})
-	
+
 	_ = syncCalled
 	_ = errorCalled
 
@@ -707,7 +709,7 @@ func TestPlatformCreation(t *testing.T) {
 func BenchmarkPushMetric(b *testing.B) {
 	dir := b.TempDir()
 	path := dir + "/test.db"
-	db, err := Open(path, DefaultConfig(path))
+	db, err := chronicle.Open(path, chronicle.DefaultConfig(path))
 	if err != nil {
 		b.Fatalf("failed to open test db: %v", err)
 	}
@@ -746,4 +748,24 @@ func BenchmarkPushMetric(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		engine.PushMetric("temperature", nil, float64(i), time.Now())
 	}
+}
+
+func setupTestDB(t *testing.T) *chronicle.DB {
+	t.Helper()
+	dir := t.TempDir()
+	path := dir + "/test.db"
+	db, err := chronicle.Open(path, chronicle.DefaultConfig(path))
+	if err != nil {
+		t.Fatalf("failed to open test db: %v", err)
+	}
+	return db
+}
+
+func tagsMatch(seriesTags, queryTags map[string]string) bool {
+	for k, v := range queryTags {
+		if seriesTags[k] != v {
+			return false
+		}
+	}
+	return true
 }

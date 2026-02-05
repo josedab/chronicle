@@ -1,8 +1,10 @@
-package chronicle
+package cep
 
 import (
 	"testing"
 	"time"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
 
 func TestCEPConfig(t *testing.T) {
@@ -61,7 +63,7 @@ func TestCEPWindow(t *testing.T) {
 		Size:     time.Minute,
 		Metric:   "cpu",
 		Tags:     map[string]string{"host": "server1"},
-		Function: AggMean,
+		Function: chronicle.AggMean,
 		GroupBy:  []string{"host"},
 	}
 
@@ -79,7 +81,7 @@ func TestWindowConfig(t *testing.T) {
 		Size:     5 * time.Minute,
 		Slide:    time.Minute,
 		Metric:   "memory",
-		Function: AggSum,
+		Function: chronicle.AggSum,
 	}
 
 	if config.Type != WindowSliding {
@@ -129,10 +131,10 @@ func TestWindowBuilder(t *testing.T) {
 	builder := NewWindowBuilder()
 
 	config := builder.
-		Tumbling(5 * time.Minute).
+		Tumbling(5*time.Minute).
 		OnMetric("cpu").
 		WithTags(map[string]string{"host": "server1"}).
-		Aggregate(AggMean).
+		Aggregate(chronicle.AggMean).
 		GroupBy("host", "region").
 		Build()
 
@@ -167,11 +169,11 @@ func TestCEPStats(t *testing.T) {
 }
 
 func TestChangeEvent(t *testing.T) {
-	event := ChangeEvent{
+	event := chronicle.ChangeEvent{
 		Operation: "INSERT",
 		Timestamp: time.Now().UnixNano(),
 		Before:    nil,
-		After:     &Point{Metric: "cpu", Value: 50},
+		After:     &chronicle.Point{Metric: "cpu", Value: 50},
 	}
 
 	if event.Operation != "INSERT" {
