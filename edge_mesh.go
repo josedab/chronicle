@@ -1,19 +1,16 @@
 package chronicle
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"crypto/sha256"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
-	"net"
 	"net/http"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,1474 +18,929 @@ import (
 
 // EdgeMeshConfig configures the distributed edge mesh network.
 type EdgeMeshConfig struct {
-	// NodeID uniquely identifies this node in the mesh.
+	// Enabled enables edge mesh networking.
+	Enabled bool `json:"enabled"`
+
+	// NodeID is a unique identifier for this node. Auto-generated if empty.
 	NodeID string `json:"node_id"`
 
-	// BindAddr is the address for mesh communication.
-	BindAddr string `json:"bind_addr"`
+	// ListenAddr is the address for mesh protocol communication.
+	ListenAddr string `json:"listen_addr"`
 
-	// AdvertiseAddr is the address advertised to peers.
+	// AdvertiseAddr is the externally reachable address.
 	AdvertiseAddr string `json:"advertise_addr"`
 
-	// Seeds are initial peers to connect to.
-	Seeds []string `json:"seeds"`
+	// SeedNodes are initial peers for bootstrapping.
+	SeedNodes []string `json:"seed_nodes"`
 
-	// EnableMDNS enables multicast DNS for peer discovery.
-	EnableMDNS bool `json:"enable_mdns"`
-
-	// MDNSService is the mDNS service name.
-	MDNSService string `json:"mdns_service"`
-
-	// SyncInterval is how often to sync with peers.
-	SyncInterval time.Duration `json:"sync_interval"`
-
-	// GossipInterval is how often to exchange peer information.
+	// GossipInterval controls how often state is gossiped.
 	GossipInterval time.Duration `json:"gossip_interval"`
 
-	// MaxPeers is the maximum number of connected peers.
+	// HealthCheckInterval controls health probe frequency.
+	HealthCheckInterval time.Duration `json:"health_check_interval"`
+
+	// HealthCheckTimeout is the deadline for a health probe.
+	HealthCheckTimeout time.Duration `json:"health_check_timeout"`
+
+	// ReplicationFactor is the number of copies per partition.
+	ReplicationFactor int `json:"replication_factor"`
+
+	// VirtualNodes per physical node in the hash ring.
+	VirtualNodes int `json:"virtual_nodes"`
+
+	// MaxPeers limits the number of connected peers.
 	MaxPeers int `json:"max_peers"`
 
-	// MergeStrategy specifies how to merge conflicting data.
-	MergeStrategy CRDTMergeStrategy `json:"merge_strategy"`
+	// QueryTimeout is the deadline for cross-node queries.
+	QueryTimeout time.Duration `json:"query_timeout"`
 
-	// BandwidthLimitBps limits sync bandwidth (0=unlimited).
-	BandwidthLimitBps int64 `json:"bandwidth_limit_bps"`
-
-	// CompressSync enables compression for sync payloads.
-	CompressSync bool `json:"compress_sync"`
-
-	// EnableEncryption enables TLS for mesh communication.
-	EnableEncryption bool `json:"enable_encryption"`
-
-	// SyncBatchSize is the maximum points per sync batch.
-	SyncBatchSize int `json:"sync_batch_size"`
-
-	// OfflineQueueSize is the max queued operations when offline.
-	OfflineQueueSize int `json:"offline_queue_size"`
-
-	// HeartbeatInterval for peer health checks.
-	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
-
-	// PeerTimeout before marking a peer as disconnected.
-	PeerTimeout time.Duration `json:"peer_timeout"`
+	// EnableAutoRebalance automatically rebalances on topology change.
+	EnableAutoRebalance bool `json:"enable_auto_rebalance"`
 }
 
-// CRDTMergeStrategy specifies how to merge conflicting CRDT updates.
-type CRDTMergeStrategy int
-
-const (
-	// CRDTMergeLastWriteWins uses wall-clock timestamp.
-	CRDTMergeLastWriteWins CRDTMergeStrategy = iota
-	// CRDTMergeLamportClock uses logical Lamport timestamps.
-	CRDTMergeLamportClock
-	// CRDTMergeVectorClock uses vector clocks for causality.
-	CRDTMergeVectorClock
-	// CRDTMergeMaxValue keeps the maximum value (for counters).
-	CRDTMergeMaxValue
-	// CRDTMergeUnion merges all values (for sets).
-	CRDTMergeUnion
-)
-
-// DefaultEdgeMeshConfig returns default mesh configuration.
+// DefaultEdgeMeshConfig returns sensible defaults for edge mesh.
 func DefaultEdgeMeshConfig() EdgeMeshConfig {
 	return EdgeMeshConfig{
-		NodeID:            fmt.Sprintf("mesh-%d", time.Now().UnixNano()%100000),
-		BindAddr:          ":7946",
-		EnableMDNS:        true,
-		MDNSService:       "_chronicle._tcp",
-		SyncInterval:      5 * time.Second,
-		GossipInterval:    time.Second,
-		MaxPeers:          50,
-		MergeStrategy:     CRDTMergeVectorClock,
-		CompressSync:      true,
-		SyncBatchSize:     10000,
-		OfflineQueueSize:  100000,
-		HeartbeatInterval: time.Second,
-		PeerTimeout:       10 * time.Second,
+		Enabled:             false,
+		ListenAddr:          ":9090",
+		GossipInterval:      5 * time.Second,
+		HealthCheckInterval: 10 * time.Second,
+		HealthCheckTimeout:  3 * time.Second,
+		ReplicationFactor:   2,
+		VirtualNodes:        64,
+		MaxPeers:            32,
+		QueryTimeout:        30 * time.Second,
+		EnableAutoRebalance: true,
 	}
 }
 
-// EdgeMesh manages peer-to-peer mesh network for edge synchronization.
-type EdgeMesh struct {
-	db     *DB
-	config EdgeMeshConfig
+// PeerState represents the known state of a peer in the mesh.
+type PeerState int
 
-	// Peer management
-	peers   map[string]*MeshPeer
-	peersMu sync.RWMutex
+const (
+	PeerAlive PeerState = iota
+	PeerSuspect
+	PeerDead
+	PeerLeft
+)
 
-	// CRDT state
-	vectorClock *MeshVectorClock
-	lamportTime uint64
-	stateHash   string
-
-	// Operation log (CRDT operations)
-	opLog   *CRDTOpLog
-	opLogMu sync.RWMutex
-
-	// Sync state
-	syncState   map[string]*PeerSyncState
-	syncStateMu sync.RWMutex
-
-	// mDNS discovery
-	mdnsServer *mdnsServer
-
-	// HTTP server for mesh protocol
-	server *http.Server
-	client *http.Client
-
-	// Statistics
-	stats   EdgeMeshStats
-	statsMu sync.RWMutex
-
-	// Lifecycle
-	ctx     context.Context
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup
-	running atomic.Bool
+func (ps PeerState) String() string {
+	switch ps {
+	case PeerAlive:
+		return "alive"
+	case PeerSuspect:
+		return "suspect"
+	case PeerDead:
+		return "dead"
+	case PeerLeft:
+		return "left"
+	default:
+		return "unknown"
+	}
 }
 
-// MeshPeer represents a peer in the mesh network.
+// MeshPeer represents a peer node in the edge mesh.
 type MeshPeer struct {
 	ID            string            `json:"id"`
 	Addr          string            `json:"addr"`
-	LastSeen      time.Time         `json:"last_seen"`
-	LastSynced    time.Time         `json:"last_synced"`
-	Healthy       bool              `json:"healthy"`
-	VectorClock   map[string]uint64 `json:"vector_clock"`
-	Metadata      map[string]string `json:"metadata"`
-	SyncOffset    uint64            `json:"sync_offset"`
-	BytesSent     int64             `json:"bytes_sent"`
-	BytesReceived int64             `json:"bytes_received"`
+	State         PeerState         `json:"state"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
+	LastHeartbeat time.Time         `json:"last_heartbeat"`
+	JoinedAt      time.Time         `json:"joined_at"`
+	Incarnation   uint64            `json:"incarnation"`
+	Partitions    []uint32          `json:"partitions"`
 }
 
-// MeshVectorClock provides vector clock for CRDT causality tracking.
-type MeshVectorClock struct {
-	clocks map[string]uint64
-	mu     sync.RWMutex
+// MeshStats tracks mesh network statistics.
+type MeshStats struct {
+	NodeID          string    `json:"node_id"`
+	PeerCount       int       `json:"peer_count"`
+	AlivePeers      int       `json:"alive_peers"`
+	PartitionCount  int       `json:"partition_count"`
+	GossipsSent     int64     `json:"gossips_sent"`
+	GossipsReceived int64     `json:"gossips_received"`
+	QueriesRouted   int64     `json:"queries_routed"`
+	RebalanceCount  int64     `json:"rebalance_count"`
+	Uptime          string    `json:"uptime"`
+	StartTime       time.Time `json:"start_time"`
 }
 
-// NewMeshVectorClock creates a new vector clock.
-func NewMeshVectorClock() *MeshVectorClock {
-	return &MeshVectorClock{
-		clocks: make(map[string]uint64),
+// hashRingEntry is an entry in the consistent hash ring.
+type hashRingEntry struct {
+	hash   uint32
+	nodeID string
+}
+
+// ConsistentHashRing provides partition-to-node mapping.
+type ConsistentHashRing struct {
+	entries      []hashRingEntry
+	virtualNodes int
+	mu           sync.RWMutex
+}
+
+// NewConsistentHashRing creates a new consistent hash ring.
+func NewConsistentHashRing(virtualNodes int) *ConsistentHashRing {
+	if virtualNodes <= 0 {
+		virtualNodes = 64
+	}
+	return &ConsistentHashRing{
+		virtualNodes: virtualNodes,
 	}
 }
 
-// Tick increments the clock for a node.
-func (vc *MeshVectorClock) Tick(nodeID string) uint64 {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-	vc.clocks[nodeID]++
-	return vc.clocks[nodeID]
-}
+// AddNode adds a node to the hash ring with virtual nodes.
+func (r *ConsistentHashRing) AddNode(nodeID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-// Get returns the clock value for a node.
-func (vc *MeshVectorClock) Get(nodeID string) uint64 {
-	vc.mu.RLock()
-	defer vc.mu.RUnlock()
-	return vc.clocks[nodeID]
-}
-
-// GetAll returns a copy of all clock values.
-func (vc *MeshVectorClock) GetAll() map[string]uint64 {
-	vc.mu.RLock()
-	defer vc.mu.RUnlock()
-	result := make(map[string]uint64, len(vc.clocks))
-	for k, v := range vc.clocks {
-		result[k] = v
+	for i := 0; i < r.virtualNodes; i++ {
+		key := fmt.Sprintf("%s#%d", nodeID, i)
+		h := fnv.New32a()
+		h.Write([]byte(key))
+		r.entries = append(r.entries, hashRingEntry{hash: h.Sum32(), nodeID: nodeID})
 	}
-	return result
+	sort.Slice(r.entries, func(i, j int) bool {
+		return r.entries[i].hash < r.entries[j].hash
+	})
 }
 
-// Merge merges another vector clock, taking max values.
-func (vc *MeshVectorClock) Merge(other map[string]uint64) {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-	for node, clock := range other {
-		if clock > vc.clocks[node] {
-			vc.clocks[node] = clock
+// RemoveNode removes all entries for a node.
+func (r *ConsistentHashRing) RemoveNode(nodeID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	filtered := r.entries[:0]
+	for _, e := range r.entries {
+		if e.nodeID != nodeID {
+			filtered = append(filtered, e)
 		}
 	}
+	r.entries = filtered
 }
 
-// HappensBefore returns true if vc happened before other.
-func (vc *MeshVectorClock) HappensBefore(other map[string]uint64) bool {
-	vc.mu.RLock()
-	defer vc.mu.RUnlock()
+// GetNode returns the node responsible for a given key.
+func (r *ConsistentHashRing) GetNode(key string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-	atLeastOneLess := false
-	for node := range vc.clocks {
-		if vc.clocks[node] > other[node] {
-			return false
-		}
-		if vc.clocks[node] < other[node] {
-			atLeastOneLess = true
-		}
+	if len(r.entries) == 0 {
+		return ""
 	}
-	for node := range other {
-		if _, exists := vc.clocks[node]; !exists && other[node] > 0 {
-			atLeastOneLess = true
-		}
+
+	h := fnv.New32a()
+	h.Write([]byte(key))
+	hash := h.Sum32()
+
+	idx := sort.Search(len(r.entries), func(i int) bool {
+		return r.entries[i].hash >= hash
+	})
+	if idx >= len(r.entries) {
+		idx = 0
 	}
-	return atLeastOneLess
+	return r.entries[idx].nodeID
 }
 
-// Concurrent returns true if the clocks are concurrent (incomparable).
-func (vc *MeshVectorClock) Concurrent(other map[string]uint64) bool {
-	vc.mu.RLock()
-	defer vc.mu.RUnlock()
+// GetNodes returns the top N distinct nodes for a key (for replication).
+func (r *ConsistentHashRing) GetNodes(key string, count int) []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-	hasLess, hasGreater := false, false
-	allNodes := make(map[string]bool)
-	for n := range vc.clocks {
-		allNodes[n] = true
-	}
-	for n := range other {
-		allNodes[n] = true
-	}
-
-	for node := range allNodes {
-		v1, v2 := vc.clocks[node], other[node]
-		if v1 < v2 {
-			hasLess = true
-		} else if v1 > v2 {
-			hasGreater = true
-		}
-	}
-	return hasLess && hasGreater
-}
-
-// CRDTOpLog stores CRDT operations for synchronization.
-type CRDTOpLog struct {
-	operations []CRDTOperation
-	maxSize    int
-	mu         sync.RWMutex
-}
-
-// CRDTOperation represents a single CRDT operation.
-type CRDTOperation struct {
-	ID          string            `json:"id"`
-	Type        CRDTOpType        `json:"type"`
-	NodeID      string            `json:"node_id"`
-	Timestamp   int64             `json:"timestamp"`
-	LamportTime uint64            `json:"lamport_time"`
-	VectorClock map[string]uint64 `json:"vector_clock"`
-	Metric      string            `json:"metric"`
-	Tags        map[string]string `json:"tags"`
-	Value       float64           `json:"value"`
-	Checksum    string            `json:"checksum"`
-}
-
-// CRDTOpType identifies the type of CRDT operation.
-type CRDTOpType int
-
-const (
-	CRDTOpWrite CRDTOpType = iota
-	CRDTOpDelete
-	CRDTOpMerge
-)
-
-// NewCRDTOpLog creates a new operation log.
-func NewCRDTOpLog(maxSize int) *CRDTOpLog {
-	return &CRDTOpLog{
-		operations: make([]CRDTOperation, 0, maxSize),
-		maxSize:    maxSize,
-	}
-}
-
-// Append adds an operation to the log.
-func (l *CRDTOpLog) Append(op CRDTOperation) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	// Evict oldest if at capacity
-	if len(l.operations) >= l.maxSize {
-		l.operations = l.operations[1:]
-	}
-	l.operations = append(l.operations, op)
-}
-
-// GetSince returns operations since the given vector clock.
-func (l *CRDTOpLog) GetSince(vc map[string]uint64) []CRDTOperation {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-
-	var result []CRDTOperation
-	for _, op := range l.operations {
-		// Check if this operation is newer than the given clock
-		if isNewer(op.VectorClock, vc) {
-			result = append(result, op)
-		}
-	}
-	return result
-}
-
-// GetAll returns all operations.
-func (l *CRDTOpLog) GetAll() []CRDTOperation {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	result := make([]CRDTOperation, len(l.operations))
-	copy(result, l.operations)
-	return result
-}
-
-// Len returns the number of operations.
-func (l *CRDTOpLog) Len() int {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	return len(l.operations)
-}
-
-func isNewer(opClock, refClock map[string]uint64) bool {
-	for node, opTime := range opClock {
-		if opTime > refClock[node] {
-			return true
-		}
-	}
-	return false
-}
-
-// PeerSyncState tracks sync progress with a peer.
-type PeerSyncState struct {
-	PeerID         string            `json:"peer_id"`
-	LastSyncTime   time.Time         `json:"last_sync_time"`
-	LastVectorClock map[string]uint64 `json:"last_vector_clock"`
-	SentOpCount    uint64            `json:"sent_op_count"`
-	ReceivedOpCount uint64           `json:"received_op_count"`
-	Conflicts      uint64            `json:"conflicts"`
-	LastError      string            `json:"last_error,omitempty"`
-}
-
-// EdgeMeshStats contains mesh statistics.
-type EdgeMeshStats struct {
-	NodeID           string    `json:"node_id"`
-	PeerCount        int       `json:"peer_count"`
-	HealthyPeers     int       `json:"healthy_peers"`
-	OperationCount   uint64    `json:"operation_count"`
-	SyncCount        uint64    `json:"sync_count"`
-	ConflictsResolved uint64   `json:"conflicts_resolved"`
-	BytesSent        int64     `json:"bytes_sent"`
-	BytesReceived    int64     `json:"bytes_received"`
-	LastSyncTime     time.Time `json:"last_sync_time"`
-	Uptime           time.Duration `json:"uptime"`
-}
-
-// NewEdgeMesh creates a new edge mesh network.
-func NewEdgeMesh(db *DB, config EdgeMeshConfig) (*EdgeMesh, error) {
-	if config.NodeID == "" {
-		config.NodeID = fmt.Sprintf("mesh-%d", time.Now().UnixNano()%100000)
-	}
-	if config.SyncInterval <= 0 {
-		config.SyncInterval = 5 * time.Second
-	}
-	if config.SyncBatchSize <= 0 {
-		config.SyncBatchSize = 10000
-	}
-	if config.OfflineQueueSize <= 0 {
-		config.OfflineQueueSize = 100000
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	mesh := &EdgeMesh{
-		db:          db,
-		config:      config,
-		peers:       make(map[string]*MeshPeer),
-		vectorClock: NewMeshVectorClock(),
-		opLog:       NewCRDTOpLog(config.OfflineQueueSize),
-		syncState:   make(map[string]*PeerSyncState),
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		ctx:    ctx,
-		cancel: cancel,
-	}
-
-	// Initialize our vector clock entry
-	mesh.vectorClock.Tick(config.NodeID)
-
-	return mesh, nil
-}
-
-// Start begins mesh network operations.
-func (m *EdgeMesh) Start() error {
-	if m.running.Swap(true) {
-		return errors.New("mesh already running")
-	}
-
-	// Start HTTP server for mesh protocol
-	if m.config.BindAddr != "" {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/mesh/sync", m.handleSync)
-		mux.HandleFunc("/mesh/gossip", m.handleGossip)
-		mux.HandleFunc("/mesh/heartbeat", m.handleHeartbeat)
-		mux.HandleFunc("/mesh/operations", m.handleOperations)
-		mux.HandleFunc("/mesh/state", m.handleState)
-
-		m.server = &http.Server{
-			Addr:    m.config.BindAddr,
-			Handler: mux,
-		}
-
-		m.wg.Add(1)
-		go func() {
-			defer m.wg.Done()
-			if err := m.server.ListenAndServe(); err != http.ErrServerClosed {
-				// Server error - log but continue
-			}
-		}()
-	}
-
-	// Start mDNS discovery if enabled
-	if m.config.EnableMDNS {
-		m.startMDNS()
-	}
-
-	// Connect to seed peers
-	for _, seed := range m.config.Seeds {
-		go m.connectPeer(seed)
-	}
-
-	// Start background loops
-	m.wg.Add(3)
-	go m.syncLoop()
-	go m.gossipLoop()
-	go m.heartbeatLoop()
-
-	return nil
-}
-
-// Stop stops mesh network operations.
-func (m *EdgeMesh) Stop() error {
-	if !m.running.Swap(false) {
+	if len(r.entries) == 0 {
 		return nil
 	}
 
-	m.cancel()
+	h := fnv.New32a()
+	h.Write([]byte(key))
+	hash := h.Sum32()
 
-	if m.mdnsServer != nil {
-		m.mdnsServer.Stop()
+	idx := sort.Search(len(r.entries), func(i int) bool {
+		return r.entries[i].hash >= hash
+	})
+
+	seen := make(map[string]bool)
+	var nodes []string
+	for i := 0; i < len(r.entries) && len(nodes) < count; i++ {
+		entry := r.entries[(idx+i)%len(r.entries)]
+		if !seen[entry.nodeID] {
+			seen[entry.nodeID] = true
+			nodes = append(nodes, entry.nodeID)
+		}
+	}
+	return nodes
+}
+
+// NodeCount returns the number of distinct nodes.
+func (r *ConsistentHashRing) NodeCount() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	seen := make(map[string]bool)
+	for _, e := range r.entries {
+		seen[e.nodeID] = true
+	}
+	return len(seen)
+}
+
+// EdgeMesh manages the distributed edge mesh network.
+type EdgeMesh struct {
+	config EdgeMeshConfig
+	db     *DB
+	nodeID string
+
+	ring  *ConsistentHashRing
+	peers map[string]*MeshPeer
+	mu    sync.RWMutex
+
+	client  *http.Client
+	running atomic.Bool
+	stopCh  chan struct{}
+
+	gossipsSent     atomic.Int64
+	gossipsReceived atomic.Int64
+	queriesRouted   atomic.Int64
+	rebalanceCount  atomic.Int64
+	startTime       time.Time
+}
+
+// NewEdgeMesh creates a new edge mesh network manager.
+func NewEdgeMesh(db *DB, config EdgeMeshConfig) (*EdgeMesh, error) {
+	if config.NodeID == "" {
+		b := make([]byte, 8)
+		if _, err := rand.Read(b); err != nil {
+			return nil, fmt.Errorf("edge_mesh: failed to generate node ID: %w", err)
+		}
+		config.NodeID = "node-" + hex.EncodeToString(b)
 	}
 
-	if m.server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		m.server.Shutdown(ctx)
+	em := &EdgeMesh{
+		config:    config,
+		db:        db,
+		nodeID:    config.NodeID,
+		ring:      NewConsistentHashRing(config.VirtualNodes),
+		peers:     make(map[string]*MeshPeer),
+		client:    &http.Client{Timeout: config.HealthCheckTimeout},
+		stopCh:    make(chan struct{}),
+		startTime: time.Now(),
 	}
 
-	m.wg.Wait()
+	// Add self to ring
+	em.ring.AddNode(config.NodeID)
+
+	return em, nil
+}
+
+// Start begins mesh operations: gossip, health checking, and rebalancing.
+func (em *EdgeMesh) Start() error {
+	if em.running.Swap(true) {
+		return errors.New("edge_mesh: already running")
+	}
+
+	// Bootstrap from seed nodes
+	for _, seed := range em.config.SeedNodes {
+		go em.joinPeer(seed)
+	}
+
+	go em.gossipLoop()
+	go em.healthCheckLoop()
+
 	return nil
 }
 
-// Write performs a CRDT-aware write operation.
-func (m *EdgeMesh) Write(p Point) error {
-	// Create CRDT operation
-	lamport := atomic.AddUint64(&m.lamportTime, 1)
-	vc := m.vectorClock.Tick(m.config.NodeID)
-
-	op := CRDTOperation{
-		ID:          fmt.Sprintf("%s-%d-%d", m.config.NodeID, p.Timestamp, lamport),
-		Type:        CRDTOpWrite,
-		NodeID:      m.config.NodeID,
-		Timestamp:   p.Timestamp,
-		LamportTime: lamport,
-		VectorClock: m.vectorClock.GetAll(),
-		Metric:      p.Metric,
-		Tags:        p.Tags,
-		Value:       p.Value,
+// Stop gracefully leaves the mesh.
+func (em *EdgeMesh) Stop() error {
+	if !em.running.Swap(false) {
+		return nil
 	}
-	op.Checksum = m.calculateOpChecksum(op)
+	close(em.stopCh)
 
-	// Add to operation log
-	m.opLog.Append(op)
-
-	// Write to local database
-	if err := m.db.Write(p); err != nil {
-		return err
+	// Notify peers of departure
+	em.mu.RLock()
+	peers := make([]*MeshPeer, 0, len(em.peers))
+	for _, p := range em.peers {
+		peers = append(peers, p)
 	}
+	em.mu.RUnlock()
 
-	// Trigger async sync to peers
-	go m.broadcastOperation(op)
-
-	// Update vector clock in stats
-	_ = vc
+	for _, p := range peers {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		em.notifyLeave(ctx, p.Addr)
+		cancel()
+	}
 
 	return nil
 }
 
-// WriteBatch performs batch CRDT-aware writes.
-func (m *EdgeMesh) WriteBatch(points []Point) error {
-	for _, p := range points {
-		if err := m.Write(p); err != nil {
-			return err
-		}
-	}
-	return nil
+// NodeID returns this node's identifier.
+func (em *EdgeMesh) NodeID() string {
+	return em.nodeID
 }
 
-// Peers returns all known peers.
-func (m *EdgeMesh) Peers() []*MeshPeer {
-	m.peersMu.RLock()
-	defer m.peersMu.RUnlock()
+// Peers returns a snapshot of all known peers.
+func (em *EdgeMesh) Peers() []*MeshPeer {
+	em.mu.RLock()
+	defer em.mu.RUnlock()
 
-	peers := make([]*MeshPeer, 0, len(m.peers))
-	for _, p := range m.peers {
-		peers = append(peers, &MeshPeer{
-			ID:            p.ID,
-			Addr:          p.Addr,
-			LastSeen:      p.LastSeen,
-			LastSynced:    p.LastSynced,
-			Healthy:       p.Healthy,
-			VectorClock:   p.VectorClock,
-			Metadata:      p.Metadata,
-			BytesSent:     p.BytesSent,
-			BytesReceived: p.BytesReceived,
-		})
+	result := make([]*MeshPeer, 0, len(em.peers))
+	for _, p := range em.peers {
+		cp := *p
+		result = append(result, &cp)
 	}
-	return peers
+	return result
 }
 
-// Stats returns mesh statistics.
-func (m *EdgeMesh) Stats() EdgeMeshStats {
-	m.statsMu.RLock()
-	defer m.statsMu.RUnlock()
-
-	m.peersMu.RLock()
-	peerCount := len(m.peers)
-	healthyPeers := 0
-	for _, p := range m.peers {
-		if p.Healthy {
-			healthyPeers++
+// Stats returns mesh network statistics.
+func (em *EdgeMesh) Stats() MeshStats {
+	em.mu.RLock()
+	alive := 0
+	for _, p := range em.peers {
+		if p.State == PeerAlive {
+			alive++
 		}
 	}
-	m.peersMu.RUnlock()
+	peerCount := len(em.peers)
+	em.mu.RUnlock()
 
-	stats := m.stats
-	stats.NodeID = m.config.NodeID
-	stats.PeerCount = peerCount
-	stats.HealthyPeers = healthyPeers
-	stats.OperationCount = uint64(m.opLog.Len())
-	return stats
-}
-
-// SyncNow triggers immediate sync with all peers.
-func (m *EdgeMesh) SyncNow() error {
-	m.peersMu.RLock()
-	peers := make([]*MeshPeer, 0, len(m.peers))
-	for _, p := range m.peers {
-		if p.Healthy {
-			peers = append(peers, p)
-		}
-	}
-	m.peersMu.RUnlock()
-
-	var lastErr error
-	for _, peer := range peers {
-		if err := m.syncWithPeer(peer); err != nil {
-			lastErr = err
-		}
-	}
-	return lastErr
-}
-
-// --- Background loops ---
-
-func (m *EdgeMesh) syncLoop() {
-	defer m.wg.Done()
-
-	ticker := time.NewTicker(m.config.SyncInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-ticker.C:
-			m.performSync()
-		}
+	return MeshStats{
+		NodeID:          em.nodeID,
+		PeerCount:       peerCount,
+		AlivePeers:      alive,
+		PartitionCount:  em.ring.NodeCount(),
+		GossipsSent:     em.gossipsSent.Load(),
+		GossipsReceived: em.gossipsReceived.Load(),
+		QueriesRouted:   em.queriesRouted.Load(),
+		RebalanceCount:  em.rebalanceCount.Load(),
+		Uptime:          time.Since(em.startTime).Round(time.Second).String(),
+		StartTime:       em.startTime,
 	}
 }
 
-func (m *EdgeMesh) gossipLoop() {
-	defer m.wg.Done()
-
-	ticker := time.NewTicker(m.config.GossipInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-ticker.C:
-			m.performGossip()
-		}
+// RouteQuery determines which node(s) should handle a query and fans out.
+func (em *EdgeMesh) RouteQuery(ctx context.Context, q *Query) (*Result, error) {
+	if q == nil {
+		return nil, errors.New("edge_mesh: nil query")
 	}
+
+	partitionKey := q.Metric
+	targetNode := em.ring.GetNode(partitionKey)
+
+	// Local execution
+	if targetNode == em.nodeID || targetNode == "" {
+		return em.db.ExecuteContext(ctx, q)
+	}
+
+	// Remote execution
+	em.queriesRouted.Add(1)
+	return em.forwardQuery(ctx, targetNode, q)
 }
 
-func (m *EdgeMesh) heartbeatLoop() {
-	defer m.wg.Done()
+// ScatterGatherQuery fans out a query to all nodes and merges results.
+func (em *EdgeMesh) ScatterGatherQuery(ctx context.Context, q *Query) (*Result, error) {
+	if q == nil {
+		return nil, errors.New("edge_mesh: nil query")
+	}
 
-	ticker := time.NewTicker(m.config.HeartbeatInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-ticker.C:
-			m.sendHeartbeats()
-			m.checkPeerHealth()
+	em.mu.RLock()
+	alivePeers := make([]*MeshPeer, 0)
+	for _, p := range em.peers {
+		if p.State == PeerAlive {
+			alivePeers = append(alivePeers, p)
 		}
 	}
-}
+	em.mu.RUnlock()
 
-func (m *EdgeMesh) performSync() {
-	m.peersMu.RLock()
-	peers := make([]*MeshPeer, 0, len(m.peers))
-	for _, p := range m.peers {
-		if p.Healthy {
-			peers = append(peers, p)
-		}
+	type queryResult struct {
+		result *Result
+		err    error
+		nodeID string
 	}
-	m.peersMu.RUnlock()
 
-	for _, peer := range peers {
+	resultCh := make(chan queryResult, len(alivePeers)+1)
+
+	// Query self
+	go func() {
+		r, err := em.db.ExecuteContext(ctx, q)
+		resultCh <- queryResult{result: r, err: err, nodeID: em.nodeID}
+	}()
+
+	// Query all alive peers
+	for _, peer := range alivePeers {
 		go func(p *MeshPeer) {
-			if err := m.syncWithPeer(p); err != nil {
-				m.recordSyncError(p.ID, err)
-			}
+			r, err := em.forwardQuery(ctx, p.ID, q)
+			resultCh <- queryResult{result: r, err: err, nodeID: p.ID}
 		}(peer)
 	}
+
+	// Gather results
+	var allPoints []Point
+	expectedResults := len(alivePeers) + 1
+	var firstErr error
+
+	for i := 0; i < expectedResults; i++ {
+		select {
+		case qr := <-resultCh:
+			if qr.err != nil {
+				if firstErr == nil {
+					firstErr = qr.err
+				}
+				continue
+			}
+			if qr.result != nil {
+				allPoints = append(allPoints, qr.result.Points...)
+			}
+		case <-ctx.Done():
+			if len(allPoints) == 0 {
+				return nil, ctx.Err()
+			}
+			// Return partial results
+			break
+		}
+	}
+
+	if len(allPoints) == 0 && firstErr != nil {
+		return nil, firstErr
+	}
+
+	// Deduplicate and sort by timestamp
+	allPoints = deduplicatePoints(allPoints)
+	sort.Slice(allPoints, func(i, j int) bool {
+		return allPoints[i].Timestamp < allPoints[j].Timestamp
+	})
+
+	return &Result{Points: allPoints}, nil
 }
 
-func (m *EdgeMesh) syncWithPeer(peer *MeshPeer) error {
-	// Get peer's sync state
-	m.syncStateMu.RLock()
-	peerState, exists := m.syncState[peer.ID]
-	m.syncStateMu.RUnlock()
+// JoinCluster adds a node to the mesh by contacting an existing member.
+func (em *EdgeMesh) JoinCluster(addr string) error {
+	return em.joinPeer(addr)
+}
 
-	var lastVC map[string]uint64
-	if exists {
-		lastVC = peerState.LastVectorClock
-	} else {
-		lastVC = make(map[string]uint64)
+func (em *EdgeMesh) joinPeer(addr string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), em.config.HealthCheckTimeout)
+	defer cancel()
+
+	joinMsg := meshMessage{
+		Type:     meshMessageJoin,
+		SenderID: em.nodeID,
+		Addr:     em.config.AdvertiseAddr,
+		Time:     time.Now(),
 	}
 
-	// Get operations since peer's last known state
-	ops := m.opLog.GetSince(lastVC)
-	if len(ops) == 0 {
-		return nil // Nothing to sync
-	}
-
-	// Prepare sync request
-	req := MeshSyncRequest{
-		NodeID:      m.config.NodeID,
-		VectorClock: m.vectorClock.GetAll(),
-		Operations:  ops,
-	}
-
-	// Send sync request
-	resp, err := m.sendSyncRequest(peer, req)
+	data, err := json.Marshal(joinMsg)
 	if err != nil {
 		return err
 	}
 
-	// Apply received operations
-	for _, op := range resp.Operations {
-		if err := m.applyOperation(op); err != nil {
-			continue // Log and continue
-		}
-	}
-
-	// Merge vector clocks
-	m.vectorClock.Merge(resp.VectorClock)
-
-	// Update sync state
-	m.syncStateMu.Lock()
-	if m.syncState[peer.ID] == nil {
-		m.syncState[peer.ID] = &PeerSyncState{PeerID: peer.ID}
-	}
-	m.syncState[peer.ID].LastSyncTime = time.Now()
-	m.syncState[peer.ID].LastVectorClock = resp.VectorClock
-	m.syncState[peer.ID].SentOpCount += uint64(len(ops))
-	m.syncState[peer.ID].ReceivedOpCount += uint64(len(resp.Operations))
-	m.syncStateMu.Unlock()
-
-	// Update peer state
-	m.peersMu.Lock()
-	if p, ok := m.peers[peer.ID]; ok {
-		p.LastSynced = time.Now()
-		p.VectorClock = resp.VectorClock
-	}
-	m.peersMu.Unlock()
-
-	// Update stats
-	m.statsMu.Lock()
-	m.stats.SyncCount++
-	m.stats.LastSyncTime = time.Now()
-	m.statsMu.Unlock()
-
-	return nil
-}
-
-func (m *EdgeMesh) sendSyncRequest(peer *MeshPeer, req MeshSyncRequest) (*MeshSyncResponse, error) {
-	data, err := json.Marshal(req)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/mesh/join", addr), io.NopCloser(jsonReader(data)))
 	if err != nil {
-		return nil, err
+		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
-	// Compress if enabled
-	if m.config.CompressSync {
-		var buf bytes.Buffer
-		gw := gzip.NewWriter(&buf)
-		gw.Write(data)
-		gw.Close()
-		data = buf.Bytes()
-	}
-
-	httpReq, err := http.NewRequestWithContext(m.ctx, http.MethodPost,
-		fmt.Sprintf("http://%s/mesh/sync", peer.Addr), bytes.NewReader(data))
+	resp, err := em.client.Do(req)
 	if err != nil {
-		return nil, err
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	if m.config.CompressSync {
-		httpReq.Header.Set("Content-Encoding", "gzip")
-	}
-	httpReq.Header.Set("X-Node-ID", m.config.NodeID)
-
-	resp, err := m.client.Do(httpReq)
-	if err != nil {
-		return nil, err
+		return fmt.Errorf("edge_mesh: failed to join %s: %w", addr, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("sync failed: %d - %s", resp.StatusCode, string(body))
+		return fmt.Errorf("edge_mesh: join rejected by %s: %s", addr, string(body))
 	}
 
-	// Update stats
-	m.peersMu.Lock()
-	if p, ok := m.peers[peer.ID]; ok {
-		p.BytesSent += int64(len(data))
-	}
-	m.peersMu.Unlock()
-
-	var syncResp MeshSyncResponse
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	// Parse response to learn about the peer
+	var peerInfo meshMessage
+	if err := json.NewDecoder(resp.Body).Decode(&peerInfo); err != nil {
+		return fmt.Errorf("edge_mesh: invalid join response: %w", err)
 	}
 
-	// Decompress if needed
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		gr, err := gzip.NewReader(bytes.NewReader(body))
-		if err != nil {
-			return nil, err
-		}
-		body, err = io.ReadAll(gr)
-		gr.Close()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if err := json.Unmarshal(body, &syncResp); err != nil {
-		return nil, err
-	}
-
-	// Update received bytes
-	m.peersMu.Lock()
-	if p, ok := m.peers[peer.ID]; ok {
-		p.BytesReceived += int64(len(body))
-	}
-	m.peersMu.Unlock()
-
-	m.statsMu.Lock()
-	m.stats.BytesSent += int64(len(data))
-	m.stats.BytesReceived += int64(len(body))
-	m.statsMu.Unlock()
-
-	return &syncResp, nil
-}
-
-func (m *EdgeMesh) applyOperation(op CRDTOperation) error {
-	// Verify checksum
-	if op.Checksum != "" {
-		expected := m.calculateOpChecksum(op)
-		if op.Checksum != expected {
-			return errors.New("operation checksum mismatch")
-		}
-	}
-
-	// Check for conflicts using CRDT merge strategy
-	shouldApply, err := m.resolveConflict(op)
-	if err != nil {
-		return err
-	}
-
-	if !shouldApply {
-		return nil // Operation was superseded
-	}
-
-	// Apply to local database
-	switch op.Type {
-	case CRDTOpWrite:
-		p := Point{
-			Metric:    op.Metric,
-			Tags:      op.Tags,
-			Value:     op.Value,
-			Timestamp: op.Timestamp,
-		}
-		if err := m.db.Write(p); err != nil {
-			return err
-		}
-
-	case CRDTOpDelete:
-		// Delete operations would require additional implementation
-		// For now, just track the tombstone
-	}
-
-	// Add to our op log (if not already present)
-	m.opLog.Append(op)
-
-	// Merge vector clock
-	m.vectorClock.Merge(op.VectorClock)
-
+	em.addPeer(peerInfo.SenderID, addr, nil)
 	return nil
 }
 
-func (m *EdgeMesh) resolveConflict(op CRDTOperation) (bool, error) {
-	switch m.config.MergeStrategy {
-	case CRDTMergeLastWriteWins:
-		// Use wall-clock timestamp - always apply newer
-		return true, nil
+func (em *EdgeMesh) addPeer(id, addr string, metadata map[string]string) {
+	em.mu.Lock()
+	defer em.mu.Unlock()
 
-	case CRDTMergeLamportClock:
-		// Compare Lamport timestamps
-		if op.LamportTime > atomic.LoadUint64(&m.lamportTime) {
-			atomic.StoreUint64(&m.lamportTime, op.LamportTime)
-			return true, nil
-		}
-		// Tie-breaker: node ID
-		if op.LamportTime == atomic.LoadUint64(&m.lamportTime) {
-			return op.NodeID > m.config.NodeID, nil
-		}
-		return false, nil
+	if id == em.nodeID {
+		return
+	}
+	if len(em.peers) >= em.config.MaxPeers {
+		return
+	}
 
-	case CRDTMergeVectorClock:
-		// Check causality with vector clocks
-		if m.vectorClock.HappensBefore(op.VectorClock) {
-			// Our state is older, apply the operation
-			return true, nil
-		}
-		if m.vectorClock.Concurrent(op.VectorClock) {
-			// Concurrent operations - use tie-breaker
-			m.statsMu.Lock()
-			m.stats.ConflictsResolved++
-			m.statsMu.Unlock()
-			// Tie-breaker: higher node ID wins
-			return op.NodeID > m.config.NodeID, nil
-		}
-		// Our state is newer, skip
-		return false, nil
+	if existing, ok := em.peers[id]; ok {
+		existing.State = PeerAlive
+		existing.LastHeartbeat = time.Now()
+		existing.Addr = addr
+		return
+	}
 
-	case CRDTMergeMaxValue:
-		// For counters: keep max value
-		return true, nil
+	em.peers[id] = &MeshPeer{
+		ID:            id,
+		Addr:          addr,
+		State:         PeerAlive,
+		Metadata:      metadata,
+		LastHeartbeat: time.Now(),
+		JoinedAt:      time.Now(),
+	}
+	em.ring.AddNode(id)
 
-	case CRDTMergeUnion:
-		// For sets: always merge
-		return true, nil
-
-	default:
-		return true, nil
+	if em.config.EnableAutoRebalance {
+		em.rebalanceCount.Add(1)
 	}
 }
 
-func (m *EdgeMesh) broadcastOperation(op CRDTOperation) {
-	m.peersMu.RLock()
-	peers := make([]*MeshPeer, 0, len(m.peers))
-	for _, p := range m.peers {
-		if p.Healthy {
+func (em *EdgeMesh) removePeer(id string) {
+	em.mu.Lock()
+	defer em.mu.Unlock()
+
+	delete(em.peers, id)
+	em.ring.RemoveNode(id)
+}
+
+func (em *EdgeMesh) gossipLoop() {
+	ticker := time.NewTicker(em.config.GossipInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-em.stopCh:
+			return
+		case <-ticker.C:
+			em.gossipOnce()
+		}
+	}
+}
+
+func (em *EdgeMesh) gossipOnce() {
+	em.mu.RLock()
+	peers := make([]*MeshPeer, 0, len(em.peers))
+	for _, p := range em.peers {
+		if p.State == PeerAlive || p.State == PeerSuspect {
 			peers = append(peers, p)
 		}
 	}
-	m.peersMu.RUnlock()
-
-	for _, peer := range peers {
-		go func(p *MeshPeer) {
-			// Send single operation (lightweight)
-			req := MeshOperationRequest{
-				NodeID:    m.config.NodeID,
-				Operation: op,
-			}
-
-			data, _ := json.Marshal(req)
-			httpReq, err := http.NewRequestWithContext(m.ctx, http.MethodPost,
-				fmt.Sprintf("http://%s/mesh/operations", p.Addr), bytes.NewReader(data))
-			if err != nil {
-				return
-			}
-
-			httpReq.Header.Set("Content-Type", "application/json")
-			httpReq.Header.Set("X-Node-ID", m.config.NodeID)
-
-			resp, err := m.client.Do(httpReq)
-			if err != nil {
-				return
-			}
-			resp.Body.Close()
-		}(peer)
-	}
-}
-
-func (m *EdgeMesh) calculateOpChecksum(op CRDTOperation) string {
-	// Create deterministic representation
-	data := fmt.Sprintf("%s:%s:%d:%d:%s:%.15f",
-		op.NodeID, op.Metric, op.Timestamp, op.LamportTime,
-		sortedTagsString(op.Tags), op.Value)
-	hash := sha256.Sum256([]byte(data))
-	return hex.EncodeToString(hash[:8])
-}
-
-func sortedTagsString(tags map[string]string) string {
-	if len(tags) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(tags))
-	for k := range tags {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var sb strings.Builder
-	for i, k := range keys {
-		if i > 0 {
-			sb.WriteByte(',')
-		}
-		sb.WriteString(k)
-		sb.WriteByte('=')
-		sb.WriteString(tags[k])
-	}
-	return sb.String()
-}
-
-func (m *EdgeMesh) performGossip() {
-	m.peersMu.RLock()
-	peers := make([]*MeshPeer, 0, len(m.peers))
-	for _, p := range m.peers {
-		if p.Healthy {
-			peers = append(peers, p)
-		}
-	}
-	m.peersMu.RUnlock()
+	em.mu.RUnlock()
 
 	if len(peers) == 0 {
 		return
 	}
 
-	// Select random subset of peers for gossip
-	numTargets := 3
-	if len(peers) < numTargets {
-		numTargets = len(peers)
+	// Gossip to a random subset (fanout of 3)
+	fanout := 3
+	if fanout > len(peers) {
+		fanout = len(peers)
 	}
 
-	// Shuffle and take first numTargets
-	for i := len(peers) - 1; i > 0; i-- {
-		j := int(time.Now().UnixNano()) % (i + 1)
-		peers[i], peers[j] = peers[j], peers[i]
+	gossipState := em.buildGossipState()
+	data, err := json.Marshal(gossipState)
+	if err != nil {
+		return
 	}
 
-	gossip := MeshGossipMessage{
-		NodeID:      m.config.NodeID,
-		Addr:        m.config.AdvertiseAddr,
-		VectorClock: m.vectorClock.GetAll(),
-		Peers:       m.getPeerList(),
-	}
-
-	data, _ := json.Marshal(gossip)
-
-	for i := 0; i < numTargets; i++ {
-		go func(peer *MeshPeer) {
-			httpReq, err := http.NewRequestWithContext(m.ctx, http.MethodPost,
-				fmt.Sprintf("http://%s/mesh/gossip", peer.Addr), bytes.NewReader(data))
-			if err != nil {
-				return
-			}
-
-			httpReq.Header.Set("Content-Type", "application/json")
-			httpReq.Header.Set("X-Node-ID", m.config.NodeID)
-
-			resp, err := m.client.Do(httpReq)
-			if err != nil {
-				return
-			}
-			defer resp.Body.Close()
-
-			var respGossip MeshGossipMessage
-			if err := json.NewDecoder(resp.Body).Decode(&respGossip); err != nil {
-				return
-			}
-
-			// Add newly discovered peers
-			for _, p := range respGossip.Peers {
-				m.addPeer(p.ID, p.Addr)
-			}
-
-			// Merge vector clock
-			m.vectorClock.Merge(respGossip.VectorClock)
-		}(peers[i])
+	for i := 0; i < fanout; i++ {
+		peer := peers[i%len(peers)]
+		go em.sendGossip(peer.Addr, data)
 	}
 }
 
-func (m *EdgeMesh) getPeerList() []MeshPeerInfo {
-	m.peersMu.RLock()
-	defer m.peersMu.RUnlock()
+func (em *EdgeMesh) buildGossipState() meshMessage {
+	em.mu.RLock()
+	defer em.mu.RUnlock()
 
-	peers := make([]MeshPeerInfo, 0, len(m.peers))
-	for _, p := range m.peers {
-		peers = append(peers, MeshPeerInfo{
-			ID:   p.ID,
-			Addr: p.Addr,
+	peerList := make([]meshPeerInfo, 0, len(em.peers))
+	for _, p := range em.peers {
+		peerList = append(peerList, meshPeerInfo{
+			ID:    p.ID,
+			Addr:  p.Addr,
+			State: p.State,
 		})
 	}
-	return peers
+
+	return meshMessage{
+		Type:     meshMessageGossip,
+		SenderID: em.nodeID,
+		Addr:     em.config.AdvertiseAddr,
+		Time:     time.Now(),
+		Peers:    peerList,
+	}
 }
 
-func (m *EdgeMesh) sendHeartbeats() {
-	m.peersMu.RLock()
-	peers := make([]*MeshPeer, 0, len(m.peers))
-	for _, p := range m.peers {
+func (em *EdgeMesh) sendGossip(addr string, data []byte) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/mesh/gossip", addr), io.NopCloser(jsonReader(data)))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := em.client.Do(req)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
+	em.gossipsSent.Add(1)
+}
+
+func (em *EdgeMesh) healthCheckLoop() {
+	ticker := time.NewTicker(em.config.HealthCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-em.stopCh:
+			return
+		case <-ticker.C:
+			em.checkPeerHealth()
+		}
+	}
+}
+
+func (em *EdgeMesh) checkPeerHealth() {
+	em.mu.RLock()
+	peers := make([]*MeshPeer, 0, len(em.peers))
+	for _, p := range em.peers {
 		peers = append(peers, p)
 	}
-	m.peersMu.RUnlock()
+	em.mu.RUnlock()
 
-	heartbeat := MeshHeartbeat{
-		NodeID:      m.config.NodeID,
-		Timestamp:   time.Now().UnixNano(),
-		VectorClock: m.vectorClock.GetAll(),
-	}
+	for _, p := range peers {
+		ctx, cancel := context.WithTimeout(context.Background(), em.config.HealthCheckTimeout)
+		err := em.pingPeer(ctx, p.Addr)
+		cancel()
 
-	data, _ := json.Marshal(heartbeat)
-
-	for _, peer := range peers {
-		go func(p *MeshPeer) {
-			httpReq, err := http.NewRequestWithContext(m.ctx, http.MethodPost,
-				fmt.Sprintf("http://%s/mesh/heartbeat", p.Addr), bytes.NewReader(data))
-			if err != nil {
-				return
+		em.mu.Lock()
+		if err != nil {
+			switch p.State {
+			case PeerAlive:
+				p.State = PeerSuspect
+			case PeerSuspect:
+				p.State = PeerDead
+				em.ring.RemoveNode(p.ID)
 			}
-
-			httpReq.Header.Set("Content-Type", "application/json")
-			httpReq.Header.Set("X-Node-ID", m.config.NodeID)
-
-			resp, err := m.client.Do(httpReq)
-			if err != nil {
-				m.markPeerUnhealthy(p.ID)
-				return
-			}
-			resp.Body.Close()
-
-			if resp.StatusCode == http.StatusOK {
-				m.markPeerHealthy(p.ID)
-			}
-		}(peer)
-	}
-}
-
-func (m *EdgeMesh) checkPeerHealth() {
-	now := time.Now()
-
-	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
-
-	for _, peer := range m.peers {
-		if now.Sub(peer.LastSeen) > m.config.PeerTimeout {
-			peer.Healthy = false
+		} else {
+			p.State = PeerAlive
+			p.LastHeartbeat = time.Now()
 		}
+		em.mu.Unlock()
 	}
 }
 
-func (m *EdgeMesh) addPeer(id, addr string) {
-	if id == m.config.NodeID {
-		return // Don't add ourselves
-	}
-
-	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
-
-	if len(m.peers) >= m.config.MaxPeers {
-		return // At capacity
-	}
-
-	if _, exists := m.peers[id]; !exists {
-		m.peers[id] = &MeshPeer{
-			ID:          id,
-			Addr:        addr,
-			LastSeen:    time.Now(),
-			Healthy:     true,
-			VectorClock: make(map[string]uint64),
-			Metadata:    make(map[string]string),
-		}
-	}
-}
-
-func (m *EdgeMesh) markPeerHealthy(id string) {
-	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
-	if peer, ok := m.peers[id]; ok {
-		peer.Healthy = true
-		peer.LastSeen = time.Now()
-	}
-}
-
-func (m *EdgeMesh) markPeerUnhealthy(id string) {
-	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
-	if peer, ok := m.peers[id]; ok {
-		peer.Healthy = false
-	}
-}
-
-func (m *EdgeMesh) connectPeer(addr string) {
-	// Send initial gossip to discover peer info
-	gossip := MeshGossipMessage{
-		NodeID:      m.config.NodeID,
-		Addr:        m.config.AdvertiseAddr,
-		VectorClock: m.vectorClock.GetAll(),
-		Peers:       m.getPeerList(),
-	}
-
-	data, _ := json.Marshal(gossip)
-
-	httpReq, err := http.NewRequestWithContext(m.ctx, http.MethodPost,
-		fmt.Sprintf("http://%s/mesh/gossip", addr), bytes.NewReader(data))
+func (em *EdgeMesh) pingPeer(ctx context.Context, addr string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://%s/mesh/ping", addr), nil)
 	if err != nil {
-		return
+		return err
 	}
 
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("X-Node-ID", m.config.NodeID)
-
-	resp, err := m.client.Do(httpReq)
+	resp, err := em.client.Do(req)
 	if err != nil {
-		return
+		return err
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("ping returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (em *EdgeMesh) forwardQuery(ctx context.Context, targetNodeID string, q *Query) (*Result, error) {
+	em.mu.RLock()
+	peer, ok := em.peers[targetNodeID]
+	em.mu.RUnlock()
+
+	if !ok {
+		// Fallback to local
+		return em.db.ExecuteContext(ctx, q)
+	}
+
+	data, err := json.Marshal(q)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/mesh/query", peer.Addr), io.NopCloser(jsonReader(data)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := em.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("edge_mesh: query forward to %s failed: %w", targetNodeID, err)
 	}
 	defer resp.Body.Close()
 
-	var respGossip MeshGossipMessage
-	if err := json.NewDecoder(resp.Body).Decode(&respGossip); err != nil {
-		return
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("edge_mesh: remote query error: %s", string(body))
 	}
 
-	// Add the peer
-	m.addPeer(respGossip.NodeID, addr)
-
-	// Add any peers it knows about
-	for _, p := range respGossip.Peers {
-		m.addPeer(p.ID, p.Addr)
+	var result Result
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("edge_mesh: invalid query response: %w", err)
 	}
+	return &result, nil
 }
 
-func (m *EdgeMesh) recordSyncError(peerID string, err error) {
-	m.syncStateMu.Lock()
-	defer m.syncStateMu.Unlock()
-	if state, ok := m.syncState[peerID]; ok {
-		state.LastError = err.Error()
+func (em *EdgeMesh) notifyLeave(ctx context.Context, addr string) {
+	msg := meshMessage{
+		Type:     meshMessageLeave,
+		SenderID: em.nodeID,
+		Time:     time.Now(),
 	}
-}
+	data, _ := json.Marshal(msg)
 
-// --- HTTP Handlers ---
-
-func (m *EdgeMesh) handleSync(w http.ResponseWriter, r *http.Request) {
-	var req MeshSyncRequest
-
-	body, err := io.ReadAll(r.Body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/mesh/leave", addr), io.NopCloser(jsonReader(data)))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	req.Header.Set("Content-Type", "application/json")
 
-	// Decompress if needed
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		gr, err := gzip.NewReader(bytes.NewReader(body))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		body, _ = io.ReadAll(gr)
-		gr.Close()
-	}
-
-	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	resp, err := em.client.Do(req)
+	if err != nil {
 		return
 	}
-
-	// Apply received operations
-	for _, op := range req.Operations {
-		_ = m.applyOperation(op)
-	}
-
-	// Get our operations that the peer doesn't have
-	opsToSend := m.opLog.GetSince(req.VectorClock)
-
-	// Limit response size
-	if len(opsToSend) > m.config.SyncBatchSize {
-		opsToSend = opsToSend[:m.config.SyncBatchSize]
-	}
-
-	resp := MeshSyncResponse{
-		NodeID:      m.config.NodeID,
-		VectorClock: m.vectorClock.GetAll(),
-		Operations:  opsToSend,
-	}
-
-	respData, _ := json.Marshal(resp)
-
-	// Compress response if requested
-	if m.config.CompressSync && r.Header.Get("Accept-Encoding") == "gzip" {
-		w.Header().Set("Content-Encoding", "gzip")
-		var buf bytes.Buffer
-		gw := gzip.NewWriter(&buf)
-		gw.Write(respData)
-		gw.Close()
-		respData = buf.Bytes()
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(respData)
+	resp.Body.Close()
 }
 
-func (m *EdgeMesh) handleGossip(w http.ResponseWriter, r *http.Request) {
-	var gossip MeshGossipMessage
-	if err := json.NewDecoder(r.Body).Decode(&gossip); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+// RegisterHTTPHandlers registers mesh protocol handlers.
+func (em *EdgeMesh) RegisterHTTPHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("/mesh/ping", em.handlePing)
+	mux.HandleFunc("/mesh/join", em.handleJoin)
+	mux.HandleFunc("/mesh/gossip", em.handleGossip)
+	mux.HandleFunc("/mesh/leave", em.handleLeave)
+	mux.HandleFunc("/mesh/query", em.handleQuery)
+	mux.HandleFunc("/mesh/stats", em.handleStats)
+}
+
+func (em *EdgeMesh) handlePing(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"node_id": em.nodeID,
+		"status":  "ok",
+		"time":    time.Now(),
+	})
+}
+
+func (em *EdgeMesh) handleJoin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Add/update the sender
-	m.addPeer(gossip.NodeID, gossip.Addr)
-	m.markPeerHealthy(gossip.NodeID)
-
-	// Add any peers they know about
-	for _, p := range gossip.Peers {
-		m.addPeer(p.ID, p.Addr)
+	var msg meshMessage
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
 	}
 
-	// Merge vector clock
-	m.vectorClock.Merge(gossip.VectorClock)
+	em.addPeer(msg.SenderID, msg.Addr, nil)
 
-	// Respond with our state
-	resp := MeshGossipMessage{
-		NodeID:      m.config.NodeID,
-		Addr:        m.config.AdvertiseAddr,
-		VectorClock: m.vectorClock.GetAll(),
-		Peers:       m.getPeerList(),
+	resp := meshMessage{
+		Type:     meshMessageJoin,
+		SenderID: em.nodeID,
+		Addr:     em.config.AdvertiseAddr,
+		Time:     time.Now(),
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (m *EdgeMesh) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
-	var heartbeat MeshHeartbeat
-	if err := json.NewDecoder(r.Body).Decode(&heartbeat); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+func (em *EdgeMesh) handleGossip(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Update peer state
-	m.markPeerHealthy(heartbeat.NodeID)
+	var msg meshMessage
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
 
-	// Merge vector clock
-	m.vectorClock.Merge(heartbeat.VectorClock)
+	em.gossipsReceived.Add(1)
+
+	// Merge peer information
+	for _, pi := range msg.Peers {
+		if pi.ID != em.nodeID {
+			em.addPeer(pi.ID, pi.Addr, nil)
+		}
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func (m *EdgeMesh) handleOperations(w http.ResponseWriter, r *http.Request) {
-	var req MeshOperationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+func (em *EdgeMesh) handleLeave(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Apply the operation
-	if err := m.applyOperation(req.Operation); err != nil {
+	var msg meshMessage
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	em.removePeer(msg.SenderID)
+	w.WriteHeader(http.StatusOK)
+}
+
+func (em *EdgeMesh) handleQuery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var q Query
+	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
+		http.Error(w, "invalid query", http.StatusBadRequest)
+		return
+	}
+
+	result, err := em.db.ExecuteContext(r.Context(), &q)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-}
-
-func (m *EdgeMesh) handleState(w http.ResponseWriter, r *http.Request) {
-	state := MeshStateResponse{
-		NodeID:      m.config.NodeID,
-		VectorClock: m.vectorClock.GetAll(),
-		PeerCount:   len(m.peers),
-		OpLogSize:   m.opLog.Len(),
-		Stats:       m.Stats(),
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(state)
+	json.NewEncoder(w).Encode(result)
 }
 
-// --- mDNS Discovery ---
-
-type mdnsServer struct {
-	service string
-	nodeID  string
-	addr    string
-	running atomic.Bool
-	cancel  context.CancelFunc
+func (em *EdgeMesh) handleStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(em.Stats())
 }
 
-func (m *EdgeMesh) startMDNS() {
-	if m.config.MDNSService == "" {
-		return
-	}
+// meshMessageType identifies the type of mesh protocol message.
+type meshMessageType string
 
-	ctx, cancel := context.WithCancel(m.ctx)
-	m.mdnsServer = &mdnsServer{
-		service: m.config.MDNSService,
-		nodeID:  m.config.NodeID,
-		addr:    m.config.AdvertiseAddr,
-		cancel:  cancel,
-	}
-	m.mdnsServer.running.Store(true)
+const (
+	meshMessageJoin   meshMessageType = "join"
+	meshMessageLeave  meshMessageType = "leave"
+	meshMessageGossip meshMessageType = "gossip"
+	meshMessagePing   meshMessageType = "ping"
+)
 
-	// Start mDNS advertiser
-	go m.mdnsAdvertise(ctx)
-
-	// Start mDNS browser
-	go m.mdnsBrowse(ctx)
+// meshMessage is the wire format for mesh protocol communication.
+type meshMessage struct {
+	Type     meshMessageType `json:"type"`
+	SenderID string          `json:"sender_id"`
+	Addr     string          `json:"addr"`
+	Time     time.Time       `json:"time"`
+	Peers    []meshPeerInfo  `json:"peers,omitempty"`
 }
 
-func (m *EdgeMesh) mdnsAdvertise(ctx context.Context) {
-	// Simplified mDNS - in production would use proper mDNS library
-	addr, err := net.ResolveUDPAddr("udp4", "224.0.0.251:5353")
-	if err != nil {
-		return
+type meshPeerInfo struct {
+	ID    string    `json:"id"`
+	Addr  string    `json:"addr"`
+	State PeerState `json:"state"`
+}
+
+func deduplicatePoints(points []Point) []Point {
+	if len(points) <= 1 {
+		return points
 	}
 
-	conn, err := net.ListenMulticastUDP("udp4", nil, addr)
-	if err != nil {
-		return
-	}
-	defer conn.Close()
+	seen := make(map[string]bool, len(points))
+	result := make([]Point, 0, len(points))
 
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	announcement := fmt.Sprintf("%s._chronicle._tcp.local\tIN\tTXT\t\"id=%s\" \"addr=%s\"",
-		m.config.NodeID, m.config.NodeID, m.config.AdvertiseAddr)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			conn.WriteToUDP([]byte(announcement), addr)
+	for _, p := range points {
+		key := fmt.Sprintf("%s|%d|%f", p.Metric, p.Timestamp, p.Value)
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, p)
 		}
 	}
+	return result
 }
 
-func (m *EdgeMesh) mdnsBrowse(ctx context.Context) {
-	addr, err := net.ResolveUDPAddr("udp4", "224.0.0.251:5353")
-	if err != nil {
-		return
+func jsonReader(data []byte) io.Reader {
+	return io.NopCloser(io.LimitReader(io.NopCloser(
+		func() io.Reader {
+			return nopReader(data)
+		}(),
+	), int64(len(data))))
+}
+
+type nopReaderType struct {
+	data   []byte
+	offset int
+}
+
+func nopReader(data []byte) *nopReaderType {
+	return &nopReaderType{data: data}
+}
+
+func (r *nopReaderType) Read(p []byte) (int, error) {
+	if r.offset >= len(r.data) {
+		return 0, io.EOF
 	}
-
-	conn, err := net.ListenMulticastUDP("udp4", nil, addr)
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-
-	buf := make([]byte, 1500)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			conn.SetReadDeadline(time.Now().Add(time.Second))
-			n, _, err := conn.ReadFromUDP(buf)
-			if err != nil {
-				continue
-			}
-
-			// Parse mDNS response (simplified)
-			response := string(buf[:n])
-			if strings.Contains(response, "_chronicle._tcp") {
-				// Extract peer info and add
-				// This is simplified - real implementation would parse DNS records
-			}
-		}
-	}
-}
-
-func (s *mdnsServer) Stop() {
-	if !s.running.Swap(false) {
-		return
-	}
-	s.cancel()
-}
-
-// --- Message Types ---
-
-// MeshSyncRequest is sent to synchronize with a peer.
-type MeshSyncRequest struct {
-	NodeID      string            `json:"node_id"`
-	VectorClock map[string]uint64 `json:"vector_clock"`
-	Operations  []CRDTOperation   `json:"operations"`
-}
-
-// MeshSyncResponse is the response to a sync request.
-type MeshSyncResponse struct {
-	NodeID      string            `json:"node_id"`
-	VectorClock map[string]uint64 `json:"vector_clock"`
-	Operations  []CRDTOperation   `json:"operations"`
-}
-
-// MeshGossipMessage is used for peer discovery.
-type MeshGossipMessage struct {
-	NodeID      string            `json:"node_id"`
-	Addr        string            `json:"addr"`
-	VectorClock map[string]uint64 `json:"vector_clock"`
-	Peers       []MeshPeerInfo    `json:"peers"`
-}
-
-// MeshPeerInfo contains basic peer information.
-type MeshPeerInfo struct {
-	ID   string `json:"id"`
-	Addr string `json:"addr"`
-}
-
-// MeshHeartbeat is sent for health checking.
-type MeshHeartbeat struct {
-	NodeID      string            `json:"node_id"`
-	Timestamp   int64             `json:"timestamp"`
-	VectorClock map[string]uint64 `json:"vector_clock"`
-}
-
-// MeshOperationRequest sends a single operation to a peer.
-type MeshOperationRequest struct {
-	NodeID    string        `json:"node_id"`
-	Operation CRDTOperation `json:"operation"`
-}
-
-// MeshStateResponse returns mesh state information.
-type MeshStateResponse struct {
-	NodeID      string            `json:"node_id"`
-	VectorClock map[string]uint64 `json:"vector_clock"`
-	PeerCount   int               `json:"peer_count"`
-	OpLogSize   int               `json:"op_log_size"`
-	Stats       EdgeMeshStats     `json:"stats"`
+	n := copy(p, r.data[r.offset:])
+	r.offset += n
+	return n, nil
 }
