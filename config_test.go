@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -374,5 +375,76 @@ func TestAuthConfig_Defaults(t *testing.T) {
 	cfg = &AuthConfig{}
 	if cfg.Enabled {
 		t.Error("empty AuthConfig should not be enabled")
+	}
+}
+
+func TestConfig_Validate_Valid(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("DefaultConfig should be valid, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_NoPathOrBackend(t *testing.T) {
+	cfg := Config{}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error for empty config")
+	}
+	if !strings.Contains(err.Error(), "Path or StorageBackend") {
+		t.Errorf("expected path/backend error, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_NegativeValues(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Storage.PartitionDuration = -time.Hour
+	cfg.Storage.BufferSize = -1
+	cfg.HTTP.HTTPPort = 99999
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation errors")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "PartitionDuration") {
+		t.Error("expected PartitionDuration error")
+	}
+	if !strings.Contains(msg, "BufferSize") {
+		t.Error("expected BufferSize error")
+	}
+	if !strings.Contains(msg, "HTTPPort") {
+		t.Error("expected HTTPPort error")
+	}
+}
+
+func TestConfig_Validate_AuthNoKeys(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Auth = &AuthConfig{Enabled: true}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected auth error")
+	}
+	if !strings.Contains(err.Error(), "APIKeys") {
+		t.Errorf("expected APIKeys error, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_AuthWithKeys(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Auth = &AuthConfig{Enabled: true, APIKeys: []string{"key1"}}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("auth with keys should be valid, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_LegacyFields(t *testing.T) {
+	cfg := Config{
+		Path:              "/test/path.db",
+		PartitionDuration: time.Hour,
+		BufferSize:        5000,
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("config with legacy fields should validate after normalization, got: %v", err)
 	}
 }
