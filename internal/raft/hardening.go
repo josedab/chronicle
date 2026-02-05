@@ -1,4 +1,4 @@
-package chronicle
+package raft
 
 import (
 	"bytes"
