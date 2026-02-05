@@ -1,31 +1,61 @@
-package chronicle
+package continuousquery
 
 import (
 	"context"
-	"os"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
-func TestContinuousQueryEngine(t *testing.T) {
-	// Create temp DB
-	path := "test_cq.db"
-	defer os.Remove(path)
-	defer os.Remove(path + ".wal")
+// mockPointWriter implements PointWriter for testing.
+type mockPointWriter struct{}
 
-	db, err := Open(path, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	if err != nil {
-		t.Fatalf("Failed to open DB: %v", err)
+func (m *mockPointWriter) WritePoint(p Point) error { return nil }
+
+// mockStreamSubscription implements StreamSubscription for testing.
+type mockStreamSubscription struct {
+	ch   chan Point
+	done chan struct{}
+}
+
+func (s *mockStreamSubscription) C() <-chan Point { return s.ch }
+func (s *mockStreamSubscription) Close() {
+	select {
+	case <-s.done:
+	default:
+		close(s.done)
+		close(s.ch)
 	}
-	defer db.Close()
+}
 
-	hub := NewStreamHub(db, DefaultStreamConfig())
+// mockStreamBus implements StreamBus for testing.
+type mockStreamBus struct {
+	subs []*mockStreamSubscription
+}
+
+func (b *mockStreamBus) Subscribe(topic string, tags map[string]string) StreamSubscription {
+	sub := &mockStreamSubscription{
+		ch:   make(chan Point, 100),
+		done: make(chan struct{}),
+	}
+	b.subs = append(b.subs, sub)
+	return sub
+}
+
+func (b *mockStreamBus) Publish(p Point) {
+	for _, sub := range b.subs {
+		select {
+		case sub.ch <- p:
+		default:
+		}
+	}
+}
+
+func TestContinuousQueryEngine(t *testing.T) {
+	pw := &mockPointWriter{}
+	bus := &mockStreamBus{}
 	config := DefaultContinuousQueryConfig()
-	engine := NewContinuousQueryEngine(db, hub, config)
+	engine := NewContinuousQueryEngine(pw, bus, config)
 
 	if err := engine.Start(); err != nil {
 		t.Fatalf("Failed to start engine: %v", err)
@@ -348,19 +378,10 @@ func TestContinuousQueryEngine_Operators(t *testing.T) {
 }
 
 func TestContinuousQueryEngine_MaterializedView(t *testing.T) {
-	path := "test_cq_view.db"
-	defer os.Remove(path)
-	defer os.Remove(path + ".wal")
-
-	db, _ := Open(path, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	defer db.Close()
-
-	hub := NewStreamHub(db, DefaultStreamConfig())
+	pw := &mockPointWriter{}
+	bus := &mockStreamBus{}
 	config := DefaultContinuousQueryConfig()
-	engine := NewContinuousQueryEngine(db, hub, config)
+	engine := NewContinuousQueryEngine(pw, bus, config)
 	engine.Start()
 	defer engine.Stop()
 
@@ -633,19 +654,10 @@ func TestPartitionedQuery(t *testing.T) {
 }
 
 func TestContinuousQueryEngine_DataFlow(t *testing.T) {
-	path := "test_cq_flow.db"
-	defer os.Remove(path)
-	defer os.Remove(path + ".wal")
-
-	db, _ := Open(path, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	defer db.Close()
-
-	hub := NewStreamHub(db, DefaultStreamConfig())
+	pw := &mockPointWriter{}
+	bus := &mockStreamBus{}
 	config := DefaultContinuousQueryConfig()
-	engine := NewContinuousQueryEngine(db, hub, config)
+	engine := NewContinuousQueryEngine(pw, bus, config)
 	engine.Start()
 	defer engine.Stop()
 
@@ -667,7 +679,7 @@ func TestContinuousQueryEngine_DataFlow(t *testing.T) {
 
 	// Publish some data
 	for i := 0; i < 10; i++ {
-		hub.Publish(Point{
+		bus.Publish(Point{
 			Metric:    "test_stream",
 			Value:     float64(i),
 			Timestamp: time.Now().UnixNano(),
