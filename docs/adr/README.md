@@ -18,6 +18,8 @@ ADRs document significant architectural decisions made during the development of
 | [ADR-0008](0008-tag-based-multitenancy.md) | Tag-Based Multi-Tenancy Isolation | Accepted |
 | [ADR-0009](0009-async-replication.md) | Fire-and-Forget Async Replication Model | Accepted |
 | [ADR-0010](0010-protocol-agnostic-ingestion.md) | Protocol-Agnostic Ingestion Layer | Accepted |
+| [ADR-0011](0011-encryption-at-rest.md) | AES-256-GCM Encryption at Rest | Accepted |
+| [ADR-0012](0012-embedded-optional-http.md) | Embedded Database with Optional HTTP Server | Accepted |
 
 ## ADR Format
 
