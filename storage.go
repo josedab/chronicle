@@ -69,9 +69,9 @@ func persistPartition(file *os.File, part *Partition) error {
 		return err
 	}
 
-	part.Offset = offset
-	part.Length = int64(len(payload)) + blockHeaderSize
-	part.Size = part.Length
+	part.offset = offset
+	part.length = int64(len(payload)) + blockHeaderSize
+	part.size = part.length
 
 	return nil
 }
@@ -180,28 +180,28 @@ func encodeIndex(idx *Index) ([]byte, error) {
 	}
 
 	for _, part := range idx.partitions {
-		if err := binary.Write(buf, binary.LittleEndian, part.ID); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.id); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.StartTime); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.startTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.EndTime); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.endTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.MinTime); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.minTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.MaxTime); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.maxTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.PointCount); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.pointCount); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.Offset); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.offset); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(buf, binary.LittleEndian, part.Length); err != nil {
+		if err := binary.Write(buf, binary.LittleEndian, part.length); err != nil {
 			return nil, err
 		}
 	}
@@ -244,35 +244,35 @@ func decodeIndex(payload []byte) (*Index, error) {
 
 	for i := uint32(0); i < count; i++ {
 		part := &Partition{}
-		if err := binary.Read(reader, binary.LittleEndian, &part.ID); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.id); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.StartTime); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.startTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.EndTime); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.endTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.MinTime); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.minTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.MaxTime); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.maxTime); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.PointCount); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.pointCount); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.Offset); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.offset); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &part.Length); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &part.length); err != nil {
 			return nil, err
 		}
 
-		part.Series = make(map[string]*SeriesData)
+		part.series = make(map[string]*SeriesData)
 		part.loaded = false
 
-		idx.byID[part.ID] = part
+		idx.byID[part.id] = part
 		idx.partitions = append(idx.partitions, part)
 	}
 

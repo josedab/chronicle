@@ -40,16 +40,16 @@ func (idx *Index) GetOrCreatePartition(id uint64, start, end int64) *Partition {
 	}
 
 	part := &Partition{
-		ID:        id,
-		StartTime: start,
-		EndTime:   end,
-		Series:    make(map[string]*SeriesData),
+		id:        id,
+		startTime: start,
+		endTime:   end,
+		series:    make(map[string]*SeriesData),
 		loaded:    true,
 	}
 	idx.byID[id] = part
 	idx.partitions = append(idx.partitions, part)
 	sort.Slice(idx.partitions, func(i, j int) bool {
-		return idx.partitions[i].StartTime < idx.partitions[j].StartTime
+		return idx.partitions[i].startTime < idx.partitions[j].startTime
 	})
 	idx.timeIndex.Insert(start, part)
 
@@ -70,10 +70,10 @@ func (idx *Index) FindPartitions(start, end int64) []*Partition {
 	}
 	result := make([]*Partition, 0, len(candidates))
 	for _, part := range candidates {
-		if end != 0 && part.StartTime >= end {
+		if end != 0 && part.startTime >= end {
 			continue
 		}
-		if part.EndTime <= start {
+		if part.endTime <= start {
 			continue
 		}
 		result = append(result, part)
@@ -92,8 +92,8 @@ func (idx *Index) RemovePartitionsBefore(cutoff int64) bool {
 	var kept []*Partition
 	removed := false
 	for _, part := range idx.partitions {
-		if part.EndTime <= cutoff {
-			delete(idx.byID, part.ID)
+		if part.endTime <= cutoff {
+			delete(idx.byID, part.id)
 			removed = true
 			continue
 		}
@@ -118,7 +118,7 @@ func (idx *Index) RemoveOldestPartition() bool {
 	}
 	oldest := idx.partitions[0]
 	idx.partitions = idx.partitions[1:]
-	delete(idx.byID, oldest.ID)
+	delete(idx.byID, oldest.id)
 	idx.rebuildTimeIndexLocked()
 	return true
 }
@@ -134,7 +134,7 @@ func (idx *Index) RemovePartitionByID(id uint64) bool {
 	delete(idx.byID, id)
 	filtered := idx.partitions[:0]
 	for _, part := range idx.partitions {
-		if part.ID == id {
+		if part.id == id {
 			continue
 		}
 		filtered = append(filtered, part)
@@ -246,7 +246,7 @@ func (idx *Index) FilterSeries(metric string, tags map[string]string) map[uint64
 func (idx *Index) rebuildTimeIndexLocked() {
 	idx.timeIndex = newBTree(8)
 	for _, part := range idx.partitions {
-		idx.timeIndex.Insert(part.StartTime, part)
+		idx.timeIndex.Insert(part.startTime, part)
 	}
 }
 
