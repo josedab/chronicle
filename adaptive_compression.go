@@ -1,5 +1,10 @@
 package chronicle
 
+// adaptive_compression.go implements V1 of the adaptive compression engine.
+// V2 (adaptive_compression_v2.go) adds per-column codec profiling and selection.
+// V3 (adaptive_compression_v3.go) adds multi-armed bandit online codec selection.
+// New callers should prefer the V3 API (BanditCompressor) for best results.
+
 import (
 	"bytes"
 	"compress/gzip"

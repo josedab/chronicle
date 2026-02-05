@@ -324,6 +324,7 @@ func TestPointInTimeQuery(t *testing.T) {
 		Value:       120.0,
 		EventTime:   baseTime + int64(30*time.Minute),
 	})
+	_ = db.Flush()
 
 	// Query at specific time
 	asOfTime := baseTime + int64(15*time.Minute)
@@ -419,6 +420,7 @@ func TestOnlineServing(t *testing.T) {
 	fs.WriteFeature(ctx, &FeatureValue{FeatureName: "f2", EntityID: "u1", Value: 20.0})
 	fs.WriteFeature(ctx, &FeatureValue{FeatureName: "f1", EntityID: "u2", Value: 30.0})
 	fs.WriteFeature(ctx, &FeatureValue{FeatureName: "f2", EntityID: "u2", Value: 40.0})
+	_ = db.Flush()
 
 	// Online serving request
 	req := &OnlineServingRequest{

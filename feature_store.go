@@ -764,7 +764,7 @@ func (fs *FeatureStore) ServeOnline(ctx context.Context, req *OnlineServingReque
 		response.Vectors = append(response.Vectors, fv)
 	}
 
-	response.Latency = float64(time.Since(start).Milliseconds())
+	response.Latency = float64(time.Since(start).Microseconds()) / 1000.0
 
 	return response, nil
 }

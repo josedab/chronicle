@@ -22,6 +22,31 @@ type FeatureManager struct {
 	chaosInjector     *FaultInjector
 	offlineSync       *OfflineSyncManager
 
+	// Next-gen v2 features
+	anomalyCorrelation *AnomalyCorrelationEngine
+	cloudRelay         *CloudRelay
+	playground         *Playground
+	queryPlanner       *QueryPlanner
+	connectorHub       *ConnectorHub
+	autoscaler         *PredictiveAutoscaler
+	notebookEngine     *NotebookEngine
+	saasControlPlane   *SaaSControlPlane
+	gitopsEngine       *GitOpsEngine
+	federatedML        *FederatedMLTrainer
+
+	// Next-gen v3 features
+	edgeMesh           *EdgeMesh
+	queryCompiler      *QueryCompiler
+	edgePlatform       *EdgePlatformManager
+	tsRAG              *TSRAGEngine
+	pluginRegistry     *PluginRegistry
+	pluginMarketplace  *PluginMarketplace
+	matViewV2          *MaterializedViewV2Engine
+	clusterReconciler  *ClusterReconciler
+	adaptiveV3         *AdaptiveCompressorV3
+	multiModelGraph    *MultiModelGraphStore
+	fleetManager       *SaaSFleetManager
+
 	mu sync.RWMutex
 }
 
@@ -75,6 +100,30 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.chaosInjector = NewFaultInjector(DefaultChaosConfig())
 	fm.offlineSync = NewOfflineSyncManager(DefaultOfflineSyncConfig())
 
+	// Initialize next-gen v2 features
+	fm.anomalyCorrelation = NewAnomalyCorrelationEngine(db, DefaultAnomalyCorrelationConfig())
+	fm.cloudRelay = NewCloudRelay(db, DefaultCloudRelayConfig())
+	fm.playground = NewPlayground(db, DefaultPlaygroundConfig())
+	fm.queryPlanner = NewQueryPlanner(db, DefaultQueryPlannerConfig())
+	fm.connectorHub = NewConnectorHub(db, DefaultConnectorHubConfig())
+	fm.autoscaler = NewPredictiveAutoscaler(db, DefaultPredictiveAutoscalingConfig())
+	fm.notebookEngine = NewNotebookEngine(db, DefaultNotebookConfig())
+	fm.saasControlPlane = NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
+	fm.gitopsEngine = NewGitOpsEngine(db, DefaultGitOpsConfig())
+	fm.federatedML = NewFederatedMLTrainer(db, DefaultFederatedMLConfig())
+
+	// Initialize next-gen v3 features
+	fm.queryCompiler = NewQueryCompiler(db, DefaultQueryCompilerConfig())
+	fm.edgePlatform = NewEdgePlatformManager()
+	fm.tsRAG = NewTSRAGEngine(db, DefaultTSRAGConfig())
+	fm.pluginRegistry = NewPluginRegistry(DefaultPluginSDKConfig())
+	fm.pluginMarketplace = NewPluginMarketplace(DefaultPluginSDKConfig().MarketplaceURL, fm.pluginRegistry)
+	fm.matViewV2 = NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
+	fm.clusterReconciler = NewClusterReconciler()
+	fm.adaptiveV3 = NewAdaptiveCompressorV3(DefaultAdaptiveCompressionV3Config())
+	fm.multiModelGraph = NewMultiModelGraphStore(db)
+	fm.fleetManager = NewSaaSFleetManager(DefaultSaaSFleetConfig())
+
 	return fm, nil
 }
 
@@ -95,6 +144,12 @@ func (fm *FeatureManager) Start() {
 	if fm.offlineSync != nil {
 		fm.offlineSync.Start()
 	}
+	if fm.matViewV2 != nil {
+		fm.matViewV2.Start()
+	}
+	if fm.fleetManager != nil {
+		fm.fleetManager.Start()
+	}
 }
 
 // Stop stops all background feature processes.
@@ -113,6 +168,12 @@ func (fm *FeatureManager) Stop() {
 	}
 	if fm.offlineSync != nil {
 		fm.offlineSync.Stop()
+	}
+	if fm.matViewV2 != nil {
+		fm.matViewV2.Stop()
+	}
+	if fm.fleetManager != nil {
+		fm.fleetManager.Stop()
 	}
 }
 
@@ -184,6 +245,153 @@ func (fm *FeatureManager) OfflineSync() *OfflineSyncManager {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.offlineSync
+}
+
+// AnomalyCorrelation returns the anomaly correlation engine.
+func (fm *FeatureManager) AnomalyCorrelation() *AnomalyCorrelationEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.anomalyCorrelation
+}
+
+// CloudRelay returns the cloud relay agent.
+func (fm *FeatureManager) CloudRelay() *CloudRelay {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.cloudRelay
+}
+
+// Playground returns the query playground.
+func (fm *FeatureManager) Playground() *Playground {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.playground
+}
+
+// QueryPlanner returns the adaptive query planner.
+func (fm *FeatureManager) QueryPlanner() *QueryPlanner {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.queryPlanner
+}
+
+// ConnectorHub returns the connector hub.
+func (fm *FeatureManager) ConnectorHub() *ConnectorHub {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.connectorHub
+}
+
+// Autoscaler returns the predictive autoscaler.
+func (fm *FeatureManager) Autoscaler() *PredictiveAutoscaler {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.autoscaler
+}
+
+// NotebookEngine returns the notebook engine.
+func (fm *FeatureManager) NotebookEngine() *NotebookEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.notebookEngine
+}
+
+// SaaSControlPlane returns the SaaS control plane.
+func (fm *FeatureManager) SaaSControlPlane() *SaaSControlPlane {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.saasControlPlane
+}
+
+// GitOpsEngine returns the GitOps engine.
+func (fm *FeatureManager) GitOpsEngine() *GitOpsEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.gitopsEngine
+}
+
+// FederatedMLTrainer returns the federated ML trainer.
+func (fm *FeatureManager) FederatedMLTrainer() *FederatedMLTrainer {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.federatedML
+}
+
+// EdgeMesh returns the edge mesh network manager.
+func (fm *FeatureManager) EdgeMesh() *EdgeMesh {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.edgeMesh
+}
+
+// QueryCompiler returns the unified query compiler.
+func (fm *FeatureManager) QueryCompiler() *QueryCompiler {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.queryCompiler
+}
+
+// EdgePlatform returns the edge platform manager.
+func (fm *FeatureManager) EdgePlatform() *EdgePlatformManager {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.edgePlatform
+}
+
+// TSRAG returns the time-series RAG engine.
+func (fm *FeatureManager) TSRAG() *TSRAGEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.tsRAG
+}
+
+// PluginRegistry returns the plugin registry.
+func (fm *FeatureManager) PluginRegistry() *PluginRegistry {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.pluginRegistry
+}
+
+// PluginMarketplace returns the plugin marketplace.
+func (fm *FeatureManager) PluginMarketplace() *PluginMarketplace {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.pluginMarketplace
+}
+
+// MaterializedViewsV2 returns the v2 materialized view engine.
+func (fm *FeatureManager) MaterializedViewsV2() *MaterializedViewV2Engine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.matViewV2
+}
+
+// ClusterReconciler returns the K8s cluster reconciler.
+func (fm *FeatureManager) ClusterReconciler() *ClusterReconciler {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.clusterReconciler
+}
+
+// AdaptiveCompressorV3 returns the ML-driven adaptive compressor.
+func (fm *FeatureManager) AdaptiveCompressorV3() *AdaptiveCompressorV3 {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.adaptiveV3
+}
+
+// MultiModelGraph returns the multi-model graph+document store.
+func (fm *FeatureManager) MultiModelGraph() *MultiModelGraphStore {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.multiModelGraph
+}
+
+// FleetManager returns the fleet manager.
+func (fm *FeatureManager) FleetManager() *SaaSFleetManager {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.fleetManager
 }
 
 // ValidatePoint validates a point against registered schemas.
