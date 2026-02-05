@@ -1,4 +1,4 @@
-package chronicle
+package hardwareaccel
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
 
 // HardwareAccelConfig configures the hardware acceleration SDK.
@@ -167,7 +169,7 @@ type AcceleratorKernel interface {
 
 // HardwareAccelSDK provides hardware acceleration for time-series operations.
 type HardwareAccelSDK struct {
-	db     *DB
+	db     *chronicle.DB
 	config *HardwareAccelConfig
 
 	mu      sync.RWMutex
@@ -220,7 +222,7 @@ type HardwareAccelStats struct {
 }
 
 // NewHardwareAccelSDK creates a new hardware acceleration SDK.
-func NewHardwareAccelSDK(db *DB, config *HardwareAccelConfig) (*HardwareAccelSDK, error) {
+func NewHardwareAccelSDK(db *chronicle.DB, config *HardwareAccelConfig) (*HardwareAccelSDK, error) {
 	if config == nil {
 		config = DefaultHardwareAccelConfig()
 	}
@@ -541,6 +543,9 @@ func (sdk *HardwareAccelSDK) SortAccelerated(data []float64) error {
 
 // VectorMathAccelerated performs hardware-accelerated vector math.
 func (sdk *HardwareAccelSDK) VectorMathAccelerated(op VectorOp, a, b []float64) ([]float64, error) {
+	if len(a) != len(b) {
+		return nil, fmt.Errorf("vector length mismatch: %d vs %d", len(a), len(b))
+	}
 	device := sdk.SelectDevice(CapabilityVectorMath)
 
 	switch device.Type() {
@@ -1609,7 +1614,7 @@ func NewBatchProcessor(sdk *HardwareAccelSDK, batchSize int) *BatchProcessor {
 }
 
 // ProcessBatch processes a batch of points with acceleration.
-func (p *BatchProcessor) ProcessBatch(points []Point) ([]Point, error) {
+func (p *BatchProcessor) ProcessBatch(points []chronicle.Point) ([]chronicle.Point, error) {
 	if len(points) == 0 {
 		return points, nil
 	}

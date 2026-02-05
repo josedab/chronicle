@@ -1,16 +1,26 @@
-package chronicle
+package oteldistro
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
+
+// Point represents a single time-series data point for writing to storage.
+type Point struct {
+	Metric    string
+	Timestamp int64
+	Value     float64
+	Tags      map[string]string
+}
+
+// PointWriter is the interface used to write points to the underlying storage.
+type PointWriter interface {
+	Write(Point) error
+}
 
 // OTelDistroConfig configures the Chronicle OpenTelemetry Distribution.
 type OTelDistroConfig struct {
@@ -44,10 +54,10 @@ type OTelDistroConfig struct {
 
 // ReceiversConfig configures all receivers.
 type ReceiversConfig struct {
-	OTLP      *OTLPReceiverConfig      `json:"otlp,omitempty"`
-	Prometheus *PrometheusReceiverConfig `json:"prometheus,omitempty"`
+	OTLP        *OTLPReceiverConfig        `json:"otlp,omitempty"`
+	Prometheus  *PrometheusReceiverConfig  `json:"prometheus,omitempty"`
 	HostMetrics *HostMetricsReceiverConfig `json:"host_metrics,omitempty"`
-	Chronicle  *ChronicleReceiverConfig  `json:"chronicle,omitempty"`
+	Chronicle   *ChronicleReceiverConfig   `json:"chronicle,omitempty"`
 }
 
 // OTLPReceiverConfig configures the OTLP receiver.
@@ -78,8 +88,8 @@ type PrometheusReceiverConfig struct {
 
 // PrometheusScrapeConfig configures a Prometheus scrape target.
 type PrometheusScrapeConfig struct {
-	JobName        string   `json:"job_name"`
-	ScrapeInterval string   `json:"scrape_interval"`
+	JobName        string         `json:"job_name"`
+	ScrapeInterval string         `json:"scrape_interval"`
 	StaticConfigs  []StaticConfig `json:"static_configs"`
 }
 
@@ -91,8 +101,8 @@ type StaticConfig struct {
 
 // HostMetricsReceiverConfig configures host metrics collection.
 type HostMetricsReceiverConfig struct {
-	CollectionInterval string `json:"collection_interval"`
-	Scrapers          HostMetricScrapers `json:"scrapers"`
+	CollectionInterval string             `json:"collection_interval"`
+	Scrapers           HostMetricScrapers `json:"scrapers"`
 }
 
 // HostMetricScrapers configures which host metrics to collect.
@@ -108,17 +118,17 @@ type HostMetricScrapers struct {
 
 // ChronicleReceiverConfig configures the Chronicle receiver (push from Chronicle).
 type ChronicleReceiverConfig struct {
-	Endpoint string `json:"endpoint"`
+	Endpoint string   `json:"endpoint"`
 	Metrics  []string `json:"metrics,omitempty"`
 }
 
 // ProcessorsConfig configures all processors.
 type ProcessorsConfig struct {
-	Batch           *BatchProcessorConfig           `json:"batch,omitempty"`
-	Memory          *MemoryLimiterConfig            `json:"memory_limiter,omitempty"`
-	Attributes      *AttributesProcessorConfig      `json:"attributes,omitempty"`
-	Filter          *FilterProcessorConfig          `json:"filter,omitempty"`
-	Transform       *TransformProcessorConfig       `json:"transform,omitempty"`
+	Batch            *BatchProcessorConfig            `json:"batch,omitempty"`
+	Memory           *MemoryLimiterConfig             `json:"memory_limiter,omitempty"`
+	Attributes       *AttributesProcessorConfig       `json:"attributes,omitempty"`
+	Filter           *FilterProcessorConfig           `json:"filter,omitempty"`
+	Transform        *TransformProcessorConfig        `json:"transform,omitempty"`
 	MetricsTransform *MetricsTransformProcessorConfig `json:"metrics_transform,omitempty"`
 }
 
@@ -131,10 +141,10 @@ type BatchProcessorConfig struct {
 
 // MemoryLimiterConfig configures memory limiting.
 type MemoryLimiterConfig struct {
-	CheckInterval       time.Duration `json:"check_interval"`
-	LimitMiB            int           `json:"limit_mib"`
-	SpikeLimitMiB       int           `json:"spike_limit_mib"`
-	LimitPercentage     int           `json:"limit_percentage"`
+	CheckInterval   time.Duration `json:"check_interval"`
+	LimitMiB        int           `json:"limit_mib"`
+	SpikeLimitMiB   int           `json:"spike_limit_mib"`
+	LimitPercentage int           `json:"limit_percentage"`
 }
 
 // AttributesProcessorConfig configures attribute processing.
@@ -178,10 +188,10 @@ type MetricsTransformProcessorConfig struct {
 
 // MetricTransform defines a metric transformation.
 type MetricTransform struct {
-	MetricNameMatch string              `json:"metric_name_match"`
-	Action          string              `json:"action"` // update, combine, insert
-	NewName         string              `json:"new_name,omitempty"`
-	Operations      []MetricOperation   `json:"operations,omitempty"`
+	MetricNameMatch string            `json:"metric_name_match"`
+	Action          string            `json:"action"` // update, combine, insert
+	NewName         string            `json:"new_name,omitempty"`
+	Operations      []MetricOperation `json:"operations,omitempty"`
 }
 
 // MetricOperation defines a metric operation.
@@ -194,11 +204,11 @@ type MetricOperation struct {
 
 // ExportersConfig configures all exporters.
 type ExportersConfig struct {
-	Chronicle    *ChronicleExporterConfig    `json:"chronicle,omitempty"`
-	OTLP         *OTLPExporterConfig         `json:"otlp,omitempty"`
-	OTLPHttp     *OTLPHTTPExporterConfig     `json:"otlphttp,omitempty"`
-	Prometheus   *PrometheusExporterConfig   `json:"prometheus,omitempty"`
-	Debug        *DebugExporterConfig        `json:"debug,omitempty"`
+	Chronicle  *ChronicleExporterConfig  `json:"chronicle,omitempty"`
+	OTLP       *OTLPExporterConfig       `json:"otlp,omitempty"`
+	OTLPHttp   *OTLPHTTPExporterConfig   `json:"otlphttp,omitempty"`
+	Prometheus *PrometheusExporterConfig `json:"prometheus,omitempty"`
+	Debug      *DebugExporterConfig      `json:"debug,omitempty"`
 }
 
 // ChronicleExporterConfig configures Chronicle export.
@@ -252,9 +262,9 @@ type PipelineConfig struct {
 
 // ExtensionsConfig configures extensions.
 type ExtensionsConfig struct {
-	Health     *HealthExtConfig     `json:"health_check,omitempty"`
-	ZPages     *ZPagesConfig        `json:"zpages,omitempty"`
-	PProfExt   *PProfExtConfig      `json:"pprof,omitempty"`
+	Health   *HealthExtConfig `json:"health_check,omitempty"`
+	ZPages   *ZPagesConfig    `json:"zpages,omitempty"`
+	PProfExt *PProfExtConfig  `json:"pprof,omitempty"`
 }
 
 // HealthExtConfig configures health check extension.
@@ -280,10 +290,10 @@ type TelemetryConfig struct {
 
 // TelemetryLogsConfig configures log telemetry.
 type TelemetryLogsConfig struct {
-	Level            string `json:"level"` // debug, info, warn, error
-	Development      bool   `json:"development"`
-	Encoding         string `json:"encoding"` // json, console
-	OutputPaths      []string `json:"output_paths"`
+	Level       string   `json:"level"` // debug, info, warn, error
+	Development bool     `json:"development"`
+	Encoding    string   `json:"encoding"` // json, console
+	OutputPaths []string `json:"output_paths"`
 }
 
 // TelemetryMetricsConfig configures metrics telemetry.
@@ -313,9 +323,9 @@ func DefaultOTelDistroConfig() OTelDistroConfig {
 				Timeout:          10 * time.Second,
 			},
 			Memory: &MemoryLimiterConfig{
-				CheckInterval:   time.Second,
-				LimitMiB:        512,
-				SpikeLimitMiB:   128,
+				CheckInterval: time.Second,
+				LimitMiB:      512,
+				SpikeLimitMiB: 128,
 			},
 		},
 		Exporters: ExportersConfig{
@@ -353,8 +363,8 @@ func DefaultOTelDistroConfig() OTelDistroConfig {
 
 // ChronicleOTelDistro is the Chronicle OpenTelemetry Collector Distribution.
 type ChronicleOTelDistro struct {
-	config     OTelDistroConfig
-	db         *DB
+	config OTelDistroConfig
+	pw     PointWriter
 
 	// Component registries
 	receivers  map[string]Receiver
@@ -364,16 +374,16 @@ type ChronicleOTelDistro struct {
 	pipelines  map[string]*Pipeline
 
 	// Runtime state
-	running    bool
-	mu         sync.RWMutex
+	running bool
+	mu      sync.RWMutex
 
 	// Metrics
-	metrics    *DistroMetrics
+	metrics *DistroMetrics
 
 	// Lifecycle
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 // Receiver receives telemetry data.
@@ -457,28 +467,28 @@ type Metric struct {
 
 // DistroMetrics tracks distribution metrics.
 type DistroMetrics struct {
-	ReceiversStarted   int64
-	ProcessorsStarted  int64
-	ExportersStarted   int64
-	PipelinesStarted   int64
-	MetricsReceived    int64
-	MetricsProcessed   int64
-	MetricsExported    int64
-	MetricsDropped     int64
-	Errors             int64
-	LastError          string
-	Uptime             time.Duration
-	StartTime          time.Time
-	mu                 sync.RWMutex
+	ReceiversStarted  int64
+	ProcessorsStarted int64
+	ExportersStarted  int64
+	PipelinesStarted  int64
+	MetricsReceived   int64
+	MetricsProcessed  int64
+	MetricsExported   int64
+	MetricsDropped    int64
+	Errors            int64
+	LastError         string
+	Uptime            time.Duration
+	StartTime         time.Time
+	mu                sync.RWMutex
 }
 
 // NewChronicleOTelDistro creates a new distribution instance.
-func NewChronicleOTelDistro(db *DB, config OTelDistroConfig) *ChronicleOTelDistro {
+func NewChronicleOTelDistro(pw PointWriter, config OTelDistroConfig) *ChronicleOTelDistro {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ChronicleOTelDistro{
 		config:     config,
-		db:         db,
+		pw:         pw,
 		receivers:  make(map[string]Receiver),
 		processors: make(map[string]Processor),
 		exporters:  make(map[string]OTelExporter),
@@ -489,352 +499,6 @@ func NewChronicleOTelDistro(db *DB, config OTelDistroConfig) *ChronicleOTelDistr
 		cancel:     cancel,
 	}
 }
-
-// Start starts the distribution.
-func (d *ChronicleOTelDistro) Start() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.running {
-		return nil
-	}
-
-	// Initialize components
-	if err := d.initializeReceivers(); err != nil {
-		return fmt.Errorf("failed to initialize receivers: %w", err)
-	}
-
-	if err := d.initializeProcessors(); err != nil {
-		return fmt.Errorf("failed to initialize processors: %w", err)
-	}
-
-	if err := d.initializeExporters(); err != nil {
-		return fmt.Errorf("failed to initialize exporters: %w", err)
-	}
-
-	if err := d.initializeExtensions(); err != nil {
-		return fmt.Errorf("failed to initialize extensions: %w", err)
-	}
-
-	if err := d.initializePipelines(); err != nil {
-		return fmt.Errorf("failed to initialize pipelines: %w", err)
-	}
-
-	// Start extensions
-	for name, ext := range d.extensions {
-		if err := ext.Start(d.ctx, d); err != nil {
-			return fmt.Errorf("failed to start extension %s: %w", name, err)
-		}
-	}
-
-	// Start pipelines
-	for name, pipeline := range d.pipelines {
-		if err := d.startPipeline(pipeline); err != nil {
-			return fmt.Errorf("failed to start pipeline %s: %w", name, err)
-		}
-		atomic.AddInt64(&d.metrics.PipelinesStarted, 1)
-	}
-
-	d.running = true
-	return nil
-}
-
-// Stop stops the distribution.
-func (d *ChronicleOTelDistro) Stop() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if !d.running {
-		return nil
-	}
-
-	d.cancel()
-
-	// Stop pipelines
-	for _, pipeline := range d.pipelines {
-		d.stopPipeline(pipeline)
-	}
-
-	// Stop extensions
-	for _, ext := range d.extensions {
-		ext.Shutdown(context.Background())
-	}
-
-	// Stop exporters
-	for _, exp := range d.exporters {
-		exp.Shutdown(context.Background())
-	}
-
-	// Stop processors
-	for _, proc := range d.processors {
-		proc.Shutdown(context.Background())
-	}
-
-	// Stop receivers
-	for _, recv := range d.receivers {
-		recv.Shutdown(context.Background())
-	}
-
-	d.wg.Wait()
-	d.running = false
-	return nil
-}
-
-// GetExtension implements Host interface.
-func (d *ChronicleOTelDistro) GetExtension(id string) Extension {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.extensions[id]
-}
-
-// ReportFatalError implements Host interface.
-func (d *ChronicleOTelDistro) ReportFatalError(err error) {
-	d.metrics.mu.Lock()
-	d.metrics.Errors++
-	d.metrics.LastError = err.Error()
-	d.metrics.mu.Unlock()
-}
-
-func (d *ChronicleOTelDistro) initializeReceivers() error {
-	// OTLP Receiver
-	if d.config.Receivers.OTLP != nil {
-		recv := NewOTLPDistroReceiver(d.config.Receivers.OTLP, d)
-		d.receivers["otlp"] = recv
-		atomic.AddInt64(&d.metrics.ReceiversStarted, 1)
-	}
-
-	// Prometheus Receiver
-	if d.config.Receivers.Prometheus != nil {
-		recv := NewPrometheusDistroReceiver(d.config.Receivers.Prometheus, d)
-		d.receivers["prometheus"] = recv
-		atomic.AddInt64(&d.metrics.ReceiversStarted, 1)
-	}
-
-	// Host Metrics Receiver
-	if d.config.Receivers.HostMetrics != nil {
-		recv := NewHostMetricsDistroReceiver(d.config.Receivers.HostMetrics, d)
-		d.receivers["hostmetrics"] = recv
-		atomic.AddInt64(&d.metrics.ReceiversStarted, 1)
-	}
-
-	return nil
-}
-
-func (d *ChronicleOTelDistro) initializeProcessors() error {
-	// Batch Processor
-	if d.config.Processors.Batch != nil {
-		proc := NewBatchDistroProcessor(d.config.Processors.Batch)
-		d.processors["batch"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
-	}
-
-	// Memory Limiter
-	if d.config.Processors.Memory != nil {
-		proc := NewMemoryLimiterDistroProcessor(d.config.Processors.Memory)
-		d.processors["memory_limiter"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
-	}
-
-	// Attributes Processor
-	if d.config.Processors.Attributes != nil {
-		proc := NewAttributesDistroProcessor(d.config.Processors.Attributes)
-		d.processors["attributes"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
-	}
-
-	// Filter Processor
-	if d.config.Processors.Filter != nil {
-		proc := NewFilterDistroProcessor(d.config.Processors.Filter)
-		d.processors["filter"] = proc
-		atomic.AddInt64(&d.metrics.ProcessorsStarted, 1)
-	}
-
-	return nil
-}
-
-func (d *ChronicleOTelDistro) initializeExporters() error {
-	// Chronicle Exporter
-	if d.config.Exporters.Chronicle != nil {
-		exp := NewChronicleDistroExporter(d.db, d.config.Exporters.Chronicle)
-		d.exporters["chronicle"] = exp
-		atomic.AddInt64(&d.metrics.ExportersStarted, 1)
-	}
-
-	// OTLP Exporter
-	if d.config.Exporters.OTLP != nil {
-		exp := NewOTLPDistroExporter(d.config.Exporters.OTLP)
-		d.exporters["otlp"] = exp
-		atomic.AddInt64(&d.metrics.ExportersStarted, 1)
-	}
-
-	// Debug Exporter
-	if d.config.Exporters.Debug != nil {
-		exp := NewDebugDistroExporter(d.config.Exporters.Debug)
-		d.exporters["debug"] = exp
-		atomic.AddInt64(&d.metrics.ExportersStarted, 1)
-	}
-
-	return nil
-}
-
-func (d *ChronicleOTelDistro) initializeExtensions() error {
-	// Health Check Extension
-	if d.config.Extensions.Health != nil {
-		ext := NewHealthCheckExtension(d.config.Extensions.Health, d)
-		d.extensions["health_check"] = ext
-	}
-
-	// ZPages Extension
-	if d.config.Extensions.ZPages != nil {
-		ext := NewZPagesExtension(d.config.Extensions.ZPages)
-		d.extensions["zpages"] = ext
-	}
-
-	return nil
-}
-
-func (d *ChronicleOTelDistro) initializePipelines() error {
-	// Metrics Pipeline
-	if d.config.Pipelines.Metrics != nil {
-		pipeline := &Pipeline{
-			Name:     "metrics",
-			dataChan: make(chan *Metrics, 1000),
-		}
-
-		// Add receivers
-		for _, name := range d.config.Pipelines.Metrics.Receivers {
-			if recv, ok := d.receivers[name]; ok {
-				pipeline.Receivers = append(pipeline.Receivers, recv)
-			}
-		}
-
-		// Add processors
-		for _, name := range d.config.Pipelines.Metrics.Processors {
-			if proc, ok := d.processors[name]; ok {
-				pipeline.Processors = append(pipeline.Processors, proc)
-			}
-		}
-
-		// Add exporters
-		for _, name := range d.config.Pipelines.Metrics.Exporters {
-			if exp, ok := d.exporters[name]; ok {
-				pipeline.Exporters = append(pipeline.Exporters, exp)
-			}
-		}
-
-		d.pipelines["metrics"] = pipeline
-	}
-
-	return nil
-}
-
-func (d *ChronicleOTelDistro) startPipeline(pipeline *Pipeline) error {
-	pipeline.mu.Lock()
-	defer pipeline.mu.Unlock()
-
-	if pipeline.running {
-		return nil
-	}
-
-	// Start receivers
-	for _, recv := range pipeline.Receivers {
-		if err := recv.Start(d.ctx, d); err != nil {
-			return err
-		}
-	}
-
-	// Start processors
-	for _, proc := range pipeline.Processors {
-		if err := proc.Start(d.ctx, d); err != nil {
-			return err
-		}
-	}
-
-	// Start exporters
-	for _, exp := range pipeline.Exporters {
-		if err := exp.Start(d.ctx, d); err != nil {
-			return err
-		}
-	}
-
-	// Start pipeline worker
-	d.wg.Add(1)
-	go d.pipelineWorker(pipeline)
-
-	pipeline.running = true
-	return nil
-}
-
-func (d *ChronicleOTelDistro) stopPipeline(pipeline *Pipeline) {
-	pipeline.mu.Lock()
-	defer pipeline.mu.Unlock()
-
-	if !pipeline.running {
-		return
-	}
-
-	close(pipeline.dataChan)
-	pipeline.running = false
-}
-
-func (d *ChronicleOTelDistro) pipelineWorker(pipeline *Pipeline) {
-	defer d.wg.Done()
-
-	for metrics := range pipeline.dataChan {
-		// Process through all processors
-		var err error
-		for _, proc := range pipeline.Processors {
-			metrics, err = proc.ProcessMetrics(d.ctx, metrics)
-			if err != nil {
-				atomic.AddInt64(&d.metrics.Errors, 1)
-				continue
-			}
-		}
-
-		atomic.AddInt64(&d.metrics.MetricsProcessed, 1)
-
-		// Export to all exporters
-		for _, exp := range pipeline.Exporters {
-			if err := exp.ExportMetrics(d.ctx, metrics); err != nil {
-				atomic.AddInt64(&d.metrics.Errors, 1)
-				atomic.AddInt64(&d.metrics.MetricsDropped, 1)
-			} else {
-				atomic.AddInt64(&d.metrics.MetricsExported, 1)
-			}
-		}
-	}
-}
-
-// PushMetrics pushes metrics to the pipeline.
-func (d *ChronicleOTelDistro) PushMetrics(metrics *Metrics) {
-	d.mu.RLock()
-	pipeline, ok := d.pipelines["metrics"]
-	d.mu.RUnlock()
-
-	if !ok || !pipeline.running {
-		return
-	}
-
-	atomic.AddInt64(&d.metrics.MetricsReceived, 1)
-
-	select {
-	case pipeline.dataChan <- metrics:
-	default:
-		atomic.AddInt64(&d.metrics.MetricsDropped, 1)
-	}
-}
-
-// GetMetrics returns distribution metrics.
-func (d *ChronicleOTelDistro) GetMetrics() DistroMetrics {
-	d.metrics.mu.RLock()
-	defer d.metrics.mu.RUnlock()
-
-	m := *d.metrics
-	m.Uptime = time.Since(d.metrics.StartTime)
-	return m
-}
-
-// ========== Receiver Implementations ==========
 
 // OTLPDistroReceiver receives OTLP data.
 type OTLPDistroReceiver struct {
@@ -851,101 +515,6 @@ func NewOTLPDistroReceiver(config *OTLPReceiverConfig, distro *ChronicleOTelDist
 		config: config,
 		distro: distro,
 	}
-}
-
-func (r *OTLPDistroReceiver) Start(ctx context.Context, host Host) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.running {
-		return nil
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/metrics", r.handleMetrics)
-
-	endpoint := "0.0.0.0:4318"
-	if r.config.Protocols.HTTP != nil {
-		endpoint = r.config.Protocols.HTTP.Endpoint
-	}
-
-	r.server = &http.Server{
-		Addr:    endpoint,
-		Handler: mux,
-	}
-
-	go r.server.ListenAndServe()
-
-	r.running = true
-	return nil
-}
-
-func (r *OTLPDistroReceiver) Shutdown(ctx context.Context) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if !r.running {
-		return nil
-	}
-
-	if r.server != nil {
-		r.server.Shutdown(ctx)
-	}
-
-	r.running = false
-	return nil
-}
-
-func (r *OTLPDistroReceiver) handleMetrics(w http.ResponseWriter, req *http.Request) {
-	// Parse and push metrics
-	var otlpReq OTLPExportRequest
-	if err := json.NewDecoder(req.Body).Decode(&otlpReq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	metrics := r.convertOTLPToMetrics(&otlpReq)
-	r.distro.PushMetrics(metrics)
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (r *OTLPDistroReceiver) convertOTLPToMetrics(otlp *OTLPExportRequest) *Metrics {
-	metrics := &Metrics{}
-
-	for _, rm := range otlp.ResourceMetrics {
-		resourceMetrics := ResourceMetrics{
-			Resource: Resource{Attributes: make(map[string]interface{})},
-		}
-
-		for _, attr := range rm.Resource.Attributes {
-			resourceMetrics.Resource.Attributes[attr.Key] = otelAttrValueToString(attr.Value)
-		}
-
-		for _, sm := range rm.ScopeMetrics {
-			scopeMetrics := ScopeMetrics{
-				Scope: InstrumentationScope{
-					Name:    sm.Scope.Name,
-					Version: sm.Scope.Version,
-				},
-			}
-
-			for _, m := range sm.Metrics {
-				scopeMetrics.Metrics = append(scopeMetrics.Metrics, Metric{
-					Name:        m.Name,
-					Description: m.Description,
-					Unit:        m.Unit,
-					Data:        m,
-				})
-			}
-
-			resourceMetrics.ScopeMetrics = append(resourceMetrics.ScopeMetrics, scopeMetrics)
-		}
-
-		metrics.ResourceMetrics = append(metrics.ResourceMetrics, resourceMetrics)
-	}
-
-	return metrics
 }
 
 // PrometheusDistroReceiver scrapes Prometheus targets.
@@ -965,68 +534,6 @@ func NewPrometheusDistroReceiver(config *PrometheusReceiverConfig, distro *Chron
 	}
 }
 
-func (r *PrometheusDistroReceiver) Start(ctx context.Context, host Host) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.running {
-		return nil
-	}
-
-	// Start scraping
-	r.ticker = time.NewTicker(15 * time.Second)
-	go r.scrapeLoop(ctx)
-
-	r.running = true
-	return nil
-}
-
-func (r *PrometheusDistroReceiver) Shutdown(ctx context.Context) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.ticker != nil {
-		r.ticker.Stop()
-	}
-
-	r.running = false
-	return nil
-}
-
-func (r *PrometheusDistroReceiver) scrapeLoop(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-r.ticker.C:
-			r.scrapeTargets()
-		}
-	}
-}
-
-func (r *PrometheusDistroReceiver) scrapeTargets() {
-	// Scrape all configured targets
-	for _, sc := range r.config.ScrapeConfigs {
-		for _, static := range sc.StaticConfigs {
-			for _, target := range static.Targets {
-				r.scrapeTarget(target, sc.JobName, static.Labels)
-			}
-		}
-	}
-}
-
-func (r *PrometheusDistroReceiver) scrapeTarget(target, job string, labels map[string]string) {
-	// Fetch and parse metrics
-	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", target))
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	// Parse Prometheus format and convert to Metrics
-	// Simplified implementation
-}
-
 // HostMetricsDistroReceiver collects host metrics.
 type HostMetricsDistroReceiver struct {
 	config  *HostMetricsReceiverConfig
@@ -1044,52 +551,6 @@ func NewHostMetricsDistroReceiver(config *HostMetricsReceiverConfig, distro *Chr
 	}
 }
 
-func (r *HostMetricsDistroReceiver) Start(ctx context.Context, host Host) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.running {
-		return nil
-	}
-
-	interval := 10 * time.Second
-	r.ticker = time.NewTicker(interval)
-	go r.collectLoop(ctx)
-
-	r.running = true
-	return nil
-}
-
-func (r *HostMetricsDistroReceiver) Shutdown(ctx context.Context) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.ticker != nil {
-		r.ticker.Stop()
-	}
-
-	r.running = false
-	return nil
-}
-
-func (r *HostMetricsDistroReceiver) collectLoop(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-r.ticker.C:
-			r.collectMetrics()
-		}
-	}
-}
-
-func (r *HostMetricsDistroReceiver) collectMetrics() {
-	// Collect host metrics (CPU, memory, disk, etc.)
-	// Push to distro
-}
-
-// ========== Processor Implementations ==========
-
 // BatchDistroProcessor batches metrics.
 type BatchDistroProcessor struct {
 	config *BatchProcessorConfig
@@ -1098,14 +559,6 @@ type BatchDistroProcessor struct {
 // NewBatchDistroProcessor creates a batch processor.
 func NewBatchDistroProcessor(config *BatchProcessorConfig) *BatchDistroProcessor {
 	return &BatchDistroProcessor{config: config}
-}
-
-func (p *BatchDistroProcessor) Start(ctx context.Context, host Host) error { return nil }
-func (p *BatchDistroProcessor) Shutdown(ctx context.Context) error        { return nil }
-
-func (p *BatchDistroProcessor) ProcessMetrics(ctx context.Context, metrics *Metrics) (*Metrics, error) {
-	// In a real implementation, would batch metrics
-	return metrics, nil
 }
 
 // MemoryLimiterDistroProcessor limits memory usage.
@@ -1118,14 +571,6 @@ func NewMemoryLimiterDistroProcessor(config *MemoryLimiterConfig) *MemoryLimiter
 	return &MemoryLimiterDistroProcessor{config: config}
 }
 
-func (p *MemoryLimiterDistroProcessor) Start(ctx context.Context, host Host) error { return nil }
-func (p *MemoryLimiterDistroProcessor) Shutdown(ctx context.Context) error        { return nil }
-
-func (p *MemoryLimiterDistroProcessor) ProcessMetrics(ctx context.Context, metrics *Metrics) (*Metrics, error) {
-	// Check memory and potentially drop if over limit
-	return metrics, nil
-}
-
 // AttributesDistroProcessor modifies attributes.
 type AttributesDistroProcessor struct {
 	config *AttributesProcessorConfig
@@ -1134,23 +579,6 @@ type AttributesDistroProcessor struct {
 // NewAttributesDistroProcessor creates an attributes processor.
 func NewAttributesDistroProcessor(config *AttributesProcessorConfig) *AttributesDistroProcessor {
 	return &AttributesDistroProcessor{config: config}
-}
-
-func (p *AttributesDistroProcessor) Start(ctx context.Context, host Host) error { return nil }
-func (p *AttributesDistroProcessor) Shutdown(ctx context.Context) error        { return nil }
-
-func (p *AttributesDistroProcessor) ProcessMetrics(ctx context.Context, metrics *Metrics) (*Metrics, error) {
-	for _, action := range p.config.Actions {
-		for i := range metrics.ResourceMetrics {
-			switch action.Action {
-			case "insert":
-				metrics.ResourceMetrics[i].Resource.Attributes[action.Key] = action.Value
-			case "delete":
-				delete(metrics.ResourceMetrics[i].Resource.Attributes, action.Key)
-			}
-		}
-	}
-	return metrics, nil
 }
 
 // FilterDistroProcessor filters metrics.
@@ -1163,56 +591,15 @@ func NewFilterDistroProcessor(config *FilterProcessorConfig) *FilterDistroProces
 	return &FilterDistroProcessor{config: config}
 }
 
-func (p *FilterDistroProcessor) Start(ctx context.Context, host Host) error { return nil }
-func (p *FilterDistroProcessor) Shutdown(ctx context.Context) error        { return nil }
-
-func (p *FilterDistroProcessor) ProcessMetrics(ctx context.Context, metrics *Metrics) (*Metrics, error) {
-	// Apply include/exclude filters
-	return metrics, nil
-}
-
-// ========== Exporter Implementations ==========
-
 // ChronicleDistroExporter exports to Chronicle.
 type ChronicleDistroExporter struct {
-	db     *DB
+	pw     PointWriter
 	config *ChronicleExporterConfig
 }
 
 // NewChronicleDistroExporter creates a Chronicle exporter.
-func NewChronicleDistroExporter(db *DB, config *ChronicleExporterConfig) *ChronicleDistroExporter {
-	return &ChronicleDistroExporter{db: db, config: config}
-}
-
-func (e *ChronicleDistroExporter) Start(ctx context.Context, host Host) error { return nil }
-func (e *ChronicleDistroExporter) Shutdown(ctx context.Context) error        { return nil }
-
-func (e *ChronicleDistroExporter) ExportMetrics(ctx context.Context, metrics *Metrics) error {
-	if e.db == nil {
-		return nil
-	}
-
-	// Convert and write to Chronicle
-	for _, rm := range metrics.ResourceMetrics {
-		tags := make(map[string]string)
-		for k, v := range rm.Resource.Attributes {
-			tags[k] = fmt.Sprintf("%v", v)
-		}
-
-		for _, sm := range rm.ScopeMetrics {
-			for _, m := range sm.Metrics {
-				// Simplified conversion
-				point := Point{
-					Metric:    m.Name,
-					Timestamp: time.Now().UnixNano(),
-					Tags:      tags,
-				}
-				e.db.Write(point)
-			}
-		}
-	}
-
-	return nil
+func NewChronicleDistroExporter(pw PointWriter, config *ChronicleExporterConfig) *ChronicleDistroExporter {
+	return &ChronicleDistroExporter{pw: pw, config: config}
 }
 
 // OTLPDistroExporter exports to OTLP endpoint.
@@ -1229,14 +616,6 @@ func NewOTLPDistroExporter(config *OTLPExporterConfig) *OTLPDistroExporter {
 	}
 }
 
-func (e *OTLPDistroExporter) Start(ctx context.Context, host Host) error { return nil }
-func (e *OTLPDistroExporter) Shutdown(ctx context.Context) error        { return nil }
-
-func (e *OTLPDistroExporter) ExportMetrics(ctx context.Context, metrics *Metrics) error {
-	// Convert and send to OTLP endpoint
-	return nil
-}
-
 // DebugDistroExporter outputs debug information.
 type DebugDistroExporter struct {
 	config *DebugExporterConfig
@@ -1246,16 +625,6 @@ type DebugDistroExporter struct {
 func NewDebugDistroExporter(config *DebugExporterConfig) *DebugDistroExporter {
 	return &DebugDistroExporter{config: config}
 }
-
-func (e *DebugDistroExporter) Start(ctx context.Context, host Host) error { return nil }
-func (e *DebugDistroExporter) Shutdown(ctx context.Context) error        { return nil }
-
-func (e *DebugDistroExporter) ExportMetrics(ctx context.Context, metrics *Metrics) error {
-	// Log metrics for debugging
-	return nil
-}
-
-// ========== Extension Implementations ==========
 
 // HealthCheckExtension provides health check endpoint.
 type HealthCheckExtension struct {
@@ -1269,35 +638,6 @@ func NewHealthCheckExtension(config *HealthExtConfig, distro *ChronicleOTelDistr
 	return &HealthCheckExtension{config: config, distro: distro}
 }
 
-func (e *HealthCheckExtension) Start(ctx context.Context, host Host) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", e.handleHealth)
-
-	e.server = &http.Server{
-		Addr:    e.config.Endpoint,
-		Handler: mux,
-	}
-
-	go e.server.ListenAndServe()
-	return nil
-}
-
-func (e *HealthCheckExtension) Shutdown(ctx context.Context) error {
-	if e.server != nil {
-		return e.server.Shutdown(ctx)
-	}
-	return nil
-}
-
-func (e *HealthCheckExtension) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "healthy",
-		"uptime": e.distro.GetMetrics().Uptime.String(),
-	})
-}
-
 // ZPagesExtension provides diagnostic pages.
 type ZPagesExtension struct {
 	config *ZPagesConfig
@@ -1309,42 +649,6 @@ func NewZPagesExtension(config *ZPagesConfig) *ZPagesExtension {
 	return &ZPagesExtension{config: config}
 }
 
-func (e *ZPagesExtension) Start(ctx context.Context, host Host) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/tracez", e.handleTracez)
-	mux.HandleFunc("/debug/rpcz", e.handleRpcz)
-	mux.HandleFunc("/debug/servicez", e.handleServicez)
-
-	e.server = &http.Server{
-		Addr:    e.config.Endpoint,
-		Handler: mux,
-	}
-
-	go e.server.ListenAndServe()
-	return nil
-}
-
-func (e *ZPagesExtension) Shutdown(ctx context.Context) error {
-	if e.server != nil {
-		return e.server.Shutdown(ctx)
-	}
-	return nil
-}
-
-func (e *ZPagesExtension) handleTracez(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Trace information"))
-}
-
-func (e *ZPagesExtension) handleRpcz(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("RPC information"))
-}
-
-func (e *ZPagesExtension) handleServicez(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Service information"))
-}
-
-// ========== Configuration Generation ==========
-
 // GenerateOTelDistroYAML generates an OTel Collector config YAML.
 func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 	var sb strings.Builder
@@ -1352,7 +656,6 @@ func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 	sb.WriteString("# Chronicle OpenTelemetry Collector Distribution Configuration\n")
 	sb.WriteString("# Generated by Chronicle\n\n")
 
-	// Receivers
 	sb.WriteString("receivers:\n")
 	if config.Receivers.OTLP != nil {
 		sb.WriteString("  otlp:\n")
@@ -1365,7 +668,6 @@ func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 		}
 	}
 
-	// Processors
 	sb.WriteString("\nprocessors:\n")
 	if config.Processors.Batch != nil {
 		sb.WriteString("  batch:\n")
@@ -1378,7 +680,6 @@ func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 		sb.WriteString(fmt.Sprintf("    limit_mib: %d\n", config.Processors.Memory.LimitMiB))
 	}
 
-	// Exporters
 	sb.WriteString("\nexporters:\n")
 	if config.Exporters.Chronicle != nil {
 		sb.WriteString("  chronicle:\n")
@@ -1387,7 +688,6 @@ func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 		sb.WriteString(fmt.Sprintf("    batch_size: %d\n", config.Exporters.Chronicle.BatchSize))
 	}
 
-	// Extensions
 	sb.WriteString("\nextensions:\n")
 	if config.Extensions.Health != nil {
 		sb.WriteString(fmt.Sprintf("  health_check:\n    endpoint: %s\n", config.Extensions.Health.Endpoint))
@@ -1396,7 +696,6 @@ func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 		sb.WriteString(fmt.Sprintf("  zpages:\n    endpoint: %s\n", config.Extensions.ZPages.Endpoint))
 	}
 
-	// Service
 	sb.WriteString("\nservice:\n")
 	sb.WriteString("  extensions: [")
 	var exts []string
@@ -1417,7 +716,6 @@ func GenerateOTelDistroYAML(config OTelDistroConfig) string {
 		sb.WriteString(fmt.Sprintf("      exporters: [%s]\n", strings.Join(config.Pipelines.Metrics.Exporters, ", ")))
 	}
 
-	// Telemetry
 	sb.WriteString("\n  telemetry:\n")
 	sb.WriteString("    logs:\n")
 	sb.WriteString(fmt.Sprintf("      level: %s\n", config.Telemetry.Logs.Level))
@@ -1490,17 +788,14 @@ func GetComponentInfo(componentType, name string) map[string]interface{} {
 func ValidateConfig(config OTelDistroConfig) []string {
 	var errors []string
 
-	// Check receivers
 	if config.Receivers.OTLP == nil && config.Receivers.Prometheus == nil && config.Receivers.HostMetrics == nil {
 		errors = append(errors, "at least one receiver must be configured")
 	}
 
-	// Check exporters
 	if config.Exporters.Chronicle == nil && config.Exporters.OTLP == nil {
 		errors = append(errors, "at least one exporter must be configured")
 	}
 
-	// Check pipelines reference valid components
 	if config.Pipelines.Metrics != nil {
 		for _, recv := range config.Pipelines.Metrics.Receivers {
 			if !isValidReceiver(recv, config.Receivers) {
@@ -1571,58 +866,17 @@ func SupportedFormats() []string {
 func GetExampleConfigs() map[string]OTelDistroConfig {
 	configs := make(map[string]OTelDistroConfig)
 
-	// Basic config
 	configs["basic"] = DefaultOTelDistroConfig()
 
-	// High availability config
 	ha := DefaultOTelDistroConfig()
 	ha.Processors.Batch.SendBatchSize = 5000
 	ha.Processors.Memory.LimitMiB = 1024
 	configs["high_availability"] = ha
 
-	// Edge config
 	edge := DefaultOTelDistroConfig()
 	edge.Processors.Batch.SendBatchSize = 100
 	edge.Processors.Memory.LimitMiB = 64
 	configs["edge"] = edge
 
 	return configs
-}
-
-// ListConfiguredComponents returns configured components summary.
-func (d *ChronicleOTelDistro) ListConfiguredComponents() map[string][]string {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	result := make(map[string][]string)
-
-	var receivers []string
-	for name := range d.receivers {
-		receivers = append(receivers, name)
-	}
-	sort.Strings(receivers)
-	result["receivers"] = receivers
-
-	var processors []string
-	for name := range d.processors {
-		processors = append(processors, name)
-	}
-	sort.Strings(processors)
-	result["processors"] = processors
-
-	var exporters []string
-	for name := range d.exporters {
-		exporters = append(exporters, name)
-	}
-	sort.Strings(exporters)
-	result["exporters"] = exporters
-
-	var extensions []string
-	for name := range d.extensions {
-		extensions = append(extensions, name)
-	}
-	sort.Strings(extensions)
-	result["extensions"] = extensions
-
-	return result
 }

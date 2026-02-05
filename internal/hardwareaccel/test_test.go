@@ -1,14 +1,16 @@
-package chronicle
+package hardwareaccel
 
 import (
 	"math"
 	"testing"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
 
 func TestNewHardwareAccelSDK(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -78,8 +80,8 @@ func TestAcceleratorTypeString(t *testing.T) {
 
 func TestSelectDevice(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -103,8 +105,8 @@ func TestSelectDevice(t *testing.T) {
 
 func TestCompressCPU(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -129,8 +131,8 @@ func TestCompressCPU(t *testing.T) {
 
 func TestDecompressCPU(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -160,8 +162,8 @@ func TestDecompressCPU(t *testing.T) {
 
 func TestAggregateCPU(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -224,8 +226,8 @@ func TestAggregateCPU(t *testing.T) {
 
 func TestAggregateStdDev(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -247,8 +249,8 @@ func TestAggregateStdDev(t *testing.T) {
 
 func TestAggregateVariance(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -270,8 +272,8 @@ func TestAggregateVariance(t *testing.T) {
 
 func TestFilterAccelerated(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -301,8 +303,8 @@ func TestFilterAccelerated(t *testing.T) {
 
 func TestSortAccelerated(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -326,8 +328,8 @@ func TestSortAccelerated(t *testing.T) {
 
 func TestVectorMathCPU(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -382,8 +384,8 @@ func TestVectorMathCPU(t *testing.T) {
 
 func TestVectorMathLengthMismatch(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -403,8 +405,8 @@ func TestVectorMathLengthMismatch(t *testing.T) {
 
 func TestVectorDiv(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -435,8 +437,8 @@ func TestVectorDiv(t *testing.T) {
 
 func TestVectorDivByZero(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -460,8 +462,8 @@ func TestVectorDivByZero(t *testing.T) {
 
 func TestFFTCPU(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -488,8 +490,8 @@ func TestFFTCPU(t *testing.T) {
 
 func TestAggregateSIMD(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -533,8 +535,8 @@ func TestAggregateSIMD(t *testing.T) {
 
 func TestFilterSIMD(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -565,8 +567,8 @@ func TestFilterSIMD(t *testing.T) {
 
 func TestVectorMathSIMD(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -761,8 +763,8 @@ func TestAcceleratorMemoryPoolExhausted(t *testing.T) {
 
 func TestBatchProcessor(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -773,9 +775,9 @@ func TestBatchProcessor(t *testing.T) {
 
 	processor := NewBatchProcessor(sdk, 100)
 
-	points := make([]Point, 10)
+	points := make([]chronicle.Point, 10)
 	for i := range points {
-		points[i] = Point{
+		points[i] = chronicle.Point{
 			Metric:    "test",
 			Timestamp: int64(i * 1000),
 			Value:     float64(i),
@@ -793,8 +795,8 @@ func TestBatchProcessor(t *testing.T) {
 
 func TestAsyncCompressAccelerated(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -817,8 +819,8 @@ func TestAsyncCompressAccelerated(t *testing.T) {
 
 func TestAsyncAggregateAccelerated(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -846,8 +848,8 @@ func TestAsyncAggregateAccelerated(t *testing.T) {
 
 func TestHAStats(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -872,8 +874,8 @@ func TestHAStats(t *testing.T) {
 
 func TestCompressEmptyData(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -893,8 +895,8 @@ func TestCompressEmptyData(t *testing.T) {
 
 func TestAggregateEmptyData(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -994,8 +996,8 @@ func TestHasSIMDSupport(t *testing.T) {
 
 func TestFallbackToCPU(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -1018,8 +1020,8 @@ func TestFallbackToCPU(t *testing.T) {
 
 func TestDisableAcceleration(t *testing.T) {
 	dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
+	cfg := chronicle.DefaultConfig(dir + "/test.db")
+	db, err := chronicle.Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
