@@ -165,3 +165,25 @@ func TestQueryExecuteContext(t *testing.T) {
 		t.Error("expected empty result for nil query")
 	}
 }
+
+func TestWriteError(t *testing.T) {
+	cause := errors.New("disk full")
+	err := NewWriteError("cpu.usage", cause)
+
+	if !errors.Is(err, cause) {
+		t.Error("WriteError should unwrap to its cause")
+	}
+
+	msg := err.Error()
+	if msg != `write failed for metric "cpu.usage": disk full` {
+		t.Errorf("unexpected message: %s", msg)
+	}
+}
+
+func TestConfigError(t *testing.T) {
+	err := NewConfigError("Storage.BufferSize", "must be positive")
+	msg := err.Error()
+	if msg != "invalid config Storage.BufferSize: must be positive" {
+		t.Errorf("unexpected message: %s", msg)
+	}
+}

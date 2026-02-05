@@ -185,3 +185,37 @@ func (e *WALSyncError) Unwrap() error {
 func (e *WALSyncError) Is(target error) bool {
 	return target == ErrWALSync
 }
+
+// WriteError provides context about a failed write operation.
+type WriteError struct {
+	Metric string
+	Cause  error
+}
+
+func (e *WriteError) Error() string {
+	return fmt.Sprintf("write failed for metric %q: %v", e.Metric, e.Cause)
+}
+
+func (e *WriteError) Unwrap() error {
+	return e.Cause
+}
+
+// ConfigError describes a configuration validation failure.
+type ConfigError struct {
+	Field   string
+	Message string
+}
+
+func (e *ConfigError) Error() string {
+	return fmt.Sprintf("invalid config %s: %s", e.Field, e.Message)
+}
+
+// NewWriteError wraps an error with the metric name that caused the failure.
+func NewWriteError(metric string, cause error) error {
+	return &WriteError{Metric: metric, Cause: cause}
+}
+
+// NewConfigError creates an error describing an invalid configuration field.
+func NewConfigError(field, message string) error {
+	return &ConfigError{Field: field, Message: message}
+}

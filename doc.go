@@ -69,10 +69,14 @@
 // Use [Config] to customize behavior:
 //
 //	cfg := chronicle.Config{
-//	    Path:              "data.db",
-//	    MaxMemory:         64 * 1024 * 1024,
-//	    PartitionDuration: time.Hour,
-//	    RetentionDuration: 7 * 24 * time.Hour,
+//	    Path: "data.db",
+//	    Storage: chronicle.StorageConfig{
+//	        MaxMemory:         64 * 1024 * 1024,
+//	        PartitionDuration: time.Hour,
+//	    },
+//	    Retention: chronicle.RetentionConfig{
+//	        RetentionDuration: 7 * 24 * time.Hour,
+//	    },
 //	}
 //
 // Or use [DefaultConfig] for sensible defaults.

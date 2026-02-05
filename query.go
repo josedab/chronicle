@@ -5,51 +5,55 @@ import (
 	"time"
 )
 
-// Query represents a parsed query.
+// Query describes a time-series data retrieval request. At minimum, set Metric
+// to select a series. Use Start/End (Unix nanoseconds) to bound the time range,
+// TagFilters to narrow by labels, and Aggregation to reduce results.
 type Query struct {
 	Metric      string
 	Tags        map[string]string
 	TagFilters  []TagFilter
-	Start       int64
-	End         int64
+	Start       int64 // inclusive lower bound, Unix nanoseconds; 0 means unbounded
+	End         int64 // exclusive upper bound, Unix nanoseconds; 0 means unbounded
 	Aggregation *Aggregation
 	GroupBy     []string
 	Limit       int
 }
 
-// Aggregation defines an aggregation operation.
+// Aggregation specifies a downsampling operation applied during query execution.
+// Function selects the reducer (sum, mean, etc.) and Window sets the bucket width.
 type Aggregation struct {
 	Function AggFunc
 	Window   time.Duration
 }
 
-// AggFunc enumerates aggregation functions.
+// AggFunc selects the aggregation function applied to each time window.
 type AggFunc int
 
 const (
-	AggNone AggFunc = iota
-	AggCount
-	AggSum
-	AggMean
-	AggMin
-	AggMax
-	AggStddev
-	AggPercentile
-	AggRate
-	AggFirst
-	AggLast
+	AggNone       AggFunc = iota // No aggregation (raw points)
+	AggCount                     // Number of points per window
+	AggSum                       // Sum of values per window
+	AggMean                      // Arithmetic mean per window
+	AggMin                       // Minimum value per window
+	AggMax                       // Maximum value per window
+	AggStddev                    // Standard deviation per window
+	AggPercentile                // Percentile per window
+	AggRate                      // Rate of change per window
+	AggFirst                     // First value per window
+	AggLast                      // Last value per window
 )
 
-// TagOp enumerates tag operators.
+// TagOp selects the comparison operator used in a TagFilter.
 type TagOp int
 
 const (
-	TagOpEq TagOp = iota
-	TagOpNotEq
-	TagOpIn
+	TagOpEq    TagOp = iota // Exact match (tag == value)
+	TagOpNotEq              // Exclusion (tag != value)
+	TagOpIn                 // Set membership (tag in [values...])
 )
 
-// TagFilter represents a tag predicate.
+// TagFilter restricts query results to series whose tag Key satisfies
+// the comparison Op against the given Values.
 type TagFilter struct {
 	Key    string
 	Op     TagOp

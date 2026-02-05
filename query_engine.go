@@ -61,7 +61,7 @@ func (qe *QueryEngine) EstimateQueryCost(q *Query) QueryCost {
 	var estimatedSeries int64
 	for _, p := range partitions {
 		p.mu.RLock()
-		estimatedSeries += int64(len(p.Series))
+		estimatedSeries += int64(len(p.series))
 		p.mu.RUnlock()
 	}
 

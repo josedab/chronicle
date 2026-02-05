@@ -5,15 +5,21 @@ import (
 	"strings"
 )
 
-// Point represents a single time-series data point.
+// Point represents a single time-series data point with a metric name, optional tags,
+// a float64 value, and a Unix nanosecond timestamp.
 type Point struct {
-	Metric    string
-	Tags      map[string]string
-	Value     float64
+	// Metric is the series name (e.g., "cpu.usage", "http.request_count").
+	Metric string
+	// Tags are optional key-value labels for filtering and grouping (e.g., {"host": "web-1"}).
+	Tags map[string]string
+	// Value is the numeric measurement.
+	Value float64
+	// Timestamp is the observation time in Unix nanoseconds.
 	Timestamp int64
 }
 
-// Series represents a unique time series.
+// Series represents a unique time series identified by a numeric ID,
+// a metric name, and a set of distinguishing tags.
 type Series struct {
 	ID     uint64
 	Metric string
@@ -104,7 +110,7 @@ func (sk SeriesKey) Equals(other SeriesKey) bool {
 	return true
 }
 
-// Result represents query results.
+// Result holds the output of a query execution, containing the matching data points.
 type Result struct {
 	Points []Point
 }
