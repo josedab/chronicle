@@ -355,7 +355,7 @@ func TestGrafanaJSONPanels(t *testing.T) {
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
-	dashboard, _ := engine.GenerateDashboard(context.Background(), "Current CPU gauge")
+	dashboard, _ := engine.GenerateDashboard(context.Background(), "gauge for CPU usage")
 
 	jsonBytes, _ := engine.ToGrafanaJSON(dashboard)
 

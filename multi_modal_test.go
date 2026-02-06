@@ -615,7 +615,8 @@ func TestUnifiedQuery(t *testing.T) {
 
 	// Write data
 	mms.WriteLog(&MMLogEntry{Service: "api", Message: "Request"})
-	mms.WriteSpan(&Span{TraceID: "t1", Service: "api", Name: "op"})
+	mms.WriteSpan(&Span{TraceID: "t1", Service: "api", Name: "op", StartTime: time.Now()})
+	_ = db.Flush()
 
 	now := time.Now()
 	result, err := mms.UnifiedQuery(&UnifiedQuery{

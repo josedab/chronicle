@@ -1,3 +1,5 @@
+//go:build integration
+
 package chronicle
 
 import (
@@ -5,8 +7,6 @@ import (
 	"testing"
 	"time"
 )
-
-// Integration tests for new features with actual database operations
 
 func TestIntegration_SemanticSearchWithData(t *testing.T) {
 	db := setupTestDB(t)

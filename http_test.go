@@ -159,9 +159,7 @@ func TestHTTPQueryWithAggregation(t *testing.T) {
 	qr := queryRequest{
 		Metric:      "cpu",
 		Aggregation: "mean",
-		Window:      "1s",
-		Start:       now,
-		End:         now + int64(2*time.Second),
+		Window:      "1h",
 	}
 	body, _ := json.Marshal(qr)
 

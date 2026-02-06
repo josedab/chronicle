@@ -21,7 +21,7 @@ func TestBTree_Insert(t *testing.T) {
 	tree := newBTree(3)
 
 	// Insert single element
-	p1 := &Partition{ID: 1, StartTime: 100}
+	p1 := &Partition{id: 1, startTime: 100}
 	tree.Insert(100, p1)
 
 	if tree.root == nil {
@@ -40,7 +40,7 @@ func TestBTree_InsertMultiple(t *testing.T) {
 
 	// Insert multiple elements
 	for i := int64(1); i <= 10; i++ {
-		p := &Partition{ID: uint64(i), StartTime: i * 100}
+		p := &Partition{id: uint64(i), startTime: i * 100}
 		tree.Insert(i*100, p)
 	}
 
@@ -56,7 +56,7 @@ func TestBTree_InsertDescending(t *testing.T) {
 
 	// Insert in descending order
 	for i := int64(10); i >= 1; i-- {
-		p := &Partition{ID: uint64(i), StartTime: i * 100}
+		p := &Partition{id: uint64(i), startTime: i * 100}
 		tree.Insert(i*100, p)
 	}
 
@@ -79,7 +79,7 @@ func TestBTree_Range_PartialMatch(t *testing.T) {
 	tree := newBTree(3)
 
 	for i := int64(1); i <= 10; i++ {
-		p := &Partition{ID: uint64(i), StartTime: i * 100}
+		p := &Partition{id: uint64(i), startTime: i * 100}
 		tree.Insert(i*100, p)
 	}
 
@@ -94,7 +94,7 @@ func TestBTree_Range_NoEndBound(t *testing.T) {
 	tree := newBTree(3)
 
 	for i := int64(1); i <= 5; i++ {
-		p := &Partition{ID: uint64(i), StartTime: i * 100}
+		p := &Partition{id: uint64(i), startTime: i * 100}
 		tree.Insert(i*100, p)
 	}
 
@@ -110,7 +110,7 @@ func TestBTree_SplitChild(t *testing.T) {
 
 	// Insert enough to cause splits
 	for i := int64(1); i <= 20; i++ {
-		p := &Partition{ID: uint64(i), StartTime: i}
+		p := &Partition{id: uint64(i), startTime: i}
 		tree.Insert(i, p)
 	}
 
@@ -124,8 +124,8 @@ func TestBTree_DuplicateKeys(t *testing.T) {
 	tree := newBTree(3)
 
 	// Insert same key multiple times
-	p1 := &Partition{ID: 1, StartTime: 100}
-	p2 := &Partition{ID: 2, StartTime: 100}
+	p1 := &Partition{id: 1, startTime: 100}
+	p2 := &Partition{id: 2, startTime: 100}
 	tree.Insert(100, p1)
 	tree.Insert(100, p2)
 
@@ -140,7 +140,7 @@ func TestBTree_LargeDataset(t *testing.T) {
 
 	// Insert large number of elements
 	for i := int64(1); i <= 1000; i++ {
-		p := &Partition{ID: uint64(i), StartTime: i}
+		p := &Partition{id: uint64(i), startTime: i}
 		tree.Insert(i, p)
 	}
 

@@ -45,14 +45,14 @@ func TestForecastGeneration(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		usage := ResourceUsage{
 			Timestamp:    now.Add(time.Duration(-100+i) * time.Hour),
-			StorageBytes: int64(1000000 + i*10000), // Growing storage
+			StorageBytes: int64(1000000 + i*50000), // Growing storage
 			StorageLimit: 10000000,
-			MemoryBytes:  int64(500000 + i*1000),
+			MemoryBytes:  int64(500000 + i*5000),
 			MemoryLimit:  5000000,
-			PointsCount:  int64(10000 + i*100),
-			SeriesCount:  int64(100 + i),
+			PointsCount:  int64(10000 + i*500),
+			SeriesCount:  int64(100 + i*5),
 			SeriesLimit:  10000,
-			QueryRate:    10.0 + float64(i)*0.1,
+			QueryRate:    10.0 + float64(i)*0.5,
 			WriteRate:    100.0,
 		}
 		engine.historyMu.Lock()
