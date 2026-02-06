@@ -170,6 +170,141 @@ func ChronicleOverviewDashboard() GrafanaDashboardTemplate {
 	}
 }
 
+// IoTSensorDashboard returns a pre-built IoT sensor monitoring dashboard template.
+func IoTSensorDashboard() GrafanaDashboardTemplate {
+	return GrafanaDashboardTemplate{
+		Title:       "IoT Sensor Dashboard",
+		Description: "Real-time monitoring of IoT sensor data including temperature, humidity, and pressure",
+		Tags:        []string{"chronicle", "iot", "sensors"},
+		Refresh:     "5s",
+		Variables: []GrafanaVariable{
+			{Name: "sensor", Query: "tag_values(sensor_id)", Type: "query", Multi: true},
+			{Name: "location", Query: "tag_values(location)", Type: "query", Multi: true},
+		},
+		Panels: []GrafanaPanelTemplate{
+			{
+				Title:   "Temperature",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 8, X: 0, Y: 0},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "sensor.temperature", Aggregation: "mean", Window: "1m",
+				}},
+				Description: "Temperature readings from IoT sensors in Celsius",
+			},
+			{
+				Title:   "Humidity",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 8, X: 8, Y: 0},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "sensor.humidity", Aggregation: "mean", Window: "1m",
+				}},
+				Description: "Relative humidity percentage from IoT sensors",
+			},
+			{
+				Title:   "Pressure",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 8, X: 16, Y: 0},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "sensor.pressure", Aggregation: "mean", Window: "1m",
+				}},
+				Description: "Atmospheric pressure readings in hPa",
+			},
+			{
+				Title:   "Current Temperature",
+				Type:    "stat",
+				GridPos: GrafanaGridPos{H: 4, W: 8, X: 0, Y: 8},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "sensor.temperature", Aggregation: "last",
+				}},
+			},
+			{
+				Title:   "Current Humidity",
+				Type:    "gauge",
+				GridPos: GrafanaGridPos{H: 4, W: 8, X: 8, Y: 8},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "sensor.humidity", Aggregation: "last",
+				}},
+			},
+			{
+				Title:   "Current Pressure",
+				Type:    "gauge",
+				GridPos: GrafanaGridPos{H: 4, W: 8, X: 16, Y: 8},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "sensor.pressure", Aggregation: "last",
+				}},
+			},
+		},
+	}
+}
+
+// APIMonitoringDashboard returns a pre-built API monitoring dashboard template.
+func APIMonitoringDashboard() GrafanaDashboardTemplate {
+	return GrafanaDashboardTemplate{
+		Title:       "API Monitoring Dashboard",
+		Description: "Monitor API performance including request rate, error rate, and latency",
+		Tags:        []string{"chronicle", "api", "monitoring"},
+		Refresh:     "10s",
+		Variables: []GrafanaVariable{
+			{Name: "service", Query: "tag_values(service)", Type: "query", Multi: true},
+			{Name: "endpoint", Query: "tag_values(endpoint)", Type: "query", Multi: true},
+		},
+		Panels: []GrafanaPanelTemplate{
+			{
+				Title:   "Request Rate",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 12, X: 0, Y: 0},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "api.request_rate", Aggregation: "rate", Window: "1m",
+				}},
+				Description: "Incoming API requests per second",
+			},
+			{
+				Title:   "Error Rate",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 12, X: 12, Y: 0},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "api.error_rate", Aggregation: "rate", Window: "1m",
+				}},
+				Description: "API error responses per second",
+			},
+			{
+				Title:   "Latency P99",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 12, X: 0, Y: 8},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "api.latency_p99", Aggregation: "max", Window: "1m",
+				}},
+				Description: "99th percentile API response latency in milliseconds",
+			},
+			{
+				Title:   "Latency P50",
+				Type:    "graph",
+				GridPos: GrafanaGridPos{H: 8, W: 12, X: 12, Y: 8},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "api.latency_p50", Aggregation: "mean", Window: "1m",
+				}},
+				Description: "50th percentile API response latency in milliseconds",
+			},
+			{
+				Title:   "Total Requests",
+				Type:    "stat",
+				GridPos: GrafanaGridPos{H: 4, W: 8, X: 0, Y: 16},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "api.request_rate", Aggregation: "sum",
+				}},
+			},
+			{
+				Title:   "Error Percentage",
+				Type:    "gauge",
+				GridPos: GrafanaGridPos{H: 4, W: 8, X: 8, Y: 16},
+				Targets: []GrafanaQuery{{
+					RefID: "A", Metric: "api.error_rate", Aggregation: "last",
+				}},
+			},
+		},
+	}
+}
+
 // GrafanaPluginQueryHandler translates Grafana queries into Chronicle queries.
 type GrafanaPluginQueryHandler struct {
 	db     *DB

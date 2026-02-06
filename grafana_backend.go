@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // GrafanaBackendConfig configures the Grafana backend plugin.
@@ -60,6 +62,11 @@ type GrafanaBackend struct {
 	config   GrafanaBackendConfig
 	server   *http.Server
 	hub      *StreamHub
+
+	// Alert management
+	alertMgr   *AlertManager
+	alertRules []GrafanaAlertRule
+	alertMu    sync.RWMutex
 
 	// Caches
 	metricCache   []string
@@ -180,6 +187,9 @@ func (g *GrafanaBackend) Start() error {
 	if g.config.EnableStreaming {
 		mux.HandleFunc("/stream", g.handleStream)
 	}
+
+	// Alert management endpoints
+	mux.HandleFunc("/alerts", g.handleAlerts)
 
 	g.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", g.config.HTTPPort),
@@ -509,9 +519,224 @@ func (g *GrafanaBackend) handleVariable(w http.ResponseWriter, r *http.Request) 
 }
 
 func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
-	// Upgrade to WebSocket for streaming
-	// This would integrate with the existing StreamHub
-	http.Error(w, "WebSocket streaming not implemented in basic version", http.StatusNotImplemented)
+	if g.hub == nil {
+		http.Error(w, "streaming not enabled", http.StatusServiceUnavailable)
+		return
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer func() { _ = conn.Close() }()
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	// Track subscriptions for this connection
+	connSubs := make(map[string]*Subscription)
+	var connMu sync.Mutex
+
+	// Read commands from client
+	go func() {
+		defer cancel()
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			var cmd StreamMessage
+			if err := json.Unmarshal(msg, &cmd); err != nil {
+				resp, _ := json.Marshal(StreamMessage{Type: "error", Error: "invalid message format"})
+				_ = conn.WriteMessage(1, resp)
+				continue
+			}
+
+			switch cmd.Type {
+			case "subscribe":
+				sub := g.hub.Subscribe(cmd.Metric, cmd.Tags)
+				connMu.Lock()
+				connSubs[sub.ID] = sub
+				connMu.Unlock()
+
+				resp, _ := json.Marshal(StreamMessage{Type: "subscribed", SubID: sub.ID})
+				_ = conn.WriteMessage(1, resp)
+
+				go g.forwardStreamPoints(ctx, conn, sub)
+
+			case "unsubscribe":
+				connMu.Lock()
+				if sub, ok := connSubs[cmd.SubID]; ok {
+					delete(connSubs, cmd.SubID)
+					g.hub.Unsubscribe(sub.ID)
+				}
+				connMu.Unlock()
+
+				resp, _ := json.Marshal(StreamMessage{Type: "unsubscribed", SubID: cmd.SubID})
+				_ = conn.WriteMessage(1, resp)
+
+			default:
+				resp, _ := json.Marshal(StreamMessage{Type: "error", Error: "unknown command: " + cmd.Type})
+				_ = conn.WriteMessage(1, resp)
+			}
+		}
+	}()
+
+	<-ctx.Done()
+
+	// Cleanup all subscriptions
+	connMu.Lock()
+	for _, sub := range connSubs {
+		g.hub.Unsubscribe(sub.ID)
+	}
+	connMu.Unlock()
+}
+
+func (g *GrafanaBackend) forwardStreamPoints(ctx context.Context, conn *websocket.Conn, sub *Subscription) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-sub.done:
+			return
+		case p, ok := <-sub.ch:
+			if !ok {
+				return
+			}
+			msg, _ := json.Marshal(StreamMessage{
+				Type:  "point",
+				SubID: sub.ID,
+				Point: &p,
+			})
+			if err := conn.WriteMessage(1, msg); err != nil {
+				return
+			}
+		}
+	}
+}
+
+func (g *GrafanaBackend) handleAlerts(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		g.listAlertRules(w, r)
+	case http.MethodPost:
+		g.createAlertRule(w, r)
+	case http.MethodDelete:
+		g.deleteAlertRule(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (g *GrafanaBackend) createAlertRule(w http.ResponseWriter, r *http.Request) {
+	var rule GrafanaAlertRule
+	if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if rule.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	if rule.ID == "" {
+		rule.ID = fmt.Sprintf("alert-%d", time.Now().UnixNano())
+	}
+
+	// Register with AlertManager if available
+	if g.alertMgr != nil {
+		alertRule := AlertRule{
+			Name:        rule.Name,
+			Metric:      rule.Query.Metric,
+			Tags:        rule.Query.Tags,
+			Condition:   g.parseAlertCondition(rule.Condition),
+			Threshold:   rule.Threshold,
+			Labels:      rule.Labels,
+			Annotations: rule.Annotations,
+		}
+		if rule.For != "" {
+			alertRule.ForDuration, _ = g.parseDuration(rule.For)
+		}
+		if err := g.alertMgr.AddRule(alertRule); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	g.alertMu.Lock()
+	g.alertRules = append(g.alertRules, rule)
+	g.alertMu.Unlock()
+
+	g.writeJSON(w, rule)
+}
+
+func (g *GrafanaBackend) listAlertRules(w http.ResponseWriter, r *http.Request) {
+	g.alertMu.RLock()
+	rules := g.alertRules
+	g.alertMu.RUnlock()
+
+	if rules == nil {
+		rules = []GrafanaAlertRule{}
+	}
+
+	g.writeJSON(w, rules)
+}
+
+func (g *GrafanaBackend) deleteAlertRule(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		// Try to extract from path
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/alerts/"), "/")
+		if len(parts) > 0 && parts[0] != "" {
+			id = parts[0]
+		}
+	}
+
+	if id == "" {
+		http.Error(w, "id parameter required", http.StatusBadRequest)
+		return
+	}
+
+	g.alertMu.Lock()
+	found := false
+	for i, rule := range g.alertRules {
+		if rule.ID == id {
+			g.alertRules = append(g.alertRules[:i], g.alertRules[i+1:]...)
+			found = true
+			// Remove from AlertManager if available
+			if g.alertMgr != nil {
+				g.alertMgr.RemoveRule(rule.Name)
+			}
+			break
+		}
+	}
+	g.alertMu.Unlock()
+
+	if !found {
+		http.Error(w, "alert rule not found", http.StatusNotFound)
+		return
+	}
+
+	g.writeJSON(w, map[string]string{"status": "deleted", "id": id})
+}
+
+func (g *GrafanaBackend) parseAlertCondition(s string) AlertCondition {
+	switch strings.ToLower(s) {
+	case "above", "gt", ">":
+		return AlertConditionAbove
+	case "below", "lt", "<":
+		return AlertConditionBelow
+	case "equal", "eq", "=":
+		return AlertConditionEqual
+	case "not_equal", "ne", "!=":
+		return AlertConditionNotEqual
+	case "absent", "no_data":
+		return AlertConditionAbsent
+	default:
+		return AlertConditionAbove
+	}
 }
 
 // Helper methods
@@ -694,16 +919,27 @@ func (g *GrafanaBackend) getMetricsCached() []string {
 }
 
 func (g *GrafanaBackend) getTagKeys() []string {
-	// Get unique tag keys from index
-	// This would need access to the index's tag information
-	// For now, return common tags
-	return []string{"host", "region", "env", "service"}
+	if g.db == nil {
+		return []string{}
+	}
+	keys := g.db.TagKeys()
+	if len(keys) == 0 {
+		return []string{}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func (g *GrafanaBackend) getTagValues(key string) []string {
-	// Get unique values for a tag key
-	// This would need access to the index's tag information
-	return []string{}
+	if g.db == nil {
+		return []string{}
+	}
+	values := g.db.TagValues(key)
+	if len(values) == 0 {
+		return []string{}
+	}
+	sort.Strings(values)
+	return values
 }
 
 func (g *GrafanaBackend) downsamplePoints(points []Point, maxPoints int) []Point {
