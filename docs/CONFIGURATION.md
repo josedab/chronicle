@@ -10,8 +10,15 @@ import "github.com/chronicle-db/chronicle"
 // Use defaults
 cfg := chronicle.DefaultConfig("data.db")
 
-// Or customize
-cfg := chronicle.Config{
+// Or use the builder for a fluent API with validation
+cfg, err := chronicle.NewConfigBuilder("data.db").
+    WithMaxMemory(128 * 1024 * 1024).       // 128MB
+    WithRetention(30 * 24 * time.Hour).      // 30 days
+    WithHTTP(8086).
+    Build()
+
+// Or customize the struct directly
+cfg = chronicle.Config{
     Path: "data.db",
     Storage: chronicle.StorageConfig{
         MaxMemory:         128 * 1024 * 1024, // 128MB
@@ -426,3 +433,57 @@ cfg := chronicle.Config{
 - [FEATURES](./FEATURES.md) - Feature guide
 - [ARCHITECTURE](./ARCHITECTURE.md) - System design
 - [API](./API.md) - HTTP endpoints
+- [TESTING](./TESTING.md) - Testing guide
+
+---
+
+## Validation
+
+Call `Validate()` to check a configuration for logical errors before opening the database:
+
+```go
+cfg := chronicle.Config{
+    Path: "data.db",
+    Storage: chronicle.StorageConfig{
+        BufferSize: -1,  // invalid
+    },
+    HTTP: chronicle.HTTPConfig{
+        HTTPPort: 99999,  // invalid
+    },
+}
+
+if err := cfg.Validate(); err != nil {
+    log.Fatal(err)
+    // Output: Storage.BufferSize must be non-negative, got -1
+    //         HTTP.HTTPPort must be 0-65535, got 99999
+}
+```
+
+`Validate()` normalizes legacy fields first, then checks all values. It returns a combined error listing every problem found (using `errors.Join`).
+
+---
+
+## Legacy Fields
+
+Chronicle previously used flat config fields. These are deprecated but still
+supported — they are automatically copied into the grouped equivalents via
+`normalize()` during `Open()`:
+
+| Legacy Field | Replacement |
+|-------------|-------------|
+| `MaxMemory` | `Storage.MaxMemory` |
+| `BufferSize` | `Storage.BufferSize` |
+| `PartitionDuration` | `Storage.PartitionDuration` |
+| `MaxStorageBytes` | `Storage.MaxStorageBytes` |
+| `SyncInterval` | `WAL.SyncInterval` |
+| `WALMaxSize` | `WAL.WALMaxSize` |
+| `WALRetain` | `WAL.WALRetain` |
+| `RetentionDuration` | `Retention.RetentionDuration` |
+| `CompactionWorkers` | `Retention.CompactionWorkers` |
+| `CompactionInterval` | `Retention.CompactionInterval` |
+| `QueryTimeout` | `Query.QueryTimeout` |
+| `HTTPEnabled` | `HTTP.HTTPEnabled` |
+| `HTTPPort` | `HTTP.HTTPPort` |
+
+**Migration**: Replace flat fields with their grouped equivalents. Use
+`DefaultConfig(path)` to get a fully-populated Config with sensible defaults.

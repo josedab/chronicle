@@ -14,7 +14,7 @@ Chronicle is an embedded time-series database for Go designed for constrained an
 go get github.com/chronicle-db/chronicle
 ```
 
-**Requirements:** Go 1.23 or later
+**Requirements:** Go 1.24 or later
 
 ## Quick Start
 
@@ -171,20 +171,39 @@ When `HTTPEnabled: true`, the following endpoints are available:
 
 ```
 chronicle/
-├── internal/           # Private implementation details
-│   ├── bits/           # Bit-level I/O utilities
-│   ├── encoding/       # Compression codecs (Gorilla, Delta, Dictionary)
-│   └── query/          # Query parsing and aggregation
-├── docs/             # Documentation
-│   ├── ARCHITECTURE.md # System design overview
-│   └── BENCHMARKS.md   # Performance benchmarks
-├── examples/           # Example applications
-│   └── simple/         # Simple usage example
-├── .github/            # GitHub configuration
-│   └── workflows/      # CI/CD workflows
-├── *.go                # Main package source files
-├── *_test.go           # Test files
-└── doc.go              # Package documentation
+├── internal/              # Private implementation details
+│   ├── adminui/           # Admin UI dashboard components
+│   ├── anomaly/           # Anomaly detection and classification
+│   ├── bits/              # Bit-level I/O utilities
+│   ├── cep/               # Complex event processing engine
+│   ├── chprotocol/        # ClickHouse-compatible protocol
+│   ├── cluster/           # Cluster coordination and write routing
+│   ├── continuousquery/   # Continuous query execution engine
+│   ├── cql/               # CQL query engine and parser
+│   ├── digitaltwin/       # Digital twin synchronization
+│   ├── edgemesh/          # Edge mesh networking (CRDT, mDNS)
+│   ├── encoding/          # Compression codecs (Gorilla, Delta, Dictionary)
+│   ├── gpucompression/    # GPU-accelerated compression
+│   ├── hardwareaccel/     # Hardware acceleration (SIMD, FPGA)
+│   ├── oteldistro/        # OpenTelemetry distribution helpers
+│   ├── pluginmkt/         # Plugin marketplace and registry
+│   ├── query/             # Query parsing and aggregation
+│   └── raft/              # Raft consensus implementation
+├── docs/                  # Documentation
+│   ├── ARCHITECTURE.md    # System design overview
+│   ├── BENCHMARKS.md      # Performance benchmarks
+│   └── adr/               # Architecture Decision Records
+├── examples/              # Example applications
+│   ├── simple/            # Basic write and query
+│   ├── http-server/       # Full HTTP API server
+│   ├── iot-collector/     # IoT sensor data collection
+│   ├── prometheus-compatible/ # Prometheus backend
+│   └── analytics-dashboard/   # Forecasting and alerting
+├── .github/               # GitHub configuration
+│   └── workflows/         # CI/CD workflows
+├── *.go                   # Main package source files
+├── *_test.go              # Test files
+└── doc.go                 # Package documentation
 ```
 
 The main `chronicle` package provides the public API. Internal packages under `internal/`
@@ -196,17 +215,25 @@ contain implementation details that should not be imported directly.
 - [HTTP API Reference](docs/API.md)
 - [Features Guide](docs/FEATURES.md)
 - [Configuration Reference](docs/CONFIGURATION.md)
+- [Plugin Development](docs/PLUGIN_DEVELOPMENT.md)
+- [Testing Guide](docs/TESTING.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Benchmarks](docs/BENCHMARKS.md)
 
 ## Development
 
 ```bash
+# Install development tools
+make setup
+
 # Run all checks
 make all
 
 # Run tests with race detector
 make test
+
+# Run short tests only (fast iteration)
+make test-short
 
 # Run benchmarks
 make bench
