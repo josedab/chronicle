@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // EBPFConfig configures the eBPF collector.
 type EBPFConfig struct {
 	// Enabled enables eBPF collection.

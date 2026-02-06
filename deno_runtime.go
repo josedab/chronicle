@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // DenoRuntimeConfig configures Chronicle for Deno Deploy environment.
 type DenoRuntimeConfig struct {
 	// ProjectID is the Deno Deploy project ID.

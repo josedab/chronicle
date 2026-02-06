@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // ConfidentialConfig configures confidential computing support.
 type ConfidentialConfig struct {
 	// Enabled enables confidential computing.

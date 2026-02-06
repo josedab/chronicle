@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // WorkersRuntimeConfig configures Chronicle for Cloudflare Workers environment.
 type WorkersRuntimeConfig struct {
 	// D1DatabaseID is the Cloudflare D1 database binding ID.

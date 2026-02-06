@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // PlaygroundConfig configures the embeddable WASM query playground.
 type PlaygroundConfig struct {
 	Enabled         bool   `json:"enabled"`
