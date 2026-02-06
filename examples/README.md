@@ -64,6 +64,19 @@ Features demonstrated:
 - Native histograms with percentiles
 - Alerting rules
 
+### [plugin](./plugin)
+Custom plugin development with aggregator and transformer plugins.
+
+```bash
+cd plugin && go run main.go
+```
+
+Features demonstrated:
+- Plugin registry and manifest
+- Custom aggregator (EWMA)
+- Custom transformer (unit conversion)
+- Plugin invocation via SDK
+
 ## Running All Examples
 
 ```bash
