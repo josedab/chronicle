@@ -28,6 +28,14 @@ go.work.sum
 /bin/
 /dist/
 
+# Example binaries
+examples/analytics-dashboard/analytics-dashboard
+examples/http-server/http-server
+examples/iot-collector/iot-collector
+examples/plugin/plugin
+examples/prometheus-compatible/prometheus-compatible
+examples/simple/simple
+
 # Grafana plugin
 grafana-plugin/node_modules/
 grafana-plugin/dist/
