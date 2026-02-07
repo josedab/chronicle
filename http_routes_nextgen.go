@@ -285,6 +285,56 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.CloudSyncFabric() != nil {
 		db.features.CloudSyncFabric().RegisterHTTPHandlers(mux)
 	}
+
+	// Data Mesh Federation
+	if db.features != nil && db.features.DataMesh() != nil {
+		db.features.DataMesh().RegisterHTTPHandlers(mux)
+	}
+
+	// Foundation Model
+	if db.features != nil && db.features.FoundationModel() != nil {
+		db.features.FoundationModel().RegisterHTTPHandlers(mux)
+	}
+
+	// Data Contracts
+	if db.features != nil && db.features.DataContracts() != nil {
+		db.features.DataContracts().RegisterHTTPHandlers(mux)
+	}
+
+	// Query Cache
+	if db.features != nil && db.features.QueryCache() != nil {
+		db.features.QueryCache().RegisterHTTPHandlers(mux)
+	}
+
+	// SQL Pipelines
+	if db.features != nil && db.features.SQLPipelines() != nil {
+		db.features.SQLPipelines().RegisterHTTPHandlers(mux)
+	}
+
+	// Multi-Model Store
+	if db.features != nil && db.features.MultiModelStore() != nil {
+		db.features.MultiModelStore().RegisterHTTPHandlers(mux)
+	}
+
+	// Adaptive Optimizer
+	if db.features != nil && db.features.AdaptiveOptimizer() != nil {
+		db.features.AdaptiveOptimizer().RegisterHTTPHandlers(mux)
+	}
+
+	// Compliance Automation
+	if db.features != nil && db.features.ComplianceAutomation() != nil {
+		db.features.ComplianceAutomation().RegisterHTTPHandlers(mux)
+	}
+
+	// Schema Designer
+	if db.features != nil && db.features.SchemaDesigner() != nil {
+		db.features.SchemaDesigner().RegisterHTTPHandlers(mux)
+	}
+
+	// Mobile SDK
+	if db.features != nil && db.features.MobileSDK() != nil {
+		db.features.MobileSDK().RegisterHTTPHandlers(mux)
+	}
 }
 
 func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {

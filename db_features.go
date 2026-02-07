@@ -233,3 +233,83 @@ func (db *DB) CloudSyncFabric() *CloudSyncFabric {
 	}
 	return db.features.CloudSyncFabric()
 }
+
+// DataMesh returns the data mesh federation engine.
+func (db *DB) DataMesh() *DataMesh {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.DataMesh()
+}
+
+// FoundationModel returns the time-series foundation model engine.
+func (db *DB) FoundationModel() *FoundationModel {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.FoundationModel()
+}
+
+// DataContracts returns the data contracts engine.
+func (db *DB) DataContracts() *DataContractEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.DataContracts()
+}
+
+// QueryCache returns the query result cache.
+func (db *DB) QueryCache() *QueryCache {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.QueryCache()
+}
+
+// SQLPipelines returns the SQL pipeline engine.
+func (db *DB) SQLPipelines() *SQLPipelineEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.SQLPipelines()
+}
+
+// MultiModelStore returns the multi-model store.
+func (db *DB) MultiModelStore() *IntegratedMultiModelStore {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.MultiModelStore()
+}
+
+// AdaptiveOptimizer returns the adaptive query optimizer.
+func (db *DB) AdaptiveOptimizer() *AdaptiveOptimizer {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.AdaptiveOptimizer()
+}
+
+// ComplianceAutomation returns the compliance automation suite.
+func (db *DB) ComplianceAutomation() *ComplianceAutomation {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.ComplianceAutomation()
+}
+
+// SchemaDesigner returns the visual schema designer.
+func (db *DB) SchemaDesigner() *SchemaDesigner {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.SchemaDesigner()
+}
+
+// MobileSDK returns the mobile SDK framework.
+func (db *DB) MobileSDK() *MobileSDK {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.MobileSDK()
+}
