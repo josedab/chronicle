@@ -66,6 +66,14 @@ func (db *DB) Features() *FeatureManager {
 	return db.features
 }
 
+// AnomalyPipeline returns the streaming anomaly detection pipeline.
+func (db *DB) AnomalyPipeline() *AnomalyPipeline {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.AnomalyPipeline()
+}
+
 // AnomalyCorrelation returns the anomaly correlation engine.
 func (db *DB) AnomalyCorrelation() *AnomalyCorrelationEngine {
 	if db.features == nil {
@@ -160,4 +168,68 @@ func (db *DB) FleetManager() *SaaSFleetManager {
 		return nil
 	}
 	return db.features.FleetManager()
+}
+
+// HardeningSuite returns the production hardening suite.
+func (db *DB) HardeningSuite() *HardeningSuite {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.HardeningSuite()
+}
+
+// OTelDistro returns the OpenTelemetry distribution.
+func (db *DB) OTelDistro() *OTelDistro {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.OTelDistro()
+}
+
+// EmbeddedCluster returns the embedded cluster manager.
+func (db *DB) EmbeddedCluster() *EmbeddedCluster {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.EmbeddedCluster()
+}
+
+// SmartRetention returns the smart retention engine.
+func (db *DB) SmartRetention() *SmartRetentionEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.SmartRetention()
+}
+
+// Dashboard returns the embeddable dashboard.
+func (db *DB) Dashboard() *EmbeddableDashboard {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.Dashboard()
+}
+
+// LSPEnhanced returns the enhanced LSP server.
+func (db *DB) LSPEnhanced() *LSPEnhancedServer {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.LSPEnhanced()
+}
+
+// ETLManager returns the ETL pipeline manager.
+func (db *DB) ETLManager() *ETLPipelineManager {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.ETLManager()
+}
+
+// CloudSyncFabric returns the multi-cloud sync fabric.
+func (db *DB) CloudSyncFabric() *CloudSyncFabric {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.CloudSyncFabric()
 }
