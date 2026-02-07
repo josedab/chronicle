@@ -8,6 +8,8 @@ import (
 )
 
 func main() {
+	// Database file is created in the current directory.
+	// Run from this example's directory: cd examples/simple && go run .
 	db, err := chronicle.Open("sensors.db", chronicle.DefaultConfig("sensors.db"))
 	if err != nil {
 		log.Fatal(err)
