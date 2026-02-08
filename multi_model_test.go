@@ -296,7 +296,7 @@ func TestMultiModelStore_Logs(t *testing.T) {
 	}
 
 	// Query all logs
-	logs, err := store.QueryLogs(LogQuery{Stream: "app"})
+	logs, err := store.QueryLogs(MultiModelLogQuery{Stream: "app"})
 	if err != nil {
 		t.Fatalf("QueryLogs error: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestMultiModelStore_Logs(t *testing.T) {
 
 	// Query by level
 	errorLevel := MultiModelLogLevelError
-	logs, err = store.QueryLogs(LogQuery{
+	logs, err = store.QueryLogs(MultiModelLogQuery{
 		Stream: "app",
 		Level:  &errorLevel,
 	})
@@ -318,7 +318,7 @@ func TestMultiModelStore_Logs(t *testing.T) {
 	}
 
 	// Query by tag
-	logs, err = store.QueryLogs(LogQuery{
+	logs, err = store.QueryLogs(MultiModelLogQuery{
 		Stream: "app",
 		Tags:   map[string]string{"service": "api"},
 	})
@@ -330,7 +330,7 @@ func TestMultiModelStore_Logs(t *testing.T) {
 	}
 
 	// Query by text
-	logs, err = store.QueryLogs(LogQuery{
+	logs, err = store.QueryLogs(MultiModelLogQuery{
 		Stream:   "app",
 		Contains: "started",
 	})

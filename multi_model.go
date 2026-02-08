@@ -630,7 +630,7 @@ func compareValues(a, b interface{}) int {
 	// Convert to comparable types
 	switch va := a.(type) {
 	case float64:
-		if vb, ok := toFloat64(b); ok {
+		if vb, ok := multiModelToFloat64(b); ok {
 			if va < vb {
 				return -1
 			} else if va > vb {
@@ -639,7 +639,7 @@ func compareValues(a, b interface{}) int {
 			return 0
 		}
 	case int64:
-		if vb, ok := toFloat64(b); ok {
+		if vb, ok := multiModelToFloat64(b); ok {
 			vaf := float64(va)
 			if vaf < vb {
 				return -1
@@ -660,7 +660,7 @@ func compareValues(a, b interface{}) int {
 	return strings.Compare(sa, sb)
 }
 
-func toFloat64(v interface{}) (float64, bool) {
+func multiModelToFloat64(v interface{}) (float64, bool) {
 	switch val := v.(type) {
 	case float64:
 		return val, true
@@ -808,7 +808,7 @@ func (m *MultiModelStore) AppendLog(streamName string, entry *MultiModelLogEntry
 }
 
 // QueryLogs queries log entries.
-func (m *MultiModelStore) QueryLogs(query LogQuery) ([]*MultiModelLogEntry, error) {
+func (m *MultiModelStore) QueryLogs(query MultiModelLogQuery) ([]*MultiModelLogEntry, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -852,8 +852,8 @@ func (m *MultiModelStore) QueryLogs(query LogQuery) ([]*MultiModelLogEntry, erro
 	return results, nil
 }
 
-// LogQuery represents a log query.
-type LogQuery struct {
+// MultiModelLogQuery represents a log query.
+type MultiModelLogQuery struct {
 	Stream    string                  `json:"stream"`
 	Level     *MultiModelLogLevel     `json:"level,omitempty"`
 	MinLevel  *MultiModelLogLevel     `json:"min_level,omitempty"`
@@ -865,7 +865,7 @@ type LogQuery struct {
 	Desc      bool                    `json:"desc"`
 }
 
-func (m *MultiModelStore) matchesLogQuery(entry *MultiModelLogEntry, query LogQuery) bool {
+func (m *MultiModelStore) matchesLogQuery(entry *MultiModelLogEntry, query MultiModelLogQuery) bool {
 	// Time range
 	if query.StartTime > 0 && entry.Timestamp < query.StartTime {
 		return false
