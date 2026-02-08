@@ -1,3 +1,11 @@
+// Bridge: raft_bridge.go
+//
+// This file bridges internal/raft/ into the public chronicle package.
+// It re-exports types via type aliases and provides an adapter (dbRaftAdapter)
+// that satisfies raft.StorageEngine using the real *DB.
+//
+// Pattern: internal/raft/ (implementation) → raft_bridge.go (public API)
+
 package chronicle
 
 import (

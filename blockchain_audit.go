@@ -168,6 +168,9 @@ type LegalHold struct {
 }
 
 // BlockchainAuditTrail provides a blockchain-verified audit trail for Chronicle.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type BlockchainAuditTrail struct {
 	db                *DB
 	config            BlockchainAuditConfig

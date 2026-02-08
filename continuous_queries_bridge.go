@@ -1,3 +1,11 @@
+// Bridge: continuous_queries_bridge.go
+//
+// This file bridges internal/continuousquery/ into the public chronicle package.
+// It re-exports types via type aliases and provides adapter constructors so that
+// callers use the top-level chronicle API while implementation stays private.
+//
+// Pattern: internal/continuousquery/ (implementation) → continuous_queries_bridge.go (public API)
+
 package chronicle
 
 import (

@@ -185,6 +185,9 @@ func RecommendCodec(p ColumnProfile) CodecRecommendation {
 }
 
 // WorkloadLearner tracks codec performance per column over time and improves selection.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type WorkloadLearner struct {
 	mu       sync.RWMutex
 	profiles map[string]*learnedProfile

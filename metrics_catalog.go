@@ -200,6 +200,9 @@ type MetricsCatalogStats struct {
 
 // MetricsCatalog provides auto-discovery, lineage tracking, deprecation
 // workflows, and search for metrics stored in a Chronicle database.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type MetricsCatalog struct {
 	db           *DB
 	config       MetricsCatalogConfig

@@ -34,6 +34,9 @@ func DefaultQueryConsoleConfig() QueryConsoleConfig {
 }
 
 // QueryConsole serves a browser-based CQL editor.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type QueryConsole struct {
 	db     *DB
 	config QueryConsoleConfig

@@ -1,3 +1,11 @@
+// Bridge: streaming_etl_bridge.go
+//
+// This file bridges the streaming ETL system into the public chronicle package.
+// It provides ETLStreamSource which connects the real-time StreamHub with the
+// ETL pipeline engine.
+//
+// Pattern: Streaming subsystem (implementation) → streaming_etl_bridge.go (public API)
+
 package chronicle
 
 import (

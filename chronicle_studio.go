@@ -198,6 +198,9 @@ type StudioStats struct {
 }
 
 // ChronicleStudio is the Visual Time-Series Programming IDE engine.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type ChronicleStudio struct {
 	db                   *DB
 	config               ChronicleStudioConfig

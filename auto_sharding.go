@@ -263,6 +263,9 @@ type AutoShardingStats struct {
 }
 
 // AutoShardingEngine implements zero-config auto-sharding with consistent hashing.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type AutoShardingEngine struct {
 	db     *DB
 	config AutoShardingConfig

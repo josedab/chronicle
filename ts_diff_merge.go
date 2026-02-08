@@ -172,6 +172,9 @@ type TSDiffMergeStats struct {
 
 // TSDiffMergeEngine provides Git-like diff, merge, cherry-pick and A/B testing
 // operations on top of time-series branch data.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type TSDiffMergeEngine struct {
 	db       *DB
 	config   TSDiffMergeConfig

@@ -167,6 +167,9 @@ type CompliancePacksStats struct {
 }
 
 // CompliancePacksEngine manages pre-configured compliance bundles.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type CompliancePacksEngine struct {
 	db              *DB
 	config          CompliancePacksConfig
