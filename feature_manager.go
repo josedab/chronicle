@@ -70,6 +70,23 @@ type FeatureManager struct {
 	schemaDesigner       *SchemaDesigner
 	mobileSDK            *MobileSDK
 
+	// Next-gen v6 features
+	streamProcessing    *StreamProcessingEngine
+	timeTravelDebug     *TimeTravelDebugEngine
+	autoSharding        *AutoShardingEngine
+	rootCauseAnalysis   *RootCauseAnalysisEngine
+	crossCloudTiering   *CrossCloudTieringEngine
+	declarativeAlerting *DeclarativeAlertingEngine
+	metricsCatalog      *MetricsCatalog
+	compressionAdvisor  *CompressionAdvisor
+	tsDiffMerge         *TSDiffMergeEngine
+	compliancePacks     *CompliancePacksEngine
+
+	// Next-gen v7 features
+	blockchainAudit  *BlockchainAuditTrail
+	chronicleStudio  *ChronicleStudio
+	iotDeviceSDK     *IoTDeviceSDK
+
 	mu sync.RWMutex
 }
 
@@ -169,6 +186,23 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.complianceAutomation = NewComplianceAutomation(db, DefaultComplianceAutomationConfig())
 	fm.schemaDesigner = NewSchemaDesigner(db, DefaultSchemaDesignerConfig())
 	fm.mobileSDK = NewMobileSDK(db, DefaultMobileSDKConfig())
+
+	// Initialize next-gen v6 features
+	fm.streamProcessing = NewStreamProcessingEngine(db, DefaultStreamProcessingConfig())
+	fm.timeTravelDebug = NewTimeTravelDebugEngine(db, DefaultTimeTravelDebugConfig())
+	fm.autoSharding = NewAutoShardingEngine(db, DefaultAutoShardingConfig())
+	fm.rootCauseAnalysis = NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
+	fm.crossCloudTiering = NewCrossCloudTieringEngine(db, DefaultCrossCloudTieringConfig())
+	fm.declarativeAlerting = NewDeclarativeAlertingEngine(db, DefaultDeclarativeAlertingConfig())
+	fm.metricsCatalog = NewMetricsCatalog(db, DefaultMetricsCatalogConfig())
+	fm.compressionAdvisor = NewCompressionAdvisor(db, DefaultCompressionAdvisorConfig())
+	fm.tsDiffMerge = NewTSDiffMergeEngine(db, DefaultTSDiffMergeConfig())
+	fm.compliancePacks = NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
+
+	// Initialize next-gen v7 features
+	fm.blockchainAudit = NewBlockchainAuditTrail(db, DefaultBlockchainAuditConfig())
+	fm.chronicleStudio = NewChronicleStudio(db, DefaultChronicleStudioConfig())
+	fm.iotDeviceSDK = NewIoTDeviceSDK(db, DefaultIoTDeviceSDKConfig())
 
 	return fm, nil
 }
@@ -577,6 +611,97 @@ func (fm *FeatureManager) MobileSDK() *MobileSDK {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.mobileSDK
+}
+
+// StreamProcessing returns the stream processing engine.
+func (fm *FeatureManager) StreamProcessing() *StreamProcessingEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.streamProcessing
+}
+
+// TimeTravelDebug returns the time-travel debug engine.
+func (fm *FeatureManager) TimeTravelDebug() *TimeTravelDebugEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.timeTravelDebug
+}
+
+// AutoSharding returns the auto-sharding engine.
+func (fm *FeatureManager) AutoSharding() *AutoShardingEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.autoSharding
+}
+
+// RootCauseAnalysis returns the root cause analysis engine.
+func (fm *FeatureManager) RootCauseAnalysis() *RootCauseAnalysisEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.rootCauseAnalysis
+}
+
+// CrossCloudTiering returns the cross-cloud tiering engine.
+func (fm *FeatureManager) CrossCloudTiering() *CrossCloudTieringEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.crossCloudTiering
+}
+
+// DeclarativeAlerting returns the declarative alerting engine.
+func (fm *FeatureManager) DeclarativeAlerting() *DeclarativeAlertingEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.declarativeAlerting
+}
+
+// MetricsCatalog returns the metrics catalog.
+func (fm *FeatureManager) MetricsCatalog() *MetricsCatalog {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.metricsCatalog
+}
+
+// CompressionAdvisor returns the compression advisor.
+func (fm *FeatureManager) CompressionAdvisor() *CompressionAdvisor {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.compressionAdvisor
+}
+
+// TSDiffMerge returns the time-series diff and merge engine.
+func (fm *FeatureManager) TSDiffMerge() *TSDiffMergeEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.tsDiffMerge
+}
+
+// CompliancePacks returns the compliance packs engine.
+func (fm *FeatureManager) CompliancePacks() *CompliancePacksEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.compliancePacks
+}
+
+// BlockchainAudit returns the blockchain audit trail.
+func (fm *FeatureManager) BlockchainAudit() *BlockchainAuditTrail {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.blockchainAudit
+}
+
+// ChronicleStudio returns the Chronicle Studio IDE engine.
+func (fm *FeatureManager) ChronicleStudio() *ChronicleStudio {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.chronicleStudio
+}
+
+// IoTDeviceSDK returns the IoT device SDK manager.
+func (fm *FeatureManager) IoTDeviceSDK() *IoTDeviceSDK {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.iotDeviceSDK
 }
 
 // ValidatePoint validates a point against registered schemas.

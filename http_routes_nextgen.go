@@ -335,6 +335,71 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.MobileSDK() != nil {
 		db.features.MobileSDK().RegisterHTTPHandlers(mux)
 	}
+
+	// Stream Processing Engine
+	if db.features != nil && db.features.StreamProcessing() != nil {
+		db.features.StreamProcessing().RegisterHTTPHandlers(mux)
+	}
+
+	// Time-Travel Debug Engine
+	if db.features != nil && db.features.TimeTravelDebug() != nil {
+		db.features.TimeTravelDebug().RegisterHTTPHandlers(mux)
+	}
+
+	// Auto-Sharding Engine
+	if db.features != nil && db.features.AutoSharding() != nil {
+		db.features.AutoSharding().RegisterHTTPHandlers(mux)
+	}
+
+	// Root Cause Analysis Engine
+	if db.features != nil && db.features.RootCauseAnalysis() != nil {
+		db.features.RootCauseAnalysis().RegisterHTTPHandlers(mux)
+	}
+
+	// Cross-Cloud Tiering Engine
+	if db.features != nil && db.features.CrossCloudTiering() != nil {
+		db.features.CrossCloudTiering().RegisterHTTPHandlers(mux)
+	}
+
+	// Declarative Alerting Engine
+	if db.features != nil && db.features.DeclarativeAlerting() != nil {
+		db.features.DeclarativeAlerting().RegisterHTTPHandlers(mux)
+	}
+
+	// Metrics Catalog
+	if db.features != nil && db.features.MetricsCatalog() != nil {
+		db.features.MetricsCatalog().RegisterHTTPHandlers(mux)
+	}
+
+	// Compression Advisor
+	if db.features != nil && db.features.CompressionAdvisor() != nil {
+		db.features.CompressionAdvisor().RegisterHTTPHandlers(mux)
+	}
+
+	// Time-Series Diff & Merge Engine
+	if db.features != nil && db.features.TSDiffMerge() != nil {
+		db.features.TSDiffMerge().RegisterHTTPHandlers(mux)
+	}
+
+	// Compliance Packs Engine
+	if db.features != nil && db.features.CompliancePacks() != nil {
+		db.features.CompliancePacks().RegisterHTTPHandlers(mux)
+	}
+
+	// Blockchain Audit Trail
+	if db.features != nil && db.features.BlockchainAudit() != nil {
+		db.features.BlockchainAudit().RegisterHTTPHandlers(mux)
+	}
+
+	// Chronicle Studio IDE
+	if db.features != nil && db.features.ChronicleStudio() != nil {
+		db.features.ChronicleStudio().RegisterHTTPHandlers(mux)
+	}
+
+	// IoT Device SDK
+	if db.features != nil && db.features.IoTDeviceSDK() != nil {
+		db.features.IoTDeviceSDK().RegisterHTTPHandlers(mux)
+	}
 }
 
 func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
