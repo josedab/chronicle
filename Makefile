@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench check cover cover-report vet setup help
+.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench check cover cover-report vet setup install-hooks help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -40,6 +40,10 @@ vet: ## Run go vet
 	$(GO) vet ./...
 
 check: vet test-fast ## Quick pre-commit validation (vet + fast tests)
+
+install-hooks: ## Install git pre-commit hook
+	ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+	@echo "Pre-commit hook installed ✓"
 
 lint: ## Run linters
 	$(GO) vet ./...
