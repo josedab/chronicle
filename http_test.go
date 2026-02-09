@@ -16,7 +16,7 @@ import (
 func TestHTTPWriteJSON(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -42,7 +42,7 @@ func TestHTTPWriteJSON(t *testing.T) {
 func TestHTTPWriteLineProtocol(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -63,7 +63,7 @@ func TestHTTPWriteLineProtocol(t *testing.T) {
 func TestHTTPWriteGzipped(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -89,7 +89,7 @@ func TestHTTPWriteGzipped(t *testing.T) {
 func TestHTTPWriteMethodNotAllowed(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -109,7 +109,7 @@ func TestHTTPWriteMethodNotAllowed(t *testing.T) {
 func TestHTTPQuery(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -141,10 +141,52 @@ func TestHTTPQuery(t *testing.T) {
 	}
 }
 
+func TestHTTPQueryWithAggregation(t *testing.T) {
+	dir := t.TempDir()
+	cfg := DefaultConfig(dir + "/test.db")
+	cfg.HTTP.HTTPEnabled = true
+	db, err := Open(cfg.Path, cfg)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer db.Close()
+
+	now := time.Now().UnixNano()
+	_ = db.Write(Point{Metric: "cpu", Value: 1.0, Timestamp: now})
+	_ = db.Write(Point{Metric: "cpu", Value: 3.0, Timestamp: now + int64(time.Second)})
+	_ = db.Flush()
+
+	qr := queryRequest{
+		Metric:      "cpu",
+		Aggregation: "mean",
+		Window:      "1s",
+		Start:       now,
+		End:         now + int64(2*time.Second),
+	}
+	body, _ := json.Marshal(qr)
+
+	req := httptest.NewRequest(http.MethodPost, "/query", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	db.lifecycle.httpHandler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp queryResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Points) == 0 {
+		t.Fatal("expected aggregated points")
+	}
+}
+
 func TestHTTPQueryWithSQL(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -170,8 +212,8 @@ func TestHTTPQueryWithSQL(t *testing.T) {
 func TestHTTPPrometheusWriteDisabled(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
-	cfg.PrometheusRemoteWriteEnabled = false
+	cfg.HTTP.HTTPEnabled = true
+	cfg.HTTP.PrometheusRemoteWriteEnabled = false
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -291,7 +333,7 @@ func TestParseFieldSet(t *testing.T) {
 func TestHTTPBodySizeLimit(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -315,7 +357,7 @@ func TestHTTPBodySizeLimit(t *testing.T) {
 func TestHTTPEmptyBody(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -335,7 +377,7 @@ func TestHTTPEmptyBody(t *testing.T) {
 func TestHTTPHealth(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -363,7 +405,7 @@ func TestHTTPHealth(t *testing.T) {
 func TestHTTPPromQueryInstant(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -397,7 +439,7 @@ func TestHTTPPromQueryInstant(t *testing.T) {
 func TestHTTPPromQueryRange(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -428,7 +470,7 @@ func TestHTTPPromQueryRange(t *testing.T) {
 func TestHTTPSchemas(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -480,7 +522,7 @@ func TestHTTPSchemas(t *testing.T) {
 func TestHTTPAlerts(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -500,7 +542,7 @@ func TestHTTPAlerts(t *testing.T) {
 func TestHTTPRules(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
-	cfg.HTTPEnabled = true
+	cfg.HTTP.HTTPEnabled = true
 	db, err := Open(cfg.Path, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)

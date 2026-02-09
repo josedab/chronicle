@@ -119,10 +119,10 @@ func chronicle_open(config *C.chronicle_config_t) C.chronicle_db_t {
 	cfg := DefaultConfig(path)
 
 	if config.retention_hours > 0 {
-		cfg.RetentionDuration = time.Duration(config.retention_hours) * time.Hour
+		cfg.Retention.RetentionDuration = time.Duration(config.retention_hours) * time.Hour
 	}
 	if config.partition_duration_hours > 0 {
-		cfg.PartitionDuration = time.Duration(config.partition_duration_hours) * time.Hour
+		cfg.Storage.PartitionDuration = time.Duration(config.partition_duration_hours) * time.Hour
 	}
 
 	db, err := Open(path, cfg)

@@ -373,9 +373,9 @@ func (s *GraphQLServer) queryStats(_ context.Context) map[string]interface{} {
 
 func (s *GraphQLServer) queryConfig(_ context.Context) map[string]interface{} {
 	return map[string]interface{}{
-		"partitionDuration": s.db.config.PartitionDuration.String(),
-		"bufferSize":        s.db.config.BufferSize,
-		"retention":         s.db.config.RetentionDuration.String(),
+		"partitionDuration": s.db.config.Storage.PartitionDuration.String(),
+		"bufferSize":        s.db.config.Storage.BufferSize,
+		"retention":         s.db.config.Retention.RetentionDuration.String(),
 	}
 }
 

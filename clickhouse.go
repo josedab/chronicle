@@ -831,7 +831,7 @@ func (s *ClickHouseServer) writeError(w http.ResponseWriter, err error, status i
 }
 
 // setupClickHouseRoutes configures ClickHouse-compatible endpoints.
-func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig) {
+func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig, wrap func(http.HandlerFunc) http.HandlerFunc) {
 	if !config.Enabled {
 		return
 	}
@@ -839,24 +839,24 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig) 
 	server := NewClickHouseServer(db, config)
 
 	// Main query endpoint
-	mux.HandleFunc("/", server.Handler())
+	mux.HandleFunc("/", wrap(server.Handler()))
 
 	// ClickHouse-specific endpoints
-	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/ping", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		_, _ = w.Write([]byte("Ok.\n"))
-	})
+	}))
 
-	mux.HandleFunc("/replicas_status", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/replicas_status", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		_, _ = w.Write([]byte("Ok.\n"))
-	})
+	}))
 
 	// Query endpoint (explicit)
-	mux.HandleFunc("/query", server.Handler())
+	mux.HandleFunc("/query", wrap(server.Handler()))
 
 	// Play interface placeholder
-	mux.HandleFunc("/play", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/play", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`<!DOCTYPE html>
 <html>
@@ -867,5 +867,5 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig) 
 <p>Use any ClickHouse client to connect.</p>
 </body>
 </html>`))
-	})
+	}))
 }
