@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"sort"
@@ -127,24 +128,17 @@ func (p *Partition) ensureLoadedContext(ctx context.Context, db *DB) error {
 		return nil
 	}
 
-	if p.Length == 0 {
+	if p.Length == 0 && p.Offset == 0 {
 		p.loaded = true
 		return nil
 	}
 
-	// Load partition data using the appropriate method
+	// Load partition data using the DataStore abstraction.
 	var data []byte
 	var err error
-
-	if fds, ok := db.dataStore.(*FileDataStore); ok {
-		// File-based storage - use offset and length
-		data, err = fds.ReadPartitionAt(ctx, p.Offset, p.Length)
-	} else if bds, ok := db.dataStore.(*BackendDataStore); ok {
-		// Backend-based storage - use partition ID
-		data, err = bds.ReadPartition(ctx, p.ID)
-	} else {
-		// Fallback to legacy file access
-		data, err = readPartitionBlock(db.file, p.Offset, p.Length)
+	data, err = db.dataStore.ReadPartitionAt(ctx, p.Offset, p.Length)
+	if errors.Is(err, ErrUnsupportedOperation) {
+		data, err = db.dataStore.ReadPartition(ctx, p.ID)
 	}
 
 	if err != nil {

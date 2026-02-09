@@ -34,6 +34,10 @@ type DataStore interface {
 
 	// Stat returns storage statistics (size in bytes).
 	Stat() (size int64, err error)
+
+	// ReadPartitionAt reads partition data from a specific offset and length.
+	// For backend storage, this is unsupported and should return an error.
+	ReadPartitionAt(ctx context.Context, offset, length int64) ([]byte, error)
 }
 
 // FileDataStore implements DataStore using direct file operations.
@@ -51,10 +55,7 @@ func NewFileDataStore(file *os.File) *FileDataStore {
 // ReadPartition reads partition data from file at the specified offset.
 // Note: For FileDataStore, partitionID is actually the file offset.
 func (f *FileDataStore) ReadPartition(ctx context.Context, partitionID uint64) ([]byte, error) {
-	// For file-based storage, we need the offset and length from the index
-	// This method signature doesn't quite fit the file model where we need offset+length
-	// For now, return an error indicating this needs to be called differently
-	return nil, fmt.Errorf("FileDataStore.ReadPartition requires offset and length; use ReadPartitionAt instead")
+	return nil, ErrUnsupportedOperation
 }
 
 // ReadPartitionAt reads partition data from file at the specified offset and length.
@@ -191,6 +192,11 @@ func (b *BackendDataStore) partitionKey(partitionID uint64) string {
 func (b *BackendDataStore) ReadPartition(ctx context.Context, partitionID uint64) ([]byte, error) {
 	key := b.partitionKey(partitionID)
 	return b.backend.Read(ctx, key)
+}
+
+// ReadPartitionAt is unsupported for backend storage.
+func (b *BackendDataStore) ReadPartitionAt(ctx context.Context, offset, length int64) ([]byte, error) {
+	return nil, ErrUnsupportedOperation
 }
 
 // WritePartition writes partition data to the backend.

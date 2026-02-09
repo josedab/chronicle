@@ -22,17 +22,39 @@ type StorageEngine struct {
 // StorageEngineConfig holds configuration for the storage engine.
 type StorageEngineConfig struct {
 	Path              string
-	BufferSize        int
-	SyncInterval      time.Duration
-	WALMaxSize        int64
-	WALRetain         int
+	Storage           StorageConfig
+	WAL               WALConfig
 	PartitionDuration time.Duration
+
+	// Legacy fields.
+	BufferSize   int
+	SyncInterval time.Duration
+	WALMaxSize   int64
+	WALRetain    int
 }
 
 // NewStorageEngine creates a new storage engine with the given configuration.
 func NewStorageEngine(cfg StorageEngineConfig) (*StorageEngine, error) {
 	se := &StorageEngine{
 		path: cfg.Path,
+	}
+	if cfg.Storage.BufferSize == 0 && cfg.BufferSize != 0 {
+		cfg.Storage.BufferSize = cfg.BufferSize
+	}
+	if cfg.WAL.SyncInterval == 0 && cfg.SyncInterval != 0 {
+		cfg.WAL.SyncInterval = cfg.SyncInterval
+	}
+	if cfg.WAL.WALMaxSize == 0 && cfg.WALMaxSize != 0 {
+		cfg.WAL.WALMaxSize = cfg.WALMaxSize
+	}
+	if cfg.WAL.WALRetain == 0 && cfg.WALRetain != 0 {
+		cfg.WAL.WALRetain = cfg.WALRetain
+	}
+	if cfg.Storage.BufferSize == 0 {
+		cfg.Storage.BufferSize = 10_000
+	}
+	if cfg.WAL.SyncInterval == 0 {
+		cfg.WAL.SyncInterval = time.Second
 	}
 
 	file, err := os.OpenFile(cfg.Path, os.O_RDWR|os.O_CREATE, 0o644)
@@ -46,7 +68,7 @@ func NewStorageEngine(cfg StorageEngineConfig) (*StorageEngine, error) {
 		return nil, err
 	}
 
-	se.wal, err = NewWAL(cfg.Path+".wal", cfg.SyncInterval, cfg.WALMaxSize, cfg.WALRetain)
+	se.wal, err = NewWAL(cfg.Path+".wal", cfg.WAL.SyncInterval, cfg.WAL.WALMaxSize, cfg.WAL.WALRetain)
 	if err != nil {
 		_ = file.Close()
 		return nil, err
@@ -59,7 +81,7 @@ func NewStorageEngine(cfg StorageEngineConfig) (*StorageEngine, error) {
 		return nil, err
 	}
 
-	se.buffer = NewWriteBuffer(cfg.BufferSize)
+	se.buffer = NewWriteBuffer(cfg.Storage.BufferSize)
 
 	return se, nil
 }
