@@ -133,27 +133,47 @@ func (lm *lifecycleManager) httpHandler() http.Handler {
 //
 //nolint:gocritic // cfg passed by value for API simplicity; callers typically construct inline
 func Open(path string, cfg Config) (*DB, error) {
+	cfg.normalize()
 	if cfg.Path == "" {
 		cfg.Path = path
 	}
 	if cfg.Path == "" {
 		return nil, errors.New("path is required")
 	}
-	if cfg.PartitionDuration == 0 {
-		cfg.PartitionDuration = time.Hour
+	if cfg.Storage.PartitionDuration == 0 {
+		cfg.Storage.PartitionDuration = time.Hour
 	}
-	if cfg.BufferSize <= 0 {
-		cfg.BufferSize = 10_000
+	if cfg.Storage.BufferSize <= 0 {
+		cfg.Storage.BufferSize = 10_000
 	}
-	if cfg.SyncInterval <= 0 {
-		cfg.SyncInterval = time.Second
+	if cfg.WAL.SyncInterval <= 0 {
+		cfg.WAL.SyncInterval = time.Second
 	}
-	if cfg.CompactionWorkers <= 0 {
-		cfg.CompactionWorkers = 1
+	if cfg.Retention.CompactionWorkers <= 0 {
+		cfg.Retention.CompactionWorkers = 1
 	}
-	if cfg.CompactionInterval <= 0 {
-		cfg.CompactionInterval = 30 * time.Minute
+	if cfg.Retention.CompactionInterval <= 0 {
+		cfg.Retention.CompactionInterval = 30 * time.Minute
 	}
+	if cfg.Query.QueryTimeout <= 0 {
+		cfg.Query.QueryTimeout = 30 * time.Second
+	}
+	if cfg.Storage.MaxMemory <= 0 {
+		cfg.Storage.MaxMemory = 64 * 1024 * 1024
+	}
+	if cfg.Storage.PartitionDuration <= 0 {
+		cfg.Storage.PartitionDuration = time.Hour
+	}
+	if cfg.WAL.WALMaxSize <= 0 {
+		cfg.WAL.WALMaxSize = 128 * 1024 * 1024
+	}
+	if cfg.WAL.WALRetain <= 0 {
+		cfg.WAL.WALRetain = 3
+	}
+	if cfg.HTTP.HTTPPort == 0 {
+		cfg.HTTP.HTTPPort = 8086
+	}
+	cfg.syncLegacyFields()
 
 	db := &DB{
 		path:    cfg.Path,
@@ -185,7 +205,7 @@ func Open(path string, cfg Config) (*DB, error) {
 		db.dataStore = NewFileDataStore(file)
 	}
 
-	db.wal, err = NewWAL(cfg.Path+".wal", cfg.SyncInterval, cfg.WALMaxSize, cfg.WALRetain)
+	db.wal, err = NewWAL(cfg.Path+".wal", cfg.WAL.SyncInterval, cfg.WAL.WALMaxSize, cfg.WAL.WALRetain)
 	if err != nil {
 		_ = file.Close()
 		return nil, err
@@ -198,7 +218,7 @@ func Open(path string, cfg Config) (*DB, error) {
 		return nil, err
 	}
 
-	db.buffer = NewWriteBuffer(cfg.BufferSize)
+	db.buffer = NewWriteBuffer(cfg.Storage.BufferSize)
 
 	// Initialize feature manager with all optional features
 	featureCfg := FeatureManagerConfig{
@@ -228,8 +248,8 @@ func Open(path string, cfg Config) (*DB, error) {
 	}
 
 	// Start HTTP server if enabled
-	if cfg.HTTPEnabled {
-		if err := db.lifecycle.startHTTP(cfg.HTTPPort); err != nil {
+	if cfg.HTTP.HTTPEnabled {
+		if err := db.lifecycle.startHTTP(cfg.HTTP.HTTPPort); err != nil {
 			_ = file.Close()
 			_ = db.wal.Close()
 			return nil, err
@@ -243,7 +263,7 @@ func Open(path string, cfg Config) (*DB, error) {
 	db.features.Start()
 
 	// Start background workers
-	db.lifecycle.startBackgroundWorkers(cfg.CompactionWorkers, cfg.CompactionInterval)
+	db.lifecycle.startBackgroundWorkers(cfg.Retention.CompactionWorkers, cfg.Retention.CompactionInterval)
 	db.startContinuousQueries()
 
 	return db, nil
@@ -303,6 +323,30 @@ func (db *DB) Close() error {
 	}
 
 	return db.wal.Close()
+}
+
+// CQLEngine returns the CQL query engine.
+func (db *DB) CQLEngine() *CQLEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.CQLEngine()
+}
+
+// Observability returns the observability suite.
+func (db *DB) Observability() *ObservabilitySuite {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.Observability()
+}
+
+// MaterializedViews returns the materialized view engine.
+func (db *DB) MaterializedViews() *MaterializedViewEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.MaterializedViews()
 }
 
 // Flush writes buffered points to storage.
@@ -392,7 +436,7 @@ func (db *DB) flush(points []Point, writeWAL bool) error {
 		}
 	}
 
-	byPartition := groupByPartition(points, db.config.PartitionDuration)
+	byPartition := groupByPartition(points, db.config.Storage.PartitionDuration)
 
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -437,7 +481,7 @@ func (db *DB) recover() error {
 func (db *DB) backgroundWorker() {
 	retentionTicker := time.NewTicker(5 * time.Minute)
 	downsampleTicker := time.NewTicker(5 * time.Minute)
-	compactionTicker := time.NewTicker(db.config.CompactionInterval)
+	compactionTicker := time.NewTicker(db.config.Retention.CompactionInterval)
 	defer retentionTicker.Stop()
 	defer downsampleTicker.Stop()
 	defer compactionTicker.Stop()
@@ -447,14 +491,14 @@ func (db *DB) backgroundWorker() {
 		case <-db.closeCh:
 			return
 		case <-retentionTicker.C:
-			if db.config.RetentionDuration > 0 {
+			if db.config.Retention.RetentionDuration > 0 {
 				db.applyRetention()
 			}
-			if db.config.MaxStorageBytes > 0 {
+			if db.config.Storage.MaxStorageBytes > 0 {
 				_ = db.applySizeRetention()
 			}
 		case <-downsampleTicker.C:
-			if len(db.config.DownsampleRules) > 0 {
+			if len(db.config.Retention.DownsampleRules) > 0 {
 				_ = db.applyDownsampling()
 			}
 		case <-compactionTicker.C:
@@ -479,7 +523,7 @@ func (db *DB) compactionWorker() {
 }
 
 func (db *DB) applyRetention() {
-	cutoff := time.Now().Add(-db.config.RetentionDuration).UnixNano()
+	cutoff := time.Now().Add(-db.config.Retention.RetentionDuration).UnixNano()
 	db.mu.Lock()
 	removed := db.index.RemovePartitionsBefore(cutoff)
 	db.mu.Unlock()
@@ -489,14 +533,14 @@ func (db *DB) applyRetention() {
 }
 
 func (db *DB) applySizeRetention() error {
-	if db.config.MaxStorageBytes <= 0 {
+	if db.config.Storage.MaxStorageBytes <= 0 {
 		return nil
 	}
 	size, err := db.dataStore.Stat()
 	if err != nil {
 		return err
 	}
-	for size > db.config.MaxStorageBytes {
+	for size > db.config.Storage.MaxStorageBytes {
 		db.mu.Lock()
 		removed := db.index.RemoveOldestPartition()
 		db.mu.Unlock()
@@ -513,7 +557,7 @@ func (db *DB) applySizeRetention() error {
 }
 
 func (db *DB) applyDownsampling() error {
-	for _, rule := range db.config.DownsampleRules {
+	for _, rule := range db.config.Retention.DownsampleRules {
 		if err := db.applyRule(rule); err != nil {
 			return err
 		}
@@ -692,6 +736,31 @@ func (db *DB) ListSchemas() []MetricSchema {
 // Metrics returns all registered metric names.
 func (db *DB) Metrics() []string {
 	return db.index.Metrics()
+}
+
+// TagKeys returns all unique tag keys across all series.
+func (db *DB) TagKeys() []string {
+	return db.index.TagKeys()
+}
+
+// TagKeysForMetric returns tag keys used by a specific metric.
+func (db *DB) TagKeysForMetric(metric string) []string {
+	return db.index.TagKeysForMetric(metric)
+}
+
+// TagValues returns all unique values for a given tag key.
+func (db *DB) TagValues(key string) []string {
+	return db.index.TagValues(key)
+}
+
+// TagValuesForMetric returns tag values for a key filtered by metric.
+func (db *DB) TagValuesForMetric(metric, key string) []string {
+	return db.index.TagValuesForMetric(metric, key)
+}
+
+// SeriesCount returns the total number of unique time series.
+func (db *DB) SeriesCount() int {
+	return db.index.SeriesCount()
 }
 
 // ExemplarStore returns the exemplar store for direct access.

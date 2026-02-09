@@ -272,6 +272,8 @@ func TestDBDefaultTimestamp(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig("/tmp/test.db")
+	cfg.normalize()
+	cfg.syncLegacyFields()
 
 	if cfg.Path != "/tmp/test.db" {
 		t.Errorf("expected path /tmp/test.db, got %s", cfg.Path)
@@ -279,14 +281,26 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.MaxMemory != 64*1024*1024 {
 		t.Errorf("expected 64MB max memory, got %d", cfg.MaxMemory)
 	}
+	if cfg.Storage.MaxMemory != 64*1024*1024 {
+		t.Errorf("expected 64MB storage max memory, got %d", cfg.Storage.MaxMemory)
+	}
 	if cfg.PartitionDuration != time.Hour {
 		t.Errorf("expected 1h partition duration, got %v", cfg.PartitionDuration)
+	}
+	if cfg.Storage.PartitionDuration != time.Hour {
+		t.Errorf("expected 1h storage partition duration, got %v", cfg.Storage.PartitionDuration)
 	}
 	if cfg.BufferSize != 10_000 {
 		t.Errorf("expected buffer size 10000, got %d", cfg.BufferSize)
 	}
+	if cfg.Storage.BufferSize != 10_000 {
+		t.Errorf("expected storage buffer size 10000, got %d", cfg.Storage.BufferSize)
+	}
 	if cfg.HTTPEnabled {
 		t.Error("expected HTTP disabled by default")
+	}
+	if cfg.HTTP.HTTPEnabled {
+		t.Error("expected HTTP HTTPEnabled disabled by default")
 	}
 }
 
