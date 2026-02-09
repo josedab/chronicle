@@ -12,16 +12,24 @@ cfg := chronicle.DefaultConfig("data.db")
 
 // Or customize
 cfg := chronicle.Config{
-    Path:              "data.db",
-    MaxMemory:         128 * 1024 * 1024,  // 128MB
-    PartitionDuration: 2 * time.Hour,
-    RetentionDuration: 30 * 24 * time.Hour,  // 30 days
-    HTTPEnabled:       true,
-    HTTPPort:          8086,
+    Path: "data.db",
+    Storage: chronicle.StorageConfig{
+        MaxMemory:         128 * 1024 * 1024, // 128MB
+        PartitionDuration: 2 * time.Hour,
+    },
+    Retention: chronicle.RetentionConfig{
+        RetentionDuration: 30 * 24 * time.Hour, // 30 days
+    },
+    HTTP: chronicle.HTTPConfig{
+        HTTPEnabled: true,
+        HTTPPort:    8086,
+    },
 }
 
 db, err := chronicle.Open(cfg.Path, cfg)
 ```
+
+Chronicle groups related settings under `Storage`, `WAL`, `Retention`, `Query`, and `HTTP`. Legacy flat fields (for example, `MaxMemory`, `RetentionDuration`) are still supported for backward compatibility.
 
 ---
 
@@ -41,12 +49,12 @@ cfg.Path = "/var/lib/chronicle/data.db"
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `MaxMemory` | `int64` | 64MB | Maximum memory for buffers and caches |
-| `BufferSize` | `int` | 10,000 | Points to buffer before flushing |
+| `Storage.MaxMemory` | `int64` | 64MB | Maximum memory for buffers and caches |
+| `Storage.BufferSize` | `int` | 10,000 | Points to buffer before flushing |
 
 ```go
-cfg.MaxMemory = 128 * 1024 * 1024  // 128MB
-cfg.BufferSize = 50_000
+cfg.Storage.MaxMemory = 128 * 1024 * 1024  // 128MB
+cfg.Storage.BufferSize = 50_000
 ```
 
 **Guidelines:**
@@ -58,12 +66,12 @@ cfg.BufferSize = 50_000
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `MaxStorageBytes` | `int64` | 0 (unlimited) | Maximum database size |
-| `PartitionDuration` | `time.Duration` | 1 hour | Time span per partition |
+| `Storage.MaxStorageBytes` | `int64` | 0 (unlimited) | Maximum database size |
+| `Storage.PartitionDuration` | `time.Duration` | 1 hour | Time span per partition |
 
 ```go
-cfg.MaxStorageBytes = 10 * 1024 * 1024 * 1024  // 10GB
-cfg.PartitionDuration = 6 * time.Hour
+cfg.Storage.MaxStorageBytes = 10 * 1024 * 1024 * 1024  // 10GB
+cfg.Storage.PartitionDuration = 6 * time.Hour
 ```
 
 **Partition duration guidelines:**
@@ -77,14 +85,14 @@ cfg.PartitionDuration = 6 * time.Hour
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `SyncInterval` | `time.Duration` | 1 second | How often to sync WAL to disk |
-| `WALMaxSize` | `int64` | 128MB | Max size before WAL rotation |
-| `WALRetain` | `int` | 3 | Number of old WAL files to keep |
+| `WAL.SyncInterval` | `time.Duration` | 1 second | How often to sync WAL to disk |
+| `WAL.WALMaxSize` | `int64` | 128MB | Max size before WAL rotation |
+| `WAL.WALRetain` | `int` | 3 | Number of old WAL files to keep |
 
 ```go
-cfg.SyncInterval = 100 * time.Millisecond  // More durable
-cfg.WALMaxSize = 64 * 1024 * 1024  // 64MB
-cfg.WALRetain = 5
+cfg.WAL.SyncInterval = 100 * time.Millisecond  // More durable
+cfg.WAL.WALMaxSize = 64 * 1024 * 1024  // 64MB
+cfg.WAL.WALRetain = 5
 ```
 
 **Trade-offs:**
@@ -97,14 +105,14 @@ cfg.WALRetain = 5
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `RetentionDuration` | `time.Duration` | 0 (forever) | How long to keep data |
-| `CompactionWorkers` | `int` | 1 | Background compaction threads |
-| `CompactionInterval` | `time.Duration` | 30 minutes | How often to run compaction |
+| `Retention.RetentionDuration` | `time.Duration` | 0 (forever) | How long to keep data |
+| `Retention.CompactionWorkers` | `int` | 1 | Background compaction threads |
+| `Retention.CompactionInterval` | `time.Duration` | 30 minutes | How often to run compaction |
 
 ```go
-cfg.RetentionDuration = 7 * 24 * time.Hour  // 7 days
-cfg.CompactionWorkers = 2
-cfg.CompactionInterval = 15 * time.Minute
+cfg.Retention.RetentionDuration = 7 * 24 * time.Hour  // 7 days
+cfg.Retention.CompactionWorkers = 2
+cfg.Retention.CompactionInterval = 15 * time.Minute
 ```
 
 ---
@@ -114,7 +122,7 @@ cfg.CompactionInterval = 15 * time.Minute
 Reduce storage by aggregating old data:
 
 ```go
-cfg.DownsampleRules = []chronicle.DownsampleRule{
+cfg.Retention.DownsampleRules = []chronicle.DownsampleRule{
     {
         After:    24 * time.Hour,      // After 1 day
         Window:   5 * time.Minute,     // 5-minute buckets
@@ -140,10 +148,10 @@ cfg.DownsampleRules = []chronicle.DownsampleRule{
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `QueryTimeout` | `time.Duration` | 30 seconds | Maximum query execution time |
+| `Query.QueryTimeout` | `time.Duration` | 30 seconds | Maximum query execution time |
 
 ```go
-cfg.QueryTimeout = 1 * time.Minute
+cfg.Query.QueryTimeout = 1 * time.Minute
 ```
 
 ---
@@ -152,14 +160,14 @@ cfg.QueryTimeout = 1 * time.Minute
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `HTTPEnabled` | `bool` | false | Enable HTTP server |
-| `HTTPPort` | `int` | 8086 | HTTP server port |
-| `PrometheusRemoteWriteEnabled` | `bool` | false | Enable Prometheus remote write |
+| `HTTP.HTTPEnabled` | `bool` | false | Enable HTTP server |
+| `HTTP.HTTPPort` | `int` | 8086 | HTTP server port |
+| `HTTP.PrometheusRemoteWriteEnabled` | `bool` | false | Enable Prometheus remote write |
 
 ```go
-cfg.HTTPEnabled = true
-cfg.HTTPPort = 9090
-cfg.PrometheusRemoteWriteEnabled = true
+cfg.HTTP.HTTPEnabled = true
+cfg.HTTP.HTTPPort = 9090
+cfg.HTTP.PrometheusRemoteWriteEnabled = true
 ```
 
 When enabled, the following endpoints are available:
@@ -361,12 +369,18 @@ Chronicle also reads configuration from environment variables:
 
 ```go
 cfg := chronicle.Config{
-    Path:              "/data/metrics.db",
-    MaxMemory:         16 * 1024 * 1024,  // 16MB
-    BufferSize:        1000,
-    PartitionDuration: 1 * time.Hour,
-    RetentionDuration: 24 * time.Hour,
-    SyncInterval:      5 * time.Second,
+    Path: "/data/metrics.db",
+    Storage: chronicle.StorageConfig{
+        MaxMemory:         16 * 1024 * 1024, // 16MB
+        BufferSize:        1000,
+        PartitionDuration: 1 * time.Hour,
+    },
+    Retention: chronicle.RetentionConfig{
+        RetentionDuration: 24 * time.Hour,
+    },
+    WAL: chronicle.WALConfig{
+        SyncInterval: 5 * time.Second,
+    },
 }
 ```
 
@@ -374,23 +388,29 @@ cfg := chronicle.Config{
 
 ```go
 cfg := chronicle.DefaultConfig("dev.db")
-cfg.HTTPEnabled = true
-cfg.MaxMemory = 256 * 1024 * 1024
+cfg.HTTP.HTTPEnabled = true
+cfg.Storage.MaxMemory = 256 * 1024 * 1024
 ```
 
 ### Production Server
 
 ```go
 cfg := chronicle.Config{
-    Path:                         "/var/lib/chronicle/data.db",
-    MaxMemory:                    1024 * 1024 * 1024,  // 1GB
-    BufferSize:                   100_000,
-    PartitionDuration:            1 * time.Hour,
-    RetentionDuration:            30 * 24 * time.Hour,
-    CompactionWorkers:            4,
-    HTTPEnabled:                  true,
-    HTTPPort:                     8086,
-    PrometheusRemoteWriteEnabled: true,
+    Path: "/var/lib/chronicle/data.db",
+    Storage: chronicle.StorageConfig{
+        MaxMemory:         1024 * 1024 * 1024, // 1GB
+        BufferSize:        100_000,
+        PartitionDuration: 1 * time.Hour,
+    },
+    Retention: chronicle.RetentionConfig{
+        RetentionDuration: 30 * 24 * time.Hour,
+        CompactionWorkers: 4,
+    },
+    HTTP: chronicle.HTTPConfig{
+        HTTPEnabled:                  true,
+        HTTPPort:                     8086,
+        PrometheusRemoteWriteEnabled: true,
+    },
     Encryption: &chronicle.EncryptionConfig{
         Enabled:     true,
         KeyPassword: os.Getenv("CHRONICLE_ENCRYPTION_KEY"),
