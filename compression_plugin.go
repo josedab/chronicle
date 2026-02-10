@@ -63,22 +63,22 @@ type CompressionPlugin interface {
 
 // PluginMetadata contains plugin information.
 type PluginMetadata struct {
-	Name           string            `json:"name"`
-	Version        string            `json:"version"`
-	Author         string            `json:"author"`
-	Description    string            `json:"description"`
-	DataTypes      []string          `json:"data_types"`
-	Properties     map[string]string `json:"properties"`
-	CompressionLevel int             `json:"compression_level"`
-	IsLossy        bool              `json:"is_lossy"`
+	Name             string            `json:"name"`
+	Version          string            `json:"version"`
+	Author           string            `json:"author"`
+	Description      string            `json:"description"`
+	DataTypes        []string          `json:"data_types"`
+	Properties       map[string]string `json:"properties"`
+	CompressionLevel int               `json:"compression_level"`
+	IsLossy          bool              `json:"is_lossy"`
 }
 
 // CompressionPluginManager manages compression plugins.
 type CompressionPluginManager struct {
-	config     CompressionPluginConfig
-	mu         sync.RWMutex
-	plugins    map[string]CompressionPlugin
-	benchmarks map[string]*PluginBenchmark
+	config       CompressionPluginConfig
+	mu           sync.RWMutex
+	plugins      map[string]CompressionPlugin
+	benchmarks   map[string]*PluginBenchmark
 	dataBindings map[string]string // data type -> plugin name
 }
 

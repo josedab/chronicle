@@ -260,7 +260,7 @@ func TestDeclarativeAlertingEngine_EvaluateAlert_Threshold(t *testing.T) {
 	// Write data above threshold
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Tags: map[string]string{"host": "web-1"}, Value: 95.0, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 
 	firing, err := engine.EvaluateAlert("high-cpu")
 	if err != nil {
@@ -287,7 +287,7 @@ func TestDeclarativeAlertingEngine_EvaluateAlert_BelowThreshold(t *testing.T) {
 
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Tags: map[string]string{"host": "web-1"}, Value: 50.0, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 
 	firing, err := engine.EvaluateAlert("high-cpu")
 	if err != nil {
@@ -327,7 +327,7 @@ func TestDeclarativeAlertingEngine_LogicAND(t *testing.T) {
 
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Value: 90, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 
 	firing, _ := engine.EvaluateAlert("and-test")
 	if !firing {
@@ -356,7 +356,7 @@ func TestDeclarativeAlertingEngine_LogicOR(t *testing.T) {
 
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Value: 5, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 
 	firing, _ := engine.EvaluateAlert("or-test")
 	if !firing {
@@ -388,7 +388,7 @@ func TestDeclarativeAlertingEngine_AlertLifecycle(t *testing.T) {
 	// Write high value → pending (because of For duration)
 	now := time.Now()
 	db.Write(Point{Metric: "temp", Value: 60, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 	engine.EvaluateAlert("lifecycle")
 
 	la = engine.GetAlert("lifecycle")
@@ -405,7 +405,7 @@ _ = db.Flush()
 
 	// Write low value → resolved
 	db.Write(Point{Metric: "temp", Value: 30, Timestamp: time.Now().UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 	engine.EvaluateAlert("lifecycle")
 
 	la = engine.GetAlert("lifecycle")
@@ -441,9 +441,9 @@ func TestDeclarativeAlertingEngine_EvaluateAll(t *testing.T) {
 
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Tags: map[string]string{"host": "web-1"}, Value: 95, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 	db.Write(Point{Metric: "disk.free", Value: 5, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 
 	results := engine.EvaluateAll()
 	if len(results) != 2 {
@@ -575,7 +575,7 @@ func TestDeclarativeAlertingEngine_Stats(t *testing.T) {
 
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Tags: map[string]string{"host": "web-1"}, Value: 95, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 	engine.EvaluateAlert("high-cpu")
 
 	stats := engine.Stats()
@@ -639,7 +639,7 @@ func TestDeclarativeAlertingEngine_Routing(t *testing.T) {
 
 	now := time.Now()
 	db.Write(Point{Metric: "cpu.usage", Tags: map[string]string{"host": "web-1"}, Value: 95, Timestamp: now.UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 	engine.EvaluateAlert("high-cpu")
 
 	la := engine.GetAlert("high-cpu")
@@ -899,9 +899,9 @@ func TestDeclarativeAlertingEngine_RateCondition(t *testing.T) {
 	now := time.Now()
 	// Write two points with increasing values within window
 	db.Write(Point{Metric: "requests.rate", Value: 100, Timestamp: now.Add(-2 * time.Second).UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 	db.Write(Point{Metric: "requests.rate", Value: 200, Timestamp: now.Add(-1 * time.Second).UnixNano()})
-_ = db.Flush()
+	_ = db.Flush()
 
 	firing, err := engine.EvaluateAlert("rate-test")
 	if err != nil {

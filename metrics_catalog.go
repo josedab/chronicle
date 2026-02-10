@@ -115,14 +115,14 @@ type CatalogTagInfo struct {
 
 // MetricLineage tracks how a metric is produced and consumed.
 type MetricLineage struct {
-	MetricName   string           `json:"metric_name"`
-	Producers    []LineageLink    `json:"producers,omitempty"`
-	Consumers    []LineageLink    `json:"consumers,omitempty"`
+	MetricName   string              `json:"metric_name"`
+	Producers    []LineageLink       `json:"producers,omitempty"`
+	Consumers    []LineageLink       `json:"consumers,omitempty"`
 	Queries      []CatalogQueryUsage `json:"queries,omitempty"`
-	Dashboards   []string         `json:"dashboards,omitempty"`
-	AlertRules   []string         `json:"alert_rules,omitempty"`
-	Dependencies int              `json:"dependencies"`
-	Dependents   int              `json:"dependents"`
+	Dashboards   []string            `json:"dashboards,omitempty"`
+	AlertRules   []string            `json:"alert_rules,omitempty"`
+	Dependencies int                 `json:"dependencies"`
+	Dependents   int                 `json:"dependents"`
 }
 
 // LineageLink describes a producer or consumer of a metric.
@@ -143,16 +143,16 @@ type CatalogQueryUsage struct {
 
 // CatalogSearchQuery defines search criteria for the catalog.
 type CatalogSearchQuery struct {
-	Pattern    string            `json:"pattern,omitempty"`
-	Type       CatalogMetricType `json:"type,omitempty"`
+	Pattern    string              `json:"pattern,omitempty"`
+	Type       CatalogMetricType   `json:"type,omitempty"`
 	Status     CatalogMetricStatus `json:"status,omitempty"`
-	Tags       map[string]string `json:"tags,omitempty"`
-	Owner      string            `json:"owner,omitempty"`
-	MinPoints  int64             `json:"min_points,omitempty"`
-	MaxAge     time.Duration     `json:"max_age,omitempty"`
-	HasLineage bool              `json:"has_lineage,omitempty"`
-	Limit      int               `json:"limit,omitempty"`
-	Offset     int               `json:"offset,omitempty"`
+	Tags       map[string]string   `json:"tags,omitempty"`
+	Owner      string              `json:"owner,omitempty"`
+	MinPoints  int64               `json:"min_points,omitempty"`
+	MaxAge     time.Duration       `json:"max_age,omitempty"`
+	HasLineage bool                `json:"has_lineage,omitempty"`
+	Limit      int                 `json:"limit,omitempty"`
+	Offset     int                 `json:"offset,omitempty"`
 }
 
 // CatalogSearchResult holds the results of a catalog search.

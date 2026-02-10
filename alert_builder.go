@@ -53,21 +53,21 @@ func DefaultAlertBuilderConfig() AlertBuilderConfig {
 
 // AlertRule represents a visual alert rule built from conditions.
 type BuilderRule struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Enabled     bool              `json:"enabled"`
-	Severity    AlertSeverity     `json:"severity"`
-	Conditions  []BuilderCondition  `json:"conditions"`
-	Logic       ConditionLogic    `json:"logic"` // AND/OR between conditions
-	Actions     []AlertAction     `json:"actions"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description,omitempty"`
+	Enabled     bool               `json:"enabled"`
+	Severity    AlertSeverity      `json:"severity"`
+	Conditions  []BuilderCondition `json:"conditions"`
+	Logic       ConditionLogic     `json:"logic"` // AND/OR between conditions
+	Actions     []AlertAction      `json:"actions"`
+	Labels      map[string]string  `json:"labels,omitempty"`
+	Annotations map[string]string  `json:"annotations,omitempty"`
 
 	// Timing
-	EvalInterval  time.Duration `json:"eval_interval"`
-	ForDuration   time.Duration `json:"for_duration"` // How long condition must be true
-	RepeatAfter   time.Duration `json:"repeat_after"` // Re-alert interval
+	EvalInterval time.Duration `json:"eval_interval"`
+	ForDuration  time.Duration `json:"for_duration"` // How long condition must be true
+	RepeatAfter  time.Duration `json:"repeat_after"` // Re-alert interval
 
 	// Metadata
 	CreatedAt time.Time `json:"created_at"`
@@ -121,7 +121,7 @@ type BuilderCondition struct {
 
 	// Nested conditions for complex logic
 	SubConditions []BuilderCondition `json:"sub_conditions,omitempty"`
-	SubLogic      ConditionLogic   `json:"sub_logic,omitempty"`
+	SubLogic      ConditionLogic     `json:"sub_logic,omitempty"`
 }
 
 // ConditionType defines the type of condition.
@@ -414,15 +414,15 @@ func (ab *AlertBuilder) PreviewRule(rule *BuilderRule) (*PreviewResult, error) {
 
 // PreviewResult contains the results of a rule preview.
 type PreviewResult struct {
-	RuleID           string          `json:"rule_id"`
-	RuleName         string          `json:"rule_name"`
-	StartTime        time.Time       `json:"start_time"`
-	EndTime          time.Time       `json:"end_time"`
-	TotalMatches     int             `json:"total_matches"`
-	Matches          []PreviewMatch  `json:"matches"`
-	TotalDuration    time.Duration   `json:"total_duration"`
-	AvgMatchDuration time.Duration   `json:"avg_match_duration"`
-	WouldHaveFired   bool            `json:"would_have_fired"`
+	RuleID           string         `json:"rule_id"`
+	RuleName         string         `json:"rule_name"`
+	StartTime        time.Time      `json:"start_time"`
+	EndTime          time.Time      `json:"end_time"`
+	TotalMatches     int            `json:"total_matches"`
+	Matches          []PreviewMatch `json:"matches"`
+	TotalDuration    time.Duration  `json:"total_duration"`
+	AvgMatchDuration time.Duration  `json:"avg_match_duration"`
+	WouldHaveFired   bool           `json:"would_have_fired"`
 }
 
 // PreviewMatch represents a single match in preview.
@@ -633,8 +633,8 @@ func (ab *AlertBuilder) EvaluateRule(ruleID string) (*EvaluationResult, error) {
 	}
 
 	result := &EvaluationResult{
-		RuleID:       ruleID,
-		EvaluatedAt:  time.Now(),
+		RuleID:        ruleID,
+		EvaluatedAt:   time.Now(),
 		ConditionsMet: make([]ConditionResult, 0, len(rule.Conditions)),
 	}
 
@@ -1199,8 +1199,8 @@ func (ab *AlertBuilder) handleValidate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Expression string      `json:"expression"`
-		Rule       *BuilderRule  `json:"rule,omitempty"`
+		Expression string       `json:"expression"`
+		Rule       *BuilderRule `json:"rule,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONStatus(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -1209,7 +1209,7 @@ func (ab *AlertBuilder) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 	if req.Expression != "" {
 		if err := ab.ValidateExpression(req.Expression); err != nil {
-			writeJSONStatus(w, http.StatusOK, map[string]interface{}{
+			writeJSONStatus(w, http.StatusOK, map[string]any{
 				"valid": false,
 				"error": err.Error(),
 			})
@@ -1219,7 +1219,7 @@ func (ab *AlertBuilder) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 	if req.Rule != nil {
 		if err := ab.validateRule(req.Rule); err != nil {
-			writeJSONStatus(w, http.StatusOK, map[string]interface{}{
+			writeJSONStatus(w, http.StatusOK, map[string]any{
 				"valid": false,
 				"error": err.Error(),
 			})
@@ -1227,7 +1227,7 @@ func (ab *AlertBuilder) handleValidate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSONStatus(w, http.StatusOK, map[string]interface{}{
+	writeJSONStatus(w, http.StatusOK, map[string]any{
 		"valid": true,
 	})
 }

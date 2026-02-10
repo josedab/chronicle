@@ -584,7 +584,7 @@ func TestAlertBuilder_HTTPValidate(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	json.Unmarshal(rec.Body.Bytes(), &result)
 	if !result["valid"].(bool) {
 		t.Error("Expected valid result")

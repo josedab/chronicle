@@ -93,11 +93,11 @@ func TestAdaptiveCompressorV3UpdateProfile(t *testing.T) {
 	ac := NewAdaptiveCompressorV3(DefaultAdaptiveCompressionV3Config())
 
 	profile := ColumnProfile{
-		Name:            "temp",
-		Type:            ColumnTypeMonotonic,
-		MonotonicScore:  0.98,
-		Cardinality:     100,
-		SampleSize:      1000,
+		Name:           "temp",
+		Type:           ColumnTypeMonotonic,
+		MonotonicScore: 0.98,
+		Cardinality:    100,
+		SampleSize:     1000,
 	}
 
 	ac.UpdateProfile("temp", profile)

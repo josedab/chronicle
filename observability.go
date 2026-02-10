@@ -449,7 +449,7 @@ func (mc *MetricsCollector) handleMetrics(w http.ResponseWriter, r *http.Request
 type HealthState int
 
 const (
-	HealthOK        HealthState = iota
+	HealthOK HealthState = iota
 	HealthDegraded
 	HealthUnhealthy
 )
@@ -473,10 +473,10 @@ func (s HealthState) MarshalJSON() ([]byte, error) {
 
 // HealthCheckResult is the outcome of a single health check invocation.
 type HealthCheckResult struct {
-	Status   HealthState            `json:"status"`
-	Message  string                 `json:"message"`
-	Duration time.Duration          `json:"duration"`
-	Details  map[string]interface{} `json:"details,omitempty"`
+	Status   HealthState    `json:"status"`
+	Message  string         `json:"message"`
+	Duration time.Duration  `json:"duration"`
+	Details  map[string]any `json:"details,omitempty"`
 }
 
 // HealthCheckFunc is a function that performs a health check.
@@ -484,9 +484,9 @@ type HealthCheckFunc func(ctx context.Context) *HealthCheckResult
 
 // HealthStatus is the aggregate health of the system.
 type HealthStatus struct {
-	Overall   HealthState                `json:"overall"`
+	Overall   HealthState                   `json:"overall"`
 	Checks    map[string]*HealthCheckResult `json:"checks"`
-	Timestamp time.Time                  `json:"timestamp"`
+	Timestamp time.Time                     `json:"timestamp"`
 }
 
 // ---------------------------------------------------------------------------
@@ -715,7 +715,7 @@ func StorageHealthCheck(db *DB) HealthCheckFunc {
 		return &HealthCheckResult{
 			Status:  HealthOK,
 			Message: "storage path accessible",
-			Details: map[string]interface{}{"path": db.path},
+			Details: map[string]any{"path": db.path},
 		}
 	}
 }
@@ -728,7 +728,7 @@ func MemoryHealthCheck(threshold float64) HealthCheckFunc {
 		runtime.ReadMemStats(&m)
 
 		ratio := float64(m.Alloc) / float64(m.Sys)
-		details := map[string]interface{}{
+		details := map[string]any{
 			"alloc_bytes": m.Alloc,
 			"sys_bytes":   m.Sys,
 			"ratio":       ratio,
@@ -759,7 +759,7 @@ func QueryLatencyHealthCheck(collector *MetricsCollector, threshold time.Duratio
 		}
 
 		p99 := time.Duration(hSnap.P99 * float64(time.Second))
-		details := map[string]interface{}{
+		details := map[string]any{
 			"p99":       p99.String(),
 			"threshold": threshold.String(),
 		}
