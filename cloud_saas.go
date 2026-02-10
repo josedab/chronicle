@@ -33,30 +33,30 @@ const (
 
 // CloudSaaSConfig configures the managed edge-to-cloud SaaS platform.
 type CloudSaaSConfig struct {
-	Region           string        `json:"region"`
-	Tier             CloudTier     `json:"tier"`
-	MaxStorageBytes  int64         `json:"max_storage_bytes"`
-	MaxInstances     int           `json:"max_instances"`
-	BillingEnabled   bool          `json:"billing_enabled"`
-	AutoDeploy       bool          `json:"auto_deploy"`
-	ControlPlaneURL  string        `json:"control_plane_url"`
-	APIKey           string        `json:"api_key,omitempty"`
+	Region            string        `json:"region"`
+	Tier              CloudTier     `json:"tier"`
+	MaxStorageBytes   int64         `json:"max_storage_bytes"`
+	MaxInstances      int           `json:"max_instances"`
+	BillingEnabled    bool          `json:"billing_enabled"`
+	AutoDeploy        bool          `json:"auto_deploy"`
+	ControlPlaneURL   string        `json:"control_plane_url"`
+	APIKey            string        `json:"api_key,omitempty"`
 	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
-	MetricRetention  time.Duration `json:"metric_retention"`
+	MetricRetention   time.Duration `json:"metric_retention"`
 }
 
 // DefaultCloudSaaSConfig returns sensible defaults for the cloud SaaS platform.
 func DefaultCloudSaaSConfig() CloudSaaSConfig {
 	return CloudSaaSConfig{
-		Region:           "us-east-1",
-		Tier:             TierFree,
-		MaxStorageBytes:  10 * 1024 * 1024 * 1024, // 10GB
-		MaxInstances:     100,
-		BillingEnabled:   true,
-		AutoDeploy:       true,
-		ControlPlaneURL:  "https://api.chronicle.dev",
+		Region:            "us-east-1",
+		Tier:              TierFree,
+		MaxStorageBytes:   10 * 1024 * 1024 * 1024, // 10GB
+		MaxInstances:      100,
+		BillingEnabled:    true,
+		AutoDeploy:        true,
+		ControlPlaneURL:   "https://api.chronicle.dev",
 		HeartbeatInterval: 30 * time.Second,
-		MetricRetention:  30 * 24 * time.Hour, // 30 days
+		MetricRetention:   30 * 24 * time.Hour, // 30 days
 	}
 }
 
@@ -79,22 +79,22 @@ type CloudInstance struct {
 
 // CloudOrganization represents a customer organization in the SaaS platform.
 type CloudOrganization struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	OwnerEmail  string           `json:"owner_email"`
-	Tier        CloudTier        `json:"tier"`
-	Instances   []CloudInstance  `json:"instances"`
-	APIKeys     []CloudAPIKey    `json:"api_keys"`
-	CreatedAt   time.Time        `json:"created_at"`
-	BillingInfo BillingInfo      `json:"billing_info"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	OwnerEmail  string          `json:"owner_email"`
+	Tier        CloudTier       `json:"tier"`
+	Instances   []CloudInstance `json:"instances"`
+	APIKeys     []CloudAPIKey   `json:"api_keys"`
+	CreatedAt   time.Time       `json:"created_at"`
+	BillingInfo BillingInfo     `json:"billing_info"`
 }
 
 // CloudAPIKey represents an API key for programmatic access.
 type CloudAPIKey struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	KeyHash     string   `json:"key_hash"`
-	Permissions []string `json:"permissions"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	KeyHash     string    `json:"key_hash"`
+	Permissions []string  `json:"permissions"`
 	CreatedAt   time.Time `json:"created_at"`
 	ExpiresAt   time.Time `json:"expires_at"`
 	LastUsedAt  time.Time `json:"last_used_at,omitempty"`
@@ -133,21 +133,21 @@ type DeploymentSpec struct {
 
 // UsageSummary provides aggregated usage for an organization.
 type UsageSummary struct {
-	OrgID          string  `json:"org_id"`
-	TotalStorage   int64   `json:"total_storage"`
-	TotalQueries   int64   `json:"total_queries"`
-	TotalWrites    int64   `json:"total_writes"`
-	TotalReads     int64   `json:"total_reads"`
-	RecordCount    int     `json:"record_count"`
+	OrgID        string `json:"org_id"`
+	TotalStorage int64  `json:"total_storage"`
+	TotalQueries int64  `json:"total_queries"`
+	TotalWrites  int64  `json:"total_writes"`
+	TotalReads   int64  `json:"total_reads"`
+	RecordCount  int    `json:"record_count"`
 }
 
 // CloudSaaSStats contains platform-wide statistics.
 type CloudSaaSStats struct {
-	TotalOrgs            int     `json:"total_orgs"`
-	TotalInstances       int     `json:"total_instances"`
-	ActiveInstances      int     `json:"active_instances"`
-	TotalStorage         int64   `json:"total_storage"`
-	TotalQueries         int64   `json:"total_queries"`
+	TotalOrgs              int     `json:"total_orgs"`
+	TotalInstances         int     `json:"total_instances"`
+	ActiveInstances        int     `json:"active_instances"`
+	TotalStorage           int64   `json:"total_storage"`
+	TotalQueries           int64   `json:"total_queries"`
 	MonthlyRevenueEstimate float64 `json:"monthly_revenue_estimate"`
 }
 
@@ -476,7 +476,7 @@ func (e *CloudSaaSEngine) GetBilling(orgID string) *BillingInfo {
 }
 
 // FederatedQuery executes a query across all instances in an organization.
-func (e *CloudSaaSEngine) FederatedQuery(orgID, query string) (interface{}, error) {
+func (e *CloudSaaSEngine) FederatedQuery(orgID, query string) (any, error) {
 	if query == "" {
 		return nil, fmt.Errorf("cloud_saas: query required")
 	}
@@ -500,7 +500,7 @@ func (e *CloudSaaSEngine) FederatedQuery(orgID, query string) (interface{}, erro
 		return nil, fmt.Errorf("cloud_saas: no running instances for org %q", orgID)
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"org_id":    orgID,
 		"query":     query,
 		"instances": activeInstances,

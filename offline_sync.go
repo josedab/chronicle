@@ -37,31 +37,31 @@ const (
 
 // OfflineSyncConfig configures the offline-first sync protocol.
 type OfflineSyncConfig struct {
-	NodeID                string               `json:"node_id"`
-	MaxOfflineDuration    time.Duration         `json:"max_offline_duration"`
-	SyncBatchSize         int                   `json:"sync_batch_size"`
-	BloomFilterSize       uint                  `json:"bloom_filter_size"`
-	BloomFilterHashes     uint                  `json:"bloom_filter_hashes"`
-	MaxDeltaSize          int64                 `json:"max_delta_size"`
-	CompressDeltas        bool                  `json:"compress_deltas"`
-	ConflictStrategy      CRDTConflictStrategy  `json:"conflict_strategy"`
+	NodeID                 string               `json:"node_id"`
+	MaxOfflineDuration     time.Duration        `json:"max_offline_duration"`
+	SyncBatchSize          int                  `json:"sync_batch_size"`
+	BloomFilterSize        uint                 `json:"bloom_filter_size"`
+	BloomFilterHashes      uint                 `json:"bloom_filter_hashes"`
+	MaxDeltaSize           int64                `json:"max_delta_size"`
+	CompressDeltas         bool                 `json:"compress_deltas"`
+	ConflictStrategy       CRDTConflictStrategy `json:"conflict_strategy"`
 	SchemaEvolutionEnabled bool                 `json:"schema_evolution_enabled"`
-	BandwidthBudgetBps    int64                 `json:"bandwidth_budget_bps"`
+	BandwidthBudgetBps     int64                `json:"bandwidth_budget_bps"`
 }
 
 // DefaultOfflineSyncConfig returns a default OfflineSyncConfig.
 func DefaultOfflineSyncConfig() OfflineSyncConfig {
 	return OfflineSyncConfig{
-		NodeID:                "node-1",
-		MaxOfflineDuration:    24 * time.Hour,
-		SyncBatchSize:         5000,
-		BloomFilterSize:       1024,
-		BloomFilterHashes:     3,
-		MaxDeltaSize:          64 * 1024 * 1024,
-		CompressDeltas:        true,
-		ConflictStrategy:      CRDTLastWriterWins,
+		NodeID:                 "node-1",
+		MaxOfflineDuration:     24 * time.Hour,
+		SyncBatchSize:          5000,
+		BloomFilterSize:        1024,
+		BloomFilterHashes:      3,
+		MaxDeltaSize:           64 * 1024 * 1024,
+		CompressDeltas:         true,
+		ConflictStrategy:       CRDTLastWriterWins,
 		SchemaEvolutionEnabled: true,
-		BandwidthBudgetBps:    1024 * 1024,
+		BandwidthBudgetBps:     1024 * 1024,
 	}
 }
 
@@ -152,7 +152,7 @@ func (gc *GCounter) Merge(other *GCounter) {
 
 // LWWRegister is a last-writer-wins register for conflict-free state.
 type LWWRegister struct {
-	value     interface{}
+	value     any
 	timestamp int64
 	nodeID    string
 	mu        sync.RWMutex
@@ -165,7 +165,7 @@ func NewLWWRegister() *LWWRegister {
 
 // Set updates the register if the timestamp is newer, or same timestamp with
 // higher nodeID (deterministic tiebreak).
-func (r *LWWRegister) Set(value interface{}, timestamp int64, nodeID string) {
+func (r *LWWRegister) Set(value any, timestamp int64, nodeID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if timestamp > r.timestamp || (timestamp == r.timestamp && nodeID > r.nodeID) {
@@ -176,7 +176,7 @@ func (r *LWWRegister) Set(value interface{}, timestamp int64, nodeID string) {
 }
 
 // Get returns the current value and its timestamp.
-func (r *LWWRegister) Get() (interface{}, int64) {
+func (r *LWWRegister) Get() (any, int64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.value, r.timestamp
@@ -373,12 +373,12 @@ type DeltaEntry struct {
 
 // SyncDelta represents a batch of changes to send to a peer.
 type SyncDelta struct {
-	SourceNode     string       `json:"source_node"`
-	VectorClock    *VectorClock `json:"-"`
-	Bloom          *BloomFilter `json:"-"`
+	SourceNode     string        `json:"source_node"`
+	VectorClock    *VectorClock  `json:"-"`
+	Bloom          *BloomFilter  `json:"-"`
 	Entries        []*DeltaEntry `json:"entries"`
-	CompressedSize int64        `json:"compressed_size"`
-	SchemaVersion  int          `json:"schema_version"`
+	CompressedSize int64         `json:"compressed_size"`
+	SchemaVersion  int           `json:"schema_version"`
 }
 
 // DeltaState tracks local changes since last synchronization.

@@ -22,13 +22,13 @@ const (
 
 // GitOpsConfig configures the declarative GitOps engine.
 type GitOpsConfig struct {
-	Enabled              bool          `json:"enabled"`
-	WatchPaths           []string      `json:"watch_paths"`
-	ReconcileInterval    time.Duration `json:"reconcile_interval"`
-	DryRunByDefault      bool          `json:"dry_run_by_default"`
-	EnableAuditLog       bool          `json:"enable_audit_log"`
-	MaxAuditEntries      int           `json:"max_audit_entries"`
-	StrictValidation     bool          `json:"strict_validation"`
+	Enabled           bool          `json:"enabled"`
+	WatchPaths        []string      `json:"watch_paths"`
+	ReconcileInterval time.Duration `json:"reconcile_interval"`
+	DryRunByDefault   bool          `json:"dry_run_by_default"`
+	EnableAuditLog    bool          `json:"enable_audit_log"`
+	MaxAuditEntries   int           `json:"max_audit_entries"`
+	StrictValidation  bool          `json:"strict_validation"`
 }
 
 // DefaultGitOpsConfig returns sensible defaults.
@@ -82,18 +82,18 @@ type GitOpsAuditEntry struct {
 
 // AlertRuleSpec defines an alert rule in YAML/JSON.
 type AlertRuleSpec struct {
-	Metric    string        `json:"metric" yaml:"metric"`
-	Condition string        `json:"condition" yaml:"condition"`
-	Threshold float64       `json:"threshold" yaml:"threshold"`
-	Duration  time.Duration `json:"duration" yaml:"duration"`
-	Severity  string        `json:"severity" yaml:"severity"`
-	WebhookURL string       `json:"webhook_url,omitempty" yaml:"webhook_url,omitempty"`
+	Metric     string        `json:"metric" yaml:"metric"`
+	Condition  string        `json:"condition" yaml:"condition"`
+	Threshold  float64       `json:"threshold" yaml:"threshold"`
+	Duration   time.Duration `json:"duration" yaml:"duration"`
+	Severity   string        `json:"severity" yaml:"severity"`
+	WebhookURL string        `json:"webhook_url,omitempty" yaml:"webhook_url,omitempty"`
 }
 
 // RetentionPolicySpec defines a retention policy in YAML/JSON.
 type RetentionPolicySpec struct {
-	Duration      time.Duration `json:"duration" yaml:"duration"`
-	MaxSizeBytes  int64         `json:"max_size_bytes,omitempty" yaml:"max_size_bytes,omitempty"`
+	Duration        time.Duration `json:"duration" yaml:"duration"`
+	MaxSizeBytes    int64         `json:"max_size_bytes,omitempty" yaml:"max_size_bytes,omitempty"`
 	DownsampleAfter time.Duration `json:"downsample_after,omitempty" yaml:"downsample_after,omitempty"`
 }
 

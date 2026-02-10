@@ -334,7 +334,7 @@ func TestGenerateHelmValues(t *testing.T) {
 	config := DefaultK8sSidecarConfig()
 	values := GenerateHelmValues(config)
 
-	sidecar, ok := values["sidecar"].(map[string]interface{})
+	sidecar, ok := values["sidecar"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected sidecar section")
 	}
@@ -360,7 +360,7 @@ func TestGenerateSidecarManifest(t *testing.T) {
 		t.Error("Expected correct image")
 	}
 
-	env, ok := manifest["env"].([]map[string]interface{})
+	env, ok := manifest["env"].([]map[string]any)
 	if !ok {
 		t.Fatal("Expected env array")
 	}

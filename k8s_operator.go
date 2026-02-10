@@ -288,15 +288,15 @@ type K8sOperator struct {
 	config K8sConfig
 
 	// Current state
-	mu       sync.RWMutex
-	phase    string
-	ready    bool
-	leader   string
-	metrics  K8sMetricsStatus
+	mu        sync.RWMutex
+	phase     string
+	ready     bool
+	leader    string
+	metrics   K8sMetricsStatus
 	startTime time.Time
 
 	// Health server
-	healthServer *http.Server
+	healthServer  *http.Server
 	metricsServer *http.Server
 
 	// Lifecycle

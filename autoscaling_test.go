@@ -243,10 +243,10 @@ func TestCalculateTargetReplicas(t *testing.T) {
 		target      float64
 		expected    int32
 	}{
-		{2, 80, 40, 4},   // Double replicas
-		{4, 20, 40, 2},   // Halve replicas
-		{1, 100, 50, 2},  // Scale up from 1
-		{1, 10, 50, 1},   // Don't go below 1
+		{2, 80, 40, 4},  // Double replicas
+		{4, 20, 40, 2},  // Halve replicas
+		{1, 100, 50, 2}, // Scale up from 1
+		{1, 10, 50, 1},  // Don't go below 1
 	}
 
 	for _, tt := range tests {

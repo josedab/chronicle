@@ -18,7 +18,7 @@ import (
 type CrossCloudTierProvider int
 
 const (
-	CloudLocal        CrossCloudTierProvider = iota
+	CloudLocal CrossCloudTierProvider = iota
 	CloudAWS
 	CloudGCP
 	CloudAzure
@@ -174,14 +174,14 @@ type MigrationJob struct {
 
 // CrossCloudCostReport tracks storage costs across clouds.
 type CrossCloudCostReport struct {
-	Period          string                       `json:"period"`
-	TotalCost       float64                      `json:"total_cost"`
-	CostByCloud     map[string]float64           `json:"cost_by_cloud"`
-	CostByTier      map[string]float64           `json:"cost_by_tier"`
-	EgressCost      float64                      `json:"egress_cost"`
-	Savings         float64                      `json:"savings"`
+	Period          string                         `json:"period"`
+	TotalCost       float64                        `json:"total_cost"`
+	CostByCloud     map[string]float64             `json:"cost_by_cloud"`
+	CostByTier      map[string]float64             `json:"cost_by_tier"`
+	EgressCost      float64                        `json:"egress_cost"`
+	Savings         float64                        `json:"savings"`
 	Recommendations []CrossCloudCostRecommendation `json:"recommendations"`
-	GeneratedAt     time.Time                    `json:"generated_at"`
+	GeneratedAt     time.Time                      `json:"generated_at"`
 }
 
 // CrossCloudCostRecommendation suggests a cost optimization action.

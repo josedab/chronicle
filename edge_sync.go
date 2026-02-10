@@ -140,14 +140,14 @@ type EdgeSyncManager struct {
 	config EdgeSyncConfig
 
 	// Sync state
-	queue       *syncQueue
-	adapter     CloudAdapter
-	lastSync    time.Time
-	syncMu      sync.Mutex
-	running     atomic.Bool
-	stopCh      chan struct{}
-	stats       EdgeSyncStats
-	statsMu     sync.RWMutex
+	queue            *syncQueue
+	adapter          CloudAdapter
+	lastSync         time.Time
+	syncMu           sync.Mutex
+	running          atomic.Bool
+	stopCh           chan struct{}
+	stats            EdgeSyncStats
+	statsMu          sync.RWMutex
 	httpClient       *http.Client
 	bandwidthLimiter *bandwidthLimiter
 }
@@ -205,11 +205,11 @@ func NewEdgeSyncManager(db *DB, config EdgeSyncConfig) (*EdgeSyncManager, error)
 	}
 
 	manager := &EdgeSyncManager{
-		db:     db,
-		config: config,
-		queue:  queue,
+		db:      db,
+		config:  config,
+		queue:   queue,
 		adapter: adapter,
-		stopCh: make(chan struct{}),
+		stopCh:  make(chan struct{}),
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -481,10 +481,10 @@ type syncBatch struct {
 
 // syncQueue is a persistent queue for points awaiting sync.
 type syncQueue struct {
-	path     string
-	maxSize  int64
-	mu       sync.Mutex
-	items    []Point
+	path      string
+	maxSize   int64
+	mu        sync.Mutex
+	items     []Point
 	sizeBytes int64
 }
 

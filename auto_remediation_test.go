@@ -30,12 +30,12 @@ func TestAutoRemediationEngine_RegisterAction(t *testing.T) {
 	defer func() { _ = engine.Close() }()
 
 	action := &RemediationAction{
-		ID:          "action1",
-		Name:        "Send Alert",
-		Type:        RemediationActionAlert,
-		Priority:    1,
-		RiskLevel:   1,
-		Parameters: map[string]interface{}{
+		ID:        "action1",
+		Name:      "Send Alert",
+		Type:      RemediationActionAlert,
+		Priority:  1,
+		RiskLevel: 1,
+		Parameters: map[string]any{
 			"severity": "warning",
 		},
 	}
@@ -62,11 +62,11 @@ func TestAutoRemediationEngine_RegisterRule(t *testing.T) {
 	defer func() { _ = engine.Close() }()
 
 	rule := &AutoRemediationRule{
-		ID:          "rule1",
-		Name:        "High CPU Alert",
-		AnomalyTypes: []string{"spike", "trend"},
+		ID:            "rule1",
+		Name:          "High CPU Alert",
+		AnomalyTypes:  []string{"spike", "trend"},
 		MetricPattern: "cpu_usage",
-		Actions:     []string{"action1"},
+		Actions:       []string{"action1"},
 	}
 
 	err := engine.RegisterRule(rule)
@@ -129,18 +129,18 @@ func TestAutoRemediationEngine_EvaluateAnomaly(t *testing.T) {
 		Name:      "Alert Action",
 		Type:      RemediationActionAlert,
 		RiskLevel: 1,
-		Parameters: map[string]interface{}{
+		Parameters: map[string]any{
 			"severity": "warning",
 		},
 	})
 
 	// Register rule
 	_ = engine.RegisterRule(&AutoRemediationRule{
-		ID:           "rule1",
-		Name:         "CPU Spike Rule",
-		AnomalyTypes: []string{"spike"},
+		ID:            "rule1",
+		Name:          "CPU Spike Rule",
+		AnomalyTypes:  []string{"spike"},
 		MetricPattern: "cpu",
-		Actions:      []string{"alert1"},
+		Actions:       []string{"alert1"},
 	})
 
 	// Create anomaly
@@ -330,12 +330,12 @@ func TestAutoRemediationEngine_GetRecommendations(t *testing.T) {
 	engine.mlModel.actionEffectiveness["scale_up"] = 0.85
 	engine.mlModel.patternIndex["spike:cpu"] = []string{"scale_up"}
 	engine.mlModel.historicalIncidents = append(engine.mlModel.historicalIncidents, HistoricalIncident{
-		ID:          "h1",
-		AnomalyType: "spike",
+		ID:            "h1",
+		AnomalyType:   "spike",
 		MetricPattern: "cpu",
-		ActionTaken: "scale_up",
-		Success:     true,
-		Severity:    0.8,
+		ActionTaken:   "scale_up",
+		Success:       true,
+		Severity:      0.8,
 	})
 	engine.mlModel.mu.Unlock()
 
@@ -411,7 +411,7 @@ func TestRemediationAction(t *testing.T) {
 				Value:    80.0,
 			},
 		},
-		Parameters: map[string]interface{}{
+		Parameters: map[string]any{
 			"severity": "critical",
 			"channel":  "slack",
 		},
@@ -432,13 +432,13 @@ func TestRemediationAction(t *testing.T) {
 
 func TestAutoRemediationRule(t *testing.T) {
 	rule := &AutoRemediationRule{
-		ID:           "test-rule",
-		Name:         "CPU Alert Rule",
-		Description:  "Alert on high CPU",
-		AnomalyTypes: []string{"spike", "trend_up"},
+		ID:            "test-rule",
+		Name:          "CPU Alert Rule",
+		Description:   "Alert on high CPU",
+		AnomalyTypes:  []string{"spike", "trend_up"},
 		MetricPattern: "cpu_*",
-		TagFilters:   map[string]string{"env": "production"},
-		Actions:      []string{"alert1", "scale1"},
+		TagFilters:    map[string]string{"env": "production"},
+		Actions:       []string{"alert1", "scale1"},
 		EscalationPolicy: &EscalationPolicy{
 			Levels: []EscalationLevel{
 				{
@@ -551,8 +551,8 @@ func TestRemediationExecution(t *testing.T) {
 		StartTime: time.Now().Add(-time.Minute),
 		EndTime:   time.Now(),
 		Duration:  time.Minute,
-		Input:     map[string]interface{}{"key": "value"},
-		Output:    map[string]interface{}{"result": "success"},
+		Input:     map[string]any{"key": "value"},
+		Output:    map[string]any{"result": "success"},
 	}
 
 	if exec.Status != ExecutionCompleted {
@@ -565,15 +565,15 @@ func TestRemediationExecution(t *testing.T) {
 
 func TestHistoricalIncident(t *testing.T) {
 	incident := HistoricalIncident{
-		ID:            "inc-1",
-		AnomalyType:   "spike",
-		MetricPattern: "cpu_usage",
-		Severity:      0.8,
-		ActionTaken:   "scale_up",
-		Success:       true,
+		ID:             "inc-1",
+		AnomalyType:    "spike",
+		MetricPattern:  "cpu_usage",
+		Severity:       0.8,
+		ActionTaken:    "scale_up",
+		Success:        true,
 		ResolutionTime: 5 * time.Minute,
-		Context:       map[string]interface{}{"env": "prod"},
-		Timestamp:     time.Now(),
+		Context:        map[string]any{"env": "prod"},
+		Timestamp:      time.Now(),
 	}
 
 	if !incident.Success {
@@ -586,15 +586,15 @@ func TestHistoricalIncident(t *testing.T) {
 
 func TestRemediationRecommendation(t *testing.T) {
 	rec := &RemediationRecommendation{
-		ID:           "rec-1",
-		AnomalyID:    "anomaly-1",
-		ActionType:   RemediationActionScale,
-		Confidence:   0.85,
-		Reasoning:    "Similar past incidents resolved with scaling",
-		Parameters:   map[string]interface{}{"direction": "up"},
-		PredictedImpact: 0.9,
+		ID:               "rec-1",
+		AnomalyID:        "anomaly-1",
+		ActionType:       RemediationActionScale,
+		Confidence:       0.85,
+		Reasoning:        "Similar past incidents resolved with scaling",
+		Parameters:       map[string]any{"direction": "up"},
+		PredictedImpact:  0.9,
 		SimilarIncidents: []string{"inc-1", "inc-2"},
-		CreatedAt:    time.Now(),
+		CreatedAt:        time.Now(),
 	}
 
 	if rec.Confidence != 0.85 {

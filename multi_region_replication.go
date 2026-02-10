@@ -184,12 +184,12 @@ func (t MRReplicationEventType) String() string {
 
 // MRReplicationEvent represents a single replication event to be propagated between regions.
 type MRReplicationEvent struct {
-	ID           string                    `json:"id"`
-	Type         MRReplicationEventType    `json:"type"`
-	SourceRegion string                    `json:"source_region"`
-	Timestamp    time.Time                 `json:"timestamp"`
-	VectorClock  MRVectorClock             `json:"vector_clock"`
-	Data         []byte                    `json:"data"`
+	ID           string                 `json:"id"`
+	Type         MRReplicationEventType `json:"type"`
+	SourceRegion string                 `json:"source_region"`
+	Timestamp    time.Time              `json:"timestamp"`
+	VectorClock  MRVectorClock          `json:"vector_clock"`
+	Data         []byte                 `json:"data"`
 }
 
 // ---------------------------------------------------------------------------
@@ -213,14 +213,14 @@ type MRPeerNode struct {
 
 // MultiRegionReplicationConfig configures the multi-region active-active replication engine.
 type MultiRegionReplicationConfig struct {
-	RegionName             string               `json:"region_name"`
-	PeerAddresses          []string             `json:"peer_addresses"`
-	ConsistencyLevel       MRConsistencyLevel   `json:"consistency_level"`
-	ReplicationFactor      int                  `json:"replication_factor"`
-	HeartbeatInterval      time.Duration        `json:"heartbeat_interval"`
-	ConflictResolution     MRConflictResolution `json:"conflict_resolution"`
-	MaxReplicationLag      time.Duration        `json:"max_replication_lag"`
-	SyncBatchSize          int                  `json:"sync_batch_size"`
+	RegionName         string               `json:"region_name"`
+	PeerAddresses      []string             `json:"peer_addresses"`
+	ConsistencyLevel   MRConsistencyLevel   `json:"consistency_level"`
+	ReplicationFactor  int                  `json:"replication_factor"`
+	HeartbeatInterval  time.Duration        `json:"heartbeat_interval"`
+	ConflictResolution MRConflictResolution `json:"conflict_resolution"`
+	MaxReplicationLag  time.Duration        `json:"max_replication_lag"`
+	SyncBatchSize      int                  `json:"sync_batch_size"`
 }
 
 // DefaultMultiRegionReplicationConfig returns a MultiRegionReplicationConfig with sensible defaults.
@@ -616,7 +616,7 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 			writeError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"peer_id": peerID,
 			"lag_ms":  lag.Milliseconds(),
 		})

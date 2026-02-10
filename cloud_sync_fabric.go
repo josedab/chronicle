@@ -115,10 +115,10 @@ type CloudSyncFabric struct {
 	priorityQueue []*SyncBatch
 
 	// Stats
-	totalPushed     atomic.Uint64
-	totalPulled     atomic.Uint64
-	totalConflicts  atomic.Uint64
-	totalErrors     atomic.Uint64
+	totalPushed      atomic.Uint64
+	totalPulled      atomic.Uint64
+	totalConflicts   atomic.Uint64
+	totalErrors      atomic.Uint64
 	bytesTransferred atomic.Int64
 }
 
@@ -345,11 +345,11 @@ func (csf *CloudSyncFabric) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 // MerkleNode represents a node in the Merkle tree.
 type MerkleNode struct {
-	Hash     string      `json:"hash"`
-	Left     *MerkleNode `json:"-"`
-	Right    *MerkleNode `json:"-"`
-	IsLeaf   bool        `json:"is_leaf"`
-	Data     string      `json:"-"`
+	Hash   string      `json:"hash"`
+	Left   *MerkleNode `json:"-"`
+	Right  *MerkleNode `json:"-"`
+	IsLeaf bool        `json:"is_leaf"`
+	Data   string      `json:"-"`
 }
 
 // MerkleTree provides efficient data comparison via hash trees.
@@ -625,9 +625,9 @@ func (be *BandwidthEstimator) SampleCount() int {
 
 // ConflictResolver handles data conflicts between sync peers.
 type FabricConflictResolver struct {
-	strategy   FabricConflictStrategy
-	resolved   atomic.Uint64
-	conflicts  atomic.Uint64
+	strategy  FabricConflictStrategy
+	resolved  atomic.Uint64
+	conflicts atomic.Uint64
 }
 
 // FabricConflictStrategy defines how to resolve sync conflicts.

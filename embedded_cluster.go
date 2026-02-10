@@ -38,19 +38,19 @@ func (rc ReadConsistency) String() string {
 
 // EmbeddedClusterConfig configures the embedded cluster mode.
 type EmbeddedClusterConfig struct {
-	NodeID            string          `json:"node_id"`
-	BindAddr          string          `json:"bind_addr"`
-	BindPort          int             `json:"bind_port"`
-	Peers             []string        `json:"peers"`
-	ReplicationFactor int             `json:"replication_factor"`
-	DefaultConsistency ReadConsistency `json:"default_consistency"`
-	ElectionTimeout   time.Duration   `json:"election_timeout"`
-	HeartbeatInterval time.Duration   `json:"heartbeat_interval"`
-	SnapshotInterval  time.Duration   `json:"snapshot_interval"`
-	MaxStaleness      time.Duration   `json:"max_staleness"`
-	ReadOnly          bool            `json:"read_only"`
-	AutoFailover      bool            `json:"auto_failover"`
-	SplitBrainDetection bool          `json:"split_brain_detection"`
+	NodeID              string          `json:"node_id"`
+	BindAddr            string          `json:"bind_addr"`
+	BindPort            int             `json:"bind_port"`
+	Peers               []string        `json:"peers"`
+	ReplicationFactor   int             `json:"replication_factor"`
+	DefaultConsistency  ReadConsistency `json:"default_consistency"`
+	ElectionTimeout     time.Duration   `json:"election_timeout"`
+	HeartbeatInterval   time.Duration   `json:"heartbeat_interval"`
+	SnapshotInterval    time.Duration   `json:"snapshot_interval"`
+	MaxStaleness        time.Duration   `json:"max_staleness"`
+	ReadOnly            bool            `json:"read_only"`
+	AutoFailover        bool            `json:"auto_failover"`
+	SplitBrainDetection bool            `json:"split_brain_detection"`
 }
 
 // DefaultEmbeddedClusterConfig returns sensible defaults.
@@ -72,28 +72,28 @@ func DefaultEmbeddedClusterConfig() EmbeddedClusterConfig {
 
 // ClusterHealth describes the health of the cluster.
 type ClusterHealth struct {
-	Healthy       bool     `json:"healthy"`
-	TotalNodes    int      `json:"total_nodes"`
-	HealthyNodes  int      `json:"healthy_nodes"`
-	LeaderID      string   `json:"leader_id"`
-	SplitBrain    bool     `json:"split_brain"`
-	MinorityMode  bool     `json:"minority_mode"`
+	Healthy        bool     `json:"healthy"`
+	TotalNodes     int      `json:"total_nodes"`
+	HealthyNodes   int      `json:"healthy_nodes"`
+	LeaderID       string   `json:"leader_id"`
+	SplitBrain     bool     `json:"split_brain"`
+	MinorityMode   bool     `json:"minority_mode"`
 	UnhealthyNodes []string `json:"unhealthy_nodes,omitempty"`
 }
 
 // EmbeddedClusterStats tracks embedded cluster metrics.
 type EmbeddedClusterStats struct {
-	NodeID           string          `json:"node_id"`
-	IsLeader         bool            `json:"is_leader"`
-	Term             uint64          `json:"term"`
-	CommitIndex      uint64          `json:"commit_index"`
-	AppliedIndex     uint64          `json:"applied_index"`
-	ReplicatedWrites uint64          `json:"replicated_writes"`
-	ForwardedReads   uint64          `json:"forwarded_reads"`
-	LocalReads       uint64          `json:"local_reads"`
-	FailoversCount   uint64          `json:"failovers_count"`
-	Uptime           time.Duration   `json:"uptime"`
-	Health           ClusterHealth   `json:"health"`
+	NodeID           string        `json:"node_id"`
+	IsLeader         bool          `json:"is_leader"`
+	Term             uint64        `json:"term"`
+	CommitIndex      uint64        `json:"commit_index"`
+	AppliedIndex     uint64        `json:"applied_index"`
+	ReplicatedWrites uint64        `json:"replicated_writes"`
+	ForwardedReads   uint64        `json:"forwarded_reads"`
+	LocalReads       uint64        `json:"local_reads"`
+	FailoversCount   uint64        `json:"failovers_count"`
+	Uptime           time.Duration `json:"uptime"`
+	Health           ClusterHealth `json:"health"`
 }
 
 // EmbeddedCluster provides a Raft-based embedded cluster mode.
@@ -101,14 +101,14 @@ type EmbeddedCluster struct {
 	db     *DB
 	config EmbeddedClusterConfig
 
-	nodeID    string
-	isLeader  atomic.Bool
-	term      atomic.Uint64
-	commitIdx atomic.Uint64
+	nodeID     string
+	isLeader   atomic.Bool
+	term       atomic.Uint64
+	commitIdx  atomic.Uint64
 	appliedIdx atomic.Uint64
 
-	peers      []clusterPeer
-	startTime  time.Time
+	peers     []clusterPeer
+	startTime time.Time
 
 	replicatedWrites atomic.Uint64
 	forwardedReads   atomic.Uint64
@@ -340,7 +340,7 @@ func (ec *EmbeddedCluster) RegisterHTTPHandlers(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/api/v1/cluster/node", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"node_id":   ec.nodeID,
 			"is_leader": ec.isLeader.Load(),
 			"running":   ec.running.Load(),

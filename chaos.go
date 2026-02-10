@@ -56,11 +56,11 @@ func DefaultChaosConfig() ChaosConfig {
 
 // FaultConfig describes a fault to be injected.
 type FaultConfig struct {
-	Type        FaultType              `json:"type"`
-	Duration    time.Duration          `json:"duration"`
-	Probability float64                `json:"probability"`
-	Target      string                 `json:"target"`
-	Parameters  map[string]interface{} `json:"parameters"`
+	Type        FaultType      `json:"type"`
+	Duration    time.Duration  `json:"duration"`
+	Probability float64        `json:"probability"`
+	Target      string         `json:"target"`
+	Parameters  map[string]any `json:"parameters"`
 }
 
 // ActiveFault represents a currently active fault in the system.
@@ -77,11 +77,11 @@ type FaultInterceptor func(fault *ActiveFault) error
 
 // ChaosEvent records something that happened during chaos testing.
 type ChaosEvent struct {
-	Type        ChaosEventType         `json:"type"`
-	FaultID     string                 `json:"fault_id"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Description string                 `json:"description"`
-	Details     map[string]interface{} `json:"details"`
+	Type        ChaosEventType `json:"type"`
+	FaultID     string         `json:"fault_id"`
+	Timestamp   time.Time      `json:"timestamp"`
+	Description string         `json:"description"`
+	Details     map[string]any `json:"details"`
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +280,7 @@ func (ns *NetworkFaultSimulator) PartitionNodes(nodeA, nodeB string) error {
 		Type:        FaultNetworkPartition,
 		Probability: 1.0,
 		Target:      fmt.Sprintf("%s<->%s", a, b),
-		Parameters:  map[string]interface{}{"nodeA": a, "nodeB": b},
+		Parameters:  map[string]any{"nodeA": a, "nodeB": b},
 	})
 	return err
 }
@@ -477,12 +477,12 @@ type ChaosInvariantResult struct {
 
 // ChaosScenarioResult captures the full outcome of running a scenario.
 type ChaosScenarioResult struct {
-	Scenario         string                `json:"scenario"`
-	Passed           bool                  `json:"passed"`
-	StepResults      []ChaosStepResult     `json:"step_results"`
+	Scenario         string                 `json:"scenario"`
+	Passed           bool                   `json:"passed"`
+	StepResults      []ChaosStepResult      `json:"step_results"`
 	InvariantResults []ChaosInvariantResult `json:"invariant_results"`
-	Duration         time.Duration         `json:"duration"`
-	Events           []ChaosEvent          `json:"events"`
+	Duration         time.Duration          `json:"duration"`
+	Events           []ChaosEvent           `json:"events"`
 }
 
 // ChaosScenario is a declarative description of a chaos test.
@@ -620,7 +620,7 @@ func NetworkPartitionScenario(nodeA, nodeB string, duration time.Duration) *Chao
 					Duration:    duration,
 					Probability: 1.0,
 					Target:      fmt.Sprintf("%s<->%s", nodeA, nodeB),
-					Parameters:  map[string]interface{}{"nodeA": nodeA, "nodeB": nodeB},
+					Parameters:  map[string]any{"nodeA": nodeA, "nodeB": nodeB},
 				})
 				return err
 			},
@@ -653,7 +653,7 @@ func DiskFailureScenario(path string, duration time.Duration) *ChaosScenario {
 					Duration:    duration,
 					Probability: 1.0,
 					Target:      path,
-					Parameters:  map[string]interface{}{"path": path},
+					Parameters:  map[string]any{"path": path},
 				})
 				return err
 			},
@@ -696,7 +696,7 @@ func SplitBrainScenario(nodes []string) *ChaosScenario {
 						Duration:    time.Minute,
 						Probability: 1.0,
 						Target:      fmt.Sprintf("%s<->%s", a, b),
-						Parameters:  map[string]interface{}{"nodeA": a, "nodeB": b},
+						Parameters:  map[string]any{"nodeA": a, "nodeB": b},
 					}); err != nil {
 						return err
 					}
@@ -707,7 +707,7 @@ func SplitBrainScenario(nodes []string) *ChaosScenario {
 	})
 
 	scenario.AddStep(ChaosStep{
-		Name: "heal-split-brain",
+		Name:  "heal-split-brain",
 		Delay: time.Minute,
 		Action: func(_ context.Context, injector *FaultInjector) error {
 			injector.RemoveAll()
@@ -733,7 +733,7 @@ func RollingRestartScenario(nodes []string, interval time.Duration) *ChaosScenar
 					Duration:    interval,
 					Probability: 1.0,
 					Target:      n,
-					Parameters:  map[string]interface{}{"node": n},
+					Parameters:  map[string]any{"node": n},
 				})
 				return err
 			},

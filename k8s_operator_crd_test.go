@@ -139,10 +139,10 @@ func TestGenerateCRDHelmValues(t *testing.T) {
 				CPULimit: "4", MemoryLimit: "8Gi",
 				CPURequest: "2", MemoryRequest: "4Gi",
 			},
-			Storage:     K8sStorageSpec{StorageClass: "ssd", Size: "500Gi", AccessMode: "ReadWriteOnce"},
-			Monitoring:  K8sMonitoringSpec{Enabled: true},
-			Backup:      K8sBackupSpec{Enabled: true, Schedule: "0 */6 * * *"},
-			ServiceType: "ClusterIP",
+			Storage:        K8sStorageSpec{StorageClass: "ssd", Size: "500Gi", AccessMode: "ReadWriteOnce"},
+			Monitoring:     K8sMonitoringSpec{Enabled: true},
+			Backup:         K8sBackupSpec{Enabled: true, Schedule: "0 */6 * * *"},
+			ServiceType:    "ClusterIP",
 			UpdateStrategy: ClusterUpdateStrategy{Type: "RollingUpdate", MaxUnavailable: 1},
 		},
 	}
@@ -152,7 +152,7 @@ func TestGenerateCRDHelmValues(t *testing.T) {
 		t.Fatalf("generate helm values failed: %v", err)
 	}
 
-	var values map[string]interface{}
+	var values map[string]any
 	if err := json.Unmarshal(data, &values); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}

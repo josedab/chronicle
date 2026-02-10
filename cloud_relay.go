@@ -67,18 +67,18 @@ type RelayBatch struct {
 
 // RelaySyncStats tracks relay synchronization statistics.
 type RelaySyncStats struct {
-	PointsQueued    uint64    `json:"points_queued"`
-	PointsSynced    uint64    `json:"points_synced"`
-	PointsFailed    uint64    `json:"points_failed"`
-	BatchesSent     uint64    `json:"batches_sent"`
-	BatchesFailed   uint64    `json:"batches_failed"`
-	BytesSent       int64     `json:"bytes_sent"`
-	LastSyncTime    time.Time `json:"last_sync_time"`
-	LastError       string    `json:"last_error,omitempty"`
-	QueueDepth      int       `json:"queue_depth"`
-	CurrentStatus   string    `json:"current_status"`
-	UptimeSeconds   float64   `json:"uptime_seconds"`
-	RetryCount      uint64    `json:"retry_count"`
+	PointsQueued  uint64    `json:"points_queued"`
+	PointsSynced  uint64    `json:"points_synced"`
+	PointsFailed  uint64    `json:"points_failed"`
+	BatchesSent   uint64    `json:"batches_sent"`
+	BatchesFailed uint64    `json:"batches_failed"`
+	BytesSent     int64     `json:"bytes_sent"`
+	LastSyncTime  time.Time `json:"last_sync_time"`
+	LastError     string    `json:"last_error,omitempty"`
+	QueueDepth    int       `json:"queue_depth"`
+	CurrentStatus string    `json:"current_status"`
+	UptimeSeconds float64   `json:"uptime_seconds"`
+	RetryCount    uint64    `json:"retry_count"`
 }
 
 // CloudRelay provides edge-to-cloud data synchronization with persistent queueing.
@@ -314,7 +314,7 @@ func (r *CloudRelay) sendHeartbeat() {
 		return
 	}
 
-	hb := map[string]interface{}{
+	hb := map[string]any{
 		"node_id": r.config.NodeID,
 		"region":  r.config.Region,
 		"status":  string(r.Status()),

@@ -94,10 +94,10 @@ func DefaultK8sSidecarConfig() K8sSidecarConfig {
 
 // K8sSidecar implements the Kubernetes sidecar pattern for Chronicle.
 type K8sSidecar struct {
-	db       *DB
-	config   K8sSidecarConfig
-	client   *http.Client
-	server   *http.Server
+	db     *DB
+	config K8sSidecarConfig
+	client *http.Client
+	server *http.Server
 
 	// Scrape targets
 	targets   []ScrapeTarget
@@ -119,38 +119,38 @@ type K8sSidecar struct {
 
 // ScrapeTarget represents a metrics endpoint to scrape.
 type ScrapeTarget struct {
-	Address    string            `json:"address"`
-	Port       int               `json:"port"`
-	Path       string            `json:"path"`
-	Scheme     string            `json:"scheme"`
-	Labels     map[string]string `json:"labels,omitempty"`
-	Interval   time.Duration     `json:"interval,omitempty"`
-	Timeout    time.Duration     `json:"timeout,omitempty"`
-	HonorLabels bool             `json:"honor_labels"`
+	Address     string            `json:"address"`
+	Port        int               `json:"port"`
+	Path        string            `json:"path"`
+	Scheme      string            `json:"scheme"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Interval    time.Duration     `json:"interval,omitempty"`
+	Timeout     time.Duration     `json:"timeout,omitempty"`
+	HonorLabels bool              `json:"honor_labels"`
 }
 
 // PodInfo contains information about the current pod.
 type PodInfo struct {
-	Name       string            `json:"name"`
-	Namespace  string            `json:"namespace"`
-	NodeName   string            `json:"node_name"`
-	PodIP      string            `json:"pod_ip"`
-	HostIP     string            `json:"host_ip"`
-	Labels     map[string]string `json:"labels,omitempty"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	NodeName    string            `json:"node_name"`
+	PodIP       string            `json:"pod_ip"`
+	HostIP      string            `json:"host_ip"`
+	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // K8sSidecarStats contains sidecar statistics.
 type K8sSidecarStats struct {
-	ScrapeCount         int64     `json:"scrape_count"`
-	ScrapeErrors        int64     `json:"scrape_errors"`
-	PointsCollected     int64     `json:"points_collected"`
-	PointsWritten       int64     `json:"points_written"`
-	LastScrapeTime      time.Time `json:"last_scrape_time"`
-	LastScrapeError     string    `json:"last_scrape_error,omitempty"`
-	LastScrapeDuration  time.Duration `json:"last_scrape_duration"`
-	TargetCount         int       `json:"target_count"`
-	StorageBytes        int64     `json:"storage_bytes"`
+	ScrapeCount        int64         `json:"scrape_count"`
+	ScrapeErrors       int64         `json:"scrape_errors"`
+	PointsCollected    int64         `json:"points_collected"`
+	PointsWritten      int64         `json:"points_written"`
+	LastScrapeTime     time.Time     `json:"last_scrape_time"`
+	LastScrapeError    string        `json:"last_scrape_error,omitempty"`
+	LastScrapeDuration time.Duration `json:"last_scrape_duration"`
+	TargetCount        int           `json:"target_count"`
+	StorageBytes       int64         `json:"storage_bytes"`
 }
 
 // NewK8sSidecar creates a new Kubernetes sidecar.
@@ -649,16 +649,16 @@ func (s *K8sSidecar) GetPodInfo() *PodInfo {
 // --- Helm Chart Generation ---
 
 // GenerateHelmValues generates Helm chart values for the sidecar.
-func GenerateHelmValues(config K8sSidecarConfig) map[string]interface{} {
-	return map[string]interface{}{
-		"sidecar": map[string]interface{}{
+func GenerateHelmValues(config K8sSidecarConfig) map[string]any {
+	return map[string]any{
+		"sidecar": map[string]any{
 			"enabled":        config.Enabled,
 			"scrapeInterval": config.ScrapeInterval.String(),
 			"scrapeTimeout":  config.ScrapeTimeout.String(),
 			"metricsPort":    config.MetricsPort,
 			"metricsPath":    config.MetricsPath,
 			"healthPort":     config.HealthPort,
-			"resources": map[string]interface{}{
+			"resources": map[string]any{
 				"limits": map[string]string{
 					"cpu":    "100m",
 					"memory": "128Mi",
@@ -669,11 +669,11 @@ func GenerateHelmValues(config K8sSidecarConfig) map[string]interface{} {
 				},
 			},
 		},
-		"storage": map[string]interface{}{
+		"storage": map[string]any{
 			"retentionDuration": config.RetentionDuration.String(),
 			"maxStorageBytes":   config.MaxStorageBytes,
 		},
-		"remoteWrite": map[string]interface{}{
+		"remoteWrite": map[string]any{
 			"enabled": config.RemoteWriteEnabled,
 			"url":     config.RemoteWriteURL,
 		},
@@ -681,17 +681,17 @@ func GenerateHelmValues(config K8sSidecarConfig) map[string]interface{} {
 }
 
 // GenerateSidecarManifest generates a Kubernetes sidecar container spec.
-func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[string]interface{} {
-	return map[string]interface{}{
+func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[string]any {
+	return map[string]any{
 		"name":  "chronicle-sidecar",
 		"image": imageName,
-		"ports": []map[string]interface{}{
+		"ports": []map[string]any{
 			{"name": "health", "containerPort": config.HealthPort},
 		},
-		"env": []map[string]interface{}{
+		"env": []map[string]any{
 			{
 				"name": "POD_NAME",
-				"valueFrom": map[string]interface{}{
+				"valueFrom": map[string]any{
 					"fieldRef": map[string]string{
 						"fieldPath": "metadata.name",
 					},
@@ -699,7 +699,7 @@ func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[stri
 			},
 			{
 				"name": "POD_NAMESPACE",
-				"valueFrom": map[string]interface{}{
+				"valueFrom": map[string]any{
 					"fieldRef": map[string]string{
 						"fieldPath": "metadata.namespace",
 					},
@@ -707,7 +707,7 @@ func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[stri
 			},
 			{
 				"name": "NODE_NAME",
-				"valueFrom": map[string]interface{}{
+				"valueFrom": map[string]any{
 					"fieldRef": map[string]string{
 						"fieldPath": "spec.nodeName",
 					},
@@ -715,14 +715,14 @@ func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[stri
 			},
 			{
 				"name": "POD_IP",
-				"valueFrom": map[string]interface{}{
+				"valueFrom": map[string]any{
 					"fieldRef": map[string]string{
 						"fieldPath": "status.podIP",
 					},
 				},
 			},
 		},
-		"volumeMounts": []map[string]interface{}{
+		"volumeMounts": []map[string]any{
 			{
 				"name":      "chronicle-data",
 				"mountPath": "/data",
@@ -732,23 +732,23 @@ func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[stri
 				"mountPath": "/etc/podinfo",
 			},
 		},
-		"livenessProbe": map[string]interface{}{
-			"httpGet": map[string]interface{}{
+		"livenessProbe": map[string]any{
+			"httpGet": map[string]any{
 				"path": "/health",
 				"port": config.HealthPort,
 			},
 			"initialDelaySeconds": 10,
 			"periodSeconds":       10,
 		},
-		"readinessProbe": map[string]interface{}{
-			"httpGet": map[string]interface{}{
+		"readinessProbe": map[string]any{
+			"httpGet": map[string]any{
 				"path": "/ready",
 				"port": config.HealthPort,
 			},
 			"initialDelaySeconds": 5,
 			"periodSeconds":       5,
 		},
-		"resources": map[string]interface{}{
+		"resources": map[string]any{
 			"limits": map[string]string{
 				"cpu":    "100m",
 				"memory": "128Mi",
@@ -762,11 +762,11 @@ func GenerateSidecarManifest(config K8sSidecarConfig, imageName string) map[stri
 }
 
 // GeneratePodInfoVolume generates the downward API volume for pod info.
-func GeneratePodInfoVolume() map[string]interface{} {
-	return map[string]interface{}{
+func GeneratePodInfoVolume() map[string]any {
+	return map[string]any{
 		"name": "podinfo",
-		"downwardAPI": map[string]interface{}{
-			"items": []map[string]interface{}{
+		"downwardAPI": map[string]any{
+			"items": []map[string]any{
 				{
 					"path": "labels",
 					"fieldRef": map[string]string{

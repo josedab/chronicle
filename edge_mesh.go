@@ -778,7 +778,7 @@ func (em *EdgeMesh) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 func (em *EdgeMesh) handlePing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"node_id": em.nodeID,
 		"status":  "ok",
 		"time":    time.Now(),
