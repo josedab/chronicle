@@ -29,39 +29,39 @@ func TestGenerateDashboard(t *testing.T) {
 	engine := NewNLDashboardEngine(db, config)
 
 	tests := []struct {
-		name        string
-		description string
-		expectTitle bool
+		name         string
+		description  string
+		expectTitle  bool
 		expectPanels int
 	}{
 		{
-			name:        "simple cpu dashboard",
-			description: "Create a dashboard showing CPU usage over time",
-			expectTitle: true,
+			name:         "simple cpu dashboard",
+			description:  "Create a dashboard showing CPU usage over time",
+			expectTitle:  true,
 			expectPanels: 1,
 		},
 		{
-			name:        "multiple metrics",
-			description: "Show me CPU and memory over time",
-			expectTitle: true,
+			name:         "multiple metrics",
+			description:  "Show me CPU and memory over time",
+			expectTitle:  true,
 			expectPanels: 1, // Combined in one description
 		},
 		{
-			name:        "stat panel",
-			description: "Show current CPU usage",
-			expectTitle: true,
+			name:         "stat panel",
+			description:  "Show current CPU usage",
+			expectTitle:  true,
 			expectPanels: 1,
 		},
 		{
-			name:        "gauge panel",
-			description: "Create a gauge for memory usage",
-			expectTitle: true,
+			name:         "gauge panel",
+			description:  "Create a gauge for memory usage",
+			expectTitle:  true,
 			expectPanels: 1,
 		},
 		{
-			name:        "table panel",
-			description: "Show a table of network connections",
-			expectTitle: true,
+			name:         "table panel",
+			description:  "Show a table of network connections",
+			expectTitle:  true,
 			expectPanels: 1,
 		},
 	}
@@ -96,7 +96,7 @@ func TestPanelTypeDetection(t *testing.T) {
 	engine := NewNLDashboardEngine(db, config)
 
 	tests := []struct {
-		description string
+		description  string
 		expectedType PanelType
 	}{
 		{"show me cpu over time", PanelTimeseries},
@@ -135,7 +135,7 @@ func TestTitleExtraction(t *testing.T) {
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
 	tests := []struct {
-		description string
+		description    string
 		expectContains string
 	}{
 		{`Create a dashboard called "System Metrics"`, "System Metrics"},
@@ -174,7 +174,7 @@ func TestTagExtraction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			dashboard, _ := engine.GenerateDashboard(context.Background(), tt.description)
-			
+
 			found := false
 			for _, tag := range dashboard.Tags {
 				if tag == tt.expectedTag {
@@ -222,8 +222,8 @@ func TestVariableExtraction(t *testing.T) {
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
 	tests := []struct {
-		description  string
-		expectedVar  string
+		description string
+		expectedVar string
 	}{
 		{"Show CPU with filter by host", "host"},
 		{"Dashboard with variable for region", "region"},
@@ -233,7 +233,7 @@ func TestVariableExtraction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			parsed := engine.parseDescription(tt.description)
-			
+
 			found := false
 			for _, v := range parsed.Variables {
 				if v.Name == tt.expectedVar {
@@ -267,7 +267,7 @@ func TestMetricExtraction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			metrics := engine.extractMetrics(tt.description)
-			
+
 			found := false
 			for _, m := range metrics {
 				if m == tt.expectedMetric {
@@ -289,7 +289,7 @@ func TestGroupByExtraction(t *testing.T) {
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
 	tests := []struct {
-		description string
+		description   string
 		expectedGroup string
 	}{
 		{"Show CPU grouped by host", "host"},
@@ -300,7 +300,7 @@ func TestGroupByExtraction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			groupBy := engine.extractGroupBy(tt.description)
-			
+
 			found := false
 			for _, g := range groupBy {
 				if g == tt.expectedGroup {
@@ -329,7 +329,7 @@ func TestToGrafanaJSON(t *testing.T) {
 	}
 
 	// Verify it's valid JSON
-	var grafana map[string]interface{}
+	var grafana map[string]any
 	if err := json.Unmarshal(jsonBytes, &grafana); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
@@ -359,16 +359,16 @@ func TestGrafanaJSONPanels(t *testing.T) {
 
 	jsonBytes, _ := engine.ToGrafanaJSON(dashboard)
 
-	var grafana map[string]interface{}
+	var grafana map[string]any
 	json.Unmarshal(jsonBytes, &grafana)
 
-	panels, ok := grafana["panels"].([]interface{})
+	panels, ok := grafana["panels"].([]any)
 	if !ok || len(panels) == 0 {
 		t.Fatal("expected panels array")
 	}
 
-	panel := panels[0].(map[string]interface{})
-	
+	panel := panels[0].(map[string]any)
+
 	if panel["type"] != "gauge" {
 		t.Errorf("expected gauge type, got %v", panel["type"])
 	}
@@ -499,7 +499,7 @@ func TestComplexDashboard(t *testing.T) {
 		t.Fatalf("failed to convert to Grafana JSON: %v", err)
 	}
 
-	var grafana map[string]interface{}
+	var grafana map[string]any
 	if err := json.Unmarshal(jsonBytes, &grafana); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
@@ -514,7 +514,7 @@ func TestPanelGridPositioning(t *testing.T) {
 	engine := NewNLDashboardEngine(db, config)
 
 	// Create dashboard with multiple panels
-	dashboard, _ := engine.GenerateDashboard(context.Background(), 
+	dashboard, _ := engine.GenerateDashboard(context.Background(),
 		"Show CPU; Show memory; Show disk; Show network")
 
 	// Verify grid positions don't overlap
@@ -536,8 +536,8 @@ func TestAggregationDetection(t *testing.T) {
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
 	tests := []struct {
-		description      string
-		expectedAgg     string
+		description string
+		expectedAgg string
 	}{
 		{"average cpu usage", "avg"},
 		{"total requests", "sum"},
@@ -550,7 +550,7 @@ func TestAggregationDetection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			parsed := engine.parseDescription(tt.description)
-			
+
 			if len(parsed.Panels) == 0 {
 				t.Fatal("expected at least one panel")
 			}
@@ -575,7 +575,7 @@ func BenchmarkGenerateDashboard(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		engine.GenerateDashboard(context.Background(), 
+		engine.GenerateDashboard(context.Background(),
 			"Show CPU and memory usage over time with filter by host")
 	}
 }
@@ -590,7 +590,7 @@ func BenchmarkToGrafanaJSON(b *testing.B) {
 	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
-	dashboard, _ := engine.GenerateDashboard(context.Background(), 
+	dashboard, _ := engine.GenerateDashboard(context.Background(),
 		"Show CPU, memory, disk, and network over time")
 
 	b.ResetTimer()

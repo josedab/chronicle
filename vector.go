@@ -306,7 +306,7 @@ func (vs *VectorStore) Stats() VectorStats {
 	defer vs.mu.RUnlock()
 
 	stats := VectorStats{
-		SeriesCount:    len(vs.vectors),
+		SeriesCount:     len(vs.vectors),
 		DimensionCounts: make(map[int]int),
 	}
 

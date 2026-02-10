@@ -12,6 +12,11 @@ import (
 )
 
 // FoundationModelConfig configures the time-series foundation model engine.
+// NOTE: Despite the name, this engine uses classical statistical methods
+// (Holt-Winters exponential smoothing) rather than neural network-based
+// foundation models. No LLM or transformer model loading is performed.
+//
+// EXPERIMENTAL: This API is unstable and may change without notice.
 type FoundationModelConfig struct {
 	// Enabled enables the foundation model.
 	Enabled bool `json:"enabled"`
@@ -75,11 +80,11 @@ func DefaultFoundationModelConfig() FoundationModelConfig {
 type TSModelTask string
 
 const (
-	TSModelForecast      TSModelTask = "forecast"
-	TSModelAnomaly       TSModelTask = "anomaly_detection"
-	TSModelClassify      TSModelTask = "classification"
-	TSModelEmbedding     TSModelTask = "embedding"
-	TSModelImputation    TSModelTask = "imputation"
+	TSModelForecast   TSModelTask = "forecast"
+	TSModelAnomaly    TSModelTask = "anomaly_detection"
+	TSModelClassify   TSModelTask = "classification"
+	TSModelEmbedding  TSModelTask = "embedding"
+	TSModelImputation TSModelTask = "imputation"
 )
 
 // TSModelInput is the input to the foundation model.
@@ -90,29 +95,29 @@ type TSModelInput struct {
 	Timestamps []int64           `json:"timestamps,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 	Horizon    int               `json:"horizon,omitempty"`
-	Context    map[string]interface{} `json:"context,omitempty"`
+	Context    map[string]any    `json:"context,omitempty"`
 }
 
 // TSForecastResult is a forecast prediction result.
 type TSForecastResult struct {
-	Metric      string    `json:"metric"`
-	Values      []float64 `json:"predicted_values"`
-	Lower       []float64 `json:"lower_bound"`
-	Upper       []float64 `json:"upper_bound"`
-	Confidence  float64   `json:"confidence"`
-	Timestamps  []int64   `json:"timestamps"`
-	ModelUsed   string    `json:"model_used"`
-	Duration    time.Duration `json:"duration"`
+	Metric     string        `json:"metric"`
+	Values     []float64     `json:"predicted_values"`
+	Lower      []float64     `json:"lower_bound"`
+	Upper      []float64     `json:"upper_bound"`
+	Confidence float64       `json:"confidence"`
+	Timestamps []int64       `json:"timestamps"`
+	ModelUsed  string        `json:"model_used"`
+	Duration   time.Duration `json:"duration"`
 }
 
 // TSAnomalyResult is anomaly detection result.
 type TSAnomalyResult struct {
-	Metric     string           `json:"metric"`
-	Anomalies  []TSAnomalyPoint `json:"anomalies"`
-	Scores     []float64        `json:"anomaly_scores"`
-	Threshold  float64          `json:"threshold"`
-	ModelUsed  string           `json:"model_used"`
-	Duration   time.Duration    `json:"duration"`
+	Metric    string           `json:"metric"`
+	Anomalies []TSAnomalyPoint `json:"anomalies"`
+	Scores    []float64        `json:"anomaly_scores"`
+	Threshold float64          `json:"threshold"`
+	ModelUsed string           `json:"model_used"`
+	Duration  time.Duration    `json:"duration"`
 }
 
 // TSAnomalyPoint is a single detected anomaly.
@@ -126,19 +131,19 @@ type TSAnomalyPoint struct {
 
 // TSClassifyResult is a time-series classification result.
 type TSClassifyResult struct {
-	Metric   string            `json:"metric"`
-	Label    string            `json:"label"`
-	Scores   map[string]float64 `json:"scores"`
-	ModelUsed string           `json:"model_used"`
-	Duration time.Duration     `json:"duration"`
+	Metric    string             `json:"metric"`
+	Label     string             `json:"label"`
+	Scores    map[string]float64 `json:"scores"`
+	ModelUsed string             `json:"model_used"`
+	Duration  time.Duration      `json:"duration"`
 }
 
 // TSEmbeddingResult is a vector embedding result.
 type TSEmbeddingResult struct {
-	Metric    string    `json:"metric"`
-	Embedding []float64 `json:"embedding"`
-	Dimension int       `json:"dimension"`
-	ModelUsed string    `json:"model_used"`
+	Metric    string        `json:"metric"`
+	Embedding []float64     `json:"embedding"`
+	Dimension int           `json:"dimension"`
+	ModelUsed string        `json:"model_used"`
 	Duration  time.Duration `json:"duration"`
 }
 
@@ -150,31 +155,31 @@ type TSModelRegistry struct {
 
 // TSModelInfo describes a registered model.
 type TSModelInfo struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Version     string    `json:"version"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Version     string      `json:"version"`
 	Task        TSModelTask `json:"task"`
-	Description string    `json:"description"`
-	SizeBytes   int64     `json:"size_bytes"`
-	Parameters  int64     `json:"parameters"`
-	Accuracy    float64   `json:"accuracy"`
-	CreatedAt   time.Time `json:"created_at"`
-	IsDefault   bool      `json:"is_default"`
+	Description string      `json:"description"`
+	SizeBytes   int64       `json:"size_bytes"`
+	Parameters  int64       `json:"parameters"`
+	Accuracy    float64     `json:"accuracy"`
+	CreatedAt   time.Time   `json:"created_at"`
+	IsDefault   bool        `json:"is_default"`
 }
 
 // FoundationModelStats contains model engine statistics.
 type FoundationModelStats struct {
-	TotalInferences    int64         `json:"total_inferences"`
-	ForecastCount      int64         `json:"forecast_count"`
-	AnomalyCount       int64         `json:"anomaly_count"`
-	ClassifyCount      int64         `json:"classify_count"`
-	EmbeddingCount     int64         `json:"embedding_count"`
-	AvgInferenceTime   time.Duration `json:"avg_inference_time"`
-	CacheHits          int64         `json:"cache_hits"`
-	CacheMisses        int64         `json:"cache_misses"`
-	FineTuneCount      int64         `json:"fine_tune_count"`
-	ModelVersion       string        `json:"model_version"`
-	RegisteredModels   int           `json:"registered_models"`
+	TotalInferences  int64         `json:"total_inferences"`
+	ForecastCount    int64         `json:"forecast_count"`
+	AnomalyCount     int64         `json:"anomaly_count"`
+	ClassifyCount    int64         `json:"classify_count"`
+	EmbeddingCount   int64         `json:"embedding_count"`
+	AvgInferenceTime time.Duration `json:"avg_inference_time"`
+	CacheHits        int64         `json:"cache_hits"`
+	CacheMisses      int64         `json:"cache_misses"`
+	FineTuneCount    int64         `json:"fine_tune_count"`
+	ModelVersion     string        `json:"model_version"`
+	RegisteredModels int           `json:"registered_models"`
 }
 
 // FoundationModel is the time-series foundation model inference engine.
@@ -200,7 +205,7 @@ type FoundationModel struct {
 }
 
 type fmCacheEntry struct {
-	result    interface{}
+	result    any
 	expiresAt time.Time
 }
 
@@ -399,11 +404,11 @@ func (fm *FoundationModel) Classify(ctx context.Context, input TSModelInput) (*T
 	}
 
 	return &TSClassifyResult{
-		Metric:   input.Metric,
-		Label:    bestLabel,
-		Scores:   scores,
+		Metric:    input.Metric,
+		Label:     bestLabel,
+		Scores:    scores,
 		ModelUsed: fm.config.ModelVersion,
-		Duration: time.Since(start),
+		Duration:  time.Since(start),
 	}, nil
 }
 
@@ -620,12 +625,12 @@ func (fm *FoundationModel) meanStddev(values []float64) (float64, float64) {
 func (fm *FoundationModel) classifyPattern(values []float64) map[string]float64 {
 	n := len(values)
 	scores := map[string]float64{
-		"stationary":  0.2,
-		"trending_up": 0.0,
+		"stationary":    0.2,
+		"trending_up":   0.0,
 		"trending_down": 0.0,
-		"seasonal":    0.0,
-		"volatile":    0.0,
-		"spike":       0.0,
+		"seasonal":      0.0,
+		"volatile":      0.0,
+		"spike":         0.0,
 	}
 
 	// Trend detection via linear regression slope
@@ -724,9 +729,9 @@ func (fm *FoundationModel) generateEmbedding(values []float64) []float64 {
 	sorted := make([]float64, len(values))
 	copy(sorted, values)
 	sort.Float64s(sorted)
-	embedding[5] = sorted[len(sorted)/4]       // Q1
-	embedding[6] = sorted[len(sorted)/2]       // median
-	embedding[7] = sorted[len(sorted)*3/4]     // Q3
+	embedding[5] = sorted[len(sorted)/4]   // Q1
+	embedding[6] = sorted[len(sorted)/2]   // median
+	embedding[7] = sorted[len(sorted)*3/4] // Q3
 
 	// Trend (normalized slope)
 	if len(values) >= 2 {

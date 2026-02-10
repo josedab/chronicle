@@ -266,7 +266,7 @@ func TestFederatedModel(t *testing.T) {
 		Type:    "anomaly_detection",
 		Version: 1,
 		Weights: []float64{0.1, 0.2, 0.3, 0.4},
-		Hyperparams: map[string]interface{}{
+		Hyperparams: map[string]any{
 			"learning_rate": 0.01,
 			"batch_size":    32,
 		},
@@ -343,7 +343,7 @@ func TestCloneModel(t *testing.T) {
 		Name:    "Original",
 		Version: 1,
 		Weights: []float64{1.0, 2.0, 3.0},
-		Hyperparams: map[string]interface{}{
+		Hyperparams: map[string]any{
 			"key": "value",
 		},
 	}

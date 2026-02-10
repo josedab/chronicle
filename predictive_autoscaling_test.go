@@ -91,10 +91,10 @@ func TestPredictiveAutoscalerCallback(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		scaler.RecordSample(LoadSample{
-			Timestamp: time.Now().Add(-time.Duration(10-i) * time.Minute),
-			CPUUsage:  0.9,
+			Timestamp:   time.Now().Add(-time.Duration(10-i) * time.Minute),
+			CPUUsage:    0.9,
 			MemoryUsage: 0.9,
-			WriteRate: 50000,
+			WriteRate:   50000,
 		})
 	}
 

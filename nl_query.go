@@ -92,11 +92,11 @@ type NLQueryEngine struct {
 
 // Conversation represents a conversation session.
 type Conversation struct {
-	ID          string         `json:"id"`
-	Turns       []ConversationTurn `json:"turns"`
-	Context     ConversationContext `json:"context"`
-	CreatedAt   time.Time      `json:"created_at"`
-	LastActiveAt time.Time     `json:"last_active_at"`
+	ID           string              `json:"id"`
+	Turns        []ConversationTurn  `json:"turns"`
+	Context      ConversationContext `json:"context"`
+	CreatedAt    time.Time           `json:"created_at"`
+	LastActiveAt time.Time           `json:"last_active_at"`
 }
 
 // ConversationTurn represents a single turn in a conversation.
@@ -161,12 +161,12 @@ type NLQueryResponse struct {
 
 // VisualizationSuggestion suggests how to visualize query results.
 type VisualizationSuggestion struct {
-	Type       string            `json:"type"` // line, bar, gauge, table, heatmap
-	Title      string            `json:"title"`
-	XAxis      string            `json:"x_axis,omitempty"`
-	YAxis      string            `json:"y_axis,omitempty"`
-	GroupBy    string            `json:"group_by,omitempty"`
-	Options    map[string]any    `json:"options,omitempty"`
+	Type    string         `json:"type"` // line, bar, gauge, table, heatmap
+	Title   string         `json:"title"`
+	XAxis   string         `json:"x_axis,omitempty"`
+	YAxis   string         `json:"y_axis,omitempty"`
+	GroupBy string         `json:"group_by,omitempty"`
+	Options map[string]any `json:"options,omitempty"`
 }
 
 // NewNLQueryEngine creates a new NL query engine.
@@ -653,10 +653,10 @@ func (e *NLQueryEngine) handleComparison(matches []string, ctx *ConversationCont
 func (e *NLQueryEngine) handleCreateAlert(matches []string, ctx *ConversationContext) *NLQueryResponse {
 	if !e.config.EnableAlerts {
 		return &NLQueryResponse{
-			Intent:      "create_alert",
-			Error:       "Alert creation is disabled",
-			Confidence:  0.9,
-			QueryType:   "action",
+			Intent:     "create_alert",
+			Error:      "Alert creation is disabled",
+			Confidence: 0.9,
+			QueryType:  "action",
 		}
 	}
 
@@ -943,11 +943,11 @@ func (o *QueryOptimizer) Suggest(query string) []string {
 
 // NLAnalytics tracks usage analytics for the NL interface.
 type NLAnalytics struct {
-	queries        []NLQueryRecord
-	queriesMu      sync.RWMutex
-	intentCounts   map[string]int
-	avgLatency     time.Duration
-	totalQueries   int
+	queries      []NLQueryRecord
+	queriesMu    sync.RWMutex
+	intentCounts map[string]int
+	avgLatency   time.Duration
+	totalQueries int
 }
 
 // NLQueryRecord records a single NL query.
@@ -1023,10 +1023,10 @@ func (e *NLQueryEngine) GetAnalytics() NLAnalyticsReport {
 
 // NLAnalyticsReport contains analytics report data.
 type NLAnalyticsReport struct {
-	TotalQueries int               `json:"total_queries"`
-	SuccessRate  float64           `json:"success_rate"`
-	AvgLatency   time.Duration     `json:"avg_latency"`
-	IntentCounts map[string]int    `json:"intent_counts"`
+	TotalQueries int            `json:"total_queries"`
+	SuccessRate  float64        `json:"success_rate"`
+	AvgLatency   time.Duration  `json:"avg_latency"`
+	IntentCounts map[string]int `json:"intent_counts"`
 }
 
 // ========== Conversation Management ==========

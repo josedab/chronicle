@@ -292,10 +292,10 @@ func TestDefaultForecastConfig(t *testing.T) {
 func TestNewForecaster_Defaults(t *testing.T) {
 	// Invalid parameters should be corrected
 	f := NewForecaster(ForecastConfig{
-		Alpha:            0, // Invalid
+		Alpha:            0,  // Invalid
 		Beta:             -1, // Invalid
-		Gamma:            2, // Invalid
-		SeasonalPeriods:  0, // Invalid
+		Gamma:            2,  // Invalid
+		SeasonalPeriods:  0,  // Invalid
 		AnomalyThreshold: -1, // Invalid
 	})
 

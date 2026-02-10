@@ -910,8 +910,8 @@ func (e *RootCauseAnalysisEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		var req struct {
-			IncidentID     string `json:"incident_id"`
-			CorrectCause   string `json:"correct_cause"`
+			IncidentID   string `json:"incident_id"`
+			CorrectCause string `json:"correct_cause"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

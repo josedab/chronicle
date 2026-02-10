@@ -86,49 +86,49 @@ type MLInferencePipeline struct {
 
 // MLInferenceStats tracks inference statistics.
 type MLInferenceStats struct {
-	TotalInferences     int64         `json:"total_inferences"`
-	SuccessfulInferences int64        `json:"successful_inferences"`
-	FailedInferences    int64         `json:"failed_inferences"`
-	TotalLatencyNs      int64         `json:"total_latency_ns"`
-	AnomaliesDetected   int64         `json:"anomalies_detected"`
-	ModelsLoaded        int           `json:"models_loaded"`
-	LastInferenceTime   time.Time     `json:"last_inference_time"`
+	TotalInferences      int64     `json:"total_inferences"`
+	SuccessfulInferences int64     `json:"successful_inferences"`
+	FailedInferences     int64     `json:"failed_inferences"`
+	TotalLatencyNs       int64     `json:"total_latency_ns"`
+	AnomaliesDetected    int64     `json:"anomalies_detected"`
+	ModelsLoaded         int       `json:"models_loaded"`
+	LastInferenceTime    time.Time `json:"last_inference_time"`
 }
 
 // InferenceModel wraps an ML model with metadata and inference state.
 type InferenceModel struct {
 	// Metadata
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Version     string            `json:"version"`
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Version     string             `json:"version"`
 	Type        InferenceModelType `json:"type"`
-	Description string            `json:"description"`
-	Created     time.Time         `json:"created"`
-	Updated     time.Time         `json:"updated"`
+	Description string             `json:"description"`
+	Created     time.Time          `json:"created"`
+	Updated     time.Time          `json:"updated"`
 
 	// Model configuration
-	InputShape    []int             `json:"input_shape"`
-	OutputShape   []int             `json:"output_shape"`
-	FeatureNames  []string          `json:"feature_names"`
-	Hyperparams   map[string]interface{} `json:"hyperparams"`
-	Metrics       map[string]float64 `json:"metrics"`
+	InputShape   []int              `json:"input_shape"`
+	OutputShape  []int              `json:"output_shape"`
+	FeatureNames []string           `json:"feature_names"`
+	Hyperparams  map[string]any     `json:"hyperparams"`
+	Metrics      map[string]float64 `json:"metrics"`
 
 	// Runtime
-	model    MLModel
+	model     MLModel
 	extractor FeatureExtractor
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 }
 
 // InferenceModelType identifies the model type.
 type InferenceModelType string
 
 const (
-	InferenceModelTypeAnomalyDetector  InferenceModelType = "anomaly_detector"
-	InferenceModelTypeForecaster       InferenceModelType = "forecaster"
-	InferenceModelTypeClassifier       InferenceModelType = "classifier"
-	InferenceModelTypeRegressor        InferenceModelType = "regressor"
-	InferenceModelTypeAutoEncoder      InferenceModelType = "autoencoder"
-	InferenceModelTypeTransformer      InferenceModelType = "transformer"
+	InferenceModelTypeAnomalyDetector InferenceModelType = "anomaly_detector"
+	InferenceModelTypeForecaster      InferenceModelType = "forecaster"
+	InferenceModelTypeClassifier      InferenceModelType = "classifier"
+	InferenceModelTypeRegressor       InferenceModelType = "regressor"
+	InferenceModelTypeAutoEncoder     InferenceModelType = "autoencoder"
+	InferenceModelTypeTransformer     InferenceModelType = "transformer"
 )
 
 // FeatureExtractor extracts features from time-series data.
@@ -156,18 +156,18 @@ type ScoreRequest struct {
 
 // ScoreResult contains scoring results.
 type ScoreResult struct {
-	ModelID   string           `json:"model_id"`
-	Scores    []PointScore     `json:"scores"`
-	Anomalies []AnomalyPoint   `json:"anomalies"`
-	Latency   time.Duration    `json:"latency"`
-	Error     error            `json:"error,omitempty"`
+	ModelID   string         `json:"model_id"`
+	Scores    []PointScore   `json:"scores"`
+	Anomalies []AnomalyPoint `json:"anomalies"`
+	Latency   time.Duration  `json:"latency"`
+	Error     error          `json:"error,omitempty"`
 }
 
 // PointScore contains the score for a single point.
 type PointScore struct {
-	Timestamp int64   `json:"timestamp"`
-	Score     float64 `json:"score"`
-	IsAnomaly bool    `json:"is_anomaly"`
+	Timestamp int64             `json:"timestamp"`
+	Score     float64           `json:"score"`
+	IsAnomaly bool              `json:"is_anomaly"`
 	Labels    map[string]string `json:"labels,omitempty"`
 }
 
@@ -484,10 +484,10 @@ func (p *MLInferencePipeline) TrainModel(ctx context.Context, modelID, metric st
 		Description: fmt.Sprintf("Auto-trained %s model for metric %s", modelType, metric),
 		InputShape:  []int{len(values)},
 		OutputShape: []int{len(values)},
-		Hyperparams: map[string]interface{}{
-			"metric":       metric,
-			"training_start": start,
-			"training_end":   end,
+		Hyperparams: map[string]any{
+			"metric":          metric,
+			"training_start":  start,
+			"training_end":    end,
 			"training_points": len(result.Points),
 		},
 		model: model,

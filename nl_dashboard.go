@@ -48,18 +48,18 @@ func DefaultNLDashboardConfig() NLDashboardConfig {
 
 // DashboardSpec represents the intermediate dashboard specification.
 type DashboardSpec struct {
-	ID          string       `json:"id"`
-	Title       string       `json:"title"`
-	Description string       `json:"description,omitempty"`
-	Tags        []string     `json:"tags,omitempty"`
-	TimeRange   *TimeRangeSpec `json:"time_range,omitempty"`
-	Refresh     string       `json:"refresh,omitempty"`
-	Panels      []*PanelSpec `json:"panels"`
-	Variables   []*VariableSpec `json:"variables,omitempty"`
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Description string            `json:"description,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
+	TimeRange   *TimeRangeSpec    `json:"time_range,omitempty"`
+	Refresh     string            `json:"refresh,omitempty"`
+	Panels      []*PanelSpec      `json:"panels"`
+	Variables   []*VariableSpec   `json:"variables,omitempty"`
 	Annotations []*AnnotationSpec `json:"annotations,omitempty"`
-	Links       []*LinkSpec  `json:"links,omitempty"`
-	CreatedAt   time.Time    `json:"created_at"`
-	SourceNL    string       `json:"source_nl,omitempty"`
+	Links       []*LinkSpec       `json:"links,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	SourceNL    string            `json:"source_nl,omitempty"`
 }
 
 // TimeRangeSpec represents a time range.
@@ -70,14 +70,14 @@ type TimeRangeSpec struct {
 
 // PanelSpec represents a dashboard panel.
 type PanelSpec struct {
-	ID          int          `json:"id"`
-	Title       string       `json:"title"`
-	Type        PanelType    `json:"type"`
-	GridPos     *GridPos     `json:"gridPos"`
-	Targets     []*TargetSpec `json:"targets"`
-	Options     map[string]interface{} `json:"options,omitempty"`
-	FieldConfig *FieldConfig `json:"fieldConfig,omitempty"`
-	Thresholds  []*Threshold `json:"thresholds,omitempty"`
+	ID          int            `json:"id"`
+	Title       string         `json:"title"`
+	Type        PanelType      `json:"type"`
+	GridPos     *GridPos       `json:"gridPos"`
+	Targets     []*TargetSpec  `json:"targets"`
+	Options     map[string]any `json:"options,omitempty"`
+	FieldConfig *FieldConfig   `json:"fieldConfig,omitempty"`
+	Thresholds  []*Threshold   `json:"thresholds,omitempty"`
 }
 
 // PanelType defines the type of panel.
@@ -106,28 +106,28 @@ type GridPos struct {
 
 // TargetSpec represents a query target.
 type TargetSpec struct {
-	RefID      string            `json:"refId"`
-	Metric     string            `json:"metric"`
-	Tags       map[string]string `json:"tags,omitempty"`
-	Aggregation string           `json:"aggregation,omitempty"`
-	GroupBy    []string          `json:"groupBy,omitempty"`
-	Alias      string            `json:"alias,omitempty"`
-	RawQuery   string            `json:"rawQuery,omitempty"`
+	RefID       string            `json:"refId"`
+	Metric      string            `json:"metric"`
+	Tags        map[string]string `json:"tags,omitempty"`
+	Aggregation string            `json:"aggregation,omitempty"`
+	GroupBy     []string          `json:"groupBy,omitempty"`
+	Alias       string            `json:"alias,omitempty"`
+	RawQuery    string            `json:"rawQuery,omitempty"`
 }
 
 // FieldConfig for panel visualization.
 type FieldConfig struct {
-	Defaults  *FieldDefaults  `json:"defaults,omitempty"`
-	Overrides []interface{}   `json:"overrides,omitempty"`
+	Defaults  *FieldDefaults `json:"defaults,omitempty"`
+	Overrides []any          `json:"overrides,omitempty"`
 }
 
 // FieldDefaults for panel fields.
 type FieldDefaults struct {
-	Unit       string     `json:"unit,omitempty"`
-	Decimals   int        `json:"decimals,omitempty"`
-	Min        *float64   `json:"min,omitempty"`
-	Max        *float64   `json:"max,omitempty"`
-	Color      *ColorConfig `json:"color,omitempty"`
+	Unit     string       `json:"unit,omitempty"`
+	Decimals int          `json:"decimals,omitempty"`
+	Min      *float64     `json:"min,omitempty"`
+	Max      *float64     `json:"max,omitempty"`
+	Color    *ColorConfig `json:"color,omitempty"`
 }
 
 // ColorConfig for visualization colors.
@@ -155,9 +155,9 @@ type VariableSpec struct {
 
 // AnnotationSpec represents a dashboard annotation.
 type AnnotationSpec struct {
-	Name    string `json:"name"`
-	Enable  bool   `json:"enable"`
-	Query   string `json:"query,omitempty"`
+	Name      string `json:"name"`
+	Enable    bool   `json:"enable"`
+	Query     string `json:"query,omitempty"`
 	IconColor string `json:"iconColor,omitempty"`
 }
 
@@ -226,7 +226,7 @@ func initPatterns() []*NLPattern {
 		{regexp.MustCompile(`(?i)graph\s+(?:of\s+)?(.+)`), PanelTimeseries, "", "Graph visualization", 9},
 		{regexp.MustCompile(`(?i)trend\s+(?:of\s+)?(.+)`), PanelTimeseries, "", "Trend visualization", 9},
 		{regexp.MustCompile(`(?i)chart\s+(?:of\s+)?(.+)`), PanelTimeseries, "", "Chart visualization", 8},
-		
+
 		// Stat patterns
 		{regexp.MustCompile(`(?i)(?:current|latest|last)\s+(.+)`), PanelStat, "last", "Current value stat", 10},
 		{regexp.MustCompile(`(?i)average\s+(?:of\s+)?(.+)`), PanelStat, "avg", "Average stat", 10},
@@ -234,19 +234,19 @@ func initPatterns() []*NLPattern {
 		{regexp.MustCompile(`(?i)maximum\s+(?:of\s+)?(.+)`), PanelStat, "max", "Maximum stat", 10},
 		{regexp.MustCompile(`(?i)minimum\s+(?:of\s+)?(.+)`), PanelStat, "min", "Minimum stat", 10},
 		{regexp.MustCompile(`(?i)count\s+(?:of\s+)?(.+)`), PanelStat, "count", "Count stat", 10},
-		
+
 		// Gauge patterns
 		{regexp.MustCompile(`(?i)gauge\s+(?:for\s+)?(.+)`), PanelGauge, "last", "Gauge visualization", 9},
 		{regexp.MustCompile(`(?i)(.+)\s+gauge`), PanelGauge, "last", "Gauge visualization", 8},
-		
+
 		// Table patterns
 		{regexp.MustCompile(`(?i)table\s+(?:of\s+)?(.+)`), PanelTable, "", "Table visualization", 9},
 		{regexp.MustCompile(`(?i)list\s+(?:of\s+)?(.+)`), PanelTable, "", "Table visualization", 8},
-		
+
 		// Heatmap patterns
 		{regexp.MustCompile(`(?i)heatmap\s+(?:of\s+)?(.+)`), PanelHeatmap, "", "Heatmap visualization", 9},
 		{regexp.MustCompile(`(?i)distribution\s+(?:of\s+)?(.+)`), PanelHeatmap, "", "Distribution heatmap", 8},
-		
+
 		// Pie chart patterns
 		{regexp.MustCompile(`(?i)(?:pie|breakdown)\s+(?:chart\s+)?(?:of\s+)?(.+)`), PanelPieChart, "", "Pie chart", 9},
 	}
@@ -406,18 +406,18 @@ func (e *NLDashboardEngine) extractTags(description string) []string {
 
 	// Infer tags from content
 	keywords := map[string]string{
-		"cpu":       "system",
-		"memory":    "system",
-		"disk":      "system",
-		"network":   "network",
-		"http":      "web",
-		"request":   "web",
-		"database":  "database",
-		"postgres":  "database",
-		"mysql":     "database",
+		"cpu":        "system",
+		"memory":     "system",
+		"disk":       "system",
+		"network":    "network",
+		"http":       "web",
+		"request":    "web",
+		"database":   "database",
+		"postgres":   "database",
+		"mysql":      "database",
 		"kubernetes": "kubernetes",
-		"k8s":       "kubernetes",
-		"docker":    "containers",
+		"k8s":        "kubernetes",
+		"docker":     "containers",
 	}
 
 	lowerDesc := strings.ToLower(description)
@@ -579,7 +579,7 @@ func (e *NLDashboardEngine) extractMetrics(description string) []string {
 	// Common metric patterns
 	metricPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`(?i)(cpu|memory|disk|network|http|request|error|latency|throughput|connections?|bytes|packets|load|temperature|humidity|pressure)`),
-		regexp.MustCompile(`(?i)(\w+_\w+(?:_\w+)*)`),  // snake_case metrics
+		regexp.MustCompile(`(?i)(\w+_\w+(?:_\w+)*)`),   // snake_case metrics
 		regexp.MustCompile(`(?i)(\w+\.\w+(?:\.\w+)*)`), // dot.separated.metrics
 	}
 
@@ -654,7 +654,7 @@ func (e *NLDashboardEngine) createPanel(id int, desc *PanelDescription, col, row
 			Y: row * panelHeight,
 		},
 		Targets: make([]*TargetSpec, 0),
-		Options: make(map[string]interface{}),
+		Options: make(map[string]any),
 	}
 
 	// Add targets for each metric
@@ -695,11 +695,11 @@ func (e *NLDashboardEngine) createPanel(id int, desc *PanelDescription, col, row
 		}
 
 	case PanelTimeseries:
-		panel.Options["legend"] = map[string]interface{}{
+		panel.Options["legend"] = map[string]any{
 			"displayMode": "list",
 			"placement":   "bottom",
 		}
-		panel.Options["tooltip"] = map[string]interface{}{
+		panel.Options["tooltip"] = map[string]any{
 			"mode": "single",
 		}
 
@@ -717,7 +717,7 @@ func (e *NLDashboardEngine) createPanel(id int, desc *PanelDescription, col, row
 // ToGrafanaJSON converts the dashboard spec to Grafana JSON format.
 func (e *NLDashboardEngine) ToGrafanaJSON(spec *DashboardSpec) ([]byte, error) {
 	// Build Grafana dashboard structure
-	grafana := map[string]interface{}{
+	grafana := map[string]any{
 		"id":            nil,
 		"uid":           spec.ID,
 		"title":         spec.Title,
@@ -740,17 +740,17 @@ func (e *NLDashboardEngine) ToGrafanaJSON(spec *DashboardSpec) ([]byte, error) {
 	return json.MarshalIndent(grafana, "", "  ")
 }
 
-func (e *NLDashboardEngine) convertPanels(panels []*PanelSpec) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(panels))
+func (e *NLDashboardEngine) convertPanels(panels []*PanelSpec) []map[string]any {
+	result := make([]map[string]any, 0, len(panels))
 
 	for _, panel := range panels {
-		p := map[string]interface{}{
-			"id":        panel.ID,
-			"title":     panel.Title,
-			"type":      string(panel.Type),
-			"gridPos":   panel.GridPos,
-			"options":   panel.Options,
-			"targets":   e.convertTargets(panel.Targets),
+		p := map[string]any{
+			"id":      panel.ID,
+			"title":   panel.Title,
+			"type":    string(panel.Type),
+			"gridPos": panel.GridPos,
+			"options": panel.Options,
+			"targets": e.convertTargets(panel.Targets),
 		}
 
 		if panel.FieldConfig != nil {
@@ -758,10 +758,10 @@ func (e *NLDashboardEngine) convertPanels(panels []*PanelSpec) []map[string]inte
 		}
 
 		if len(panel.Thresholds) > 0 {
-			p["fieldConfig"] = map[string]interface{}{
-				"defaults": map[string]interface{}{
-					"thresholds": map[string]interface{}{
-						"mode": "absolute",
+			p["fieldConfig"] = map[string]any{
+				"defaults": map[string]any{
+					"thresholds": map[string]any{
+						"mode":  "absolute",
 						"steps": panel.Thresholds,
 					},
 				},
@@ -774,11 +774,11 @@ func (e *NLDashboardEngine) convertPanels(panels []*PanelSpec) []map[string]inte
 	return result
 }
 
-func (e *NLDashboardEngine) convertTargets(targets []*TargetSpec) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(targets))
+func (e *NLDashboardEngine) convertTargets(targets []*TargetSpec) []map[string]any {
+	result := make([]map[string]any, 0, len(targets))
 
 	for _, target := range targets {
-		t := map[string]interface{}{
+		t := map[string]any{
 			"refId": target.RefID,
 		}
 
@@ -814,28 +814,28 @@ func (e *NLDashboardEngine) convertTargets(targets []*TargetSpec) []map[string]i
 	return result
 }
 
-func (e *NLDashboardEngine) convertVariables(variables []*VariableSpec) map[string]interface{} {
-	list := make([]map[string]interface{}, 0)
+func (e *NLDashboardEngine) convertVariables(variables []*VariableSpec) map[string]any {
+	list := make([]map[string]any, 0)
 
 	for _, v := range variables {
-		list = append(list, map[string]interface{}{
+		list = append(list, map[string]any{
 			"name":    v.Name,
 			"type":    v.Type,
 			"label":   v.Label,
 			"query":   v.Query,
 			"multi":   v.Multi,
-			"current": map[string]interface{}{"text": v.Current, "value": v.Current},
+			"current": map[string]any{"text": v.Current, "value": v.Current},
 		})
 	}
 
-	return map[string]interface{}{"list": list}
+	return map[string]any{"list": list}
 }
 
-func (e *NLDashboardEngine) convertAnnotations(annotations []*AnnotationSpec) map[string]interface{} {
-	list := make([]map[string]interface{}, 0)
+func (e *NLDashboardEngine) convertAnnotations(annotations []*AnnotationSpec) map[string]any {
+	list := make([]map[string]any, 0)
 
 	for _, a := range annotations {
-		list = append(list, map[string]interface{}{
+		list = append(list, map[string]any{
 			"name":      a.Name,
 			"enable":    a.Enable,
 			"query":     a.Query,
@@ -843,14 +843,14 @@ func (e *NLDashboardEngine) convertAnnotations(annotations []*AnnotationSpec) ma
 		})
 	}
 
-	return map[string]interface{}{"list": list}
+	return map[string]any{"list": list}
 }
 
-func (e *NLDashboardEngine) convertLinks(links []*LinkSpec) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0)
+func (e *NLDashboardEngine) convertLinks(links []*LinkSpec) []map[string]any {
+	result := make([]map[string]any, 0)
 
 	for _, l := range links {
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"title": l.Title,
 			"url":   l.URL,
 			"type":  l.Type,

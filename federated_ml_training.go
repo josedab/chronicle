@@ -19,22 +19,22 @@ const (
 
 // FederatedMLConfig configures cross-instance federated ML training.
 type FederatedMLConfig struct {
-	Enabled                  bool            `json:"enabled"`
-	Role                     FederatedMLRole `json:"role"`
-	CoordinatorURL           string          `json:"coordinator_url,omitempty"`
-	MinParticipants          int             `json:"min_participants"`
-	MaxRounds                int             `json:"max_rounds"`
-	RoundTimeout             time.Duration   `json:"round_timeout"`
-	ConvergenceThreshold     float64         `json:"convergence_threshold"`
-	EnableDifferentialPrivacy bool           `json:"enable_differential_privacy"`
-	Epsilon                  float64         `json:"epsilon"`
-	Delta                    float64         `json:"delta"`
-	ClippingNorm             float64         `json:"clipping_norm"`
-	EnableSecureAggregation  bool            `json:"enable_secure_aggregation"`
-	SecretShares             int             `json:"secret_shares"`
-	ShareThreshold           int             `json:"share_threshold"`
-	ModelType                string          `json:"model_type"`
-	LearningRate             float64         `json:"learning_rate"`
+	Enabled                   bool            `json:"enabled"`
+	Role                      FederatedMLRole `json:"role"`
+	CoordinatorURL            string          `json:"coordinator_url,omitempty"`
+	MinParticipants           int             `json:"min_participants"`
+	MaxRounds                 int             `json:"max_rounds"`
+	RoundTimeout              time.Duration   `json:"round_timeout"`
+	ConvergenceThreshold      float64         `json:"convergence_threshold"`
+	EnableDifferentialPrivacy bool            `json:"enable_differential_privacy"`
+	Epsilon                   float64         `json:"epsilon"`
+	Delta                     float64         `json:"delta"`
+	ClippingNorm              float64         `json:"clipping_norm"`
+	EnableSecureAggregation   bool            `json:"enable_secure_aggregation"`
+	SecretShares              int             `json:"secret_shares"`
+	ShareThreshold            int             `json:"share_threshold"`
+	ModelType                 string          `json:"model_type"`
+	LearningRate              float64         `json:"learning_rate"`
 }
 
 // DefaultFederatedMLConfig returns sensible defaults.
@@ -46,7 +46,7 @@ func DefaultFederatedMLConfig() FederatedMLConfig {
 		MaxRounds:                 100,
 		RoundTimeout:              5 * time.Minute,
 		ConvergenceThreshold:      0.001,
-		EnableDifferentialPrivacy:  true,
+		EnableDifferentialPrivacy: true,
 		Epsilon:                   1.0,
 		Delta:                     1e-5,
 		ClippingNorm:              1.0,
@@ -68,14 +68,14 @@ type ModelWeights struct {
 
 // TrainingRound represents a single round of federated training.
 type FMLTrainingRound struct {
-	RoundNum       int           `json:"round_num"`
-	StartTime      time.Time     `json:"start_time"`
-	EndTime        time.Time     `json:"end_time,omitempty"`
-	Participants   []string      `json:"participants"`
-	GlobalWeights  *ModelWeights `json:"global_weights,omitempty"`
-	Loss           float64       `json:"loss"`
-	Converged      bool          `json:"converged"`
-	PrivacyBudget  float64       `json:"privacy_budget_spent"`
+	RoundNum      int           `json:"round_num"`
+	StartTime     time.Time     `json:"start_time"`
+	EndTime       time.Time     `json:"end_time,omitempty"`
+	Participants  []string      `json:"participants"`
+	GlobalWeights *ModelWeights `json:"global_weights,omitempty"`
+	Loss          float64       `json:"loss"`
+	Converged     bool          `json:"converged"`
+	PrivacyBudget float64       `json:"privacy_budget_spent"`
 }
 
 // ParticipantUpdate holds a participant's local model update.
@@ -109,14 +109,14 @@ type FederatedMLStats struct {
 
 // FederatedMLTrainer manages cross-instance federated model training.
 type FederatedMLTrainer struct {
-	config       FederatedMLConfig
-	db           *DB
-	rounds       []FMLTrainingRound
-	globalModel  *ModelWeights
-	updates      map[int][]FMLParticipantUpdate // round -> updates
-	stats        FederatedMLStats
+	config        FederatedMLConfig
+	db            *DB
+	rounds        []FMLTrainingRound
+	globalModel   *ModelWeights
+	updates       map[int][]FMLParticipantUpdate // round -> updates
+	stats         FederatedMLStats
 	privacyBudget float64
-	rng          *rand.Rand
+	rng           *rand.Rand
 
 	mu   sync.RWMutex
 	done chan struct{}

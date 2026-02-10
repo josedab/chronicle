@@ -103,11 +103,11 @@ type ForecastResult struct {
 
 // ForecastPoint is a predicted data point.
 type ForecastPoint struct {
-	Timestamp   int64
-	Value       float64
-	LowerBound  float64
-	UpperBound  float64
-	Confidence  float64
+	Timestamp  int64
+	Value      float64
+	LowerBound float64
+	UpperBound float64
+	Confidence float64
 }
 
 // AnomalyPoint is a detected anomaly.
@@ -252,9 +252,10 @@ func (f *Forecaster) doubleExponentialSmoothing(data TimeSeriesData, periods int
 //   - Seasonality (S): Repeating patterns at fixed intervals
 //
 // The update equations are:
-//   L_t = α(Y_t/S_{t-m}) + (1-α)(L_{t-1} + T_{t-1})
-//   T_t = β(L_t - L_{t-1}) + (1-β)T_{t-1}
-//   S_t = γ(Y_t/L_t) + (1-γ)S_{t-m}
+//
+//	L_t = α(Y_t/S_{t-m}) + (1-α)(L_{t-1} + T_{t-1})
+//	T_t = β(L_t - L_{t-1}) + (1-β)T_{t-1}
+//	S_t = γ(Y_t/L_t) + (1-γ)S_{t-m}
 //
 // Where m is the seasonal period (e.g., 12 for monthly data with yearly seasonality).
 func (f *Forecaster) holtWinters(data TimeSeriesData, periods int) (*ForecastResult, error) {

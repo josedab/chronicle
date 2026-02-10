@@ -67,14 +67,14 @@ func DefaultTSRAGConfig() TSRAGConfig {
 
 // PatternEmbedding represents a vector embedding of a time-series pattern.
 type PatternEmbedding struct {
-	ID         string    `json:"id"`
-	Metric     string    `json:"metric"`
-	Tags       map[string]string `json:"tags,omitempty"`
-	Start      int64     `json:"start"`
-	End        int64     `json:"end"`
-	Vector     []float64 `json:"vector"`
-	Features   PatternFeatures `json:"features"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID        string            `json:"id"`
+	Metric    string            `json:"metric"`
+	Tags      map[string]string `json:"tags,omitempty"`
+	Start     int64             `json:"start"`
+	End       int64             `json:"end"`
+	Vector    []float64         `json:"vector"`
+	Features  PatternFeatures   `json:"features"`
+	CreatedAt time.Time         `json:"created_at"`
 }
 
 // PatternFeatures captures statistical features of a pattern segment.
@@ -104,7 +104,7 @@ type RAGQuery struct {
 	Question       string            `json:"question"`
 	ConversationID string            `json:"conversation_id,omitempty"`
 	MetricHints    []string          `json:"metric_hints,omitempty"`
-	TimeRange      *RAGTimeRange        `json:"time_range,omitempty"`
+	TimeRange      *RAGTimeRange     `json:"time_range,omitempty"`
 	Tags           map[string]string `json:"tags,omitempty"`
 }
 
@@ -237,10 +237,10 @@ func (rag *TSRAGEngine) Retrieve(queryVector []float64, maxResults int) []Eviden
 	evidence := make([]Evidence, len(candidates))
 	for i, c := range candidates {
 		evidence[i] = Evidence{
-			Pattern:    *c.emb,
-			Similarity: c.similarity,
-			Metric:     c.emb.Metric,
-			TimeRange:  fmt.Sprintf("%d-%d", c.emb.Start, c.emb.End),
+			Pattern:     *c.emb,
+			Similarity:  c.similarity,
+			Metric:      c.emb.Metric,
+			TimeRange:   fmt.Sprintf("%d-%d", c.emb.Start, c.emb.End),
 			Explanation: generateEvidenceExplanation(c.emb.Features),
 		}
 	}
@@ -415,14 +415,14 @@ func extractPatternFeatures(points []Point) PatternFeatures {
 	entropy := calculateEntropy(values, 16)
 
 	return PatternFeatures{
-		Mean:        mean,
-		StdDev:      stddev,
-		Min:         minVal,
-		Max:         maxVal,
-		Trend:       trend,
-		Spikiness:   spikiness,
-		Entropy:     entropy,
-		PointCount:  len(points),
+		Mean:       mean,
+		StdDev:     stddev,
+		Min:        minVal,
+		Max:        maxVal,
+		Trend:      trend,
+		Spikiness:  spikiness,
+		Entropy:    entropy,
+		PointCount: len(points),
 	}
 }
 

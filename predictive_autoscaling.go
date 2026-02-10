@@ -19,19 +19,19 @@ const (
 
 // PredictiveAutoscalingConfig configures the predictive auto-scaling engine.
 type PredictiveAutoscalingConfig struct {
-	Enabled              bool          `json:"enabled"`
-	EvaluationInterval   time.Duration `json:"evaluation_interval"`
-	ForecastHorizon      time.Duration `json:"forecast_horizon"`
-	HistoryWindow        time.Duration `json:"history_window"`
-	ScaleUpThreshold     float64       `json:"scale_up_threshold"`
-	ScaleDownThreshold   float64       `json:"scale_down_threshold"`
-	CooldownPeriod       time.Duration `json:"cooldown_period"`
-	MinReplicas          int           `json:"min_replicas"`
-	MaxReplicas          int           `json:"max_replicas"`
-	TargetUtilization    float64       `json:"target_utilization"`
-	SafetyMargin         float64       `json:"safety_margin"`
-	LeadTimeMinutes      int           `json:"lead_time_minutes"`
-	EnableHPAMetrics     bool          `json:"enable_hpa_metrics"`
+	Enabled            bool          `json:"enabled"`
+	EvaluationInterval time.Duration `json:"evaluation_interval"`
+	ForecastHorizon    time.Duration `json:"forecast_horizon"`
+	HistoryWindow      time.Duration `json:"history_window"`
+	ScaleUpThreshold   float64       `json:"scale_up_threshold"`
+	ScaleDownThreshold float64       `json:"scale_down_threshold"`
+	CooldownPeriod     time.Duration `json:"cooldown_period"`
+	MinReplicas        int           `json:"min_replicas"`
+	MaxReplicas        int           `json:"max_replicas"`
+	TargetUtilization  float64       `json:"target_utilization"`
+	SafetyMargin       float64       `json:"safety_margin"`
+	LeadTimeMinutes    int           `json:"lead_time_minutes"`
+	EnableHPAMetrics   bool          `json:"enable_hpa_metrics"`
 }
 
 // DefaultPredictiveAutoscalingConfig returns sensible defaults.
@@ -65,14 +65,14 @@ type LoadSample struct {
 
 // ScalingRecommendation describes a recommended scaling action.
 type PredictiveScalingRecommendation struct {
-	Direction        ScalingDirection `json:"direction"`
-	CurrentReplicas  int              `json:"current_replicas"`
-	TargetReplicas   int              `json:"target_replicas"`
-	Reason           string           `json:"reason"`
-	Confidence       float64          `json:"confidence"`
-	PredictedLoad    float64          `json:"predicted_load"`
-	Timestamp        time.Time        `json:"timestamp"`
-	LeadTimeMinutes  int              `json:"lead_time_minutes"`
+	Direction       ScalingDirection `json:"direction"`
+	CurrentReplicas int              `json:"current_replicas"`
+	TargetReplicas  int              `json:"target_replicas"`
+	Reason          string           `json:"reason"`
+	Confidence      float64          `json:"confidence"`
+	PredictedLoad   float64          `json:"predicted_load"`
+	Timestamp       time.Time        `json:"timestamp"`
+	LeadTimeMinutes int              `json:"lead_time_minutes"`
 }
 
 // ForecastResult holds the output of load prediction.
@@ -87,13 +87,13 @@ type LoadForecastResult struct {
 
 // AutoscalingStats tracks engine statistics.
 type AutoscalingStats struct {
-	EvaluationsRun      int       `json:"evaluations_run"`
-	ScaleUpEvents       int       `json:"scale_up_events"`
-	ScaleDownEvents     int       `json:"scale_down_events"`
-	LastEvaluation      time.Time `json:"last_evaluation"`
-	LastScalingAction   time.Time `json:"last_scaling_action"`
-	CurrentReplicas     int       `json:"current_replicas"`
-	SamplesCollected    int       `json:"samples_collected"`
+	EvaluationsRun    int       `json:"evaluations_run"`
+	ScaleUpEvents     int       `json:"scale_up_events"`
+	ScaleDownEvents   int       `json:"scale_down_events"`
+	LastEvaluation    time.Time `json:"last_evaluation"`
+	LastScalingAction time.Time `json:"last_scaling_action"`
+	CurrentReplicas   int       `json:"current_replicas"`
+	SamplesCollected  int       `json:"samples_collected"`
 }
 
 // ScalingCallback is invoked when a scaling recommendation is made.
@@ -259,7 +259,7 @@ func (a *PredictiveAutoscaler) History() []PredictiveScalingRecommendation {
 }
 
 // HPAMetrics returns current metrics formatted for Kubernetes HPA.
-func (a *PredictiveAutoscaler) HPAMetrics() map[string]interface{} {
+func (a *PredictiveAutoscaler) HPAMetrics() map[string]any {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -269,7 +269,7 @@ func (a *PredictiveAutoscaler) HPAMetrics() map[string]interface{} {
 		predictedPeak = a.findPeakLoad(forecast)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"chronicle_predicted_load":     predictedPeak,
 		"chronicle_current_replicas":   a.replicas,
 		"chronicle_target_utilization": a.config.TargetUtilization,

@@ -41,7 +41,7 @@ type FederatedLearningConfig struct {
 	EnableDifferentialPrivacy bool
 	Epsilon                   float64
 	Delta                     float64
-	ClippingNorm             float64
+	ClippingNorm              float64
 
 	// Secure aggregation
 	EnableSecureAggregation bool
@@ -51,9 +51,9 @@ type FederatedLearningConfig struct {
 	CompressionThreshold float64
 
 	// Communication
-	SyncInterval       time.Duration
-	MaxRetries         int
-	HeartbeatInterval  time.Duration
+	SyncInterval      time.Duration
+	MaxRetries        int
+	HeartbeatInterval time.Duration
 }
 
 // FederatedRole defines the node's role.
@@ -68,11 +68,11 @@ const (
 type AggregationStrategy string
 
 const (
-	StrategyFedAvg    AggregationStrategy = "fed_avg"    // Federated Averaging
-	StrategyFedProx   AggregationStrategy = "fed_prox"   // FedProx for non-IID data
-	StrategyFedAdam   AggregationStrategy = "fed_adam"   // Federated Adam optimizer
-	StrategyWeighted  AggregationStrategy = "weighted"   // Weighted by sample count
-	StrategyMedian    AggregationStrategy = "median"     // Coordinate-wise median (Byzantine-robust)
+	StrategyFedAvg      AggregationStrategy = "fed_avg"      // Federated Averaging
+	StrategyFedProx     AggregationStrategy = "fed_prox"     // FedProx for non-IID data
+	StrategyFedAdam     AggregationStrategy = "fed_adam"     // Federated Adam optimizer
+	StrategyWeighted    AggregationStrategy = "weighted"     // Weighted by sample count
+	StrategyMedian      AggregationStrategy = "median"       // Coordinate-wise median (Byzantine-robust)
 	StrategyTrimmedMean AggregationStrategy = "trimmed_mean" // Trimmed mean (Byzantine-robust)
 )
 
@@ -87,7 +87,7 @@ func DefaultFederatedLearningConfig() FederatedLearningConfig {
 		EnableDifferentialPrivacy: true,
 		Epsilon:                   1.0,
 		Delta:                     1e-5,
-		ClippingNorm:             1.0,
+		ClippingNorm:              1.0,
 		EnableSecureAggregation:   false,
 		EnableCompression:         true,
 		CompressionThreshold:      0.01,
@@ -99,16 +99,16 @@ func DefaultFederatedLearningConfig() FederatedLearningConfig {
 
 // FederatedModel represents a model being trained federatedly.
 type FederatedModel struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Type        string                 `json:"type"` // anomaly_detection, forecasting
-	Version     int64                  `json:"version"`
-	Weights     []float64              `json:"weights"`
-	Gradients   []float64              `json:"gradients,omitempty"`
-	Hyperparams map[string]interface{} `json:"hyperparams"`
-	Metrics     *ModelMetrics          `json:"metrics"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Type        string         `json:"type"` // anomaly_detection, forecasting
+	Version     int64          `json:"version"`
+	Weights     []float64      `json:"weights"`
+	Gradients   []float64      `json:"gradients,omitempty"`
+	Hyperparams map[string]any `json:"hyperparams"`
+	Metrics     *ModelMetrics  `json:"metrics"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
 // ModelMetrics tracks model performance.
@@ -123,34 +123,34 @@ type ModelMetrics struct {
 
 // TrainingRound represents a federated training round.
 type TrainingRound struct {
-	ID              string                     `json:"id"`
-	ModelID         string                     `json:"model_id"`
-	RoundNumber     int64                      `json:"round_number"`
-	Status          RoundStatus                `json:"status"`
-	StartTime       time.Time                  `json:"start_time"`
-	EndTime         time.Time                  `json:"end_time"`
+	ID              string                        `json:"id"`
+	ModelID         string                        `json:"model_id"`
+	RoundNumber     int64                         `json:"round_number"`
+	Status          RoundStatus                   `json:"status"`
+	StartTime       time.Time                     `json:"start_time"`
+	EndTime         time.Time                     `json:"end_time"`
 	Participants    map[string]*ParticipantUpdate `json:"participants"`
-	AggregatedModel *FederatedModel            `json:"aggregated_model,omitempty"`
-	Config          *RoundConfig               `json:"config"`
+	AggregatedModel *FederatedModel               `json:"aggregated_model,omitempty"`
+	Config          *RoundConfig                  `json:"config"`
 }
 
 // RoundStatus represents the status of a training round.
 type RoundStatus string
 
 const (
-	RoundPending    RoundStatus = "pending"
-	RoundTraining   RoundStatus = "training"
+	RoundPending     RoundStatus = "pending"
+	RoundTraining    RoundStatus = "training"
 	RoundAggregating RoundStatus = "aggregating"
-	RoundCompleted  RoundStatus = "completed"
-	RoundFailed     RoundStatus = "failed"
+	RoundCompleted   RoundStatus = "completed"
+	RoundFailed      RoundStatus = "failed"
 )
 
 // RoundConfig specifies round-specific settings.
 type RoundConfig struct {
-	LocalEpochs    int     `json:"local_epochs"`
-	BatchSize      int     `json:"batch_size"`
-	LearningRate   float64 `json:"learning_rate"`
-	MinSamples     int     `json:"min_samples"`
+	LocalEpochs  int     `json:"local_epochs"`
+	BatchSize    int     `json:"batch_size"`
+	LearningRate float64 `json:"learning_rate"`
+	MinSamples   int     `json:"min_samples"`
 }
 
 // ParticipantUpdate contains a participant's model update.
@@ -188,17 +188,17 @@ const (
 
 // DataStatistics provides anonymous statistics about local data.
 type DataStatistics struct {
-	SampleCount   int64              `json:"sample_count"`
-	FeatureCount  int                `json:"feature_count"`
-	TimeRange     *QueryTimeRange    `json:"time_range"`
-	MetricTypes   []string           `json:"metric_types"`
-	Distribution  map[string]float64 `json:"distribution,omitempty"`
+	SampleCount  int64              `json:"sample_count"`
+	FeatureCount int                `json:"feature_count"`
+	TimeRange    *QueryTimeRange    `json:"time_range"`
+	MetricTypes  []string           `json:"metric_types"`
+	Distribution map[string]float64 `json:"distribution,omitempty"`
 }
 
 // FederatedLearningEngine manages federated learning.
 type FederatedLearningEngine struct {
-	db       *DB
-	config   FederatedLearningConfig
+	db     *DB
+	config FederatedLearningConfig
 
 	// Models being trained
 	models   map[string]*FederatedModel
@@ -213,9 +213,9 @@ type FederatedLearningEngine struct {
 	participantsMu sync.RWMutex
 
 	// Local training state
-	localModel    *FederatedModel
-	localTrainer  *LocalTrainer
-	localMu       sync.RWMutex
+	localModel   *FederatedModel
+	localTrainer *LocalTrainer
+	localMu      sync.RWMutex
 
 	// Communication
 	httpClient *http.Client
@@ -225,19 +225,19 @@ type FederatedLearningEngine struct {
 	wg     sync.WaitGroup
 
 	// Stats
-	roundsCompleted    int64
-	modelsAggregated   int64
-	updatesReceived    int64
-	updatesSent        int64
+	roundsCompleted  int64
+	modelsAggregated int64
+	updatesReceived  int64
+	updatesSent      int64
 }
 
 // LocalTrainer handles local model training.
 type LocalTrainer struct {
-	db           *DB
-	model        *FederatedModel
-	config       FederatedLearningConfig
+	db              *DB
+	model           *FederatedModel
+	config          FederatedLearningConfig
 	trainingSamples []TrainingSample
-	mu           sync.RWMutex
+	mu              sync.RWMutex
 }
 
 // TrainingSample represents a training data point.
@@ -487,7 +487,7 @@ func (e *FederatedLearningEngine) fedAvg(updates []*ParticipantUpdate, globalMod
 	}
 
 	newWeights := make([]float64, len(globalModel.Weights))
-	
+
 	for _, update := range updates {
 		weight := float64(update.SampleCount) / float64(totalSamples)
 		for i, w := range update.ModelWeights {
@@ -516,7 +516,7 @@ func (e *FederatedLearningEngine) fedProx(updates []*ParticipantUpdate, globalMo
 	}
 
 	newWeights := make([]float64, len(globalModel.Weights))
-	
+
 	for _, update := range updates {
 		weight := float64(update.SampleCount) / float64(totalSamples)
 		for i, w := range update.ModelWeights {
@@ -549,7 +549,7 @@ func (e *FederatedLearningEngine) coordinateMedian(updates []*ParticipantUpdate,
 	}
 
 	newWeights := make([]float64, len(globalModel.Weights))
-	
+
 	for i := range newWeights {
 		values := make([]float64, 0, len(updates))
 		for _, u := range updates {
@@ -584,7 +584,7 @@ func (e *FederatedLearningEngine) trimmedMean(updates []*ParticipantUpdate, glob
 	}
 
 	newWeights := make([]float64, len(globalModel.Weights))
-	
+
 	for i := range newWeights {
 		values := make([]float64, 0, len(updates))
 		for _, u := range updates {
@@ -593,12 +593,12 @@ func (e *FederatedLearningEngine) trimmedMean(updates []*ParticipantUpdate, glob
 			}
 		}
 		sort.Float64s(values)
-		
+
 		// Trim outliers
 		if len(values) > 2*trimCount {
 			values = values[trimCount : len(values)-trimCount]
 		}
-		
+
 		// Compute mean of remaining
 		sum := 0.0
 		for _, v := range values {
@@ -671,7 +671,7 @@ func (e *FederatedLearningEngine) notifyParticipants(round *TrainingRound, model
 	round.Status = RoundTraining
 	e.roundsMu.Unlock()
 
-	msg := map[string]interface{}{
+	msg := map[string]any{
 		"type":     "start_training",
 		"round_id": round.ID,
 		"model":    model,
@@ -690,7 +690,7 @@ func (e *FederatedLearningEngine) broadcastModel(model *FederatedModel) {
 	e.participantsMu.RLock()
 	defer e.participantsMu.RUnlock()
 
-	msg := map[string]interface{}{
+	msg := map[string]any{
 		"type":  "model_update",
 		"model": model,
 	}
@@ -716,14 +716,14 @@ func (e *FederatedLearningEngine) verifyUpdate(update *ParticipantUpdate) bool {
 	if update.SampleCount <= 0 {
 		return false
 	}
-	
+
 	// Check for NaN or Inf values
 	for _, w := range update.ModelWeights {
 		if math.IsNaN(w) || math.IsInf(w, 0) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -932,12 +932,12 @@ func (e *FederatedLearningEngine) Stats() FederatedLearningStats {
 	e.participantsMu.RUnlock()
 
 	return FederatedLearningStats{
-		Role:              string(e.config.Role),
-		ModelsRegistered:  int64(len(e.models)),
-		RoundsCompleted:   atomic.LoadInt64(&e.roundsCompleted),
-		ModelsAggregated:  atomic.LoadInt64(&e.modelsAggregated),
-		UpdatesReceived:   atomic.LoadInt64(&e.updatesReceived),
-		UpdatesSent:       atomic.LoadInt64(&e.updatesSent),
+		Role:               string(e.config.Role),
+		ModelsRegistered:   int64(len(e.models)),
+		RoundsCompleted:    atomic.LoadInt64(&e.roundsCompleted),
+		ModelsAggregated:   atomic.LoadInt64(&e.modelsAggregated),
+		UpdatesReceived:    atomic.LoadInt64(&e.updatesReceived),
+		UpdatesSent:        atomic.LoadInt64(&e.updatesSent),
 		ActiveParticipants: int64(activeCount),
 	}
 }
@@ -1013,7 +1013,7 @@ func (t *LocalTrainer) processBatch(batch []TrainingSample, learningRate float64
 
 		// Loss gradient (MSE)
 		error := prediction - sample.Label
-		
+
 		// Backprop
 		for j := range t.model.Gradients {
 			if j < len(sample.Features) {
@@ -1097,7 +1097,7 @@ func cloneModel(model *FederatedModel) *FederatedModel {
 	gradients := make([]float64, len(model.Gradients))
 	copy(gradients, model.Gradients)
 
-	hyperparams := make(map[string]interface{})
+	hyperparams := make(map[string]any)
 	for k, v := range model.Hyperparams {
 		hyperparams[k] = v
 	}
@@ -1119,14 +1119,14 @@ func cloneModel(model *FederatedModel) *FederatedModel {
 func compressGradients(gradients []float64, threshold float64) []float64 {
 	// Top-K sparsification
 	compressed := make([]float64, len(gradients))
-	
+
 	// Keep only gradients above threshold magnitude
 	for i, g := range gradients {
 		if math.Abs(g) > threshold {
 			compressed[i] = g
 		}
 	}
-	
+
 	return compressed
 }
 
