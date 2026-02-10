@@ -15,10 +15,10 @@ func (ui *AdminUI) handleAPISchemas(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		// Return list of metrics with their inferred schemas
 		metrics := ui.db.Metrics()
-		schemas := make([]map[string]interface{}, 0, len(metrics))
+		schemas := make([]map[string]any, 0, len(metrics))
 
 		for _, metric := range metrics {
-			schema := map[string]interface{}{
+			schema := map[string]any{
 				"name":        metric,
 				"type":        "float64",
 				"description": fmt.Sprintf("Auto-discovered metric: %s", metric),
@@ -105,16 +105,16 @@ func (ui *AdminUI) handleAPIRetention(w http.ResponseWriter, r *http.Request) {
 // Phase 8: Cluster Status API
 func (ui *AdminUI) handleAPICluster(w http.ResponseWriter, r *http.Request) {
 	// Return cluster status (standalone mode if not in cluster)
-	status := map[string]interface{}{
+	status := map[string]any{
 		"mode":   "standalone",
 		"status": "healthy",
-		"node": map[string]interface{}{
+		"node": map[string]any{
 			"id":      "local",
 			"state":   "leader",
 			"address": "localhost",
 			"uptime":  time.Since(ui.startTime).Round(time.Second).String(),
 		},
-		"nodes":       []interface{}{},
+		"nodes":       []any{},
 		"replication": "none",
 	}
 
@@ -126,13 +126,13 @@ func (ui *AdminUI) handleAPIWAL(w http.ResponseWriter, r *http.Request) {
 	ui.logAudit(r, "WALInspector", "Accessed WAL inspector")
 
 	info := ui.db.Info()
-	walInfo := map[string]interface{}{
+	walInfo := map[string]any{
 		"enabled":       true,
 		"path":          info.Path + ".wal",
 		"sync_interval": "1s",
 		"max_size":      "100MB",
-		"segments":      []interface{}{},
-		"stats": map[string]interface{}{
+		"segments":      []any{},
+		"stats": map[string]any{
 			"total_writes":   0,
 			"pending_writes": 0,
 			"last_sync":      time.Now().Add(-1 * time.Second),
@@ -142,8 +142,8 @@ func (ui *AdminUI) handleAPIWAL(w http.ResponseWriter, r *http.Request) {
 	// Check if WAL file exists
 	walPath := info.Path + ".wal"
 	if fileInfo, err := os.Stat(walPath); err == nil {
-		walInfo["stats"].(map[string]interface{})["file_size"] = formatBytes(uint64(fileInfo.Size()))
-		walInfo["stats"].(map[string]interface{})["modified"] = fileInfo.ModTime()
+		walInfo["stats"].(map[string]any)["file_size"] = formatBytes(uint64(fileInfo.Size()))
+		walInfo["stats"].(map[string]any)["modified"] = fileInfo.ModTime()
 	}
 
 	writeJSON(w, walInfo)

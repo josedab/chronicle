@@ -426,7 +426,7 @@ func (e *DigitalTwinEngine) Close() error {
 	return nil
 }
 func generateID() string {
-b := make([]byte, 8)
-_, _ = rand.Read(b)
-return hex.EncodeToString(b)
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }

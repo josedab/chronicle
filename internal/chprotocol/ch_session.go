@@ -153,7 +153,7 @@ func (s *CHSession) writeDataBlock(result *CHQueryResult) {
 	}
 }
 
-func (s *CHSession) writeValue(value interface{}, chType string) {
+func (s *CHSession) writeValue(value any, chType string) {
 	switch chType {
 	case CHTypeUInt8:
 		v, _ := toUint64(value)

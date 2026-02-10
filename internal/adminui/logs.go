@@ -81,7 +81,7 @@ func (ui *AdminUI) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddLog adds a log entry to the admin UI log buffer
-func (ui *AdminUI) AddLog(level, message, source string, fields map[string]interface{}) {
+func (ui *AdminUI) AddLog(level, message, source string, fields map[string]any) {
 	entry := logEntry{
 		Timestamp: time.Now(),
 		Level:     level,

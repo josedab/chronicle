@@ -18,7 +18,7 @@ func (ui *AdminUI) handleAPIProfiling(w http.ResponseWriter, r *http.Request) {
 
 	switch profileType {
 	case "summary":
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"goroutines":     runtime.NumGoroutine(),
 			"cgo_calls":      runtime.NumCgoCall(),
 			"cpu_count":      runtime.NumCPU(),
@@ -43,7 +43,7 @@ func (ui *AdminUI) handleAPIProfiling(w http.ResponseWriter, r *http.Request) {
 		for i := uint32(0); i < memStats.NumGC && i < 256; i++ {
 			gcPauses = append(gcPauses, int64(memStats.PauseNs[i]))
 		}
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"num_gc":          memStats.NumGC,
 			"pause_total_ns":  memStats.PauseTotalNs,
 			"pause_end":       memStats.PauseEnd[:min(int(memStats.NumGC), 256)],
@@ -57,7 +57,7 @@ func (ui *AdminUI) handleAPIProfiling(w http.ResponseWriter, r *http.Request) {
 
 	case "memory":
 		// Detailed memory breakdown
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"alloc":         memStats.Alloc,
 			"total_alloc":   memStats.TotalAlloc,
 			"sys":           memStats.Sys,
@@ -83,7 +83,7 @@ func (ui *AdminUI) handleAPIProfiling(w http.ResponseWriter, r *http.Request) {
 
 	case "goroutines":
 		// Goroutine info
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"count":      runtime.NumGoroutine(),
 			"gomaxprocs": runtime.GOMAXPROCS(0),
 			"num_cpu":    runtime.NumCPU(),

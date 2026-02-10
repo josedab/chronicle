@@ -159,7 +159,7 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ui.logActivity("Data Import", fmt.Sprintf("Imported %d points", len(points)))
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"status":   "ok",
 		"imported": len(points),
 		"format":   format,

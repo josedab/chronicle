@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-
 	chronicle "github.com/chronicle-db/chronicle"
 )
 
@@ -130,23 +129,23 @@ const (
 
 // PropertyTransform defines how to transform values.
 type PropertyTransform struct {
-	Type       string                 `json:"type"` // scale, offset, map, formula
-	Parameters map[string]interface{} `json:"parameters"`
+	Type       string         `json:"type"` // scale, offset, map, formula
+	Parameters map[string]any `json:"parameters"`
 }
 
 // TwinUpdate represents an update to/from a digital twin.
 type TwinUpdate struct {
-	ID           string                 `json:"id"`
-	ConnectionID string                 `json:"connection_id"`
-	TwinID       string                 `json:"twin_id"`
-	Component    string                 `json:"component,omitempty"`
-	Property     string                 `json:"property"`
-	Value        interface{}            `json:"value"`
-	Timestamp    time.Time              `json:"timestamp"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
-	Direction    SyncDirection          `json:"direction"`
-	Status       UpdateStatus           `json:"status"`
-	Error        string                 `json:"error,omitempty"`
+	ID           string         `json:"id"`
+	ConnectionID string         `json:"connection_id"`
+	TwinID       string         `json:"twin_id"`
+	Component    string         `json:"component,omitempty"`
+	Property     string         `json:"property"`
+	Value        any            `json:"value"`
+	Timestamp    time.Time      `json:"timestamp"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
+	Direction    SyncDirection  `json:"direction"`
+	Status       UpdateStatus   `json:"status"`
+	Error        string         `json:"error,omitempty"`
 }
 
 // UpdateStatus represents the status of a sync update.
@@ -177,7 +176,7 @@ type TwinAdapter interface {
 	PullUpdates(ctx context.Context, since time.Time) ([]*TwinUpdate, error)
 
 	// GetTwinState retrieves current twin state
-	GetTwinState(ctx context.Context, twinID string) (map[string]interface{}, error)
+	GetTwinState(ctx context.Context, twinID string) (map[string]any, error)
 
 	// ListTwins lists available twins
 	ListTwins(ctx context.Context) ([]string, error)

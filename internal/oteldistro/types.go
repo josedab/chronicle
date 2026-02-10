@@ -442,7 +442,7 @@ type ResourceMetrics struct {
 
 // Resource represents a resource.
 type Resource struct {
-	Attributes map[string]interface{}
+	Attributes map[string]any
 }
 
 // ScopeMetrics holds metrics with scope info.
@@ -462,7 +462,7 @@ type Metric struct {
 	Name        string
 	Description string
 	Unit        string
-	Data        interface{} // Gauge, Sum, Histogram, etc.
+	Data        any // Gauge, Sum, Histogram, etc.
 }
 
 // DistroMetrics tracks distribution metrics.
@@ -746,8 +746,8 @@ func ListComponents() map[string][]string {
 }
 
 // GetComponentInfo returns information about a component.
-func GetComponentInfo(componentType, name string) map[string]interface{} {
-	components := map[string]map[string]map[string]interface{}{
+func GetComponentInfo(componentType, name string) map[string]any {
+	components := map[string]map[string]map[string]any{
 		"receivers": {
 			"otlp": {
 				"name":        "OTLP Receiver",

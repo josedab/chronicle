@@ -11,18 +11,18 @@ import (
 )
 
 func (ui *AdminUI) handleAPIPartitions(w http.ResponseWriter, r *http.Request) {
-	partitions := make([]map[string]interface{}, 0)
+	partitions := make([]map[string]any, 0)
 
 	info := ui.db.Info()
 	if info.PartitionCount > 0 {
 		// Get partition info from the index
-		partitions = append(partitions, map[string]interface{}{
+		partitions = append(partitions, map[string]any{
 			"count":              info.PartitionCount,
 			"partition_duration": info.PartitionDuration,
 		})
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"partitions": partitions,
 		"total":      len(partitions),
 	})
@@ -41,7 +41,7 @@ func (ui *AdminUI) handleAPIBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"status":    "ok",
 			"message":   "Backup completed (data synced to disk)",
 			"timestamp": time.Now(),
@@ -51,7 +51,7 @@ func (ui *AdminUI) handleAPIBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// GET - return backup status
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"path":        info.Path,
 		"last_sync":   "available via Sync()",
 		"auto_backup": false,
@@ -69,7 +69,8 @@ func (ui *AdminUI) handleAPIEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// CORS for SSE: only set if Origin matches a known host.
+	// Callers should configure allowed origins at the HTTP layer.
 
 	clientChan := make(chan []byte, 10)
 	ui.sseMu.Lock()
@@ -107,7 +108,7 @@ func (ui *AdminUI) sendStatsUpdate() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	update := map[string]interface{}{
+	update := map[string]any{
 		"type":        "stats",
 		"timestamp":   time.Now().UnixMilli(),
 		"memory":      formatBytes(memStats.Alloc),

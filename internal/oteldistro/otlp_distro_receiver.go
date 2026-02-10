@@ -69,7 +69,7 @@ func (r *OTLPDistroReceiver) convertOTLPToMetrics(otlp *otlpExportRequest) *Metr
 
 	for _, rm := range otlp.ResourceMetrics {
 		resourceMetrics := ResourceMetrics{
-			Resource: Resource{Attributes: make(map[string]interface{})},
+			Resource: Resource{Attributes: make(map[string]any)},
 		}
 
 		for _, attr := range rm.Resource.Attributes {
@@ -109,7 +109,7 @@ type otlpExportRequest struct {
 }
 
 type otlpResourceMetrics struct {
-	Resource     otlpResource     `json:"resource"`
+	Resource     otlpResource       `json:"resource"`
 	ScopeMetrics []otlpScopeMetrics `json:"scopeMetrics"`
 }
 

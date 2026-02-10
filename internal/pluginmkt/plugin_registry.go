@@ -361,7 +361,7 @@ func (r *PluginRegistry) CheckUpdates(ctx context.Context) ([]PluginUpdate, erro
 }
 
 // LoadPlugin loads and initializes a plugin
-func (r *PluginRegistry) LoadPlugin(ctx context.Context, pluginID string, config map[string]interface{}) (Plugin, error) {
+func (r *PluginRegistry) LoadPlugin(ctx context.Context, pluginID string, config map[string]any) (Plugin, error) {
 
 	r.mu.RLock()
 	if instance, ok := r.instances[pluginID]; ok {

@@ -190,7 +190,7 @@ type CQLBinaryExpr struct {
 
 // CQLLiteralExpr represents a literal value.
 type CQLLiteralExpr struct {
-	Value       interface{}
+	Value       any
 	LiteralType string // string, number
 }
 

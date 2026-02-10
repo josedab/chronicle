@@ -1062,7 +1062,7 @@ type ConsensusEvent struct {
 	Timestamp time.Time
 
 	// Data carries additional event-specific information.
-	Data map[string]interface{}
+	Data map[string]any
 }
 
 // ConsensusVerifier records consensus events and verifies Raft safety

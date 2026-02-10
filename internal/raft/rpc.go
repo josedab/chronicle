@@ -387,7 +387,7 @@ func (rn *RaftNode) handleForwardProposal(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (rn *RaftNode) writeJSON(w http.ResponseWriter, v interface{}) {
+func (rn *RaftNode) writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
 }

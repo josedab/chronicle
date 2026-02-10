@@ -1,12 +1,12 @@
 package pluginmkt
 
 // SetLogger sets the logging function
-func (sdk *PluginSDK) SetLogger(logger func(level, msg string, args ...interface{})) {
+func (sdk *PluginSDK) SetLogger(logger func(level, msg string, args ...any)) {
 	sdk.logger = logger
 }
 
 // GetConfig returns configuration value
-func (sdk *PluginSDK) GetConfig(key string) interface{} {
+func (sdk *PluginSDK) GetConfig(key string) any {
 	return sdk.config[key]
 }
 
@@ -38,21 +38,21 @@ func (sdk *PluginSDK) GetConfigBool(key string, defaultValue bool) bool {
 }
 
 // Log logs a message
-func (sdk *PluginSDK) Log(level, msg string, args ...interface{}) {
+func (sdk *PluginSDK) Log(level, msg string, args ...any) {
 	sdk.logger(level, msg, args...)
 }
 
 // Info logs an info message
-func (sdk *PluginSDK) Info(msg string, args ...interface{}) {
+func (sdk *PluginSDK) Info(msg string, args ...any) {
 	sdk.Log("info", msg, args...)
 }
 
 // Error logs an error message
-func (sdk *PluginSDK) Error(msg string, args ...interface{}) {
+func (sdk *PluginSDK) Error(msg string, args ...any) {
 	sdk.Log("error", msg, args...)
 }
 
 // Debug logs a debug message
-func (sdk *PluginSDK) Debug(msg string, args ...interface{}) {
+func (sdk *PluginSDK) Debug(msg string, args ...any) {
 	sdk.Log("debug", msg, args...)
 }

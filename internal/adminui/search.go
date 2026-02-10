@@ -9,17 +9,17 @@ import (
 func (ui *AdminUI) handleAPISearch(w http.ResponseWriter, r *http.Request) {
 	query := strings.ToLower(r.URL.Query().Get("q"))
 	if query == "" {
-		writeJSON(w, []interface{}{})
+		writeJSON(w, []any{})
 		return
 	}
 
-	results := make([]map[string]interface{}, 0)
+	results := make([]map[string]any, 0)
 
 	// Search metrics
 	metrics := ui.db.Metrics()
 	for _, metric := range metrics {
 		if strings.Contains(strings.ToLower(metric), query) {
-			results = append(results, map[string]interface{}{
+			results = append(results, map[string]any{
 				"type":   "metric",
 				"name":   metric,
 				"action": "query",
@@ -48,7 +48,7 @@ func (ui *AdminUI) handleAPISearch(w http.ResponseWriter, r *http.Request) {
 
 	for _, page := range pages {
 		if strings.Contains(strings.ToLower(page.name), query) {
-			results = append(results, map[string]interface{}{
+			results = append(results, map[string]any{
 				"type":   "page",
 				"name":   page.name,
 				"action": "navigate",

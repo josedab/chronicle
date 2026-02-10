@@ -23,7 +23,7 @@ func (a *CustomTwinAdapter) PushUpdate(ctx context.Context, update *TwinUpdate) 
 }
 
 func (a *CustomTwinAdapter) PushBatch(ctx context.Context, updates []*TwinUpdate) error {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"updates": updates,
 	}
 
@@ -81,7 +81,7 @@ func (a *CustomTwinAdapter) PullUpdates(ctx context.Context, since time.Time) ([
 	return result.Updates, nil
 }
 
-func (a *CustomTwinAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]interface{}, error) {
+func (a *CustomTwinAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]any, error) {
 	url := fmt.Sprintf("%s/twins/%s", a.conn.Endpoint, twinID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -99,7 +99,7 @@ func (a *CustomTwinAdapter) GetTwinState(ctx context.Context, twinID string) (ma
 	}
 	defer resp.Body.Close()
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}

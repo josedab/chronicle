@@ -203,9 +203,9 @@ const (
 
 // SinkConfig configures query output sink.
 type SinkConfig struct {
-	Type   string                 `json:"type"`
-	Name   string                 `json:"name"`
-	Config map[string]interface{} `json:"config"`
+	Type   string         `json:"type"`
+	Name   string         `json:"name"`
+	Config map[string]any `json:"config"`
 }
 
 // CQStats contains query statistics.
@@ -231,10 +231,10 @@ type QueryPlan struct {
 
 // PlanNode represents a node in the query plan.
 type PlanNode struct {
-	ID         string                 `json:"id"`
-	Type       PlanNodeType           `json:"type"`
-	Properties map[string]interface{} `json:"properties"`
-	Children   []*PlanNode            `json:"children,omitempty"`
+	ID         string         `json:"id"`
+	Type       PlanNodeType   `json:"type"`
+	Properties map[string]any `json:"properties"`
+	Children   []*PlanNode    `json:"children,omitempty"`
 }
 
 // PlanNodeType identifies plan node types.
@@ -262,11 +262,11 @@ type CQOperator interface {
 
 // Record represents a data record flowing through operators.
 type Record struct {
-	Key       string                 `json:"key"`
-	Value     map[string]interface{} `json:"value"`
-	Timestamp int64                  `json:"timestamp"`
-	Watermark int64                  `json:"watermark"`
-	Metadata  map[string]string      `json:"metadata"`
+	Key       string            `json:"key"`
+	Value     map[string]any    `json:"value"`
+	Timestamp int64             `json:"timestamp"`
+	Watermark int64             `json:"watermark"`
+	Metadata  map[string]string `json:"metadata"`
 }
 
 // MaterializedView represents a materialized continuous query result.
@@ -300,9 +300,9 @@ const (
 
 // ViewData holds materialized view data.
 type ViewData struct {
-	Rows      []map[string]interface{} `json:"rows"`
-	RowCount  int                      `json:"row_count"`
-	UpdatedAt time.Time                `json:"updated_at"`
+	Rows      []map[string]any `json:"rows"`
+	RowCount  int              `json:"row_count"`
+	UpdatedAt time.Time        `json:"updated_at"`
 }
 
 // QueryStateManager manages state for continuous queries.

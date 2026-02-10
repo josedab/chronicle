@@ -1254,7 +1254,7 @@ func (ad *AnomalyDetector) ExportModel() ([]byte, error) {
 		return nil, errors.New("model not trained")
 	}
 
-	export := map[string]interface{}{
+	export := map[string]any{
 		"model":      ad.config.Model.String(),
 		"trained":    ad.trained,
 		"last_train": ad.lastTrain,
@@ -1272,7 +1272,7 @@ func (ad *AnomalyDetector) ExportModel() ([]byte, error) {
 
 // ImportModel imports a previously exported model.
 func (ad *AnomalyDetector) ImportModel(data []byte) error {
-	var export map[string]interface{}
+	var export map[string]any
 	if err := json.Unmarshal(data, &export); err != nil {
 		return err
 	}
@@ -1280,7 +1280,7 @@ func (ad *AnomalyDetector) ImportModel(data []byte) error {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 
-	if stats, ok := export["statistical"].(map[string]interface{}); ok {
+	if stats, ok := export["statistical"].(map[string]any); ok {
 		if mean, ok := stats["mean"].(float64); ok {
 			ad.statistical.mean = mean
 		}

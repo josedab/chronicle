@@ -58,7 +58,7 @@ func (t *CHQueryTranslator) Execute(ctx context.Context, query string) (*CHQuery
 func (t *CHQueryTranslator) selectOne() (*CHQueryResult, error) {
 	return &CHQueryResult{
 		Columns:  []CHColumn{{Name: "1", Type: CHTypeUInt8}},
-		Rows:     [][]interface{}{{uint8(1)}},
+		Rows:     [][]any{{uint8(1)}},
 		RowCount: 1,
 	}, nil
 }
@@ -66,7 +66,7 @@ func (t *CHQueryTranslator) selectOne() (*CHQueryResult, error) {
 func (t *CHQueryTranslator) showDatabases() (*CHQueryResult, error) {
 	return &CHQueryResult{
 		Columns:  []CHColumn{{Name: "name", Type: CHTypeString}},
-		Rows:     [][]interface{}{{"chronicle"}, {"system"}},
+		Rows:     [][]any{{"chronicle"}, {"system"}},
 		RowCount: 2,
 	}, nil
 }
@@ -75,9 +75,9 @@ func (t *CHQueryTranslator) showTables() (*CHQueryResult, error) {
 
 	metrics := t.db.Metrics()
 
-	rows := make([][]interface{}, 0, len(metrics))
+	rows := make([][]any, 0, len(metrics))
 	for _, m := range metrics {
-		rows = append(rows, []interface{}{m})
+		rows = append(rows, []any{m})
 	}
 
 	return &CHQueryResult{
@@ -104,7 +104,7 @@ func (t *CHQueryTranslator) showColumns(query string) (*CHQueryResult, error) {
 			{Name: "default_type", Type: CHTypeString},
 			{Name: "default_expression", Type: CHTypeString},
 		},
-		Rows: [][]interface{}{
+		Rows: [][]any{
 			{"timestamp", CHTypeDateTime, "", ""},
 			{"value", CHTypeFloat64, "", ""},
 			{"series", CHTypeString, "", ""},
@@ -131,7 +131,7 @@ func (t *CHQueryTranslator) describeTable(query string) (*CHQueryResult, error) 
 			{Name: "codec_expression", Type: CHTypeString},
 			{Name: "ttl_expression", Type: CHTypeString},
 		},
-		Rows: [][]interface{}{
+		Rows: [][]any{
 			{"timestamp", CHTypeDateTime, "", "", "Event timestamp", "", ""},
 			{"value", CHTypeFloat64, "", "", "Metric value", "", ""},
 			{"series", CHTypeString, "", "", "Series name: " + tableName, "", ""},
@@ -282,9 +282,9 @@ func (t *CHQueryTranslator) buildSelectResult(parsed *parsedSelect, points []chr
 		return t.buildAggregateResult(parsed, points, columns)
 	}
 
-	rows := make([][]interface{}, 0, len(points))
+	rows := make([][]any, 0, len(points))
 	for _, p := range points {
-		row := make([]interface{}, 0, len(columns))
+		row := make([]any, 0, len(columns))
 		for _, col := range columns {
 			switch strings.ToLower(col.Name) {
 			case "timestamp", "time":
@@ -317,7 +317,7 @@ func (t *CHQueryTranslator) buildAggregateResult(parsed *parsedSelect, points []
 	if len(points) == 0 {
 		return &CHQueryResult{
 			Columns:  columns,
-			Rows:     [][]interface{}{},
+			Rows:     [][]any{},
 			RowCount: 0,
 		}, nil
 	}
@@ -327,7 +327,7 @@ func (t *CHQueryTranslator) buildAggregateResult(parsed *parsedSelect, points []
 		values[i] = p.Value
 	}
 
-	row := make([]interface{}, 0, len(columns))
+	row := make([]any, 0, len(columns))
 	for _, col := range parsed.columns {
 		colLower := strings.ToLower(col)
 		if agg, ok := parsed.aggregates[col]; ok {
@@ -369,7 +369,7 @@ func (t *CHQueryTranslator) buildAggregateResult(parsed *parsedSelect, points []
 
 	return &CHQueryResult{
 		Columns:  columns,
-		Rows:     [][]interface{}{row},
+		Rows:     [][]any{row},
 		RowCount: 1,
 	}, nil
 }
@@ -424,7 +424,7 @@ func (t *CHQueryTranslator) executeInsert(ctx context.Context, query string) (*C
 
 	return &CHQueryResult{
 		Columns:  []CHColumn{},
-		Rows:     [][]interface{}{},
+		Rows:     [][]any{},
 		RowCount: 0,
 	}, nil
 }
