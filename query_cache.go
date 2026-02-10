@@ -13,23 +13,23 @@ import (
 
 // QueryCacheConfig configures the query result caching layer.
 type QueryCacheConfig struct {
-	Enabled            bool          `json:"enabled"`
-	MaxEntries         int           `json:"max_entries"`
-	MaxMemoryBytes     int64         `json:"max_memory_bytes"`
-	DefaultTTL         time.Duration `json:"default_ttl"`
+	Enabled            bool                `json:"enabled"`
+	MaxEntries         int                 `json:"max_entries"`
+	MaxMemoryBytes     int64               `json:"max_memory_bytes"`
+	DefaultTTL         time.Duration       `json:"default_ttl"`
 	EvictionPolicy     CacheEvictionPolicy `json:"eviction_policy"`
-	CompressionEnabled bool          `json:"compression_enabled"`
-	PartialReuse       bool          `json:"partial_reuse"`
-	InvalidateOnWrite  bool          `json:"invalidate_on_write"`
+	CompressionEnabled bool                `json:"compression_enabled"`
+	PartialReuse       bool                `json:"partial_reuse"`
+	InvalidateOnWrite  bool                `json:"invalidate_on_write"`
 }
 
 // CacheEvictionPolicy controls how entries are evicted.
 type CacheEvictionPolicy string
 
 const (
-	CacheEvictLRU  CacheEvictionPolicy = "lru"
-	CacheEvictLFU  CacheEvictionPolicy = "lfu"
-	CacheEvictTTL  CacheEvictionPolicy = "ttl"
+	CacheEvictLRU CacheEvictionPolicy = "lru"
+	CacheEvictLFU CacheEvictionPolicy = "lfu"
+	CacheEvictTTL CacheEvictionPolicy = "ttl"
 )
 
 // DefaultQueryCacheConfig returns sensible defaults.
@@ -63,14 +63,14 @@ type CacheEntry struct {
 
 // QueryCacheStats contains cache statistics.
 type QueryCacheStats struct {
-	Entries       int     `json:"entries"`
-	MemoryBytes   int64   `json:"memory_bytes"`
-	HitCount      int64   `json:"hit_count"`
-	MissCount     int64   `json:"miss_count"`
-	HitRate       float64 `json:"hit_rate"`
-	EvictionCount int64   `json:"eviction_count"`
-	InvalidationCount int64 `json:"invalidation_count"`
-	AvgAccessTime time.Duration `json:"avg_access_time"`
+	Entries           int           `json:"entries"`
+	MemoryBytes       int64         `json:"memory_bytes"`
+	HitCount          int64         `json:"hit_count"`
+	MissCount         int64         `json:"miss_count"`
+	HitRate           float64       `json:"hit_rate"`
+	EvictionCount     int64         `json:"eviction_count"`
+	InvalidationCount int64         `json:"invalidation_count"`
+	AvgAccessTime     time.Duration `json:"avg_access_time"`
 }
 
 // QueryCache provides a content-addressed query result cache with automatic invalidation.
@@ -78,9 +78,9 @@ type QueryCache struct {
 	db     *DB
 	config QueryCacheConfig
 
-	entries    map[string]*CacheEntry
+	entries     map[string]*CacheEntry
 	accessOrder []string // for LRU eviction
-	memoryUsed int64
+	memoryUsed  int64
 
 	hitCount      atomic.Int64
 	missCount     atomic.Int64
@@ -343,7 +343,7 @@ func (qc *QueryCache) RegisterHTTPHandlers(mux *http.ServeMux) {
 		} else {
 			count := qc.InvalidateMetric(metric)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"metric": metric, "invalidated": count})
+			json.NewEncoder(w).Encode(map[string]any{"metric": metric, "invalidated": count})
 		}
 	})
 }

@@ -50,18 +50,18 @@ type VisualQueryBuilder struct {
 	config VisualQueryBuilderConfig
 
 	// Metadata cache
-	metricsCache    []string
-	tagKeysCache    map[string][]string
-	tagValuesCache  map[string]map[string][]string
-	cacheTime       time.Time
-	cacheMu         sync.RWMutex
+	metricsCache   []string
+	tagKeysCache   map[string][]string
+	tagValuesCache map[string]map[string][]string
+	cacheTime      time.Time
+	cacheMu        sync.RWMutex
 }
 
 // QueryComponent represents a building block of a visual query.
 type QueryComponent struct {
 	Type       ComponentType `json:"type"`
 	ID         string        `json:"id"`
-	Properties interface{}   `json:"properties"`
+	Properties any           `json:"properties"`
 	Children   []string      `json:"children,omitempty"`
 }
 
@@ -90,18 +90,18 @@ type MetricComponent struct {
 
 // FilterComponent represents a filter condition.
 type FilterComponent struct {
-	Field    string      `json:"field"`
-	Operator string      `json:"operator"`
-	Value    interface{} `json:"value"`
-	Logic    string      `json:"logic,omitempty"` // AND, OR
+	Field    string `json:"field"`
+	Operator string `json:"operator"`
+	Value    any    `json:"value"`
+	Logic    string `json:"logic,omitempty"` // AND, OR
 }
 
 // AggregationComponent represents an aggregation function.
 type AggregationComponent struct {
-	Function string   `json:"function"` // avg, sum, min, max, count, etc.
-	Field    string   `json:"field,omitempty"`
-	Interval string   `json:"interval,omitempty"` // For time aggregations
-	Fill     string   `json:"fill,omitempty"`     // none, null, previous, linear
+	Function string `json:"function"` // avg, sum, min, max, count, etc.
+	Field    string `json:"field,omitempty"`
+	Interval string `json:"interval,omitempty"` // For time aggregations
+	Fill     string `json:"fill,omitempty"`     // none, null, previous, linear
 }
 
 // TimeRangeComponent represents a time range selection.
@@ -119,8 +119,8 @@ type GroupByComponent struct {
 
 // FunctionComponent represents a built-in function.
 type FunctionComponent struct {
-	Name       string        `json:"name"`
-	Arguments  []interface{} `json:"arguments"`
+	Name      string `json:"name"`
+	Arguments []any  `json:"arguments"`
 }
 
 // VisualQuerySpec represents a complete visual query structure.
@@ -136,12 +136,12 @@ type VisualQuerySpec struct {
 
 // QuerySchema describes the schema for query building.
 type QuerySchema struct {
-	Metrics       []MetricInfo       `json:"metrics"`
-	TagKeys       []string           `json:"tag_keys"`
-	Functions     []VQBFunctionInfo     `json:"functions"`
-	Aggregations  []AggregationInfo  `json:"aggregations"`
-	Operators     []OperatorInfo     `json:"operators"`
-	TimeIntervals []string           `json:"time_intervals"`
+	Metrics       []MetricInfo      `json:"metrics"`
+	TagKeys       []string          `json:"tag_keys"`
+	Functions     []VQBFunctionInfo `json:"functions"`
+	Aggregations  []AggregationInfo `json:"aggregations"`
+	Operators     []OperatorInfo    `json:"operators"`
+	TimeIntervals []string          `json:"time_intervals"`
 }
 
 // MetricInfo describes a metric.
@@ -155,25 +155,25 @@ type MetricInfo struct {
 
 // VQBFunctionInfo describes a function.
 type VQBFunctionInfo struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Arguments   []ArgInfo  `json:"arguments"`
-	ReturnType  string     `json:"return_type"`
-	Category    string     `json:"category"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Arguments   []ArgInfo `json:"arguments"`
+	ReturnType  string    `json:"return_type"`
+	Category    string    `json:"category"`
 }
 
 // AggregationInfo describes an aggregation function.
 type AggregationInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	SupportsTime bool  `json:"supports_time"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	SupportsTime bool   `json:"supports_time"`
 }
 
 // OperatorInfo describes an operator.
 type OperatorInfo struct {
-	Symbol      string `json:"symbol"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Symbol      string   `json:"symbol"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
 	Types       []string `json:"types"` // Applicable types
 }
 
@@ -182,25 +182,25 @@ type ArgInfo struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Required bool   `json:"required"`
-	Default  interface{} `json:"default,omitempty"`
+	Default  any    `json:"default,omitempty"`
 }
 
 // GeneratedQuery represents a generated query in various formats.
 type GeneratedQuery struct {
-	SQL       string `json:"sql,omitempty"`
-	PromQL    string `json:"promql,omitempty"`
-	Internal  *Query `json:"internal,omitempty"`
-	Validated bool   `json:"validated"`
+	SQL       string   `json:"sql,omitempty"`
+	PromQL    string   `json:"promql,omitempty"`
+	Internal  *Query   `json:"internal,omitempty"`
+	Validated bool     `json:"validated"`
 	Errors    []string `json:"errors,omitempty"`
 	Warnings  []string `json:"warnings,omitempty"`
 }
 
 // AutocompleteRequest for suggestions.
 type AutocompleteRequest struct {
-	Type    string `json:"type"`    // metric, tag_key, tag_value, function
-	Prefix  string `json:"prefix"`  // Search prefix
+	Type    string           `json:"type"`              // metric, tag_key, tag_value, function
+	Prefix  string           `json:"prefix"`            // Search prefix
 	Context *VisualQuerySpec `json:"context,omitempty"` // Current query context
-	TagKey  string `json:"tag_key,omitempty"` // For tag value completion
+	TagKey  string           `json:"tag_key,omitempty"` // For tag value completion
 }
 
 // AutocompleteResponse contains suggestions.
@@ -211,10 +211,10 @@ type AutocompleteResponse struct {
 
 // Suggestion represents an autocomplete suggestion.
 type Suggestion struct {
-	Value       string `json:"value"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
-	Type        string `json:"type"`
+	Value       string  `json:"value"`
+	Label       string  `json:"label"`
+	Description string  `json:"description,omitempty"`
+	Type        string  `json:"type"`
 	Score       float64 `json:"score,omitempty"`
 }
 
@@ -242,7 +242,7 @@ func (b *VisualQueryBuilder) GetSchema(ctx context.Context) (*QuerySchema, error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	for _, m := range metrics {
 		schema.Metrics = append(schema.Metrics, MetricInfo{Name: m})
 	}
@@ -407,11 +407,11 @@ func (b *VisualQueryBuilder) validateQuery(vq *VisualQuerySpec) ([]string, []str
 
 	for _, comp := range vq.Components {
 		complexity++
-		
+
 		switch comp.Type {
 		case ComponentMetric:
 			hasMetric = true
-			props, ok := comp.Properties.(map[string]interface{})
+			props, ok := comp.Properties.(map[string]any)
 			if ok {
 				if _, exists := props["name"]; !exists {
 					errors = append(errors, "metric component must have a name")
@@ -422,7 +422,7 @@ func (b *VisualQueryBuilder) validateQuery(vq *VisualQuerySpec) ([]string, []str
 			hasTimeRange = true
 
 		case ComponentFilter:
-			props, ok := comp.Properties.(map[string]interface{})
+			props, ok := comp.Properties.(map[string]any)
 			if ok {
 				if _, exists := props["field"]; !exists {
 					errors = append(errors, "filter must have a field")
@@ -433,7 +433,7 @@ func (b *VisualQueryBuilder) validateQuery(vq *VisualQuerySpec) ([]string, []str
 			}
 
 		case ComponentAggregation:
-			props, ok := comp.Properties.(map[string]interface{})
+			props, ok := comp.Properties.(map[string]any)
 			if ok {
 				if _, exists := props["function"]; !exists {
 					errors = append(errors, "aggregation must have a function")
@@ -709,7 +709,7 @@ func (b *VisualQueryBuilder) generateInternalQuery(vq *VisualQuerySpec) (*Query,
 }
 
 // CreateComponent creates a new query component.
-func (b *VisualQueryBuilder) CreateComponent(compType ComponentType, properties interface{}) *QueryComponent {
+func (b *VisualQueryBuilder) CreateComponent(compType ComponentType, properties any) *QueryComponent {
 	return &QueryComponent{
 		ID:         generateID(),
 		Type:       compType,
@@ -731,7 +731,7 @@ func (b *VisualQueryBuilder) CreateVisualQuery(name string) *VisualQuerySpec {
 // ParseFromSQL parses SQL into a visual query.
 func (b *VisualQueryBuilder) ParseFromSQL(sql string) (*VisualQuerySpec, error) {
 	vq := b.CreateVisualQuery("")
-	
+
 	sql = strings.TrimSpace(sql)
 	upperSQL := strings.ToUpper(sql)
 
@@ -830,7 +830,7 @@ func (b *VisualQueryBuilder) HandleValidateQuery(w http.ResponseWriter, r *http.
 	errors, warnings := b.ValidateQuery(&vq)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"valid":    len(errors) == 0,
 		"errors":   errors,
 		"warnings": warnings,
@@ -998,16 +998,16 @@ func (b *VisualQueryBuilder) getAvailableOperators() []OperatorInfo {
 	}
 }
 
-func parseMetricComponent(props interface{}) *MetricComponent {
+func parseMetricComponent(props any) *MetricComponent {
 	if props == nil {
 		return nil
 	}
-	
+
 	data, err := json.Marshal(props)
 	if err != nil {
 		return nil
 	}
-	
+
 	var m MetricComponent
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil
@@ -1015,16 +1015,16 @@ func parseMetricComponent(props interface{}) *MetricComponent {
 	return &m
 }
 
-func parseFilterComponent(props interface{}) *FilterComponent {
+func parseFilterComponent(props any) *FilterComponent {
 	if props == nil {
 		return nil
 	}
-	
+
 	data, err := json.Marshal(props)
 	if err != nil {
 		return nil
 	}
-	
+
 	var f FilterComponent
 	if err := json.Unmarshal(data, &f); err != nil {
 		return nil
@@ -1032,16 +1032,16 @@ func parseFilterComponent(props interface{}) *FilterComponent {
 	return &f
 }
 
-func parseAggregationComponent(props interface{}) *AggregationComponent {
+func parseAggregationComponent(props any) *AggregationComponent {
 	if props == nil {
 		return nil
 	}
-	
+
 	data, err := json.Marshal(props)
 	if err != nil {
 		return nil
 	}
-	
+
 	var a AggregationComponent
 	if err := json.Unmarshal(data, &a); err != nil {
 		return nil
@@ -1049,16 +1049,16 @@ func parseAggregationComponent(props interface{}) *AggregationComponent {
 	return &a
 }
 
-func parseGroupByComponent(props interface{}) *GroupByComponent {
+func parseGroupByComponent(props any) *GroupByComponent {
 	if props == nil {
 		return nil
 	}
-	
+
 	data, err := json.Marshal(props)
 	if err != nil {
 		return nil
 	}
-	
+
 	var g GroupByComponent
 	if err := json.Unmarshal(data, &g); err != nil {
 		return nil
@@ -1066,16 +1066,16 @@ func parseGroupByComponent(props interface{}) *GroupByComponent {
 	return &g
 }
 
-func parseTimeRangeComponent(props interface{}) *TimeRangeComponent {
+func parseTimeRangeComponent(props any) *TimeRangeComponent {
 	if props == nil {
 		return nil
 	}
-	
+
 	data, err := json.Marshal(props)
 	if err != nil {
 		return nil
 	}
-	
+
 	var t TimeRangeComponent
 	if err := json.Unmarshal(data, &t); err != nil {
 		return nil
@@ -1083,17 +1083,17 @@ func parseTimeRangeComponent(props interface{}) *TimeRangeComponent {
 	return &t
 }
 
-func parseLimitComponent(props interface{}) int {
+func parseLimitComponent(props any) int {
 	if props == nil {
 		return 0
 	}
-	
+
 	switch v := props.(type) {
 	case float64:
 		return int(v)
 	case int:
 		return v
-	case map[string]interface{}:
+	case map[string]any:
 		if limit, ok := v["limit"]; ok {
 			if l, ok := limit.(float64); ok {
 				return int(l)
@@ -1143,12 +1143,12 @@ func formatPromQLMatcher(f *FilterComponent) string {
 
 func mapAggToPromQL(agg string) string {
 	mapping := map[string]string{
-		"avg":     "avg",
-		"sum":     "sum",
-		"min":     "min",
-		"max":     "max",
-		"count":   "count",
-		"stddev":  "stddev",
+		"avg":      "avg",
+		"sum":      "sum",
+		"min":      "min",
+		"max":      "max",
+		"count":    "count",
+		"stddev":   "stddev",
 		"variance": "stdvar",
 	}
 	if mapped, ok := mapping[strings.ToLower(agg)]; ok {
@@ -1161,13 +1161,13 @@ func parseRelativeDuration(s string) time.Duration {
 	if s == "" {
 		return 0
 	}
-	
+
 	// Parse formats like "1h", "24h", "7d"
 	d, err := time.ParseDuration(s)
 	if err == nil {
 		return d
 	}
-	
+
 	// Handle day format
 	if strings.HasSuffix(s, "d") {
 		days := strings.TrimSuffix(s, "d")
@@ -1177,19 +1177,19 @@ func parseRelativeDuration(s string) time.Duration {
 			return time.Duration(d) * 24 * time.Hour
 		}
 	}
-	
+
 	return 0
 }
 
 func vqbStringToAggFunc(s string) AggFunc {
 	mapping := map[string]AggFunc{
-		"avg":   AggMean,
-		"sum":   AggSum,
-		"min":   AggMin,
-		"max":   AggMax,
-		"count": AggCount,
-		"first": AggFirst,
-		"last":  AggLast,
+		"avg":    AggMean,
+		"sum":    AggSum,
+		"min":    AggMin,
+		"max":    AggMax,
+		"count":  AggCount,
+		"first":  AggFirst,
+		"last":   AggLast,
 		"stddev": AggStddev,
 	}
 	if f, ok := mapping[strings.ToLower(s)]; ok {

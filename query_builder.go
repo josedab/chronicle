@@ -58,85 +58,85 @@ type QueryBuilder struct {
 
 // SavedQuery represents a saved query.
 type SavedQuery struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Query       *VisualQuery      `json:"query"`
-	Owner       string            `json:"owner"`
-	IsPublic    bool              `json:"is_public"`
-	Tags        []string          `json:"tags"`
-	Created     time.Time         `json:"created"`
-	Updated     time.Time         `json:"updated"`
-	UsageCount  int               `json:"usage_count"`
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	Query       *VisualQuery `json:"query"`
+	Owner       string       `json:"owner"`
+	IsPublic    bool         `json:"is_public"`
+	Tags        []string     `json:"tags"`
+	Created     time.Time    `json:"created"`
+	Updated     time.Time    `json:"updated"`
+	UsageCount  int          `json:"usage_count"`
 }
 
 // QueryHistoryEntry represents a query execution.
 type QueryHistoryEntry struct {
-	ID          string       `json:"id"`
-	Query       *VisualQuery `json:"query"`
-	SQL         string       `json:"sql"`
-	ExecutedAt  time.Time    `json:"executed_at"`
-	Duration    int64        `json:"duration_ms"`
-	RowCount    int          `json:"row_count"`
-	User        string       `json:"user"`
-	Success     bool         `json:"success"`
-	ErrorMsg    string       `json:"error_msg,omitempty"`
+	ID         string       `json:"id"`
+	Query      *VisualQuery `json:"query"`
+	SQL        string       `json:"sql"`
+	ExecutedAt time.Time    `json:"executed_at"`
+	Duration   int64        `json:"duration_ms"`
+	RowCount   int          `json:"row_count"`
+	User       string       `json:"user"`
+	Success    bool         `json:"success"`
+	ErrorMsg   string       `json:"error_msg,omitempty"`
 }
 
 // QueryTemplate provides reusable query patterns.
 type QueryTemplate struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Category    string                 `json:"category"`
-	Query       *VisualQuery           `json:"query"`
-	Parameters  []TemplateParameter    `json:"parameters"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Category    string              `json:"category"`
+	Query       *VisualQuery        `json:"query"`
+	Parameters  []TemplateParameter `json:"parameters"`
 }
 
 // TemplateParameter defines a template parameter.
 type TemplateParameter struct {
-	Name         string      `json:"name"`
-	Type         string      `json:"type"`
-	Description  string      `json:"description"`
-	DefaultValue interface{} `json:"default_value"`
-	Required     bool        `json:"required"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	Description  string `json:"description"`
+	DefaultValue any    `json:"default_value"`
+	Required     bool   `json:"required"`
 }
 
 // VisualQuery represents a query built visually.
 type VisualQuery struct {
 	// Data source
-	Source      QuerySource       `json:"source"`
+	Source QuerySource `json:"source"`
 
 	// Selected fields/metrics
-	Select      []SelectItem      `json:"select"`
+	Select []SelectItem `json:"select"`
 
 	// Filters
-	Filters     []QueryFilter     `json:"filters"`
+	Filters []QueryFilter `json:"filters"`
 
 	// Grouping
-	GroupBy     []string          `json:"group_by,omitempty"`
+	GroupBy []string `json:"group_by,omitempty"`
 
 	// Ordering
-	OrderBy     []OrderItem       `json:"order_by,omitempty"`
+	OrderBy []OrderItem `json:"order_by,omitempty"`
 
 	// Time range
-	TimeRange   *QueryTimeRange   `json:"time_range,omitempty"`
+	TimeRange *QueryTimeRange `json:"time_range,omitempty"`
 
 	// Limit
-	Limit       int               `json:"limit,omitempty"`
+	Limit int `json:"limit,omitempty"`
 
 	// Joins
-	Joins       []QueryJoin       `json:"joins,omitempty"`
+	Joins []QueryJoin `json:"joins,omitempty"`
 
 	// Subqueries
-	Subqueries  map[string]*VisualQuery `json:"subqueries,omitempty"`
+	Subqueries map[string]*VisualQuery `json:"subqueries,omitempty"`
 }
 
 // QuerySource identifies the data source.
 type QuerySource struct {
-	Type   string `json:"type"` // "metric", "logs", "traces", "events"
-	Name   string `json:"name"`
-	Alias  string `json:"alias,omitempty"`
+	Type  string `json:"type"` // "metric", "logs", "traces", "events"
+	Name  string `json:"name"`
+	Alias string `json:"alias,omitempty"`
 }
 
 // SelectItem represents a selected field or aggregation.
@@ -149,10 +149,10 @@ type SelectItem struct {
 
 // QueryFilter represents a filter condition.
 type QueryFilter struct {
-	Field    string      `json:"field"`
-	Operator string      `json:"operator"` // =, !=, >, <, >=, <=, in, not_in, like, regex
-	Value    interface{} `json:"value"`
-	AndOr    string      `json:"and_or,omitempty"` // "AND" or "OR"
+	Field    string `json:"field"`
+	Operator string `json:"operator"` // =, !=, >, <, >=, <=, in, not_in, like, regex
+	Value    any    `json:"value"`
+	AndOr    string `json:"and_or,omitempty"` // "AND" or "OR"
 }
 
 // OrderItem represents ordering.
@@ -171,9 +171,9 @@ type QueryTimeRange struct {
 
 // QueryJoin represents a join.
 type QueryJoin struct {
-	Type      string   `json:"type"` // "inner", "left", "right", "outer"
+	Type      string      `json:"type"` // "inner", "left", "right", "outer"
 	Source    QuerySource `json:"source"`
-	Condition string   `json:"condition"`
+	Condition string      `json:"condition"`
 }
 
 // NewQueryBuilder creates a new query builder.
@@ -203,7 +203,7 @@ func (qb *QueryBuilder) initTemplates() {
 			Select: []SelectItem{
 				{Field: "value", Aggregation: "avg", Alias: "avg_value"},
 			},
-			GroupBy: []string{"time_bucket(1m)"},
+			GroupBy:   []string{"time_bucket(1m)"},
 			TimeRange: &QueryTimeRange{Type: "relative", Relative: "1h"},
 		},
 		Parameters: []TemplateParameter{
@@ -422,11 +422,11 @@ func (qb *QueryBuilder) buildFilterCondition(f QueryFilter) string {
 	}
 }
 
-func formatValue(v interface{}) string {
+func formatValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		return fmt.Sprintf("'%s'", strings.ReplaceAll(val, "'", "''"))
-	case []interface{}:
+	case []any:
 		parts := make([]string, len(val))
 		for i, item := range val {
 			parts[i] = formatValue(item)
@@ -635,7 +635,7 @@ func (qb *QueryBuilder) GetTemplate(id string) (*QueryTemplate, bool) {
 }
 
 // ApplyTemplate applies a template with parameters.
-func (qb *QueryBuilder) ApplyTemplate(templateID string, params map[string]interface{}) (*VisualQuery, error) {
+func (qb *QueryBuilder) ApplyTemplate(templateID string, params map[string]any) (*VisualQuery, error) {
 	template, ok := qb.GetTemplate(templateID)
 	if !ok {
 		return nil, fmt.Errorf("template not found: %s", templateID)
@@ -895,7 +895,7 @@ func (qb *QueryBuilder) handleValidate(w http.ResponseWriter, r *http.Request) {
 	errs := qb.ValidateQuery(&vq)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"valid":  len(errs) == 0,
 		"errors": errs,
 	})

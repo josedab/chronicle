@@ -26,11 +26,11 @@ type TierBackend struct {
 
 // TierQueryStats tracks query routing statistics.
 type TierQueryStats struct {
-	HotHits       int64 `json:"hot_hits"`
-	WarmHits      int64 `json:"warm_hits"`
-	ColdHits      int64 `json:"cold_hits"`
+	HotHits          int64 `json:"hot_hits"`
+	WarmHits         int64 `json:"warm_hits"`
+	ColdHits         int64 `json:"cold_hits"`
 	CrossTierQueries int64 `json:"cross_tier_queries"`
-	TotalQueries  int64 `json:"total_queries"`
+	TotalQueries     int64 `json:"total_queries"`
 }
 
 // NewTierQueryRouter creates a query router across tiers.
@@ -101,12 +101,12 @@ func (r *TierQueryRouter) Stats() TierQueryStats {
 
 // MetricTierPolicy defines tier placement rules for a specific metric.
 type MetricTierPolicy struct {
-	Metric        string        `json:"metric"`
-	HotDuration   time.Duration `json:"hot_duration"`
-	WarmDuration  time.Duration `json:"warm_duration"`
-	ColdEnabled   bool          `json:"cold_enabled"`
-	Priority      int           `json:"priority"` // higher = stays hot longer
-	CompressOnCold bool         `json:"compress_on_cold"`
+	Metric         string        `json:"metric"`
+	HotDuration    time.Duration `json:"hot_duration"`
+	WarmDuration   time.Duration `json:"warm_duration"`
+	ColdEnabled    bool          `json:"cold_enabled"`
+	Priority       int           `json:"priority"` // higher = stays hot longer
+	CompressOnCold bool          `json:"compress_on_cold"`
 }
 
 // TierPolicyEngine manages per-metric tier placement policies.

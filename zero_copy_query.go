@@ -125,14 +125,14 @@ func (va *VectorizedAggregator) Avg(data []float64) float64 {
 
 // MmapPartition represents a memory-mapped partition for zero-copy reads.
 type MmapPartition struct {
-	mu          sync.RWMutex
-	metric      string
-	startTime   int64
-	endTime     int64
-	timestamps  []int64
-	values      []float64
-	pointCount  int
-	sizeBytes   int64
+	mu         sync.RWMutex
+	metric     string
+	startTime  int64
+	endTime    int64
+	timestamps []int64
+	values     []float64
+	pointCount int
+	sizeBytes  int64
 }
 
 // NewMmapPartition creates a new memory-mapped-style partition.
@@ -156,8 +156,8 @@ func (mp *MmapPartition) Load(timestamps []int64, values []float64) error {
 	mp.timestamps = timestamps
 	mp.values = values
 	mp.pointCount = len(timestamps)
-	mp.sizeBytes = int64(len(timestamps)) * int64(unsafe.Sizeof(int64(0))) +
-		int64(len(values)) * int64(unsafe.Sizeof(float64(0)))
+	mp.sizeBytes = int64(len(timestamps))*int64(unsafe.Sizeof(int64(0))) +
+		int64(len(values))*int64(unsafe.Sizeof(float64(0)))
 	return nil
 }
 
@@ -230,12 +230,12 @@ func (mp *MmapPartition) Metric() string {
 
 // ZeroCopyQueryPlan describes an optimized query execution plan.
 type ZeroCopyQueryPlan struct {
-	Metric     string       `json:"metric"`
-	TimeRange  [2]int64     `json:"time_range"`
-	AggOp      VectorAggOp  `json:"agg_op"`
-	Partitions int          `json:"partitions"`
-	Vectorized bool         `json:"vectorized"`
-	EstimatedPoints int     `json:"estimated_points"`
+	Metric          string      `json:"metric"`
+	TimeRange       [2]int64    `json:"time_range"`
+	AggOp           VectorAggOp `json:"agg_op"`
+	Partitions      int         `json:"partitions"`
+	Vectorized      bool        `json:"vectorized"`
+	EstimatedPoints int         `json:"estimated_points"`
 }
 
 // ZeroCopyQueryPlanner creates optimized query plans.

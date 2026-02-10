@@ -16,7 +16,19 @@ func (db *DB) Flush() error {
 }
 
 // Write writes a single point.
+// This is a convenience wrapper around WriteContext with a background context.
 func (db *DB) Write(p Point) error {
+	return db.WriteContext(context.Background(), p)
+}
+
+// WriteContext writes a single point with context support for cancellation.
+func (db *DB) WriteContext(ctx context.Context, p Point) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	if p.Timestamp == 0 {
 		p.Timestamp = time.Now().UnixNano()
 	}
@@ -36,8 +48,8 @@ func (db *DB) Write(p Point) error {
 		}
 	}
 
-	db.buffer.Add(p)
-	if db.buffer.Len() >= db.buffer.capacity {
+	n := db.buffer.AddAndLen(p)
+	if n >= db.buffer.capacity {
 		if err := db.Flush(); err != nil {
 			return err
 		}
@@ -47,7 +59,19 @@ func (db *DB) Write(p Point) error {
 }
 
 // WriteBatch writes multiple points efficiently.
+// This is a convenience wrapper around WriteBatchContext with a background context.
 func (db *DB) WriteBatch(points []Point) error {
+	return db.WriteBatchContext(context.Background(), points)
+}
+
+// WriteBatchContext writes multiple points with context support for cancellation.
+func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	if len(points) == 0 {
 		return nil
 	}
@@ -66,6 +90,13 @@ func (db *DB) WriteBatch(points []Point) error {
 		return fmt.Errorf("schema validation failed: %w", err)
 	}
 
+	// Check context before cardinality tracking (can be slow for large batches)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// Track cardinality for all points
 	if db.cardinalityTracker != nil {
 		for _, p := range points {
@@ -73,6 +104,13 @@ func (db *DB) WriteBatch(points []Point) error {
 				return fmt.Errorf("cardinality limit exceeded: %w", err)
 			}
 		}
+	}
+
+	// Check context before flush (I/O intensive)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 
 	if err := db.flush(points, true); err != nil {

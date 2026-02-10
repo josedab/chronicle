@@ -25,21 +25,21 @@ func convertQueryFromInternal(q *query.Query) *Query {
 		return nil
 	}
 	result := &Query{
-		Metric:   q.Metric,
-		Tags:     q.Tags,
-		Start:    q.Start,
-		End:      q.End,
-		GroupBy:  q.GroupBy,
-		Limit:    q.Limit,
+		Metric:  q.Metric,
+		Tags:    q.Tags,
+		Start:   q.Start,
+		End:     q.End,
+		GroupBy: q.GroupBy,
+		Limit:   q.Limit,
 	}
-	
+
 	if q.Aggregation != nil {
 		result.Aggregation = &Aggregation{
 			Function: AggFunc(q.Aggregation.Function),
 			Window:   q.Aggregation.Window,
 		}
 	}
-	
+
 	for _, tf := range q.TagFilters {
 		result.TagFilters = append(result.TagFilters, TagFilter{
 			Key:    tf.Key,
@@ -47,7 +47,7 @@ func convertQueryFromInternal(q *query.Query) *Query {
 			Values: tf.Values,
 		})
 	}
-	
+
 	return result
 }
 

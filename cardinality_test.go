@@ -116,7 +116,7 @@ func TestCardinalityTracker_Alerts(t *testing.T) {
 	for i := 0; i < 60; i++ {
 		p := Point{
 			Metric: "cpu",
-			Tags:   map[string]string{"id": string(rune('a' + i%26)) + string(rune('0'+i/26))},
+			Tags:   map[string]string{"id": string(rune('a'+i%26)) + string(rune('0'+i/26))},
 		}
 		tracker.RecordSeries(p.Metric, p.Tags)
 	}

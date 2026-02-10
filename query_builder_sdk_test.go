@@ -19,7 +19,7 @@ func TestVisualQueryBuilder(t *testing.T) {
 
 	// Create a visual query
 	vq := builder.CreateVisualQuery("test-query")
-	
+
 	// Add components
 	metricComp := builder.CreateComponent(ComponentMetric, MetricComponent{
 		Name: "cpu",
@@ -92,7 +92,7 @@ func TestQueryValidation(t *testing.T) {
 			name: "filter without field",
 			components: []*QueryComponent{
 				{Type: ComponentMetric, Properties: MetricComponent{Name: "cpu"}},
-				{Type: ComponentFilter, Properties: map[string]interface{}{"operator": "=", "value": "test"}},
+				{Type: ComponentFilter, Properties: map[string]any{"operator": "=", "value": "test"}},
 			},
 			expectErr: true,
 		},
@@ -459,7 +459,7 @@ func TestHTTPHandlers(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var result map[string]interface{}
+		var result map[string]any
 		if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}

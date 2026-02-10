@@ -93,12 +93,12 @@ func (t CardinalityAlertType) String() string {
 
 // CardinalityStats contains cardinality statistics.
 type CardinalityStats struct {
-	TotalSeries      int64
-	MetricCount      int
-	TopMetrics       []MetricCardinality
-	TopLabels        []LabelCardinality
-	ActiveAlerts     []CardinalityAlert
-	LastCheckTime    time.Time
+	TotalSeries   int64
+	MetricCount   int
+	TopMetrics    []MetricCardinality
+	TopLabels     []LabelCardinality
+	ActiveAlerts  []CardinalityAlert
+	LastCheckTime time.Time
 }
 
 // MetricCardinality shows series count for a metric.
@@ -110,9 +110,9 @@ type MetricCardinality struct {
 
 // LabelCardinality shows unique value count for a label.
 type LabelCardinality struct {
-	LabelKey    string
-	ValueCount  int64
-	TopValues   []string
+	LabelKey   string
+	ValueCount int64
+	TopValues  []string
 }
 
 // DefaultCardinalityConfig returns sensible defaults.
@@ -266,7 +266,7 @@ func (ct *CardinalityTracker) trackLabelValue(key, value string) error {
 
 	// Count current values
 	count := int64(0)
-	values.Range(func(_, _ interface{}) bool {
+	values.Range(func(_, _ any) bool {
 		count++
 		return true
 	})
@@ -318,7 +318,7 @@ func (ct *CardinalityTracker) checkCardinality() {
 	// Check per-metric thresholds
 	if ct.config.MaxSeriesPerMetric > 0 {
 		threshold := int64(float64(ct.config.MaxSeriesPerMetric) * float64(ct.config.AlertThresholdPercent) / 100)
-		ct.metricCounts.Range(func(k, v interface{}) bool {
+		ct.metricCounts.Range(func(k, v any) bool {
 			metric := k.(string)
 			count := v.(int64)
 			if count >= threshold {
@@ -342,11 +342,11 @@ func (ct *CardinalityTracker) checkCardinality() {
 	// Check label value thresholds
 	if ct.config.MaxLabelValues > 0 {
 		threshold := int64(float64(ct.config.MaxLabelValues) * float64(ct.config.AlertThresholdPercent) / 100)
-		ct.labelValues.Range(func(k, v interface{}) bool {
+		ct.labelValues.Range(func(k, v any) bool {
 			labelKey := k.(string)
 			values := v.(*sync.Map)
 			count := int64(0)
-			values.Range(func(_, _ interface{}) bool {
+			values.Range(func(_, _ any) bool {
 				count++
 				return true
 			})
@@ -378,7 +378,7 @@ func (ct *CardinalityTracker) Stats() CardinalityStats {
 
 	// Collect metric counts
 	var metrics []MetricCardinality
-	ct.metricCounts.Range(func(k, v interface{}) bool {
+	ct.metricCounts.Range(func(k, v any) bool {
 		metrics = append(metrics, MetricCardinality{
 			Metric:      k.(string),
 			SeriesCount: v.(int64),
@@ -405,13 +405,13 @@ func (ct *CardinalityTracker) Stats() CardinalityStats {
 
 	// Collect label cardinalities
 	var labels []LabelCardinality
-	ct.labelValues.Range(func(k, v interface{}) bool {
+	ct.labelValues.Range(func(k, v any) bool {
 		labelKey := k.(string)
 		values := v.(*sync.Map)
 
 		var valueList []string
 		count := int64(0)
-		values.Range(func(vk, _ interface{}) bool {
+		values.Range(func(vk, _ any) bool {
 			count++
 			if len(valueList) < 5 {
 				valueList = append(valueList, vk.(string))

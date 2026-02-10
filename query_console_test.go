@@ -109,14 +109,16 @@ func TestQueryConsole_NotFound(t *testing.T) {
 func TestQueryConsole_CORS(t *testing.T) {
 	cfg := DefaultQueryConsoleConfig()
 	cfg.EnableCORS = true
+	cfg.AllowedOrigins = []string{"http://localhost:3000"}
 	qc, _ := NewQueryConsole(nil, cfg)
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/health", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	w := httptest.NewRecorder()
 	qc.corsMiddleware(qc.mux).ServeHTTP(w, req)
 
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Error("expected CORS headers")
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+		t.Error("expected CORS header for allowed origin")
 	}
 	if w.Code != http.StatusNoContent {
 		t.Errorf("OPTIONS status = %d, want 204", w.Code)

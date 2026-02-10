@@ -34,7 +34,7 @@ func (c HWCapability) String() string {
 type AccelOperation int
 
 const (
-	OpSum        AccelOperation = iota
+	OpSum AccelOperation = iota
 	OpMin
 	OpMax
 	OpMean
@@ -92,31 +92,31 @@ type HWProfile struct {
 
 // AccelPlan describes the execution plan for an accelerated operation.
 type AccelPlan struct {
-	Operation       AccelOperation `json:"operation"`
-	InputSize       int            `json:"input_size"`
-	UseSIMD         bool           `json:"use_simd"`
-	EstimatedSpeedup float64       `json:"estimated_speedup"`
-	BatchCount      int            `json:"batch_count"`
-	ParallelWorkers int            `json:"parallel_workers"`
+	Operation        AccelOperation `json:"operation"`
+	InputSize        int            `json:"input_size"`
+	UseSIMD          bool           `json:"use_simd"`
+	EstimatedSpeedup float64        `json:"estimated_speedup"`
+	BatchCount       int            `json:"batch_count"`
+	ParallelWorkers  int            `json:"parallel_workers"`
 }
 
 // AccelResult holds the result of an accelerated operation.
 type AccelResult struct {
-	Operation       AccelOperation `json:"operation"`
-	Value           float64        `json:"value"`
-	Count           int64          `json:"count"`
-	Duration        time.Duration  `json:"duration"`
-	SpeedupVsBaseline float64      `json:"speedup_vs_baseline"`
-	MethodUsed      string         `json:"method_used"`
+	Operation         AccelOperation `json:"operation"`
+	Value             float64        `json:"value"`
+	Count             int64          `json:"count"`
+	Duration          time.Duration  `json:"duration"`
+	SpeedupVsBaseline float64        `json:"speedup_vs_baseline"`
+	MethodUsed        string         `json:"method_used"`
 }
 
 // HWAcceleratedQueryStats holds engine statistics.
 type HWAcceleratedQueryStats struct {
-	QueriesAccelerated int64                    `json:"queries_accelerated"`
-	TotalDataProcessed int64                    `json:"total_data_processed"`
-	AvgSpeedup         float64                  `json:"avg_speedup"`
-	HardwareProfile    HWProfile                `json:"hardware_profile"`
-	OperationsByType   map[string]int64         `json:"operations_by_type"`
+	QueriesAccelerated int64            `json:"queries_accelerated"`
+	TotalDataProcessed int64            `json:"total_data_processed"`
+	AvgSpeedup         float64          `json:"avg_speedup"`
+	HardwareProfile    HWProfile        `json:"hardware_profile"`
+	OperationsByType   map[string]int64 `json:"operations_by_type"`
 }
 
 // HWAcceleratedQueryEngine provides hardware-accelerated aggregation operations.

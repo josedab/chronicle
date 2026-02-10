@@ -15,27 +15,27 @@ import (
 type QQPlanNodeType string
 
 const (
-	QPlanScan         QQPlanNodeType = "scan"
-	QPlanFilter       QQPlanNodeType = "filter"
-	QPlanAggregate    QQPlanNodeType = "aggregate"
-	QPlanSort         QQPlanNodeType = "sort"
-	QPlanLimit        QQPlanNodeType = "limit"
-	QPlanMerge        QQPlanNodeType = "merge"
+	QPlanScan          QQPlanNodeType = "scan"
+	QPlanFilter        QQPlanNodeType = "filter"
+	QPlanAggregate     QQPlanNodeType = "aggregate"
+	QPlanSort          QQPlanNodeType = "sort"
+	QPlanLimit         QQPlanNodeType = "limit"
+	QPlanMerge         QQPlanNodeType = "merge"
 	QPlanPartitionScan QQPlanNodeType = "partition_scan"
 )
 
 // QueryPlannerConfig configures the adaptive query planner.
 type QueryPlannerConfig struct {
-	Enabled                bool          `json:"enabled"`
-	StatsRefreshInterval   time.Duration `json:"stats_refresh_interval"`
-	MaxParallelScans       int           `json:"max_parallel_scans"`
-	EnablePartitionPruning bool          `json:"enable_partition_pruning"`
-	EnablePredicatePushdown bool         `json:"enable_predicate_pushdown"`
-	EnableParallelExec     bool          `json:"enable_parallel_exec"`
-	CostModelWeight        float64       `json:"cost_model_weight"`
-	MaxStatsAge            time.Duration `json:"max_stats_age"`
-	MinRowsForParallel     int           `json:"min_rows_for_parallel"`
-	StaleStatsThreshold    float64       `json:"stale_stats_threshold"`
+	Enabled                 bool          `json:"enabled"`
+	StatsRefreshInterval    time.Duration `json:"stats_refresh_interval"`
+	MaxParallelScans        int           `json:"max_parallel_scans"`
+	EnablePartitionPruning  bool          `json:"enable_partition_pruning"`
+	EnablePredicatePushdown bool          `json:"enable_predicate_pushdown"`
+	EnableParallelExec      bool          `json:"enable_parallel_exec"`
+	CostModelWeight         float64       `json:"cost_model_weight"`
+	MaxStatsAge             time.Duration `json:"max_stats_age"`
+	MinRowsForParallel      int           `json:"min_rows_for_parallel"`
+	StaleStatsThreshold     float64       `json:"stale_stats_threshold"`
 }
 
 // DefaultQueryPlannerConfig returns sensible defaults.
@@ -56,65 +56,65 @@ func DefaultQueryPlannerConfig() QueryPlannerConfig {
 
 // PartitionStats holds runtime statistics for a single partition.
 type PartitionStats struct {
-	ID              string    `json:"id"`
-	MinTime         int64     `json:"min_time"`
-	MaxTime         int64     `json:"max_time"`
-	RowCount        int64     `json:"row_count"`
-	ByteSize        int64     `json:"byte_size"`
-	Metrics         []string  `json:"metrics"`
-	CardinalityEst  int       `json:"cardinality_est"`
-	LastUpdated     time.Time `json:"last_updated"`
+	ID             string    `json:"id"`
+	MinTime        int64     `json:"min_time"`
+	MaxTime        int64     `json:"max_time"`
+	RowCount       int64     `json:"row_count"`
+	ByteSize       int64     `json:"byte_size"`
+	Metrics        []string  `json:"metrics"`
+	CardinalityEst int       `json:"cardinality_est"`
+	LastUpdated    time.Time `json:"last_updated"`
 }
 
 // QueryStats aggregates statistics about the query engine's data.
 type QueryStats struct {
-	TotalPartitions int              `json:"total_partitions"`
-	TotalRows       int64            `json:"total_rows"`
-	TotalBytes      int64            `json:"total_bytes"`
-	PartitionStats  []PartitionStats `json:"partition_stats"`
-	MetricCardinality map[string]int `json:"metric_cardinality"`
-	CollectedAt     time.Time        `json:"collected_at"`
+	TotalPartitions   int              `json:"total_partitions"`
+	TotalRows         int64            `json:"total_rows"`
+	TotalBytes        int64            `json:"total_bytes"`
+	PartitionStats    []PartitionStats `json:"partition_stats"`
+	MetricCardinality map[string]int   `json:"metric_cardinality"`
+	CollectedAt       time.Time        `json:"collected_at"`
 }
 
 // QPlanNode represents a single node in the query execution plan.
 type QPlanNode struct {
-	Type            QQPlanNodeType    `json:"type"`
-	Description     string          `json:"description"`
-	EstimatedRows   int64           `json:"estimated_rows"`
-	EstimatedCost   float64         `json:"estimated_cost"`
-	Children        []*QPlanNode     `json:"children,omitempty"`
-	Properties      map[string]interface{} `json:"properties,omitempty"`
+	Type          QQPlanNodeType `json:"type"`
+	Description   string         `json:"description"`
+	EstimatedRows int64          `json:"estimated_rows"`
+	EstimatedCost float64        `json:"estimated_cost"`
+	Children      []*QPlanNode   `json:"children,omitempty"`
+	Properties    map[string]any `json:"properties,omitempty"`
 }
 
 // CostQueryPlan represents the full execution plan for a query.
 type CostQueryPlan struct {
-	Root            *QPlanNode `json:"root"`
-	TotalCost       float64   `json:"total_cost"`
-	EstimatedRows   int64     `json:"estimated_rows"`
-	PartitionsUsed  int       `json:"partitions_used"`
-	PartitionsPruned int      `json:"partitions_pruned"`
-	ParallelDegree  int       `json:"parallel_degree"`
-	Optimizations   []string  `json:"optimizations"`
-	PlanningTime    string    `json:"planning_time"`
+	Root             *QPlanNode `json:"root"`
+	TotalCost        float64    `json:"total_cost"`
+	EstimatedRows    int64      `json:"estimated_rows"`
+	PartitionsUsed   int        `json:"partitions_used"`
+	PartitionsPruned int        `json:"partitions_pruned"`
+	ParallelDegree   int        `json:"parallel_degree"`
+	Optimizations    []string   `json:"optimizations"`
+	PlanningTime     string     `json:"planning_time"`
 }
 
 // PlannerStats tracks query planner usage statistics.
 type PlannerStats struct {
-	QueriesPlanned     uint64  `json:"queries_planned"`
-	PartitionsPruned   uint64  `json:"partitions_pruned"`
-	PredicatesPushed   uint64  `json:"predicates_pushed"`
-	ParallelQueries    uint64  `json:"parallel_queries"`
-	AvgPlanningTimeUs  float64 `json:"avg_planning_time_us"`
-	CacheHits          uint64  `json:"cache_hits"`
-	StatsRefreshes     uint64  `json:"stats_refreshes"`
+	QueriesPlanned    uint64  `json:"queries_planned"`
+	PartitionsPruned  uint64  `json:"partitions_pruned"`
+	PredicatesPushed  uint64  `json:"predicates_pushed"`
+	ParallelQueries   uint64  `json:"parallel_queries"`
+	AvgPlanningTimeUs float64 `json:"avg_planning_time_us"`
+	CacheHits         uint64  `json:"cache_hits"`
+	StatsRefreshes    uint64  `json:"stats_refreshes"`
 }
 
 // QueryPlanner provides cost-based query optimization with runtime statistics.
 type QueryPlanner struct {
-	config     QueryPlannerConfig
-	db         *DB
-	queryStats atomic.Value // stores *QueryStats
-	plannerStats PlannerStats
+	config          QueryPlannerConfig
+	db              *DB
+	queryStats      atomic.Value // stores *QueryStats
+	plannerStats    PlannerStats
 	totalPlanTimeUs int64
 
 	mu   sync.RWMutex
@@ -193,7 +193,7 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 			Description:   fmt.Sprintf("Scan partition %s [%d rows]", ps.ID, ps.RowCount),
 			EstimatedRows: ps.RowCount,
 			EstimatedCost: float64(ps.RowCount) * qp.config.CostModelWeight * 0.001,
-			Properties:    map[string]interface{}{"partition_id": ps.ID, "byte_size": ps.ByteSize},
+			Properties:    map[string]any{"partition_id": ps.ID, "byte_size": ps.ByteSize},
 		})
 	}
 
@@ -216,7 +216,7 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 			Type:        QPlanFilter,
 			Description: fmt.Sprintf("Filter metric=%s", q.Metric),
 			Children:    []*QPlanNode{root},
-			Properties:  map[string]interface{}{"predicate": "metric=" + q.Metric},
+			Properties:  map[string]any{"predicate": "metric=" + q.Metric},
 		}
 		root = filterNode
 		plan.Optimizations = append(plan.Optimizations, "predicate_pushdown: metric filter")
@@ -232,7 +232,7 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 			Type:        QPlanFilter,
 			Description: fmt.Sprintf("Filter tags: %s", strings.Join(tagFilters, ", ")),
 			Children:    []*QPlanNode{root},
-			Properties:  map[string]interface{}{"tag_filters": tagFilters},
+			Properties:  map[string]any{"tag_filters": tagFilters},
 		}
 		root = filterNode
 		plan.Optimizations = append(plan.Optimizations, "predicate_pushdown: tag filters")
@@ -245,7 +245,7 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 			Type:        QPlanAggregate,
 			Description: fmt.Sprintf("Aggregate func=%d window=%s", q.Aggregation.Function, q.Aggregation.Window),
 			Children:    []*QPlanNode{root},
-			Properties:  map[string]interface{}{"function": q.Aggregation.Function, "window": q.Aggregation.Window.String()},
+			Properties:  map[string]any{"function": q.Aggregation.Function, "window": q.Aggregation.Window.String()},
 		}
 		root = aggNode
 	}
@@ -256,7 +256,7 @@ func (qp *QueryPlanner) Plan(ctx context.Context, q *Query) (*CostQueryPlan, err
 			Type:        QPlanLimit,
 			Description: fmt.Sprintf("Limit %d", q.Limit),
 			Children:    []*QPlanNode{root},
-			Properties:  map[string]interface{}{"limit": q.Limit},
+			Properties:  map[string]any{"limit": q.Limit},
 		}
 		root = limitNode
 	}

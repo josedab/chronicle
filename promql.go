@@ -481,20 +481,20 @@ func NewPromQLHandler(db *DB) *PromQLHandler {
 
 // PromQLResponse is the Prometheus-compatible response format.
 type PromQLResponse struct {
-	Status string          `json:"status"`
-	Data   PromQLData      `json:"data,omitempty"`
-	Error  string          `json:"error,omitempty"`
+	Status string     `json:"status"`
+	Data   PromQLData `json:"data,omitempty"`
+	Error  string     `json:"error,omitempty"`
 }
 
 // PromQLData contains query results.
 type PromQLData struct {
-	ResultType string             `json:"resultType"`
-	Result     []PromQLResult     `json:"result"`
+	ResultType string         `json:"resultType"`
+	Result     []PromQLResult `json:"result"`
 }
 
 // PromQLResult is a single result series.
 type PromQLResult struct {
 	Metric map[string]string `json:"metric"`
-	Values [][]interface{}   `json:"values,omitempty"` // For range queries: [[timestamp, value], ...]
-	Value  []interface{}     `json:"value,omitempty"`  // For instant queries: [timestamp, value]
+	Values [][]any           `json:"values,omitempty"` // For range queries: [[timestamp, value], ...]
+	Value  []any             `json:"value,omitempty"`  // For instant queries: [timestamp, value]
 }

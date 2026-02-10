@@ -192,7 +192,7 @@ func (s *S3Backend) Read(ctx context.Context, key string) ([]byte, error) {
 		return data, nil
 	}
 
-	val, result := s.retryer.DoWithResult(ctx, func() (interface{}, error) {
+	val, result := s.retryer.DoWithResult(ctx, func() (any, error) {
 		resp, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(s.config.Bucket),
 			Key:    aws.String(fullKey),

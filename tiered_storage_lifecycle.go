@@ -29,7 +29,7 @@ func DefaultLifecycleConfig() LifecycleConfig {
 		HotToWarmAge:       1 * time.Hour,
 		WarmToColdAge:      24 * time.Hour,
 		ColdToArchiveAge:   7 * 24 * time.Hour,
-		MaxHotSizeBytes:    10 * 1 << 30, // 10 GB
+		MaxHotSizeBytes:    10 * 1 << 30,  // 10 GB
 		MaxWarmSizeBytes:   100 * 1 << 30, // 100 GB
 		CostBudgetMonthly:  500.0,
 		DryRun:             false,
@@ -51,12 +51,12 @@ type LifecycleEvent struct {
 
 // LifecycleStats holds aggregate statistics for lifecycle management.
 type LifecycleStats struct {
-	TotalEvaluations       int64                       `json:"total_evaluations"`
-	TotalMigrations        int64                       `json:"total_migrations"`
-	BytesMigrated          int64                       `json:"bytes_migrated"`
-	EstimatedMonthlySavings float64                    `json:"estimated_monthly_savings"`
-	LastEvaluation         time.Time                   `json:"last_evaluation"`
-	PartitionsByTier       map[StorageTierLevel]int     `json:"partitions_by_tier"`
+	TotalEvaluations        int64                    `json:"total_evaluations"`
+	TotalMigrations         int64                    `json:"total_migrations"`
+	BytesMigrated           int64                    `json:"bytes_migrated"`
+	EstimatedMonthlySavings float64                  `json:"estimated_monthly_savings"`
+	LastEvaluation          time.Time                `json:"last_evaluation"`
+	PartitionsByTier        map[StorageTierLevel]int `json:"partitions_by_tier"`
 }
 
 // MonthlyCostProjection holds projected costs for a single month.

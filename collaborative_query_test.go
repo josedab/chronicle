@@ -109,7 +109,7 @@ func TestCollaborativeQueryHub_CloseSession(t *testing.T) {
 	defer func() { _ = hub.Close() }()
 
 	session, _ := hub.CreateSession("Test Session", "user1")
-	
+
 	err := hub.CloseSession(session.ID)
 	if err != nil {
 		t.Fatalf("failed to close session: %v", err)
@@ -138,12 +138,12 @@ func TestCollaborativeQueryState_Edit(t *testing.T) {
 
 	// Test basic edit
 	text := state.QueryText
-	
+
 	// Insert operation
 	insertPos := 7
 	insertText := "DISTINCT "
 	text = text[:insertPos] + insertText + text[insertPos:]
-	
+
 	if text != "SELECT DISTINCT * FROM metrics" {
 		t.Errorf("unexpected text after insert: %s", text)
 	}
@@ -152,7 +152,7 @@ func TestCollaborativeQueryState_Edit(t *testing.T) {
 	deletePos := 7
 	deleteLen := 9 // "DISTINCT "
 	text = text[:deletePos] + text[deletePos+deleteLen:]
-	
+
 	if text != "SELECT * FROM metrics" {
 		t.Errorf("unexpected text after delete: %s", text)
 	}
@@ -197,7 +197,7 @@ func TestTransformOperations(t *testing.T) {
 	}
 
 	op1t, op2t := TransformOperations(op1, op2)
-	
+
 	// op1 at position 5 should not affect op2 at position 10
 	// but since they're concurrent, op2's position should be adjusted
 	if op1t.Position != 5 {
@@ -211,7 +211,7 @@ func TestTransformOperations(t *testing.T) {
 func TestCausallyPrecedes(t *testing.T) {
 	vc1 := map[string]int64{"user1": 1, "user2": 2}
 	vc2 := map[string]int64{"user1": 2, "user2": 3}
-	
+
 	if !causallyPrecedes(vc1, vc2) {
 		t.Error("expected vc1 to causally precede vc2")
 	}
@@ -290,7 +290,7 @@ func TestParticipant(t *testing.T) {
 
 func TestGenerateParticipantColor(t *testing.T) {
 	colors := make(map[string]bool)
-	
+
 	for i := 0; i < 20; i++ {
 		color := generateParticipantColor(i)
 		if color == "" {
@@ -335,7 +335,7 @@ func TestCollaborativeSession_QueryState(t *testing.T) {
 	state := &CollaborativeQueryState{
 		QueryText:   "",
 		QueryType:   "sql",
-		Parameters:  make(map[string]interface{}),
+		Parameters:  make(map[string]any),
 		Version:     0,
 		vectorClock: make(map[string]int64),
 	}
@@ -437,7 +437,7 @@ func TestCopyVectorClock(t *testing.T) {
 	if copied["user1"] != 5 {
 		t.Errorf("expected user1=5, got %d", copied["user1"])
 	}
-	
+
 	// Modify original, copied should not change
 	original["user1"] = 10
 	if copied["user1"] != 5 {
@@ -446,7 +446,7 @@ func TestCopyVectorClock(t *testing.T) {
 }
 
 func TestCopyParams(t *testing.T) {
-	original := map[string]interface{}{"key1": "value1", "key2": 42}
+	original := map[string]any{"key1": "value1", "key2": 42}
 	copied := copyParams(original)
 
 	if copied["key1"] != "value1" {

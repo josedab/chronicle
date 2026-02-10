@@ -40,40 +40,40 @@ func DefaultSmartRetentionConfig() SmartRetentionConfig {
 
 // SeriesAccessProfile tracks the access pattern for a single time-series.
 type SeriesAccessProfile struct {
-	Metric       string        `json:"metric"`
-	AccessCount  int64         `json:"access_count"`
-	LastAccessed time.Time     `json:"last_accessed"`
-	CreatedAt    time.Time     `json:"created_at"`
-	AvgInterval  time.Duration `json:"avg_interval"`
-	ValueScore   float64       `json:"value_score"`
+	Metric       string           `json:"metric"`
+	AccessCount  int64            `json:"access_count"`
+	LastAccessed time.Time        `json:"last_accessed"`
+	CreatedAt    time.Time        `json:"created_at"`
+	AvgInterval  time.Duration    `json:"avg_interval"`
+	ValueScore   float64          `json:"value_score"`
 	CurrentTier  StorageTierLevel `json:"current_tier"`
 }
 
 // RetentionRecommendation is a recommendation for a series' retention policy.
 type RetentionRecommendation struct {
-	Metric         string           `json:"metric"`
-	CurrentTier    StorageTierLevel `json:"current_tier"`
+	Metric          string           `json:"metric"`
+	CurrentTier     StorageTierLevel `json:"current_tier"`
 	RecommendedTier StorageTierLevel `json:"recommended_tier"`
-	Reason         string           `json:"reason"`
-	ValueScore     float64          `json:"value_score"`
-	Confidence     float64          `json:"confidence"`
+	Reason          string           `json:"reason"`
+	ValueScore      float64          `json:"value_score"`
+	Confidence      float64          `json:"confidence"`
 }
 
 // SmartRetentionStats tracks overall smart retention metrics.
 type SmartRetentionStats struct {
-	TrackedSeries      int     `json:"tracked_series"`
-	HotSeries          int     `json:"hot_series"`
-	WarmSeries         int     `json:"warm_series"`
-	ColdSeries         int     `json:"cold_series"`
-	MigrationsExecuted int64   `json:"migrations_executed"`
-	StorageSavingsEst  float64 `json:"storage_savings_est"`
+	TrackedSeries      int       `json:"tracked_series"`
+	HotSeries          int       `json:"hot_series"`
+	WarmSeries         int       `json:"warm_series"`
+	ColdSeries         int       `json:"cold_series"`
+	MigrationsExecuted int64     `json:"migrations_executed"`
+	StorageSavingsEst  float64   `json:"storage_savings_est"`
 	LastEvaluation     time.Time `json:"last_evaluation"`
 }
 
 // SmartRetentionEngine manages intelligent retention and tiering.
 type SmartRetentionEngine struct {
-	db      *DB
-	config  SmartRetentionConfig
+	db     *DB
+	config SmartRetentionConfig
 
 	profiles   map[string]*SeriesAccessProfile
 	migrations int64

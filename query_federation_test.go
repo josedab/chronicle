@@ -208,7 +208,7 @@ func TestHTTPSource(t *testing.T) {
 					{Name: "timestamp", Type: "int64"},
 					{Name: "value", Type: "float64"},
 				},
-				Rows: [][]interface{}{
+				Rows: [][]any{
 					{int64(1000000), 42.0},
 					{int64(2000000), 43.0},
 				},
@@ -402,13 +402,13 @@ func TestQueryFederation_MergeResults(t *testing.T) {
 		{
 			Source:  "source1",
 			Columns: []QueryFederatedColumn{{Name: "value", Type: "float64"}},
-			Rows:    [][]interface{}{{1.0}, {2.0}},
+			Rows:    [][]any{{1.0}, {2.0}},
 			Points:  []Point{{Value: 1.0}, {Value: 2.0}},
 		},
 		{
 			Source:  "source2",
 			Columns: []QueryFederatedColumn{{Name: "value", Type: "float64"}},
-			Rows:    [][]interface{}{{3.0}, {4.0}},
+			Rows:    [][]any{{3.0}, {4.0}},
 			Points:  []Point{{Value: 3.0}, {Value: 4.0}},
 		},
 	}
