@@ -42,11 +42,11 @@ func (t DSLV2WindowType) String() string {
 
 // StreamWindowV2 specifies a window for stream processing.
 type StreamWindowV2 struct {
-	Type     DSLV2WindowType    `json:"type"`
-	Size     time.Duration      `json:"size"`
-	Slide    time.Duration      `json:"slide"`
-	Gap      time.Duration      `json:"gap"`
-	MaxCount int                `json:"max_count"`
+	Type     DSLV2WindowType `json:"type"`
+	Size     time.Duration   `json:"size"`
+	Slide    time.Duration   `json:"slide"`
+	Gap      time.Duration   `json:"gap"`
+	MaxCount int             `json:"max_count"`
 }
 
 // DSLV2JoinType defines the type of join operation.
@@ -76,11 +76,11 @@ func (t DSLV2JoinType) String() string {
 
 // DSLV2Join describes a join between two streams.
 type DSLV2Join struct {
-	Type        DSLV2JoinType  `json:"type"`
-	LeftStream  string         `json:"left_stream"`
-	RightStream string         `json:"right_stream"`
-	OnCondition string         `json:"on_condition"`
-	Within      time.Duration  `json:"within"`
+	Type        DSLV2JoinType `json:"type"`
+	LeftStream  string        `json:"left_stream"`
+	RightStream string        `json:"right_stream"`
+	OnCondition string        `json:"on_condition"`
+	Within      time.Duration `json:"within"`
 }
 
 // CEPEvent is a single event specification in a CEP pattern.
@@ -92,10 +92,10 @@ type CEPEvent struct {
 
 // CEPPattern defines a Complex Event Processing pattern.
 type CEPPattern struct {
-	Name   string        `json:"name"`
-	Events []CEPEvent    `json:"events"`
-	Within time.Duration `json:"within"`
-	Action func(matched []map[string]interface{}) `json:"-"`
+	Name   string                         `json:"name"`
+	Events []CEPEvent                     `json:"events"`
+	Within time.Duration                  `json:"within"`
+	Action func(matched []map[string]any) `json:"-"`
 }
 
 // StreamDSLV2StatementType defines the type of DSL statement.
@@ -141,11 +141,11 @@ type StreamDSLV2Statement struct {
 
 // StreamDSLV2Result holds results from a continuous query evaluation.
 type StreamDSLV2Result struct {
-	Statement   *StreamDSLV2Statement        `json:"statement"`
-	Rows        []map[string]interface{}      `json:"rows"`
-	WindowStart time.Time                     `json:"window_start"`
-	WindowEnd   time.Time                     `json:"window_end"`
-	Watermark   time.Time                     `json:"watermark"`
+	Statement   *StreamDSLV2Statement `json:"statement"`
+	Rows        []map[string]any      `json:"rows"`
+	WindowStart time.Time             `json:"window_start"`
+	WindowEnd   time.Time             `json:"window_end"`
+	Watermark   time.Time             `json:"watermark"`
 }
 
 // DSLV2ContinuousQueryState represents the lifecycle state of a continuous query.
@@ -186,12 +186,12 @@ type DSLV2ContinuousQueryStats struct {
 
 // DSLV2ContinuousQuery represents a registered continuous query.
 type DSLV2ContinuousQuery struct {
-	ID       string                 `json:"id"`
-	Name     string                 `json:"name"`
-	DSL      string                 `json:"dsl"`
-	Compiled *StreamDSLV2Statement  `json:"compiled"`
+	ID       string                    `json:"id"`
+	Name     string                    `json:"name"`
+	DSL      string                    `json:"dsl"`
+	Compiled *StreamDSLV2Statement     `json:"compiled"`
 	State    DSLV2ContinuousQueryState `json:"state"`
-	Created  time.Time              `json:"created"`
+	Created  time.Time                 `json:"created"`
 	Stats    DSLV2ContinuousQueryStats `json:"stats"`
 }
 
@@ -808,7 +808,7 @@ func (e *StreamDSLV2Engine) ProcessEvent(metric string, value float64, tags map[
 			e.evaluateWindow(q, entry)
 		} else {
 			// Non-windowed: emit immediately
-			row := map[string]interface{}{
+			row := map[string]any{
 				"metric":    metric,
 				"value":     value,
 				"timestamp": ts,
@@ -816,7 +816,7 @@ func (e *StreamDSLV2Engine) ProcessEvent(metric string, value float64, tags map[
 			}
 			result := StreamDSLV2Result{
 				Statement:   q.Compiled,
-				Rows:        []map[string]interface{}{row},
+				Rows:        []map[string]any{row},
 				WindowStart: ts,
 				WindowEnd:   ts,
 				Watermark:   ts,
@@ -888,11 +888,11 @@ func (e *StreamDSLV2Engine) evaluateWindow(q *DSLV2ContinuousQuery, entry stream
 	}
 
 	if shouldEmit {
-		var rows []map[string]interface{}
+		var rows []map[string]any
 		var sum float64
 		for _, ent := range entries {
 			sum += ent.Value
-			rows = append(rows, map[string]interface{}{
+			rows = append(rows, map[string]any{
 				"value":     ent.Value,
 				"tags":      ent.Tags,
 				"timestamp": ent.Timestamp,
@@ -1148,8 +1148,8 @@ func (e *StreamDSLV2Engine) handleValidate(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := e.Validate(req.DSL); err != nil {
-		writeJSON(w, map[string]interface{}{"valid": false, "error": err.Error()})
+		writeJSON(w, map[string]any{"valid": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]interface{}{"valid": true})
+	writeJSON(w, map[string]any{"valid": true})
 }

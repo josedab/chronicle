@@ -58,19 +58,19 @@ type MaterializedViewDefinition struct {
 // --- Incremental Aggregator ------------------------------------------------
 
 type windowState struct {
-	count                int64
-	sum, min, max        float64
-	mean, m2             float64 // Welford's online variance
-	first, last          Point
-	windowStart          int64
+	count         int64
+	sum, min, max float64
+	mean, m2      float64 // Welford's online variance
+	first, last   Point
+	windowStart   int64
 }
 
 // AggregateUpdate is emitted each time a point is applied.
 type AggregateUpdate struct {
-	GroupKey            string
-	OldValue, NewValue  float64
-	WindowStart         int64
-	PointCount          int64
+	GroupKey           string
+	OldValue, NewValue float64
+	WindowStart        int64
+	PointCount         int64
 }
 
 // AggregateState is a snapshot of one group key's current aggregate.
@@ -117,8 +117,12 @@ func (ia *IncrementalAggregator) Apply(point *Point) (*AggregateUpdate, error) {
 	ws.count++
 	ws.sum += point.Value
 	ws.last = *point
-	if point.Value < ws.min { ws.min = point.Value }
-	if point.Value > ws.max { ws.max = point.Value }
+	if point.Value < ws.min {
+		ws.min = point.Value
+	}
+	if point.Value > ws.max {
+		ws.max = point.Value
+	}
 	// Welford's online algorithm for mean / variance
 	delta := point.Value - ws.mean
 	ws.mean += delta / float64(ws.count)
@@ -137,7 +141,9 @@ func (ia *IncrementalAggregator) GetCurrent(groupKey string) *AggregateState {
 	ia.mu.RLock()
 	defer ia.mu.RUnlock()
 	ws, ok := ia.windows[groupKey]
-	if !ok { return nil }
+	if !ok {
+		return nil
+	}
 	return &AggregateState{
 		Value: ia.computeValue(ws), Count: ws.count,
 		WindowStart: ws.windowStart, LastUpdated: time.Now(),
@@ -145,7 +151,9 @@ func (ia *IncrementalAggregator) GetCurrent(groupKey string) *AggregateState {
 }
 
 func (ia *IncrementalAggregator) computeValue(ws *windowState) float64 {
-	if ws.count == 0 { return 0 }
+	if ws.count == 0 {
+		return 0
+	}
 	switch ia.function {
 	case AggCount:
 		return float64(ws.count)
@@ -162,7 +170,9 @@ func (ia *IncrementalAggregator) computeValue(ws *windowState) float64 {
 	case AggLast:
 		return ws.last.Value
 	case AggStddev:
-		if ws.count < 2 { return 0 }
+		if ws.count < 2 {
+			return 0
+		}
 		return math.Sqrt(ws.m2 / float64(ws.count-1))
 	default:
 		return ws.sum
@@ -170,15 +180,21 @@ func (ia *IncrementalAggregator) computeValue(ws *windowState) float64 {
 }
 
 func (ia *IncrementalAggregator) windowStartFor(ts int64) int64 {
-	if ia.window <= 0 { return 0 }
+	if ia.window <= 0 {
+		return 0
+	}
 	w := ia.window.Nanoseconds()
 	return (ts / w) * w
 }
 
 func buildGroupKey(p *Point) string {
-	if len(p.Tags) == 0 { return p.Metric }
+	if len(p.Tags) == 0 {
+		return p.Metric
+	}
 	key := p.Metric
-	for k, v := range p.Tags { key += "|" + k + "=" + v }
+	for k, v := range p.Tags {
+		key += "|" + k + "=" + v
+	}
 	return key
 }
 
@@ -215,7 +231,9 @@ func (dt *DependencyTracker) AddDependency(viewName, sourceMetric string) {
 		dt.dependencies[viewName] = dep
 	}
 	for _, s := range dep.Sources {
-		if s == sourceMetric { return }
+		if s == sourceMetric {
+			return
+		}
 	}
 	dep.Sources = append(dep.Sources, sourceMetric)
 	dt.reverseDeps[sourceMetric] = append(dt.reverseDeps[sourceMetric], viewName)
@@ -226,7 +244,9 @@ func (dt *DependencyTracker) RemoveDependency(viewName string) {
 	dt.mu.Lock()
 	defer dt.mu.Unlock()
 	dep, ok := dt.dependencies[viewName]
-	if !ok { return }
+	if !ok {
+		return
+	}
 	for _, src := range dep.Sources {
 		views := dt.reverseDeps[src]
 		filtered := views[:0]
@@ -259,7 +279,9 @@ func (dt *DependencyTracker) GetDependencies(viewName string) []string {
 	dt.mu.RLock()
 	defer dt.mu.RUnlock()
 	dep, ok := dt.dependencies[viewName]
-	if !ok { return nil }
+	if !ok {
+		return nil
+	}
 	out := make([]string, len(dep.Sources))
 	copy(out, dep.Sources)
 	return out
@@ -317,7 +339,7 @@ func (dt *DependencyTracker) DetectCycles() [][]string {
 
 // MaterializedResult holds one aggregate group result.
 type MaterializedResult struct {
-	GroupKey                string
+	GroupKey               string
 	Value                  float64
 	Count                  int64
 	WindowStart, WindowEnd int64
@@ -655,12 +677,18 @@ func (e *MaterializedViewEngine) Stats() *MaterializedViewStats {
 	var active, stale int
 	var memEstimate int64
 	for _, mv := range all {
-		if mv.definition.Enabled { active++ }
-		if mv.stale { stale++ }
+		if mv.definition.Enabled {
+			active++
+		}
+		if mv.stale {
+			stale++
+		}
 		memEstimate += int64(len(mv.results)) * 128 // rough estimate per entry
 	}
 	var avgLatency time.Duration
-	if totalRefreshes > 0 { avgLatency = latSum / time.Duration(totalRefreshes) }
+	if totalRefreshes > 0 {
+		avgLatency = latSum / time.Duration(totalRefreshes)
+	}
 	return &MaterializedViewStats{
 		TotalViews: len(all), ActiveViews: active, StaleViews: stale,
 		TotalRefreshes: totalRefreshes, IncrementalUpdates: incUpdates,
@@ -672,18 +700,18 @@ func (e *MaterializedViewEngine) Stats() *MaterializedViewStats {
 
 // ShadowDiscrepancy records a mismatch between incremental and full computation.
 type ShadowDiscrepancy struct {
-	GroupKey                            string
-	IncrementalValue, FullComputeValue  float64
-	Difference                          float64
+	GroupKey                           string
+	IncrementalValue, FullComputeValue float64
+	Difference                         float64
 }
 
 // ShadowVerifyResult is the outcome of a shadow verification run.
 type ShadowVerifyResult struct {
-	ViewName                       string
-	Match                          bool
-	IncrementalValue, FullValue    float64
-	Discrepancies                  []ShadowDiscrepancy
-	Duration                       time.Duration
+	ViewName                    string
+	Match                       bool
+	IncrementalValue, FullValue float64
+	Discrepancies               []ShadowDiscrepancy
+	Duration                    time.Duration
 }
 
 // ShadowVerifier compares incremental results against full recomputation.

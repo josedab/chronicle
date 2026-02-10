@@ -1,5 +1,12 @@
 package chronicle
 
+// stream_dsl.go implements V1 of the stream processing DSL.
+// V2 (stream_dsl_v2.go) adds windowed operations (Tumbling, Sliding, Session, Count, Global),
+// advanced aggregations, and richer trigger semantics.
+//
+// Deprecated: New callers should prefer the V2 API (StreamDSLV2Engine) for production use.
+// This file will be removed in a future major version.
+
 import (
 	"fmt"
 	"strconv"
@@ -63,17 +70,17 @@ type StreamPredicate func(p *Point) bool
 
 // StreamRule defines a stream processing rule.
 type StreamRule struct {
-	Name       string
-	Trigger    StreamTriggerOp
+	Name         string
+	Trigger      StreamTriggerOp
 	MetricFilter string // empty = all metrics
-	Predicate  StreamPredicate
-	Action     StreamAction
-	TargetMetric string // for EMIT_METRIC
-	Message    string   // for EMIT_ALERT / LOG
-	Callback   func(p *Point) // for CALLBACK
-	Window     time.Duration  // for windowed rules
-	windowBuf  []windowEntry
-	windowMu   sync.Mutex
+	Predicate    StreamPredicate
+	Action       StreamAction
+	TargetMetric string         // for EMIT_METRIC
+	Message      string         // for EMIT_ALERT / LOG
+	Callback     func(p *Point) // for CALLBACK
+	Window       time.Duration  // for windowed rules
+	windowBuf    []windowEntry
+	windowMu     sync.Mutex
 }
 
 type windowEntry struct {

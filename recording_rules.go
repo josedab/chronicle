@@ -32,13 +32,13 @@ type RecordingRule struct {
 
 // RecordingRulesEngine manages recording rules evaluation.
 type RecordingRulesEngine struct {
-	db       *DB
-	rules    map[string]*ruleState
-	mu       sync.RWMutex
-	parser   *QueryParser
-	stopCh   chan struct{}
-	wg       sync.WaitGroup
-	started  bool
+	db      *DB
+	rules   map[string]*ruleState
+	mu      sync.RWMutex
+	parser  *QueryParser
+	stopCh  chan struct{}
+	wg      sync.WaitGroup
+	started bool
 }
 
 type ruleState struct {

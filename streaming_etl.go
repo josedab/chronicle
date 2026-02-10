@@ -14,7 +14,7 @@ import (
 type BackpressureStrategy int
 
 const (
-	BackpressureDrop   BackpressureStrategy = iota
+	BackpressureDrop BackpressureStrategy = iota
 	BackpressureBlock
 	BackpressureSample
 )
@@ -90,17 +90,17 @@ func DefaultETLPipelineConfig() ETLPipelineConfig {
 
 // ETLPipelineStats tracks runtime metrics for a pipeline.
 type ETLPipelineStats struct {
-	PointsRead           uint64
-	PointsWritten        uint64
-	PointsFiltered       uint64
-	PointsErrored        uint64
-	BytesProcessed       int64
-	Uptime               time.Duration
-	StageLatencies       map[string]time.Duration
-	BackpressureEvents   uint64
-	LastCheckpoint       time.Time
-	startTime            time.Time
-	mu                   sync.RWMutex
+	PointsRead         uint64
+	PointsWritten      uint64
+	PointsFiltered     uint64
+	PointsErrored      uint64
+	BytesProcessed     int64
+	Uptime             time.Duration
+	StageLatencies     map[string]time.Duration
+	BackpressureEvents uint64
+	LastCheckpoint     time.Time
+	startTime          time.Time
+	mu                 sync.RWMutex
 }
 
 func newETLPipelineStats() *ETLPipelineStats {

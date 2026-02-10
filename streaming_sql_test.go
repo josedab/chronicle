@@ -160,10 +160,10 @@ func TestStreamingSQLEngine_Execute(t *testing.T) {
 func TestStreamingSQLEngine_MaxConcurrentQueries(t *testing.T) {
 	db := &DB{}
 	hub := NewStreamHub(db, DefaultStreamConfig())
-	
+
 	config := DefaultStreamingSQLConfig()
 	config.MaxConcurrentQueries = 2
-	
+
 	engine := NewStreamingSQLEngine(db, hub, config)
 	engine.Start()
 	defer engine.Stop()

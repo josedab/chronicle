@@ -69,10 +69,10 @@ type ETLPipelineManager struct {
 	cancel    context.CancelFunc
 
 	// stats
-	totalCreated  atomic.Uint64
-	totalStarted  atomic.Uint64
-	totalStopped  atomic.Uint64
-	totalFailed   atomic.Uint64
+	totalCreated atomic.Uint64
+	totalStarted atomic.Uint64
+	totalStopped atomic.Uint64
+	totalFailed  atomic.Uint64
 }
 
 // NewETLPipelineManager creates a new pipeline manager.
@@ -344,11 +344,11 @@ func (pm *ETLPipelineManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 // WindowedJoinConfig configures a windowed join.
 type WindowedJoinConfig struct {
-	LeftMetric  string        `json:"left_metric" yaml:"left_metric"`
-	RightMetric string        `json:"right_metric" yaml:"right_metric"`
-	WindowSize  time.Duration `json:"window_size" yaml:"window_size"`
-	OutputMetric string       `json:"output_metric" yaml:"output_metric"`
-	JoinType    WindowedJoinType      `json:"join_type" yaml:"join_type"`
+	LeftMetric   string           `json:"left_metric" yaml:"left_metric"`
+	RightMetric  string           `json:"right_metric" yaml:"right_metric"`
+	WindowSize   time.Duration    `json:"window_size" yaml:"window_size"`
+	OutputMetric string           `json:"output_metric" yaml:"output_metric"`
+	JoinType     WindowedJoinType `json:"join_type" yaml:"join_type"`
 }
 
 // WindowedJoinType specifies the type of join for windowed operations.
@@ -363,12 +363,12 @@ const (
 
 // WindowedJoin performs time-aligned joins between two point streams.
 type WindowedJoin struct {
-	config     WindowedJoinConfig
-	leftBuf    []*Point
-	rightBuf   []*Point
-	mu         sync.Mutex
-	processed  atomic.Uint64
-	emitted    atomic.Uint64
+	config    WindowedJoinConfig
+	leftBuf   []*Point
+	rightBuf  []*Point
+	mu        sync.Mutex
+	processed atomic.Uint64
+	emitted   atomic.Uint64
 }
 
 // NewWindowedJoin creates a windowed join operator.
@@ -632,9 +632,9 @@ func (el *EnrichmentLookup) Enrich(p *Point) (*Point, error) {
 
 // EnrichmentLookupStats holds lookup stats.
 type EnrichmentLookupStats struct {
-	Hits      uint64 `json:"hits"`
-	Misses    uint64 `json:"misses"`
-	CacheSize int    `json:"cache_size"`
+	Hits      uint64  `json:"hits"`
+	Misses    uint64  `json:"misses"`
+	CacheSize int     `json:"cache_size"`
 	HitRate   float64 `json:"hit_rate"`
 }
 
@@ -668,10 +668,10 @@ type PipelineSpec struct {
 	Version    string            `json:"version" yaml:"version"`
 	Labels     map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 	Source     SourceSpec        `json:"source" yaml:"source"`
-	Transforms []TransformSpec  `json:"transforms,omitempty" yaml:"transforms,omitempty"`
-	Sinks      []SinkSpec       `json:"sinks" yaml:"sinks"`
-	Joins      []JoinSpec       `json:"joins,omitempty" yaml:"joins,omitempty"`
-	Settings   SettingsSpec     `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Transforms []TransformSpec   `json:"transforms,omitempty" yaml:"transforms,omitempty"`
+	Sinks      []SinkSpec        `json:"sinks" yaml:"sinks"`
+	Joins      []JoinSpec        `json:"joins,omitempty" yaml:"joins,omitempty"`
+	Settings   SettingsSpec      `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 // SourceSpec defines a pipeline source.
@@ -698,11 +698,11 @@ type SinkSpec struct {
 
 // JoinSpec defines a windowed join.
 type JoinSpec struct {
-	LeftMetric  string `json:"left_metric" yaml:"left_metric"`
-	RightMetric string `json:"right_metric" yaml:"right_metric"`
-	WindowSize  string `json:"window_size" yaml:"window_size"`
+	LeftMetric   string `json:"left_metric" yaml:"left_metric"`
+	RightMetric  string `json:"right_metric" yaml:"right_metric"`
+	WindowSize   string `json:"window_size" yaml:"window_size"`
 	OutputMetric string `json:"output_metric" yaml:"output_metric"`
-	JoinType    string `json:"join_type" yaml:"join_type"`
+	JoinType     string `json:"join_type" yaml:"join_type"`
 }
 
 // SettingsSpec holds pipeline-level settings.

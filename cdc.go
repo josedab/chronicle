@@ -101,10 +101,10 @@ func (f CDCFilter) matches(e *ChangeEvent) bool {
 
 // CDCStats provides runtime statistics for the CDC engine.
 type CDCStats struct {
-	TotalEvents      int64 `json:"total_events"`
-	EventsPublished  int64 `json:"events_published"`
-	EventsDropped    int64 `json:"events_dropped"`
-	ActiveSubscribers int  `json:"active_subscribers"`
+	TotalEvents       int64   `json:"total_events"`
+	EventsPublished   int64   `json:"events_published"`
+	EventsDropped     int64   `json:"events_dropped"`
+	ActiveSubscribers int     `json:"active_subscribers"`
 	BufferUtilization float64 `json:"buffer_utilization"`
 }
 
@@ -119,8 +119,8 @@ type CDCEngine struct {
 	subscribers map[string]*CDCSubscription
 	nextID      int64
 
-	buffer    []ChangeEvent
-	bufferMu  sync.Mutex
+	buffer   []ChangeEvent
+	bufferMu sync.Mutex
 
 	totalEvents     int64
 	eventsPublished int64

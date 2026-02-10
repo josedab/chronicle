@@ -14,37 +14,37 @@ import (
 // 🔬 BETA: API may evolve between minor versions with migration guidance.
 // See api_stability.go for stability classifications.
 type PipelineDSL struct {
-	Version  string            `yaml:"version"`
-	Name     string            `yaml:"name"`
-	Database DatabaseDSL       `yaml:"database"`
-	Inputs   []InputDSL        `yaml:"inputs"`
-	Transforms []TransformDSL  `yaml:"transforms,omitempty"`
-	Outputs  []OutputDSL       `yaml:"outputs,omitempty"`
-	Alerts   []AlertDSL        `yaml:"alerts,omitempty"`
-	Vars     map[string]string `yaml:"vars,omitempty"`
+	Version    string            `yaml:"version"`
+	Name       string            `yaml:"name"`
+	Database   DatabaseDSL       `yaml:"database"`
+	Inputs     []InputDSL        `yaml:"inputs"`
+	Transforms []TransformDSL    `yaml:"transforms,omitempty"`
+	Outputs    []OutputDSL       `yaml:"outputs,omitempty"`
+	Alerts     []AlertDSL        `yaml:"alerts,omitempty"`
+	Vars       map[string]string `yaml:"vars,omitempty"`
 }
 
 // DatabaseDSL configures the Chronicle database.
 type DatabaseDSL struct {
-	Path           string         `yaml:"path"`
-	Storage        StorageDSL     `yaml:"storage,omitempty"`
-	WAL            WALDSL         `yaml:"wal,omitempty"`
-	Retention      RetentionDSL   `yaml:"retention,omitempty"`
-	Compression    CompressionDSL `yaml:"compression,omitempty"`
+	Path        string         `yaml:"path"`
+	Storage     StorageDSL     `yaml:"storage,omitempty"`
+	WAL         WALDSL         `yaml:"wal,omitempty"`
+	Retention   RetentionDSL   `yaml:"retention,omitempty"`
+	Compression CompressionDSL `yaml:"compression,omitempty"`
 }
 
 // StorageDSL maps to StorageConfig.
 type StorageDSL struct {
-	MaxMemory      string `yaml:"max_memory,omitempty"`
-	MaxSeries      int    `yaml:"max_series,omitempty"`
-	SegmentSize    string `yaml:"segment_size,omitempty"`
-	FlushInterval  string `yaml:"flush_interval,omitempty"`
+	MaxMemory     string `yaml:"max_memory,omitempty"`
+	MaxSeries     int    `yaml:"max_series,omitempty"`
+	SegmentSize   string `yaml:"segment_size,omitempty"`
+	FlushInterval string `yaml:"flush_interval,omitempty"`
 }
 
 // WALDSL maps to WALConfig.
 type WALDSL struct {
-	Enabled       bool   `yaml:"enabled"`
-	SyncOnWrite   bool   `yaml:"sync_on_write,omitempty"`
+	Enabled        bool   `yaml:"enabled"`
+	SyncOnWrite    bool   `yaml:"sync_on_write,omitempty"`
 	MaxSegmentSize string `yaml:"max_segment_size,omitempty"`
 }
 
@@ -89,13 +89,13 @@ type TransformDSL struct {
 
 // OutputDSL defines a data output destination.
 type OutputDSL struct {
-	Name     string            `yaml:"name"`
-	Type     string            `yaml:"type"`
-	Path     string            `yaml:"path,omitempty"`
-	Bind     string            `yaml:"bind,omitempty"`
-	Metric   string            `yaml:"metric,omitempty"`
-	Format   string            `yaml:"format,omitempty"`
-	Options  map[string]string `yaml:"options,omitempty"`
+	Name    string            `yaml:"name"`
+	Type    string            `yaml:"type"`
+	Path    string            `yaml:"path,omitempty"`
+	Bind    string            `yaml:"bind,omitempty"`
+	Metric  string            `yaml:"metric,omitempty"`
+	Format  string            `yaml:"format,omitempty"`
+	Options map[string]string `yaml:"options,omitempty"`
 }
 
 // AlertDSL defines an alerting rule.

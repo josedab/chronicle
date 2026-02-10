@@ -749,14 +749,14 @@ func (e *StreamProcessingEngine) handleStreams(w http.ResponseWriter, r *http.Re
 
 	case http.MethodPost:
 		var req struct {
-			Name       string      `json:"name"`
-			Source     string      `json:"source"`
-			Sink       string      `json:"sink"`
-			WindowType string      `json:"window_type"`
-			WindowSize string      `json:"window_size"`
-			WindowSlide string     `json:"window_slide"`
-			WindowGap  string      `json:"window_gap"`
-			WindowCount int        `json:"window_count"`
+			Name        string `json:"name"`
+			Source      string `json:"source"`
+			Sink        string `json:"sink"`
+			WindowType  string `json:"window_type"`
+			WindowSize  string `json:"window_size"`
+			WindowSlide string `json:"window_slide"`
+			WindowGap   string `json:"window_gap"`
+			WindowCount int    `json:"window_count"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, err.Error(), http.StatusBadRequest)
@@ -813,7 +813,7 @@ func (e *StreamProcessingEngine) handleStreams(w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		writeJSONStatus(w, http.StatusCreated, map[string]interface{}{
+		writeJSONStatus(w, http.StatusCreated, map[string]any{
 			"id":     p.ID,
 			"name":   p.Name,
 			"state":  p.State.String(),
@@ -859,14 +859,14 @@ func (e *StreamProcessingEngine) handleStreamAction(w http.ResponseWriter, r *ht
 		stats := p.Stats
 		state := p.State.String()
 		p.mu.Unlock()
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"id":         p.ID,
 			"name":       p.Name,
 			"state":      state,
 			"source":     p.Source,
 			"sink":       p.Sink,
 			"created_at": p.CreatedAt.Format(time.RFC3339),
-			"stats": map[string]interface{}{
+			"stats": map[string]any{
 				"events_in":       stats.EventsIn,
 				"events_out":      stats.EventsOut,
 				"events_filtered": stats.EventsFiltered,
@@ -899,7 +899,7 @@ func (e *StreamProcessingEngine) handleStreamAction(w http.ResponseWriter, r *ht
 			writeError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"results": results,
 			"count":   len(results),
 		})
@@ -1045,11 +1045,11 @@ func (a *SPAggregateOperator) Name() string { return a.name }
 
 // JoinOperator joins two streams by key within a time window.
 type JoinOperator struct {
-	name       string
-	joinWindow time.Duration
-	mu         sync.Mutex
-	leftBuf    map[string][]*StreamEvent
-	rightBuf   map[string][]*StreamEvent
+	name        string
+	joinWindow  time.Duration
+	mu          sync.Mutex
+	leftBuf     map[string][]*StreamEvent
+	rightBuf    map[string][]*StreamEvent
 	rightStream string
 }
 

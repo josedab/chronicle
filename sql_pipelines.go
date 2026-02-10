@@ -12,13 +12,13 @@ import (
 
 // SQLPipelineConfig configures the SQL-first declarative pipelines engine.
 type SQLPipelineConfig struct {
-	Enabled             bool          `json:"enabled"`
-	MaxConcurrentPipes  int           `json:"max_concurrent_pipes"`
-	CheckpointInterval  time.Duration `json:"checkpoint_interval"`
-	BackfillRateLimit   int           `json:"backfill_rate_limit"`
-	EnableExactlyOnce   bool          `json:"enable_exactly_once"`
-	MaxPipelines        int           `json:"max_pipelines"`
-	DefaultBatchSize    int           `json:"default_batch_size"`
+	Enabled            bool          `json:"enabled"`
+	MaxConcurrentPipes int           `json:"max_concurrent_pipes"`
+	CheckpointInterval time.Duration `json:"checkpoint_interval"`
+	BackfillRateLimit  int           `json:"backfill_rate_limit"`
+	EnableExactlyOnce  bool          `json:"enable_exactly_once"`
+	MaxPipelines       int           `json:"max_pipelines"`
+	DefaultBatchSize   int           `json:"default_batch_size"`
 }
 
 // DefaultSQLPipelineConfig returns sensible defaults.
@@ -48,20 +48,20 @@ const (
 
 // SQLPipelineDefinition defines a declarative SQL pipeline.
 type SQLPipelineDefinition struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	SourceQuery     string            `json:"source_query"`
-	TransformSQL    string            `json:"transform_sql"`
-	DestMetric      string            `json:"dest_metric"`
-	Schedule        string            `json:"schedule"` // cron expression or "continuous"
-	WindowSize      time.Duration     `json:"window_size"`
-	WatermarkDelay  time.Duration     `json:"watermark_delay"`
-	EmitMode        PipelineEmitMode  `json:"emit_mode"`
-	Tags            map[string]string `json:"tags,omitempty"`
-	BatchSize       int               `json:"batch_size"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Description    string            `json:"description"`
+	SourceQuery    string            `json:"source_query"`
+	TransformSQL   string            `json:"transform_sql"`
+	DestMetric     string            `json:"dest_metric"`
+	Schedule       string            `json:"schedule"` // cron expression or "continuous"
+	WindowSize     time.Duration     `json:"window_size"`
+	WatermarkDelay time.Duration     `json:"watermark_delay"`
+	EmitMode       PipelineEmitMode  `json:"emit_mode"`
+	Tags           map[string]string `json:"tags,omitempty"`
+	BatchSize      int               `json:"batch_size"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 // PipelineEmitMode controls when results are emitted.
@@ -86,18 +86,18 @@ type PipelineCheckpoint struct {
 
 // PipelineMetrics tracks pipeline execution metrics.
 type PipelineMetrics struct {
-	PipelineID       string        `json:"pipeline_id"`
+	PipelineID       string           `json:"pipeline_id"`
 	State            SQLPipelineState `json:"state"`
-	TotalRuns        int64         `json:"total_runs"`
-	SuccessfulRuns   int64         `json:"successful_runs"`
-	FailedRuns       int64         `json:"failed_runs"`
-	RowsIn           int64         `json:"rows_in"`
-	RowsOut          int64         `json:"rows_out"`
-	LastRunDuration  time.Duration `json:"last_run_duration"`
-	AvgRunDuration   time.Duration `json:"avg_run_duration"`
-	LastRunAt        time.Time     `json:"last_run_at"`
-	LastError        string        `json:"last_error,omitempty"`
-	BackfillProgress float64       `json:"backfill_progress"`
+	TotalRuns        int64            `json:"total_runs"`
+	SuccessfulRuns   int64            `json:"successful_runs"`
+	FailedRuns       int64            `json:"failed_runs"`
+	RowsIn           int64            `json:"rows_in"`
+	RowsOut          int64            `json:"rows_out"`
+	LastRunDuration  time.Duration    `json:"last_run_duration"`
+	AvgRunDuration   time.Duration    `json:"avg_run_duration"`
+	LastRunAt        time.Time        `json:"last_run_at"`
+	LastError        string           `json:"last_error,omitempty"`
+	BackfillProgress float64          `json:"backfill_progress"`
 }
 
 // SQLPipelineStats contains global pipeline engine statistics.
@@ -115,20 +115,20 @@ type SQLPipelineEngine struct {
 	db     *DB
 	config SQLPipelineConfig
 
-	pipelines   map[string]*sqlPipelineInstance
-	sem         chan struct{}
-	stopCh      chan struct{}
+	pipelines map[string]*sqlPipelineInstance
+	sem       chan struct{}
+	stopCh    chan struct{}
 
 	mu sync.RWMutex
 }
 
 type sqlPipelineInstance struct {
-	def         SQLPipelineDefinition
-	state       SQLPipelineState
-	checkpoint  PipelineCheckpoint
-	metrics     PipelineMetrics
-	stopCh      chan struct{}
-	totalRunNs  int64
+	def        SQLPipelineDefinition
+	state      SQLPipelineState
+	checkpoint PipelineCheckpoint
+	metrics    PipelineMetrics
+	stopCh     chan struct{}
+	totalRunNs int64
 }
 
 // NewSQLPipelineEngine creates a new SQL pipeline engine.
