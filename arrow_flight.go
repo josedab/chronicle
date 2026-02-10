@@ -13,8 +13,12 @@ import (
 	"time"
 )
 
-// ArrowFlightServer provides Apache Arrow Flight RPC interface for zero-copy data transfer.
-// This enables high-performance data export to analytics tools like Pandas, Polars, and DuckDB.
+// ArrowFlightServer provides a simplified Arrow Flight-like RPC interface for data transfer.
+// NOTE: This is a custom binary protocol inspired by Apache Arrow Flight, not a fully
+// compliant Arrow Flight implementation. It does not use gRPC or the Arrow IPC format and
+// is not interoperable with standard Arrow Flight clients (e.g., pyarrow.flight).
+//
+// EXPERIMENTAL: This API is unstable and may change without notice.
 type ArrowFlightServer struct {
 	db       *DB
 	config   ArrowFlightConfig
@@ -120,9 +124,9 @@ func ChronicleSchema() ArrowSchema {
 
 // FlightInfo describes a dataset available for retrieval.
 type FlightInfo struct {
-	Schema    ArrowSchema       `json:"schema"`
-	Endpoints []FlightEndpoint  `json:"endpoints"`
-	TotalRows int64             `json:"total_rows"`
+	Schema     ArrowSchema      `json:"schema"`
+	Endpoints  []FlightEndpoint `json:"endpoints"`
+	TotalRows  int64            `json:"total_rows"`
 	TotalBytes int64            `json:"total_bytes"`
 }
 
@@ -163,27 +167,27 @@ const (
 
 // FlightQuery represents a query for Flight data retrieval.
 type FlightQuery struct {
-	Metric    string            `json:"metric"`
-	Tags      map[string]string `json:"tags,omitempty"`
-	Start     int64             `json:"start"`
-	End       int64             `json:"end"`
-	Limit     int               `json:"limit,omitempty"`
-	Columns   []string          `json:"columns,omitempty"`
+	Metric  string            `json:"metric"`
+	Tags    map[string]string `json:"tags,omitempty"`
+	Start   int64             `json:"start"`
+	End     int64             `json:"end"`
+	Limit   int               `json:"limit,omitempty"`
+	Columns []string          `json:"columns,omitempty"`
 }
 
 // ArrowRecordBatch represents a batch of Arrow records.
 type ArrowRecordBatch struct {
-	Schema  ArrowSchema     `json:"schema"`
-	Columns []ArrowColumn   `json:"columns"`
-	Length  int             `json:"length"`
+	Schema  ArrowSchema   `json:"schema"`
+	Columns []ArrowColumn `json:"columns"`
+	Length  int           `json:"length"`
 }
 
 // ArrowColumn represents a column of data.
 type ArrowColumn struct {
-	Name   string      `json:"name"`
-	Type   ArrowType   `json:"type"`
-	Data   interface{} `json:"data"`
-	Nulls  []bool      `json:"nulls,omitempty"`
+	Name  string    `json:"name"`
+	Type  ArrowType `json:"type"`
+	Data  any       `json:"data"`
+	Nulls []bool    `json:"nulls,omitempty"`
 }
 
 // NewArrowFlightServer creates a new Arrow Flight server.
@@ -339,8 +343,8 @@ func (s *ArrowFlightServer) handleGetFlightInfo(conn net.Conn, body []byte) {
 	}
 
 	info := FlightInfo{
-		Schema:    ChronicleSchema(),
-		TotalRows: int64(len(result.Points)),
+		Schema:     ChronicleSchema(),
+		TotalRows:  int64(len(result.Points)),
 		TotalBytes: int64(len(result.Points) * 64), // Approximate
 		Endpoints: []FlightEndpoint{
 			{
@@ -413,7 +417,7 @@ func (s *ArrowFlightServer) handleDoGet(conn net.Conn, body []byte) {
 	}
 
 	// Send end-of-stream marker
-	s.sendResponse(conn, FlightMessageDoGet, map[string]interface{}{"complete": true})
+	s.sendResponse(conn, FlightMessageDoGet, map[string]any{"complete": true})
 }
 
 // handleDoPut handles DoPut requests for data ingestion.
@@ -437,7 +441,7 @@ func (s *ArrowFlightServer) handleDoPut(conn net.Conn, body []byte) {
 		return
 	}
 
-	s.sendResponse(conn, FlightMessageDoPut, map[string]interface{}{
+	s.sendResponse(conn, FlightMessageDoPut, map[string]any{
 		"rows_written": len(points),
 	})
 }
@@ -508,9 +512,9 @@ func (s *ArrowFlightServer) handleDoAction(conn net.Conn, body []byte) {
 
 	case "stats":
 		metrics := s.db.Metrics()
-		s.sendResponse(conn, FlightMessageDoAction, map[string]interface{}{
-			"metrics":       metrics,
-			"metric_count":  len(metrics),
+		s.sendResponse(conn, FlightMessageDoAction, map[string]any{
+			"metrics":      metrics,
+			"metric_count": len(metrics),
 		})
 
 	default:
@@ -580,7 +584,7 @@ func (s *ArrowFlightServer) recordBatchToPoints(batch ArrowRecordBatch) ([]Point
 	for _, col := range batch.Columns {
 		switch col.Name {
 		case "timestamp":
-			if data, ok := col.Data.([]interface{}); ok {
+			if data, ok := col.Data.([]any); ok {
 				timestamps = make([]int64, len(data))
 				for i, v := range data {
 					if f, ok := v.(float64); ok {
@@ -589,7 +593,7 @@ func (s *ArrowFlightServer) recordBatchToPoints(batch ArrowRecordBatch) ([]Point
 				}
 			}
 		case "metric":
-			if data, ok := col.Data.([]interface{}); ok {
+			if data, ok := col.Data.([]any); ok {
 				metrics = make([]string, len(data))
 				for i, v := range data {
 					if s, ok := v.(string); ok {
@@ -598,7 +602,7 @@ func (s *ArrowFlightServer) recordBatchToPoints(batch ArrowRecordBatch) ([]Point
 				}
 			}
 		case "value":
-			if data, ok := col.Data.([]interface{}); ok {
+			if data, ok := col.Data.([]any); ok {
 				values = make([]float64, len(data))
 				for i, v := range data {
 					if f, ok := v.(float64); ok {
@@ -607,10 +611,10 @@ func (s *ArrowFlightServer) recordBatchToPoints(batch ArrowRecordBatch) ([]Point
 				}
 			}
 		case "tags":
-			if data, ok := col.Data.([]interface{}); ok {
+			if data, ok := col.Data.([]any); ok {
 				tags = make([]map[string]string, len(data))
 				for i, v := range data {
-					if m, ok := v.(map[string]interface{}); ok {
+					if m, ok := v.(map[string]any); ok {
 						tags[i] = make(map[string]string)
 						for k, val := range m {
 							if s, ok := val.(string); ok {
@@ -656,7 +660,7 @@ func (s *ArrowFlightServer) recordBatchToPoints(batch ArrowRecordBatch) ([]Point
 }
 
 // sendResponse sends a response message.
-func (s *ArrowFlightServer) sendResponse(conn net.Conn, msgType FlightMessageType, data interface{}) error {
+func (s *ArrowFlightServer) sendResponse(conn net.Conn, msgType FlightMessageType, data any) error {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -763,7 +767,7 @@ func (c *ArrowFlightClient) DoGet(ctx context.Context, ticket FlightTicket) ([]A
 		}
 
 		// Check for completion marker
-		var completion map[string]interface{}
+		var completion map[string]any
 		if err := json.Unmarshal(respBody, &completion); err == nil {
 			if complete, ok := completion["complete"].(bool); ok && complete {
 				break
@@ -825,8 +829,8 @@ func (c *ArrowFlightClient) readMessage() ([]byte, error) {
 }
 
 // ToDataFrame converts record batches to a simple columnar format for export.
-func ToDataFrame(batches []ArrowRecordBatch) map[string]interface{} {
-	result := make(map[string]interface{})
+func ToDataFrame(batches []ArrowRecordBatch) map[string]any {
+	result := make(map[string]any)
 
 	if len(batches) == 0 {
 		return result
@@ -834,14 +838,14 @@ func ToDataFrame(batches []ArrowRecordBatch) map[string]interface{} {
 
 	// Initialize columns
 	for _, col := range batches[0].Columns {
-		result[col.Name] = make([]interface{}, 0)
+		result[col.Name] = make([]any, 0)
 	}
 
 	// Aggregate all batches
 	for _, batch := range batches {
 		for _, col := range batch.Columns {
-			if existing, ok := result[col.Name].([]interface{}); ok {
-				if data, ok := col.Data.([]interface{}); ok {
+			if existing, ok := result[col.Name].([]any); ok {
+				if data, ok := col.Data.([]any); ok {
 					result[col.Name] = append(existing, data...)
 				}
 			}
@@ -861,9 +865,9 @@ type ArrowIPCMessage struct {
 
 // ArrowIPCHeader represents the header of an Arrow IPC message.
 type ArrowIPCHeader struct {
-	Version    int    `json:"version"`
-	Type       int    `json:"type"`
-	BodyLength int64  `json:"body_length"`
+	Version    int   `json:"version"`
+	Type       int   `json:"type"`
+	BodyLength int64 `json:"body_length"`
 }
 
 // SerializeToIPC serializes a record batch to Arrow IPC format.
@@ -887,14 +891,14 @@ func SerializeToIPC(batch ArrowRecordBatch) ([]byte, error) {
 
 	// Continuation bytes (Arrow IPC format)
 	buf.Write([]byte{0xFF, 0xFF, 0xFF, 0xFF})
-	
+
 	// Header length
 	headerLen := uint32(len(headerBytes))
 	binary.Write(&buf, binary.LittleEndian, headerLen)
-	
+
 	// Header
 	buf.Write(headerBytes)
-	
+
 	// Padding to 8-byte boundary
 	padding := (8 - buf.Len()%8) % 8
 	for i := 0; i < padding; i++ {
@@ -916,7 +920,7 @@ func DeserializeFromIPC(data []byte) (*ArrowRecordBatch, error) {
 
 	// Skip continuation bytes
 	offset := 4
-	
+
 	// Read header length
 	headerLen := binary.LittleEndian.Uint32(data[offset:])
 	offset += 4

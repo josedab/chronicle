@@ -103,23 +103,23 @@ type PrivacyFederation struct {
 
 // PrivacyBudget tracks privacy budget consumption.
 type PrivacyBudget struct {
-	SourceID     string    `json:"source_id"`
-	TotalBudget  float64   `json:"total_budget"`
-	UsedBudget   float64   `json:"used_budget"`
-	QueryCount   int       `json:"query_count"`
-	LastRefresh  time.Time `json:"last_refresh"`
-	NextRefresh  time.Time `json:"next_refresh"`
+	SourceID    string    `json:"source_id"`
+	TotalBudget float64   `json:"total_budget"`
+	UsedBudget  float64   `json:"used_budget"`
+	QueryCount  int       `json:"query_count"`
+	LastRefresh time.Time `json:"last_refresh"`
+	NextRefresh time.Time `json:"next_refresh"`
 }
 
 // FederatedSource represents a federated data source.
 type FederatedSource struct {
-	ID            string                 `json:"id"`
-	Name          string                 `json:"name"`
-	Endpoint      string                 `json:"endpoint"`
-	PrivacyPolicy *PrivacyPolicy         `json:"privacy_policy"`
-	Metadata      map[string]string      `json:"metadata"`
-	LastSeen      time.Time              `json:"last_seen"`
-	Status        FederatedSourceStatus  `json:"status"`
+	ID            string                `json:"id"`
+	Name          string                `json:"name"`
+	Endpoint      string                `json:"endpoint"`
+	PrivacyPolicy *PrivacyPolicy        `json:"privacy_policy"`
+	Metadata      map[string]string     `json:"metadata"`
+	LastSeen      time.Time             `json:"last_seen"`
+	Status        FederatedSourceStatus `json:"status"`
 }
 
 // FederatedSourceStatus indicates source health.
@@ -133,36 +133,36 @@ const (
 
 // PrivacyPolicy defines privacy constraints for a source.
 type PrivacyPolicy struct {
-	MaxEpsilon           float64           `json:"max_epsilon"`
-	MinAggregationSize   int               `json:"min_aggregation_size"`
-	AllowedAggregations  []string          `json:"allowed_aggregations"`
-	SensitiveFields      []string          `json:"sensitive_fields"`
-	RedactedFields       []string          `json:"redacted_fields"`
-	DataRetention        time.Duration     `json:"data_retention"`
+	MaxEpsilon          float64       `json:"max_epsilon"`
+	MinAggregationSize  int           `json:"min_aggregation_size"`
+	AllowedAggregations []string      `json:"allowed_aggregations"`
+	SensitiveFields     []string      `json:"sensitive_fields"`
+	RedactedFields      []string      `json:"redacted_fields"`
+	DataRetention       time.Duration `json:"data_retention"`
 }
 
 // PrivacyAuditEntry logs privacy-related operations.
 type PrivacyAuditEntry struct {
-	Timestamp   time.Time              `json:"timestamp"`
-	SourceID    string                 `json:"source_id"`
-	QueryType   string                 `json:"query_type"`
-	Epsilon     float64                `json:"epsilon"`
-	BudgetUsed  float64                `json:"budget_used"`
-	RecordCount int                    `json:"record_count"`
-	NoiseAdded  float64                `json:"noise_added"`
-	Metadata    map[string]interface{} `json:"metadata"`
+	Timestamp   time.Time      `json:"timestamp"`
+	SourceID    string         `json:"source_id"`
+	QueryType   string         `json:"query_type"`
+	Epsilon     float64        `json:"epsilon"`
+	BudgetUsed  float64        `json:"budget_used"`
+	RecordCount int            `json:"record_count"`
+	NoiseAdded  float64        `json:"noise_added"`
+	Metadata    map[string]any `json:"metadata"`
 }
 
 // FederatedQuery represents a privacy-preserving query.
 type FederatedQuery struct {
-	ID           string                 `json:"id"`
-	Sources      []string               `json:"sources"`
-	Aggregation  AggregationType        `json:"aggregation"`
-	Metric       string                 `json:"metric"`
-	Filters      map[string]interface{} `json:"filters"`
-	GroupBy      []string               `json:"group_by"`
-	TimeRange    TimeRange              `json:"time_range"`
-	Epsilon      float64                `json:"epsilon"`
+	ID          string          `json:"id"`
+	Sources     []string        `json:"sources"`
+	Aggregation AggregationType `json:"aggregation"`
+	Metric      string          `json:"metric"`
+	Filters     map[string]any  `json:"filters"`
+	GroupBy     []string        `json:"group_by"`
+	TimeRange   TimeRange       `json:"time_range"`
+	Epsilon     float64         `json:"epsilon"`
 }
 
 // AggregationType identifies aggregation functions.
@@ -185,27 +185,27 @@ type TimeRange struct {
 
 // PrivacyFederatedResult contains privacy-preserving query results.
 type PrivacyFederatedResult struct {
-	QueryID       string                   `json:"query_id"`
-	Timestamp     time.Time                `json:"timestamp"`
-	Sources       []string                 `json:"sources"`
-	Value         float64                  `json:"value"`
-	NoisyValue    float64                  `json:"noisy_value"`
-	Confidence    float64                  `json:"confidence"`
-	Groups        map[string]float64       `json:"groups,omitempty"`
-	NoisyGroups   map[string]float64       `json:"noisy_groups,omitempty"`
-	PrivacyInfo   *PrivacyInfo             `json:"privacy_info"`
+	QueryID     string             `json:"query_id"`
+	Timestamp   time.Time          `json:"timestamp"`
+	Sources     []string           `json:"sources"`
+	Value       float64            `json:"value"`
+	NoisyValue  float64            `json:"noisy_value"`
+	Confidence  float64            `json:"confidence"`
+	Groups      map[string]float64 `json:"groups,omitempty"`
+	NoisyGroups map[string]float64 `json:"noisy_groups,omitempty"`
+	PrivacyInfo *PrivacyInfo       `json:"privacy_info"`
 }
 
 // PrivacyInfo contains privacy-related metadata for results.
 type PrivacyInfo struct {
-	Epsilon           float64 `json:"epsilon"`
-	Delta             float64 `json:"delta"`
-	NoiseType         string  `json:"noise_type"`
-	NoiseMagnitude    float64 `json:"noise_magnitude"`
-	BudgetConsumed    float64 `json:"budget_consumed"`
-	BudgetRemaining   float64 `json:"budget_remaining"`
-	RecordCount       int     `json:"record_count"`
-	SuppressedGroups  int     `json:"suppressed_groups"`
+	Epsilon          float64 `json:"epsilon"`
+	Delta            float64 `json:"delta"`
+	NoiseType        string  `json:"noise_type"`
+	NoiseMagnitude   float64 `json:"noise_magnitude"`
+	BudgetConsumed   float64 `json:"budget_consumed"`
+	BudgetRemaining  float64 `json:"budget_remaining"`
+	RecordCount      int     `json:"record_count"`
+	SuppressedGroups int     `json:"suppressed_groups"`
 }
 
 // NewPrivacyFederation creates a new privacy federation engine.
@@ -547,7 +547,7 @@ func (p *PrivacyFederation) addAuditEntry(query *FederatedQuery, result *Privacy
 		BudgetUsed:  result.PrivacyInfo.BudgetConsumed,
 		RecordCount: result.PrivacyInfo.RecordCount,
 		NoiseAdded:  noise,
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"query_id": query.ID,
 			"sources":  query.Sources,
 		},
@@ -634,12 +634,12 @@ func (p *PrivacyFederation) SecureAggregation(sources []string, aggregation Aggr
 	noisyTotal := p.addNoise(totalValue, epsilon, sensitivity)
 
 	return &SecureAggResult{
-		Aggregation:    aggregation,
-		Metric:         metric,
+		Aggregation:      aggregation,
+		Metric:           metric,
 		ParticipantCount: len(sources),
-		RawValue:       totalValue,
-		SecureValue:    noisyTotal,
-		Timestamp:      time.Now(),
+		RawValue:         totalValue,
+		SecureValue:      noisyTotal,
+		Timestamp:        time.Now(),
 	}, nil
 }
 
@@ -658,24 +658,24 @@ func (p *PrivacyFederation) ExportPrivacyReport() ([]byte, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	report := map[string]interface{}{
+	report := map[string]any{
 		"generated_at": time.Now(),
-		"config": map[string]interface{}{
-			"epsilon":             p.config.Epsilon,
-			"delta":               p.config.Delta,
-			"noise_type":          p.config.NoiseType.String(),
-			"min_aggregation":     p.config.MinAggregationSize,
-			"budget_per_query":    p.config.PrivacyBudgetPerQuery,
-			"total_budget":        p.config.TotalPrivacyBudget,
-			"budget_refresh":      p.config.BudgetRefreshInterval.String(),
+		"config": map[string]any{
+			"epsilon":          p.config.Epsilon,
+			"delta":            p.config.Delta,
+			"noise_type":       p.config.NoiseType.String(),
+			"min_aggregation":  p.config.MinAggregationSize,
+			"budget_per_query": p.config.PrivacyBudgetPerQuery,
+			"total_budget":     p.config.TotalPrivacyBudget,
+			"budget_refresh":   p.config.BudgetRefreshInterval.String(),
 		},
-		"sources":      p.ListSources(),
-		"budget_status": p.GetBudgetStatus(),
+		"sources":        p.ListSources(),
+		"budget_status":  p.GetBudgetStatus(),
 		"recent_queries": len(p.auditLog),
-		"summary": map[string]interface{}{
-			"total_sources":     len(p.sources),
-			"total_queries":     p.getTotalQueryCount(),
-			"avg_epsilon_used":  p.getAvgEpsilonUsed(),
+		"summary": map[string]any{
+			"total_sources":    len(p.sources),
+			"total_queries":    p.getTotalQueryCount(),
+			"avg_epsilon_used": p.getAvgEpsilonUsed(),
 		},
 	}
 

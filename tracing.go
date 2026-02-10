@@ -63,18 +63,18 @@ func DefaultTracingConfig() TracingConfig {
 
 // TraceCorrelator provides correlation between metrics and distributed traces.
 type TraceCorrelator struct {
-	db       *DB
-	config   TracingConfig
-	client   HTTPDoer
-	mu       sync.RWMutex
+	db     *DB
+	config TracingConfig
+	client HTTPDoer
+	mu     sync.RWMutex
 
 	// Trace reference index
 	traceIndex   map[string]*TraceReference // traceID -> reference
 	metricTraces map[string][]string        // metric -> traceIDs
 
 	// Cache
-	traceCache   *traceCache
-	
+	traceCache *traceCache
+
 	// Background tasks
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -90,11 +90,11 @@ type TraceReference struct {
 	Tags        map[string]string `json:"tags,omitempty"`
 	Value       float64           `json:"value"`
 	Timestamp   int64             `json:"timestamp"`
-	
+
 	// Correlation metadata
-	Duration    time.Duration `json:"duration,omitempty"`
-	StatusCode  string        `json:"status_code,omitempty"`
-	ErrorType   string        `json:"error_type,omitempty"`
+	Duration   time.Duration `json:"duration,omitempty"`
+	StatusCode string        `json:"status_code,omitempty"`
+	ErrorType  string        `json:"error_type,omitempty"`
 }
 
 // TraceSpan represents a span from the trace backend.
@@ -125,12 +125,12 @@ type SpanStatus struct {
 
 // Trace represents a complete distributed trace.
 type Trace struct {
-	TraceID     string       `json:"traceID"`
-	Spans       []TraceSpan  `json:"spans"`
-	ServiceName string       `json:"serviceName"`
-	StartTime   int64        `json:"startTime"`
-	Duration    int64        `json:"duration"`
-	SpanCount   int          `json:"spanCount"`
+	TraceID     string      `json:"traceID"`
+	Spans       []TraceSpan `json:"spans"`
+	ServiceName string      `json:"serviceName"`
+	StartTime   int64       `json:"startTime"`
+	Duration    int64       `json:"duration"`
+	SpanCount   int         `json:"spanCount"`
 }
 
 // MetricTraceCorrelation represents a correlated metric and trace.
@@ -156,10 +156,10 @@ type MetricTraceCorrelation struct {
 
 // traceCache caches trace metadata.
 type traceCache struct {
-	mu       sync.RWMutex
-	traces   map[string]*Trace
-	order    []string
-	maxSize  int
+	mu      sync.RWMutex
+	traces  map[string]*Trace
+	order   []string
+	maxSize int
 }
 
 func newTraceCache(maxSize int) *traceCache {
@@ -365,11 +365,11 @@ func (tc *TraceCorrelator) GetTracesForAnomaly(anomaly *ClassifiedAnomaly) ([]*M
 	var correlations []*MetricTraceCorrelation
 	for _, ref := range refs {
 		correlation := &MetricTraceCorrelation{
-			Metric:    ref.Metric,
-			Tags:      ref.Tags,
-			Value:     ref.Value,
-			Timestamp: ref.Timestamp,
-			TraceID:   ref.TraceID,
+			Metric:      ref.Metric,
+			Tags:        ref.Tags,
+			Value:       ref.Value,
+			Timestamp:   ref.Timestamp,
+			TraceID:     ref.TraceID,
 			ServiceName: ref.ServiceName,
 		}
 
@@ -500,8 +500,8 @@ func (tc *TraceCorrelator) fetchFromBackend(traceID string) (*Trace, error) {
 func parseJaegerTrace(data []byte) (*Trace, error) {
 	var response struct {
 		Data []struct {
-			TraceID   string `json:"traceID"`
-			Spans     []struct {
+			TraceID string `json:"traceID"`
+			Spans   []struct {
 				TraceID       string `json:"traceID"`
 				SpanID        string `json:"spanID"`
 				OperationName string `json:"operationName"`
@@ -509,8 +509,8 @@ func parseJaegerTrace(data []byte) (*Trace, error) {
 				Duration      int64  `json:"duration"`
 				ProcessID     string `json:"processID"`
 				Tags          []struct {
-					Key   string      `json:"key"`
-					Value interface{} `json:"value"`
+					Key   string `json:"key"`
+					Value any    `json:"value"`
 				} `json:"tags"`
 			} `json:"spans"`
 			Processes map[string]struct {
@@ -570,12 +570,12 @@ func parseJaegerTrace(data []byte) (*Trace, error) {
 
 func parseZipkinTrace(data []byte) (*Trace, error) {
 	var spans []struct {
-		TraceID       string            `json:"traceId"`
-		ID            string            `json:"id"`
-		ParentID      string            `json:"parentId,omitempty"`
-		Name          string            `json:"name"`
-		Timestamp     int64             `json:"timestamp"`
-		Duration      int64             `json:"duration"`
+		TraceID       string `json:"traceId"`
+		ID            string `json:"id"`
+		ParentID      string `json:"parentId,omitempty"`
+		Name          string `json:"name"`
+		Timestamp     int64  `json:"timestamp"`
+		Duration      int64  `json:"duration"`
 		LocalEndpoint struct {
 			ServiceName string `json:"serviceName"`
 		} `json:"localEndpoint"`
@@ -660,10 +660,10 @@ func (tc *TraceCorrelator) GetTraceStats() TraceStats {
 	defer tc.mu.RUnlock()
 
 	stats := TraceStats{
-		TotalTraces:         len(tc.traceIndex),
-		TracedMetrics:       len(tc.metricTraces),
-		TracesByService:     make(map[string]int),
-		TracesByMetric:      make(map[string]int),
+		TotalTraces:     len(tc.traceIndex),
+		TracedMetrics:   len(tc.metricTraces),
+		TracesByService: make(map[string]int),
+		TracesByMetric:  make(map[string]int),
 	}
 
 	for _, ref := range tc.traceIndex {

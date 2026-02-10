@@ -154,12 +154,12 @@ func TestRecordBatchToPoints(t *testing.T) {
 		Schema: ChronicleSchema(),
 		Length: 2,
 		Columns: []ArrowColumn{
-			{Name: "timestamp", Type: ArrowTypeTimestamp, Data: []interface{}{float64(1000), float64(2000)}},
-			{Name: "metric", Type: ArrowTypeString, Data: []interface{}{"cpu", "mem"}},
-			{Name: "value", Type: ArrowTypeFloat64, Data: []interface{}{float64(50), float64(60)}},
-			{Name: "tags", Type: ArrowTypeMap, Data: []interface{}{
-				map[string]interface{}{"host": "a"},
-				map[string]interface{}{"host": "b"},
+			{Name: "timestamp", Type: ArrowTypeTimestamp, Data: []any{float64(1000), float64(2000)}},
+			{Name: "metric", Type: ArrowTypeString, Data: []any{"cpu", "mem"}},
+			{Name: "value", Type: ArrowTypeFloat64, Data: []any{float64(50), float64(60)}},
+			{Name: "tags", Type: ArrowTypeMap, Data: []any{
+				map[string]any{"host": "a"},
+				map[string]any{"host": "b"},
 			}},
 		},
 	}
@@ -190,7 +190,7 @@ func TestRecordBatchToPoints_MissingMetric(t *testing.T) {
 	batch := ArrowRecordBatch{
 		Length: 1,
 		Columns: []ArrowColumn{
-			{Name: "value", Type: ArrowTypeFloat64, Data: []interface{}{float64(50)}},
+			{Name: "value", Type: ArrowTypeFloat64, Data: []any{float64(50)}},
 		},
 	}
 
@@ -334,16 +334,16 @@ func TestToDataFrame(t *testing.T) {
 			Schema: ChronicleSchema(),
 			Length: 2,
 			Columns: []ArrowColumn{
-				{Name: "timestamp", Data: []interface{}{float64(1), float64(2)}},
-				{Name: "value", Data: []interface{}{float64(10), float64(20)}},
+				{Name: "timestamp", Data: []any{float64(1), float64(2)}},
+				{Name: "value", Data: []any{float64(10), float64(20)}},
 			},
 		},
 		{
 			Schema: ChronicleSchema(),
 			Length: 1,
 			Columns: []ArrowColumn{
-				{Name: "timestamp", Data: []interface{}{float64(3)}},
-				{Name: "value", Data: []interface{}{float64(30)}},
+				{Name: "timestamp", Data: []any{float64(3)}},
+				{Name: "value", Data: []any{float64(30)}},
 			},
 		},
 	}
@@ -354,7 +354,7 @@ func TestToDataFrame(t *testing.T) {
 		t.Errorf("expected 2 columns, got %d", len(df))
 	}
 
-	timestamps, ok := df["timestamp"].([]interface{})
+	timestamps, ok := df["timestamp"].([]any)
 	if !ok {
 		t.Fatal("timestamp column not found or wrong type")
 	}

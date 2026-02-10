@@ -42,7 +42,7 @@ func TestOpenAPIGenerator_ToJSON(t *testing.T) {
 	}
 
 	// Verify it's valid JSON.
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestOpenAPIHandler(t *testing.T) {
 			t.Errorf("expected Content-Type application/json, got %q", w.Header().Get("Content-Type"))
 		}
 
-		var spec map[string]interface{}
+		var spec map[string]any
 		if err := json.Unmarshal(w.Body.Bytes(), &spec); err != nil {
 			t.Fatalf("invalid JSON response: %v", err)
 		}

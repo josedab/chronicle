@@ -376,19 +376,21 @@ func TestGrafanaAnnotation(t *testing.T) {
 
 func TestGrafanaBackend_CORS(t *testing.T) {
 	config := DefaultGrafanaBackendConfig()
+	config.AllowedOrigins = []string{"http://localhost:3000"}
 	backend := NewGrafanaBackend(nil, config)
 
 	handler := backend.corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// Test OPTIONS request
+	// Test OPTIONS request with matching origin
 	req := httptest.NewRequest("OPTIONS", "/", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Error("CORS header not set")
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+		t.Error("CORS header not set for allowed origin")
 	}
 
 	if w.Code != http.StatusOK {

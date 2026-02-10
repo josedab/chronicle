@@ -34,7 +34,7 @@ func DefaultCompliancePacksConfig() CompliancePacksConfig {
 type CompliancePackStatus int
 
 const (
-	PackDisabled     CompliancePackStatus = iota
+	PackDisabled CompliancePackStatus = iota
 	PackEnabled
 	PackCompliant
 	PackNonCompliant
@@ -43,16 +43,16 @@ const (
 
 // CompliancePack defines a pre-configured compliance bundle.
 type CompliancePack struct {
-	Standard      ComplianceStandard     `json:"standard"`
-	Name          string                 `json:"name"`
-	Description   string                 `json:"description"`
-	Version       string                 `json:"version"`
+	Standard      ComplianceStandard      `json:"standard"`
+	Name          string                  `json:"name"`
+	Description   string                  `json:"description"`
+	Version       string                  `json:"version"`
 	Requirements  []ComplianceRequirement `json:"requirements"`
-	Settings      ComplianceSettings     `json:"settings"`
-	Enabled       bool                   `json:"enabled"`
-	EnabledAt     time.Time              `json:"enabled_at"`
-	LastValidated time.Time              `json:"last_validated"`
-	Status        CompliancePackStatus   `json:"status"`
+	Settings      ComplianceSettings      `json:"settings"`
+	Enabled       bool                    `json:"enabled"`
+	EnabledAt     time.Time               `json:"enabled_at"`
+	LastValidated time.Time               `json:"last_validated"`
+	Status        CompliancePackStatus    `json:"status"`
 }
 
 // ComplianceRequirement is a single compliance requirement within a pack.
@@ -115,14 +115,14 @@ type AuditLogEntry struct {
 
 // CompliancePackReport is a validation report for a compliance pack.
 type CompliancePackReport struct {
-	Standard       string              `json:"standard"`
-	GeneratedAt    time.Time           `json:"generated_at"`
-	OverallStatus  string              `json:"overall_status"`
-	Score          float64             `json:"score"`
-	Requirements   []RequirementStatus `json:"requirements"`
-	Findings       []ComplianceFinding `json:"findings"`
-	Recommendations []string           `json:"recommendations"`
-	NextReviewDate time.Time           `json:"next_review_date"`
+	Standard        string              `json:"standard"`
+	GeneratedAt     time.Time           `json:"generated_at"`
+	OverallStatus   string              `json:"overall_status"`
+	Score           float64             `json:"score"`
+	Requirements    []RequirementStatus `json:"requirements"`
+	Findings        []ComplianceFinding `json:"findings"`
+	Recommendations []string            `json:"recommendations"`
+	NextReviewDate  time.Time           `json:"next_review_date"`
 }
 
 // RequirementStatus describes the status of a single requirement.
@@ -543,14 +543,14 @@ func (e *CompliancePacksEngine) ValidatePack(standard ComplianceStandard) (*Comp
 	pack.LastValidated = time.Now()
 
 	report := &CompliancePackReport{
-		Standard:       string(standard),
-		GeneratedAt:    time.Now(),
-		OverallStatus:  overall,
-		Score:          score,
-		Requirements:   reqStatuses,
-		Findings:       findings,
+		Standard:        string(standard),
+		GeneratedAt:     time.Now(),
+		OverallStatus:   overall,
+		Score:           score,
+		Requirements:    reqStatuses,
+		Findings:        findings,
 		Recommendations: e.generateRecommendations(findings),
-		NextReviewDate: time.Now().Add(90 * 24 * time.Hour),
+		NextReviewDate:  time.Now().Add(90 * 24 * time.Hour),
 	}
 	return report, nil
 }

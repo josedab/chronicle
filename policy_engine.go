@@ -20,12 +20,12 @@ import (
 type PolicyType string
 
 const (
-	PolicyTypeAccess      PolicyType = "access"      // Controls read/write access
-	PolicyTypeFilter      PolicyType = "filter"      // Filters query results
-	PolicyTypeMask        PolicyType = "mask"        // Masks sensitive data
-	PolicyTypeRateLimit   PolicyType = "rate_limit"  // Rate limiting
-	PolicyTypeAudit       PolicyType = "audit"       // Audit logging
-	PolicyTypeTransform   PolicyType = "transform"   // Data transformation
+	PolicyTypeAccess    PolicyType = "access"     // Controls read/write access
+	PolicyTypeFilter    PolicyType = "filter"     // Filters query results
+	PolicyTypeMask      PolicyType = "mask"       // Masks sensitive data
+	PolicyTypeRateLimit PolicyType = "rate_limit" // Rate limiting
+	PolicyTypeAudit     PolicyType = "audit"      // Audit logging
+	PolicyTypeTransform PolicyType = "transform"  // Data transformation
 )
 
 // PolicyAction defines the action when policy matches
@@ -97,11 +97,11 @@ type Policy struct {
 
 // PolicyRule represents a single rule within a policy
 type PolicyRule struct {
-	ID         string                 `json:"id"`
-	Field      string                 `json:"field"`      // Field to match (series, tags.*, user, etc.)
-	Operator   string                 `json:"operator"`   // eq, ne, contains, regex, in, gt, lt
-	Value      interface{}            `json:"value"`
-	Conditions map[string]interface{} `json:"conditions"` // Additional conditions
+	ID         string         `json:"id"`
+	Field      string         `json:"field"`    // Field to match (series, tags.*, user, etc.)
+	Operator   string         `json:"operator"` // eq, ne, contains, regex, in, gt, lt
+	Value      any            `json:"value"`
+	Conditions map[string]any `json:"conditions"` // Additional conditions
 }
 
 // PolicyContext provides context for policy evaluation
@@ -130,8 +130,8 @@ type PolicyResult struct {
 
 // MaskRule defines how to mask data
 type MaskRule struct {
-	Field      string `json:"field"`
-	Strategy   string `json:"strategy"` // hash, redact, partial, encrypt, tokenize
+	Field      string            `json:"field"`
+	Strategy   string            `json:"strategy"` // hash, redact, partial, encrypt, tokenize
 	Parameters map[string]string `json:"parameters"`
 }
 
@@ -140,42 +140,42 @@ type PolicyEngine struct {
 	db     *DB
 	config *PolicyEngineConfig
 
-	policies   map[string]*Policy
-	policyMu   sync.RWMutex
+	policies map[string]*Policy
+	policyMu sync.RWMutex
 
 	cache      *policyCache
 	rateLimits map[string]*rateLimitBucket
 	rateMu     sync.RWMutex
 
-	auditLog   []AuditEntry
-	auditMu    sync.RWMutex
-	auditChan  chan AuditEntry
+	auditLog  []AuditEntry
+	auditMu   sync.RWMutex
+	auditChan chan AuditEntry
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
 	// Stats
-	evaluations    int64
-	cacheHits      int64
-	denials        int64
-	auditEntries   int64
+	evaluations  int64
+	cacheHits    int64
+	denials      int64
+	auditEntries int64
 }
 
 // AuditEntry represents an audit log entry
 type AuditEntry struct {
-	ID         string            `json:"id"`
-	Timestamp  time.Time         `json:"timestamp"`
-	User       string            `json:"user"`
-	Operation  string            `json:"operation"`
-	Resource   string            `json:"resource"`
-	PolicyID   string            `json:"policy_id"`
-	Action     PolicyAction      `json:"action"`
-	Allowed    bool              `json:"allowed"`
-	Reason     string            `json:"reason"`
-	SourceIP   string            `json:"source_ip"`
-	Duration   time.Duration     `json:"duration"`
-	Metadata   map[string]string `json:"metadata"`
+	ID        string            `json:"id"`
+	Timestamp time.Time         `json:"timestamp"`
+	User      string            `json:"user"`
+	Operation string            `json:"operation"`
+	Resource  string            `json:"resource"`
+	PolicyID  string            `json:"policy_id"`
+	Action    PolicyAction      `json:"action"`
+	Allowed   bool              `json:"allowed"`
+	Reason    string            `json:"reason"`
+	SourceIP  string            `json:"source_ip"`
+	Duration  time.Duration     `json:"duration"`
+	Metadata  map[string]string `json:"metadata"`
 }
 
 // NewPolicyEngine creates a new policy engine
@@ -448,7 +448,7 @@ func (pe *PolicyEngine) evaluatePolicy(policy *Policy, ctx *PolicyContext) *Poli
 
 func (pe *PolicyEngine) evaluateRule(rule *PolicyRule, ctx *PolicyContext) bool {
 	// Get the value to compare
-	var fieldValue interface{}
+	var fieldValue any
 	switch rule.Field {
 	case "user":
 		fieldValue = ctx.User
@@ -474,7 +474,7 @@ func (pe *PolicyEngine) evaluateRule(rule *PolicyRule, ctx *PolicyContext) bool 
 	return pe.applyOperator(rule.Operator, fieldValue, rule.Value)
 }
 
-func (pe *PolicyEngine) applyOperator(op string, fieldValue, ruleValue interface{}) bool {
+func (pe *PolicyEngine) applyOperator(op string, fieldValue, ruleValue any) bool {
 	switch op {
 	case "eq", "equals":
 		return fmt.Sprintf("%v", fieldValue) == fmt.Sprintf("%v", ruleValue)
@@ -507,7 +507,7 @@ func (pe *PolicyEngine) applyOperator(op string, fieldValue, ruleValue interface
 
 	case "in":
 		// Rule value should be a list
-		list, ok := ruleValue.([]interface{})
+		list, ok := ruleValue.([]any)
 		if !ok {
 			if strList, ok := ruleValue.([]string); ok {
 				for _, v := range strList {
@@ -526,7 +526,7 @@ func (pe *PolicyEngine) applyOperator(op string, fieldValue, ruleValue interface
 		return false
 
 	case "not_in":
-		list, ok := ruleValue.([]interface{})
+		list, ok := ruleValue.([]any)
 		if !ok {
 			return true
 		}
@@ -543,7 +543,7 @@ func (pe *PolicyEngine) applyOperator(op string, fieldValue, ruleValue interface
 		if !ok {
 			return false
 		}
-		ruleList, ok := ruleValue.([]interface{})
+		ruleList, ok := ruleValue.([]any)
 		if !ok {
 			if strList, ok := ruleValue.([]string); ok {
 				for _, fv := range fieldList {
@@ -607,7 +607,7 @@ func (pe *PolicyEngine) checkRateLimit(user string) bool {
 	bucket, exists := pe.rateLimits[user]
 	if !exists {
 		bucket = &rateLimitBucket{
-			tokens:    100,
+			tokens:     100,
 			lastRefill: time.Now(),
 		}
 		pe.rateLimits[user] = bucket
@@ -737,14 +737,14 @@ func (pe *PolicyEngine) SearchAuditLog(user, operation, resource string, since t
 }
 
 // MaskData applies masking rules to data
-func (pe *PolicyEngine) MaskData(data interface{}, rules []MaskRule) interface{} {
+func (pe *PolicyEngine) MaskData(data any, rules []MaskRule) any {
 	if len(rules) == 0 {
 		return data
 	}
 
 	// Handle map data
-	if m, ok := data.(map[string]interface{}); ok {
-		result := make(map[string]interface{})
+	if m, ok := data.(map[string]any); ok {
+		result := make(map[string]any)
 		for k, v := range m {
 			masked := false
 			for _, rule := range rules {
@@ -764,7 +764,7 @@ func (pe *PolicyEngine) MaskData(data interface{}, rules []MaskRule) interface{}
 	return data
 }
 
-func (pe *PolicyEngine) applyMask(value interface{}, strategy string, params map[string]string) interface{} {
+func (pe *PolicyEngine) applyMask(value any, strategy string, params map[string]string) any {
 	str := fmt.Sprintf("%v", value)
 
 	switch strategy {
@@ -991,8 +991,8 @@ func (c *policyCache) clear() {
 
 // Rego compatibility layer - simplified policy language
 type RegoPolicy struct {
-	Package string       `json:"package"`
-	Rules   []RegoRule   `json:"rules"`
+	Package string     `json:"package"`
+	Rules   []RegoRule `json:"rules"`
 }
 
 type RegoRule struct {

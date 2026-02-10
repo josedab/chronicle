@@ -28,15 +28,15 @@ type graphQLSubscription struct {
 
 // GraphQLRequest represents a GraphQL request.
 type GraphQLRequest struct {
-	Query         string                 `json:"query"`
-	OperationName string                 `json:"operationName,omitempty"`
-	Variables     map[string]interface{} `json:"variables,omitempty"`
+	Query         string         `json:"query"`
+	OperationName string         `json:"operationName,omitempty"`
+	Variables     map[string]any `json:"variables,omitempty"`
 }
 
 // GraphQLResponse represents a GraphQL response.
 type GraphQLResponse struct {
-	Data   interface{}     `json:"data,omitempty"`
-	Errors []GraphQLError  `json:"errors,omitempty"`
+	Data   any            `json:"data,omitempty"`
+	Errors []GraphQLError `json:"errors,omitempty"`
 }
 
 // GraphQLError represents a GraphQL error.
@@ -51,7 +51,7 @@ type GraphQLError struct {
 
 // GraphQLResult is a query result for subscriptions.
 type GraphQLResult struct {
-	Data  interface{}
+	Data  any
 	Error error
 }
 
@@ -83,7 +83,7 @@ func (s *GraphQLServer) Handler() http.Handler {
 		}
 
 		result := s.Execute(r.Context(), req)
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})
@@ -132,7 +132,7 @@ type graphQLOperation struct {
 
 type graphQLSelection struct {
 	Name      string
-	Arguments map[string]interface{}
+	Arguments map[string]any
 	Fields    []string
 }
 
@@ -196,7 +196,7 @@ func parseGraphQLSelections(body string) ([]graphQLSelection, error) {
 		}
 
 		sel := graphQLSelection{
-			Arguments: make(map[string]interface{}),
+			Arguments: make(map[string]any),
 		}
 
 		// Parse field name and arguments
@@ -222,30 +222,30 @@ func parseGraphQLSelections(body string) ([]graphQLSelection, error) {
 	return selections, nil
 }
 
-func parseGraphQLArguments(argsStr string) map[string]interface{} {
-	args := make(map[string]interface{})
-	
+func parseGraphQLArguments(argsStr string) map[string]any {
+	args := make(map[string]any)
+
 	parts := strings.Split(argsStr, ",")
 	for _, part := range parts {
 		kv := strings.SplitN(strings.TrimSpace(part), ":", 2)
 		if len(kv) == 2 {
 			key := strings.TrimSpace(kv[0])
 			value := strings.TrimSpace(kv[1])
-			
+
 			// Remove quotes from string values
 			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 				value = value[1 : len(value)-1]
 			}
-			
+
 			args[key] = value
 		}
 	}
-	
+
 	return args
 }
 
-func (s *GraphQLServer) executeQuery(ctx context.Context, op *graphQLOperation, variables map[string]interface{}) *GraphQLResponse {
-	data := make(map[string]interface{})
+func (s *GraphQLServer) executeQuery(ctx context.Context, op *graphQLOperation, variables map[string]any) *GraphQLResponse {
+	data := make(map[string]any)
 
 	for _, sel := range op.Selections {
 		switch sel.Name {
@@ -269,8 +269,8 @@ func (s *GraphQLServer) executeQuery(ctx context.Context, op *graphQLOperation, 
 	return &GraphQLResponse{Data: data}
 }
 
-func (s *GraphQLServer) executeMutation(ctx context.Context, op *graphQLOperation, variables map[string]interface{}) *GraphQLResponse {
-	data := make(map[string]interface{})
+func (s *GraphQLServer) executeMutation(ctx context.Context, op *graphQLOperation, variables map[string]any) *GraphQLResponse {
+	data := make(map[string]any)
 
 	for _, sel := range op.Selections {
 		switch sel.Name {
@@ -304,26 +304,26 @@ func (s *GraphQLServer) queryMetrics(_ context.Context, _ graphQLSelection) []st
 	return s.db.Metrics()
 }
 
-func (s *GraphQLServer) querySeries(_ context.Context, sel graphQLSelection) []map[string]interface{} {
+func (s *GraphQLServer) querySeries(_ context.Context, sel graphQLSelection) []map[string]any {
 	metric, _ := sel.Arguments["metric"].(string)
-	
+
 	if metric == "" {
 		// Return all metrics with their series
-		var result []map[string]interface{}
+		var result []map[string]any
 		for _, m := range s.db.Metrics() {
-			result = append(result, map[string]interface{}{
+			result = append(result, map[string]any{
 				"metric": m,
 			})
 		}
 		return result
 	}
 
-	return []map[string]interface{}{
+	return []map[string]any{
 		{"metric": metric},
 	}
 }
 
-func (s *GraphQLServer) queryPoints(ctx context.Context, sel graphQLSelection, variables map[string]interface{}) []map[string]interface{} {
+func (s *GraphQLServer) queryPoints(ctx context.Context, sel graphQLSelection, variables map[string]any) []map[string]any {
 	metric, _ := sel.Arguments["metric"].(string)
 	if metric == "" {
 		if m, ok := variables["metric"].(string); ok {
@@ -351,9 +351,9 @@ func (s *GraphQLServer) queryPoints(ctx context.Context, sel graphQLSelection, v
 		return nil
 	}
 
-	var points []map[string]interface{}
+	var points []map[string]any
 	for _, p := range result.Points {
-		points = append(points, map[string]interface{}{
+		points = append(points, map[string]any{
 			"timestamp": p.Timestamp,
 			"value":     p.Value,
 			"tags":      p.Tags,
@@ -363,23 +363,23 @@ func (s *GraphQLServer) queryPoints(ctx context.Context, sel graphQLSelection, v
 	return points
 }
 
-func (s *GraphQLServer) queryStats(_ context.Context) map[string]interface{} {
-	return map[string]interface{}{
-		"metrics":      len(s.db.Metrics()),
-		"uptime":       time.Since(time.Now()).String(),
-		"version":      "1.0.0",
+func (s *GraphQLServer) queryStats(_ context.Context) map[string]any {
+	return map[string]any{
+		"metrics": len(s.db.Metrics()),
+		"uptime":  time.Since(time.Now()).String(),
+		"version": "1.0.0",
 	}
 }
 
-func (s *GraphQLServer) queryConfig(_ context.Context) map[string]interface{} {
-	return map[string]interface{}{
+func (s *GraphQLServer) queryConfig(_ context.Context) map[string]any {
+	return map[string]any{
 		"partitionDuration": s.db.config.Storage.PartitionDuration.String(),
 		"bufferSize":        s.db.config.Storage.BufferSize,
 		"retention":         s.db.config.Retention.RetentionDuration.String(),
 	}
 }
 
-func (s *GraphQLServer) mutationWrite(ctx context.Context, sel graphQLSelection, variables map[string]interface{}) (bool, error) {
+func (s *GraphQLServer) mutationWrite(ctx context.Context, sel graphQLSelection, variables map[string]any) (bool, error) {
 	metric, _ := sel.Arguments["metric"].(string)
 	if metric == "" {
 		if m, ok := variables["metric"].(string); ok {
@@ -404,7 +404,7 @@ func (s *GraphQLServer) mutationWrite(ctx context.Context, sel graphQLSelection,
 	return true, nil
 }
 
-func (s *GraphQLServer) mutationDelete(ctx context.Context, sel graphQLSelection, variables map[string]interface{}) (int, error) {
+func (s *GraphQLServer) mutationDelete(ctx context.Context, sel graphQLSelection, variables map[string]any) (int, error) {
 	metric, _ := sel.Arguments["metric"].(string)
 	if metric == "" {
 		if m, ok := variables["metric"].(string); ok {
@@ -426,7 +426,7 @@ func (s *GraphQLServer) Subscribe(ctx context.Context, query string, interval ti
 	defer s.subscriptionsMu.Unlock()
 
 	id := fmt.Sprintf("sub_%d", time.Now().UnixNano())
-	
+
 	sub := &graphQLSubscription{
 		id:       id,
 		query:    query,
@@ -472,7 +472,7 @@ func (s *GraphQLServer) runSubscription(ctx context.Context, sub *graphQLSubscri
 		case <-ticker.C:
 			req := GraphQLRequest{Query: sub.query}
 			resp := s.Execute(ctx, req)
-			
+
 			result := &GraphQLResult{
 				Data: resp.Data,
 			}
@@ -616,8 +616,8 @@ type TagInput struct {
 
 // SeriesOutput represents a series in GraphQL output.
 type SeriesOutput struct {
-	Metric string           `json:"metric"`
-	Tags   []TagOutput      `json:"tags"`
+	Metric string      `json:"metric"`
+	Tags   []TagOutput `json:"tags"`
 }
 
 // TagOutput represents a tag in GraphQL output.
@@ -652,13 +652,13 @@ func tagsToOutput(tags map[string]string) []TagOutput {
 	if len(tags) == 0 {
 		return nil
 	}
-	
+
 	keys := make([]string, 0, len(tags))
 	for k := range tags {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	
+
 	out := make([]TagOutput, len(keys))
 	for i, k := range keys {
 		out[i] = TagOutput{Key: k, Value: tags[k]}

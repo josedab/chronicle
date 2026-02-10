@@ -126,17 +126,17 @@ type DataLineageRecord struct {
 
 // ComplianceViolation represents a detected compliance violation.
 type ComplianceViolation struct {
-	ID              string              `json:"id"`
-	Framework       ComplianceFramework `json:"framework"`
-	RuleID          string              `json:"rule_id"`
-	Severity        ViolationSeverity   `json:"severity"`
-	Description     string              `json:"description"`
-	Resource        string              `json:"resource"`
-	DetectedAt      time.Time           `json:"detected_at"`
-	Remediation     string              `json:"remediation"`
-	AutoRemediated  bool                `json:"auto_remediated"`
-	Status          ViolationStatus     `json:"status"`
-	Justification   string              `json:"justification,omitempty"`
+	ID             string              `json:"id"`
+	Framework      ComplianceFramework `json:"framework"`
+	RuleID         string              `json:"rule_id"`
+	Severity       ViolationSeverity   `json:"severity"`
+	Description    string              `json:"description"`
+	Resource       string              `json:"resource"`
+	DetectedAt     time.Time           `json:"detected_at"`
+	Remediation    string              `json:"remediation"`
+	AutoRemediated bool                `json:"auto_remediated"`
+	Status         ViolationStatus     `json:"status"`
+	Justification  string              `json:"justification,omitempty"`
 }
 
 // RegulatoryComplianceReport is a comprehensive compliance assessment report.
@@ -177,13 +177,13 @@ type DataRetentionPolicy struct {
 
 // AccessReview tracks periodic access reviews.
 type AccessReview struct {
-	ID          string   `json:"id"`
-	User        string   `json:"user"`
-	Permissions []string `json:"permissions"`
+	ID           string    `json:"id"`
+	User         string    `json:"user"`
+	Permissions  []string  `json:"permissions"`
 	LastReviewed time.Time `json:"last_reviewed"`
-	Reviewer    string   `json:"reviewer"`
-	Approved    bool     `json:"approved"`
-	Notes       string   `json:"notes"`
+	Reviewer     string    `json:"reviewer"`
+	Approved     bool      `json:"approved"`
+	Notes        string    `json:"notes"`
 }
 
 // RegulatoryComplianceStats provides aggregate statistics for the compliance suite.

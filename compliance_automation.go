@@ -12,14 +12,14 @@ import (
 
 // ComplianceAutomationConfig configures the compliance automation suite.
 type ComplianceAutomationConfig struct {
-	Enabled              bool          `json:"enabled"`
-	PIIDetectionEnabled  bool          `json:"pii_detection_enabled"`
-	AutoMaskEnabled      bool          `json:"auto_mask_enabled"`
-	RetentionEnforcement bool          `json:"retention_enforcement"`
-	AuditLogEnabled      bool          `json:"audit_log_enabled"`
-	AuditLogMaxSize      int           `json:"audit_log_max_size"`
-	DSAREnabled          bool          `json:"dsar_enabled"`
-	DSARSLADuration      time.Duration `json:"dsar_sla_duration"`
+	Enabled              bool                 `json:"enabled"`
+	PIIDetectionEnabled  bool                 `json:"pii_detection_enabled"`
+	AutoMaskEnabled      bool                 `json:"auto_mask_enabled"`
+	RetentionEnforcement bool                 `json:"retention_enforcement"`
+	AuditLogEnabled      bool                 `json:"audit_log_enabled"`
+	AuditLogMaxSize      int                  `json:"audit_log_max_size"`
+	DSAREnabled          bool                 `json:"dsar_enabled"`
+	DSARSLADuration      time.Duration        `json:"dsar_sla_duration"`
 	Standards            []ComplianceStandard `json:"standards"`
 }
 
@@ -40,55 +40,55 @@ func DefaultComplianceAutomationConfig() ComplianceAutomationConfig {
 
 // PIIDetectionResult describes detected PII in data.
 type PIIDetectionResult struct {
-	Field       string `json:"field"`
-	PIIType     string `json:"pii_type"` // email, phone, ssn, ip_address, credit_card, name
-	Value       string `json:"value"`
-	Confidence  float64 `json:"confidence"`
-	Action      string `json:"action"` // detected, masked, encrypted
+	Field      string  `json:"field"`
+	PIIType    string  `json:"pii_type"` // email, phone, ssn, ip_address, credit_card, name
+	Value      string  `json:"value"`
+	Confidence float64 `json:"confidence"`
+	Action     string  `json:"action"` // detected, masked, encrypted
 }
 
 // RetentionPolicy defines data retention rules.
 type RetentionPolicy struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	MetricPattern  string            `json:"metric_pattern"`
-	MaxAge         time.Duration     `json:"max_age"`
-	Standard       ComplianceStandard `json:"standard,omitempty"`
-	DeleteAction   string            `json:"delete_action"` // delete, anonymize, archive
-	CreatedAt      time.Time         `json:"created_at"`
-	LastEnforced   time.Time         `json:"last_enforced"`
-	EnforcedCount  int64             `json:"enforced_count"`
+	ID            string             `json:"id"`
+	Name          string             `json:"name"`
+	MetricPattern string             `json:"metric_pattern"`
+	MaxAge        time.Duration      `json:"max_age"`
+	Standard      ComplianceStandard `json:"standard,omitempty"`
+	DeleteAction  string             `json:"delete_action"` // delete, anonymize, archive
+	CreatedAt     time.Time          `json:"created_at"`
+	LastEnforced  time.Time          `json:"last_enforced"`
+	EnforcedCount int64              `json:"enforced_count"`
 }
 
 // ConsentRecord tracks data processing consent.
 type ConsentRecord struct {
-	SubjectID   string    `json:"subject_id"`
-	Purpose     string    `json:"purpose"`
-	Granted     bool      `json:"granted"`
-	GrantedAt   time.Time `json:"granted_at"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"`
-	Source      string    `json:"source"`
+	SubjectID string    `json:"subject_id"`
+	Purpose   string    `json:"purpose"`
+	Granted   bool      `json:"granted"`
+	GrantedAt time.Time `json:"granted_at"`
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	Source    string    `json:"source"`
 }
 
 // ComplianceAutomationReport is a comprehensive compliance report.
 type ComplianceAutomationReport struct {
-	Standard         ComplianceStandard     `json:"standard"`
-	GeneratedAt      time.Time              `json:"generated_at"`
-	OverallStatus    string                 `json:"overall_status"` // compliant, non_compliant, partial
-	Score            float64                `json:"score"`
-	Categories       []ComplianceCategory   `json:"categories"`
-	PIIFindings      int                    `json:"pii_findings"`
-	RetentionPolicies int                   `json:"retention_policies"`
-	AuditRecords     int                    `json:"audit_records"`
-	DSARRequests     int                    `json:"dsar_requests"`
-	Recommendations  []string               `json:"recommendations"`
+	Standard          ComplianceStandard   `json:"standard"`
+	GeneratedAt       time.Time            `json:"generated_at"`
+	OverallStatus     string               `json:"overall_status"` // compliant, non_compliant, partial
+	Score             float64              `json:"score"`
+	Categories        []ComplianceCategory `json:"categories"`
+	PIIFindings       int                  `json:"pii_findings"`
+	RetentionPolicies int                  `json:"retention_policies"`
+	AuditRecords      int                  `json:"audit_records"`
+	DSARRequests      int                  `json:"dsar_requests"`
+	Recommendations   []string             `json:"recommendations"`
 }
 
 // ComplianceCategory is a scored category in a compliance report.
 type ComplianceCategory struct {
-	Name   string  `json:"name"`
-	Score  float64 `json:"score"`
-	Status string  `json:"status"`
+	Name   string            `json:"name"`
+	Score  float64           `json:"score"`
+	Status string            `json:"status"`
 	Checks []ComplianceCheck `json:"checks"`
 }
 
@@ -114,8 +114,8 @@ type ComplianceAutomation struct {
 	consentRecords    map[string][]ConsentRecord // subject -> consents
 	piiPatterns       map[string]*regexp.Regexp
 
-	piiScans       int64
-	piiDetections  int64
+	piiScans         int64
+	piiDetections    int64
 	reportsGenerated int64
 
 	mu sync.RWMutex

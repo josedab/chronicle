@@ -179,11 +179,11 @@ func TestTraceCorrelator_GetTraceStats(t *testing.T) {
 func TestTraceCorrelator_FetchTrace_Jaeger(t *testing.T) {
 	// Mock Jaeger server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := map[string]interface{}{
-			"data": []map[string]interface{}{
+		response := map[string]any{
+			"data": []map[string]any{
 				{
 					"traceID": "test-trace",
-					"spans": []map[string]interface{}{
+					"spans": []map[string]any{
 						{
 							"traceID":       "test-trace",
 							"spanID":        "span1",
@@ -191,11 +191,11 @@ func TestTraceCorrelator_FetchTrace_Jaeger(t *testing.T) {
 							"startTime":     time.Now().UnixMicro(),
 							"duration":      1000,
 							"processID":     "p1",
-							"tags":          []map[string]interface{}{},
+							"tags":          []map[string]any{},
 						},
 					},
-					"processes": map[string]interface{}{
-						"p1": map[string]interface{}{
+					"processes": map[string]any{
+						"p1": map[string]any{
 							"serviceName": "test-service",
 						},
 					},
@@ -231,14 +231,14 @@ func TestTraceCorrelator_FetchTrace_Jaeger(t *testing.T) {
 func TestTraceCorrelator_FetchTrace_Zipkin(t *testing.T) {
 	// Mock Zipkin server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := []map[string]interface{}{
+		response := []map[string]any{
 			{
 				"traceId":   "test-trace",
 				"id":        "span1",
 				"name":      "test-op",
 				"timestamp": time.Now().UnixMicro(),
 				"duration":  1000,
-				"localEndpoint": map[string]interface{}{
+				"localEndpoint": map[string]any{
 					"serviceName": "test-service",
 				},
 			},
@@ -459,7 +459,7 @@ func TestSuggestAction(t *testing.T) {
 	for _, tt := range tests {
 		anomaly := &ClassifiedAnomaly{Type: tt.anomalyType}
 		ref := &TraceReference{StatusCode: tt.statusCode}
-		
+
 		action := tc.suggestAction(anomaly, ref)
 		if action != tt.expected {
 			t.Errorf("suggestAction(%v, %s) = %s, want %s", tt.anomalyType, tt.statusCode, action, tt.expected)

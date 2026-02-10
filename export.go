@@ -279,14 +279,14 @@ func (e *Exporter) exportJSON(metrics []string, start, end int64) (*ExportResult
 
 		for _, p := range points {
 			line := fmt.Sprintf(`{"timestamp":%d,"metric":"%s","value":%g,"tags":{`, p.Timestamp, p.Metric, p.Value)
-			
+
 			tagParts := make([]string, 0, len(p.Tags))
 			for k, v := range p.Tags {
 				tagParts = append(tagParts, fmt.Sprintf(`"%s":"%s"`, k, v))
 			}
 			sort.Strings(tagParts)
 			line += strings.Join(tagParts, ",") + "}}\n"
-			
+
 			if _, err := writer.Write([]byte(line)); err != nil {
 				return nil, fmt.Errorf("failed to write record: %w", err)
 			}

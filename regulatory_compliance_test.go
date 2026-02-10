@@ -545,7 +545,7 @@ func TestRegulatoryComplianceHTTPHandlers(t *testing.T) {
 			}
 
 			// Verify valid JSON
-			var result interface{}
+			var result any
 			if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 				t.Errorf("invalid JSON response: %v", err)
 			}

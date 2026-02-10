@@ -296,7 +296,7 @@ func TestOtlpTimestampStr(t *testing.T) {
 	}{
 		{"1234567890000000000", 1234567890000000000},
 		{"0", 0},
-		{"", 0}, // Will return current time, just check it doesn't crash
+		{"", 0},        // Will return current time, just check it doesn't crash
 		{"invalid", 0}, // Will return current time
 	}
 

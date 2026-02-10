@@ -16,6 +16,11 @@ import (
 )
 
 // EXPERIMENTAL: This API is unstable and may change without notice.
+// NOTE: Zero-knowledge proofs are currently simulated for development purposes.
+// Pedersen commitments and proof generation use simplified math that is NOT
+// cryptographically secure. A production implementation would require a real
+// ZK library such as gnark or bellman.
+//
 // ZKQueryConfig configures the zero-knowledge query validation system.
 type ZKQueryConfig struct {
 	// Enabled turns on ZK validation
@@ -47,9 +52,9 @@ type ZKQueryConfig struct {
 type CommitmentSchemeType string
 
 const (
-	SchemeMerkle    CommitmentSchemeType = "merkle"
-	SchemePedersen  CommitmentSchemeType = "pedersen"
-	SchemeKZG       CommitmentSchemeType = "kzg"
+	SchemeMerkle   CommitmentSchemeType = "merkle"
+	SchemePedersen CommitmentSchemeType = "pedersen"
+	SchemeKZG      CommitmentSchemeType = "kzg"
 )
 
 // ZKProofType defines the zero-knowledge proof type.
@@ -78,14 +83,14 @@ func DefaultZKQueryConfig() ZKQueryConfig {
 
 // DataCommitment represents a cryptographic commitment to data.
 type DataCommitment struct {
-	ID            string    `json:"id"`
-	Root          []byte    `json:"root"`
-	Timestamp     time.Time `json:"timestamp"`
-	DataHash      []byte    `json:"data_hash"`
-	PointCount    int64     `json:"point_count"`
-	MetricFilter  string    `json:"metric_filter,omitempty"`
-	TimeRange     *ZKTimeRange `json:"time_range,omitempty"`
-	Scheme        CommitmentSchemeType `json:"scheme"`
+	ID           string               `json:"id"`
+	Root         []byte               `json:"root"`
+	Timestamp    time.Time            `json:"timestamp"`
+	DataHash     []byte               `json:"data_hash"`
+	PointCount   int64                `json:"point_count"`
+	MetricFilter string               `json:"metric_filter,omitempty"`
+	TimeRange    *ZKTimeRange         `json:"time_range,omitempty"`
+	Scheme       CommitmentSchemeType `json:"scheme"`
 }
 
 // ZKTimeRange represents a time range for commitments.
@@ -96,48 +101,48 @@ type ZKTimeRange struct {
 
 // MerkleProof represents a Merkle inclusion proof.
 type MerkleProof struct {
-	Leaf      []byte   `json:"leaf"`
-	Index     int      `json:"index"`
-	Path      [][]byte `json:"path"`
-	PathBits  []bool   `json:"path_bits"`
-	Root      []byte   `json:"root"`
+	Leaf     []byte   `json:"leaf"`
+	Index    int      `json:"index"`
+	Path     [][]byte `json:"path"`
+	PathBits []bool   `json:"path_bits"`
+	Root     []byte   `json:"root"`
 }
 
 // ZKProof represents a zero-knowledge proof.
 type ZKProof struct {
-	ID             string                 `json:"id"`
-	Type           ZKProofType            `json:"type"`
-	CommitmentID   string                 `json:"commitment_id"`
-	PublicInputs   map[string]interface{} `json:"public_inputs"`
-	Proof          []byte                 `json:"proof"`
-	ProofComponents map[string][]byte     `json:"proof_components,omitempty"`
-	GeneratedAt    time.Time              `json:"generated_at"`
-	VerifiedAt     *time.Time             `json:"verified_at,omitempty"`
-	Valid          *bool                  `json:"valid,omitempty"`
+	ID              string            `json:"id"`
+	Type            ZKProofType       `json:"type"`
+	CommitmentID    string            `json:"commitment_id"`
+	PublicInputs    map[string]any    `json:"public_inputs"`
+	Proof           []byte            `json:"proof"`
+	ProofComponents map[string][]byte `json:"proof_components,omitempty"`
+	GeneratedAt     time.Time         `json:"generated_at"`
+	VerifiedAt      *time.Time        `json:"verified_at,omitempty"`
+	Valid           *bool             `json:"valid,omitempty"`
 }
 
 // QueryProofRequest requests proof generation for a query.
 type QueryProofRequest struct {
-	Query           *Query    `json:"query"`
-	ProofType       ZKProofType `json:"proof_type"`
-	IncludeRawData  bool      `json:"include_raw_data"`
-	CommitmentID    string    `json:"commitment_id,omitempty"`
+	Query          *Query      `json:"query"`
+	ProofType      ZKProofType `json:"proof_type"`
+	IncludeRawData bool        `json:"include_raw_data"`
+	CommitmentID   string      `json:"commitment_id,omitempty"`
 }
 
 // QueryProofResponse contains the query result with proof.
 type QueryProofResponse struct {
-	Result       *Result    `json:"result"`
-	Commitment   *DataCommitment `json:"commitment"`
-	Proof        *ZKProof        `json:"proof"`
+	Result       *Result             `json:"result"`
+	Commitment   *DataCommitment     `json:"commitment"`
+	Proof        *ZKProof            `json:"proof"`
 	Verification *VerificationResult `json:"verification,omitempty"`
 }
 
 // VerificationResult contains proof verification results.
 type VerificationResult struct {
-	Valid       bool      `json:"valid"`
-	VerifiedAt  time.Time `json:"verified_at"`
-	Details     string    `json:"details,omitempty"`
-	Error       string    `json:"error,omitempty"`
+	Valid      bool      `json:"valid"`
+	VerifiedAt time.Time `json:"verified_at"`
+	Details    string    `json:"details,omitempty"`
+	Error      string    `json:"error,omitempty"`
 }
 
 // ZKQueryEngine provides zero-knowledge query validation.
@@ -146,43 +151,43 @@ type ZKQueryEngine struct {
 	config ZKQueryConfig
 
 	// Merkle tree state
-	merkleTree   *MerkleTree
-	treeMu       sync.RWMutex
+	merkleTree *MerkleTree
+	treeMu     sync.RWMutex
 
 	// Commitment cache
 	commitments   map[string]*DataCommitment
 	commitmentsMu sync.RWMutex
 
 	// Audit log
-	auditLog   []ZKAuditEntry
-	auditMu    sync.Mutex
+	auditLog []ZKAuditEntry
+	auditMu  sync.Mutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
 	// Stats
-	proofsGenerated int64
-	proofsVerified  int64
+	proofsGenerated    int64
+	proofsVerified     int64
 	commitmentsCreated int64
 }
 
 // ZKAuditEntry records proof operations.
 type ZKAuditEntry struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Operation   string    `json:"operation"`
-	ProofID     string    `json:"proof_id,omitempty"`
-	CommitmentID string   `json:"commitment_id,omitempty"`
-	Success     bool      `json:"success"`
-	Details     string    `json:"details,omitempty"`
+	Timestamp    time.Time `json:"timestamp"`
+	Operation    string    `json:"operation"`
+	ProofID      string    `json:"proof_id,omitempty"`
+	CommitmentID string    `json:"commitment_id,omitempty"`
+	Success      bool      `json:"success"`
+	Details      string    `json:"details,omitempty"`
 }
 
 // MerkleTree implements a Merkle hash tree.
 type MerkleTree struct {
-	Leaves    [][]byte
-	Levels    [][][]byte
-	Root      []byte
-	Depth     int
+	Leaves [][]byte
+	Levels [][][]byte
+	Root   []byte
+	Depth  int
 }
 
 // NewZKQueryEngine creates a new ZK query engine.
@@ -270,7 +275,7 @@ func (e *ZKQueryEngine) GenerateProof(ctx context.Context, req *QueryProofReques
 			return nil, fmt.Errorf("commitment not found: %s", req.CommitmentID)
 		}
 	} else {
-		commitment, err = e.CreateCommitment(ctx, req.Query.Metric, req.Query.Tags, 
+		commitment, err = e.CreateCommitment(ctx, req.Query.Metric, req.Query.Tags,
 			time.Unix(0, req.Query.Start), time.Unix(0, req.Query.End))
 		if err != nil {
 			return nil, err
@@ -369,11 +374,11 @@ func (e *ZKQueryEngine) generateMerkleProof(result *Result, commitment *DataComm
 
 	// Generate inclusion proofs for all result points
 	proofComponents := make(map[string][]byte)
-	
+
 	for i, p := range result.Points {
 		leaf := hashPoint(&p)
 		path, bits := getMerklePath(tree, i)
-		
+
 		merkleProof := &MerkleProof{
 			Leaf:     leaf,
 			Index:    i,
@@ -381,7 +386,7 @@ func (e *ZKQueryEngine) generateMerkleProof(result *Result, commitment *DataComm
 			PathBits: bits,
 			Root:     tree.Root,
 		}
-		
+
 		proofBytes, _ := json.Marshal(merkleProof)
 		proofComponents[fmt.Sprintf("point_%d", i)] = proofBytes
 	}
@@ -391,7 +396,7 @@ func (e *ZKQueryEngine) generateMerkleProof(result *Result, commitment *DataComm
 		ID:           generateID(),
 		Type:         ProofMerkleInclusion,
 		CommitmentID: commitment.ID,
-		PublicInputs: map[string]interface{}{
+		PublicInputs: map[string]any{
 			"root":        hex.EncodeToString(commitment.Root),
 			"point_count": len(result.Points),
 		},
@@ -438,9 +443,9 @@ func (e *ZKQueryEngine) generateSumProof(result *Result, commitment *DataCommitm
 		ID:           generateID(),
 		Type:         ProofSumProof,
 		CommitmentID: commitment.ID,
-		PublicInputs: map[string]interface{}{
-			"sum":           sum,
-			"point_count":   len(result.Points),
+		PublicInputs: map[string]any{
+			"sum":            sum,
+			"point_count":    len(result.Points),
 			"sum_commitment": hex.EncodeToString(sumCommitment),
 		},
 		Proof:       proofBytes,
@@ -476,7 +481,7 @@ func (e *ZKQueryEngine) generateCountProof(result *Result, commitment *DataCommi
 		ID:           generateID(),
 		Type:         ProofCountProof,
 		CommitmentID: commitment.ID,
-		PublicInputs: map[string]interface{}{
+		PublicInputs: map[string]any{
 			"count":            count,
 			"count_commitment": hex.EncodeToString(countCommitment),
 		},
@@ -509,7 +514,7 @@ func (e *ZKQueryEngine) generateRangeProof(result *Result, commitment *DataCommi
 	randomness := generateRandomBytes(32)
 	minBytes := float64ToBytes(minVal)
 	maxBytes := float64ToBytes(maxVal)
-	
+
 	rangeCommitment := sha256Hash(append(append(minBytes, maxBytes...), randomness...))
 
 	proofData := struct {
@@ -534,7 +539,7 @@ func (e *ZKQueryEngine) generateRangeProof(result *Result, commitment *DataCommi
 		ID:           generateID(),
 		Type:         ProofRangeProof,
 		CommitmentID: commitment.ID,
-		PublicInputs: map[string]interface{}{
+		PublicInputs: map[string]any{
 			"min":              minVal,
 			"max":              maxVal,
 			"point_count":      len(result.Points),

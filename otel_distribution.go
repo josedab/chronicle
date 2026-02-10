@@ -12,48 +12,48 @@ import (
 
 // OTelDistroConfig configures the Chronicle OpenTelemetry distribution.
 type OTelDistroConfig struct {
-	Enabled          bool          `json:"enabled"`
-	ListenAddr       string        `json:"listen_addr"`
-	GRPCPort         int           `json:"grpc_port"`
-	HTTPPort         int           `json:"http_port"`
-	BatchSize        int           `json:"batch_size"`
-	FlushInterval    time.Duration `json:"flush_interval"`
-	MaxQueueSize     int           `json:"max_queue_size"`
-	EnableMetrics    bool          `json:"enable_metrics"`
-	EnableTraces     bool          `json:"enable_traces"`
-	EnableLogs       bool          `json:"enable_logs"`
-	ResourceAttrs    map[string]string `json:"resource_attrs,omitempty"`
-	DefaultAlertRules bool         `json:"default_alert_rules"`
+	Enabled           bool              `json:"enabled"`
+	ListenAddr        string            `json:"listen_addr"`
+	GRPCPort          int               `json:"grpc_port"`
+	HTTPPort          int               `json:"http_port"`
+	BatchSize         int               `json:"batch_size"`
+	FlushInterval     time.Duration     `json:"flush_interval"`
+	MaxQueueSize      int               `json:"max_queue_size"`
+	EnableMetrics     bool              `json:"enable_metrics"`
+	EnableTraces      bool              `json:"enable_traces"`
+	EnableLogs        bool              `json:"enable_logs"`
+	ResourceAttrs     map[string]string `json:"resource_attrs,omitempty"`
+	DefaultAlertRules bool              `json:"default_alert_rules"`
 }
 
 // DefaultOTelDistroConfig returns sensible defaults for the OTel distribution.
 func DefaultOTelDistroConfig() OTelDistroConfig {
 	return OTelDistroConfig{
-		Enabled:          true,
-		ListenAddr:       "0.0.0.0",
-		GRPCPort:         4317,
-		HTTPPort:         4318,
-		BatchSize:        1000,
-		FlushInterval:    5 * time.Second,
-		MaxQueueSize:     100000,
-		EnableMetrics:    true,
-		EnableTraces:     false,
-		EnableLogs:       false,
+		Enabled:           true,
+		ListenAddr:        "0.0.0.0",
+		GRPCPort:          4317,
+		HTTPPort:          4318,
+		BatchSize:         1000,
+		FlushInterval:     5 * time.Second,
+		MaxQueueSize:      100000,
+		EnableMetrics:     true,
+		EnableTraces:      false,
+		EnableLogs:        false,
 		DefaultAlertRules: true,
 	}
 }
 
 // OTelDistroStats tracks runtime statistics for the distribution.
 type OTelDistroStats struct {
-	MetricsReceived  uint64        `json:"metrics_received"`
-	MetricsExported  uint64        `json:"metrics_exported"`
-	MetricsDropped   uint64        `json:"metrics_dropped"`
-	BatchesFlushed   uint64        `json:"batches_flushed"`
-	Errors           uint64        `json:"errors"`
-	Uptime           time.Duration `json:"uptime"`
-	LastFlush        time.Time     `json:"last_flush"`
-	QueueDepth       int           `json:"queue_depth"`
-	ActivePipelines  int           `json:"active_pipelines"`
+	MetricsReceived uint64        `json:"metrics_received"`
+	MetricsExported uint64        `json:"metrics_exported"`
+	MetricsDropped  uint64        `json:"metrics_dropped"`
+	BatchesFlushed  uint64        `json:"batches_flushed"`
+	Errors          uint64        `json:"errors"`
+	Uptime          time.Duration `json:"uptime"`
+	LastFlush       time.Time     `json:"last_flush"`
+	QueueDepth      int           `json:"queue_depth"`
+	ActivePipelines int           `json:"active_pipelines"`
 }
 
 // OTelPipelineConfig defines a single OTel pipeline.
@@ -90,9 +90,9 @@ type OTelDistro struct {
 
 // OTelMetricBatch is a batch of metric data points for processing.
 type OTelMetricBatch struct {
-	Points    []Point   `json:"points"`
-	Received  time.Time `json:"received"`
-	Source    string    `json:"source"`
+	Points   []Point   `json:"points"`
+	Received time.Time `json:"received"`
+	Source   string    `json:"source"`
 }
 
 // NewOTelDistro creates a new OpenTelemetry distribution with Chronicle backend.
@@ -300,35 +300,35 @@ func (d *OTelDistro) RegisterHTTPHandlers(mux *http.ServeMux) {
 }
 
 // GenerateConfig generates a YAML-like configuration for the OTel distribution.
-func (d *OTelDistro) GenerateConfig() map[string]interface{} {
+func (d *OTelDistro) GenerateConfig() map[string]any {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	pipelinesMap := make(map[string]interface{})
+	pipelinesMap := make(map[string]any)
 	for _, p := range d.pipelines {
-		pipelinesMap[p.Name] = map[string]interface{}{
+		pipelinesMap[p.Name] = map[string]any{
 			"receivers":  p.Receivers,
 			"processors": p.Processors,
 			"exporters":  p.Exporters,
 		}
 	}
 
-	return map[string]interface{}{
-		"receivers": map[string]interface{}{
-			"otlp": map[string]interface{}{
-				"protocols": map[string]interface{}{
-					"grpc": map[string]interface{}{"endpoint": fmt.Sprintf("%s:%d", d.config.ListenAddr, d.config.GRPCPort)},
-					"http": map[string]interface{}{"endpoint": fmt.Sprintf("%s:%d", d.config.ListenAddr, d.config.HTTPPort)},
+	return map[string]any{
+		"receivers": map[string]any{
+			"otlp": map[string]any{
+				"protocols": map[string]any{
+					"grpc": map[string]any{"endpoint": fmt.Sprintf("%s:%d", d.config.ListenAddr, d.config.GRPCPort)},
+					"http": map[string]any{"endpoint": fmt.Sprintf("%s:%d", d.config.ListenAddr, d.config.HTTPPort)},
 				},
 			},
 		},
-		"exporters": map[string]interface{}{
-			"chronicle": map[string]interface{}{
+		"exporters": map[string]any{
+			"chronicle": map[string]any{
 				"batch_size":     d.config.BatchSize,
 				"flush_interval": d.config.FlushInterval.String(),
 			},
 		},
-		"service": map[string]interface{}{
+		"service": map[string]any{
 			"pipelines": pipelinesMap,
 		},
 	}

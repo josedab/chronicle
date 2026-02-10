@@ -53,12 +53,12 @@ func TestFederation_AddRemote_Validation(t *testing.T) {
 	fed := NewFederation(db, DefaultFederationConfig())
 
 	tests := []struct {
-		name     string
-		url      string
-		wantErr  bool
+		name    string
+		url     string
+		wantErr bool
 	}{
-		{"", "http://localhost", true},  // Missing name
-		{"test", "", true},               // Missing URL
+		{"", "http://localhost", true},      // Missing name
+		{"test", "", true},                  // Missing URL
 		{"test", "http://localhost", false}, // Valid
 	}
 
@@ -214,7 +214,7 @@ func TestFederation_Metrics(t *testing.T) {
 
 	// Write data and force flush
 	db.Write(Point{Metric: "local_metric", Value: 1.0, Timestamp: time.Now().UnixNano()})
-	
+
 	// Verify local metric exists
 	localMetrics := db.Metrics()
 	if len(localMetrics) == 0 {

@@ -120,14 +120,14 @@ type BlockchainAnchor struct {
 
 // AuditReport is a compliance report for a time range.
 type AuditReport struct {
-	GeneratedAt     time.Time                    `json:"generated_at"`
-	Period          AuditReportPeriod            `json:"period"`
-	TotalEntries    int                          `json:"total_entries"`
-	EntriesByType   map[AuditEventType]int       `json:"entries_by_type"`
-	Anchors         []BlockchainAnchor           `json:"anchors"`
-	IntegrityStatus string                       `json:"integrity_status"`
-	TamperDetected  bool                         `json:"tamper_detected"`
-	Gaps            []AuditGap                   `json:"gaps"`
+	GeneratedAt     time.Time              `json:"generated_at"`
+	Period          AuditReportPeriod      `json:"period"`
+	TotalEntries    int                    `json:"total_entries"`
+	EntriesByType   map[AuditEventType]int `json:"entries_by_type"`
+	Anchors         []BlockchainAnchor     `json:"anchors"`
+	IntegrityStatus string                 `json:"integrity_status"`
+	TamperDetected  bool                   `json:"tamper_detected"`
+	Gaps            []AuditGap             `json:"gaps"`
 }
 
 // AuditReportPeriod defines the time range for an audit report.
@@ -145,26 +145,26 @@ type AuditGap struct {
 
 // AuditStats contains statistics about the audit trail.
 type AuditStats struct {
-	TotalEntries         uint64                      `json:"total_entries"`
-	TotalAnchors         int                         `json:"total_anchors"`
-	LastAnchorTime       time.Time                   `json:"last_anchor_time"`
-	LastEntryTime        time.Time                   `json:"last_entry_time"`
-	PendingEntries       int                         `json:"pending_entries"`
-	IntegrityVerified    bool                        `json:"integrity_verified"`
-	LastVerificationTime time.Time                   `json:"last_verification_time"`
-	EntriesByType        map[AuditEventType]uint64   `json:"entries_by_type"`
-	StorageBytes         int64                       `json:"storage_bytes"`
+	TotalEntries         uint64                    `json:"total_entries"`
+	TotalAnchors         int                       `json:"total_anchors"`
+	LastAnchorTime       time.Time                 `json:"last_anchor_time"`
+	LastEntryTime        time.Time                 `json:"last_entry_time"`
+	PendingEntries       int                       `json:"pending_entries"`
+	IntegrityVerified    bool                      `json:"integrity_verified"`
+	LastVerificationTime time.Time                 `json:"last_verification_time"`
+	EntriesByType        map[AuditEventType]uint64 `json:"entries_by_type"`
+	StorageBytes         int64                     `json:"storage_bytes"`
 }
 
 // LegalHold prevents deletion of anchored audit data.
 type LegalHold struct {
-	ID        string   `json:"id"`
-	Resource  string   `json:"resource"`
-	Reason    string   `json:"reason"`
+	ID        string    `json:"id"`
+	Resource  string    `json:"resource"`
+	Reason    string    `json:"reason"`
 	CreatedAt time.Time `json:"created_at"`
-	CreatedBy string   `json:"created_by"`
-	Active    bool     `json:"active"`
-	AnchorIDs []string `json:"anchor_ids"`
+	CreatedBy string    `json:"created_by"`
+	Active    bool      `json:"active"`
+	AnchorIDs []string  `json:"anchor_ids"`
 }
 
 // BlockchainAuditTrail provides a blockchain-verified audit trail for Chronicle.
@@ -838,7 +838,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"intact": intact,
 			"gaps":   gaps,
 		})
@@ -856,7 +856,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		valid := bat.VerifyProof(&proof)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"valid": valid,
 		})
 	})
