@@ -283,6 +283,7 @@ contain implementation details that should not be imported directly.
 - [Testing Guide](docs/TESTING.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Benchmarks](docs/BENCHMARKS.md)
+- [FAQ / Troubleshooting](docs/FAQ.md)
 
 ## Development
 
@@ -294,6 +295,7 @@ Choose the right test speed for your workflow:
 |---------|------|-------------|-------------|
 | `make check` | ~15s | `go vet` + internal tests | Pre-commit validation ⚡ |
 | `make test-fast` | ~5s | Internal packages only | TDD fast iteration ⚡ |
+| `make quickcheck` | ~25s | `go vet` + all short tests | Before pushing |
 | `make test-short` | ~30s | All tests, short mode | Before pushing |
 | `make test` | ~45s | All tests + race detector | CI-level confidence |
 | `make test-cover` | ~60s | All tests + HTML coverage | Coverage review |

@@ -1,5 +1,54 @@
 # Chronicle Architecture
 
+## 5-Minute Overview
+
+New to Chronicle? Start here.
+
+**What it is:** An embedded time-series database for Go — think SQLite for metrics.
+
+**Core data flow:**
+
+```
+Write Path:  Point → Buffer (in-memory) → WAL (durability) → Partition (on flush)
+Query Path:  Query → Index lookup → Partition scan → Aggregation → Result
+Background:  Retention GC · Downsampling · Compaction · Replication
+```
+
+**Key concepts:**
+
+| Concept | What it does | Key file(s) |
+|---------|-------------|-------------|
+| **DB** | Database handle — entry point for all operations | `db_core.go`, `db_write.go` |
+| **Point** | A single time-series data point (metric + timestamp + value + tags) | `point.go` |
+| **Buffer** | In-memory write buffer; flushes to partitions | `buffer.go` |
+| **Partition** | Time-bounded data segment with columnar compression | `partition_core.go`, `partitioning.go` |
+| **WAL** | Write-ahead log for crash recovery | `wal.go` |
+| **BTree** | Partition index for time-range lookups | `btree.go` |
+| **Storage Backend** | Pluggable persistence (file, memory, S3, tiered) | `storage_backend_*.go` |
+| **Query Engine** | SQL-like + PromQL query execution | `query.go`, `promql.go` |
+| **Config** | Database configuration with sensible defaults | `config.go`, `config_builder.go` |
+
+**Bridge pattern:** Files named `*_bridge.go` (e.g., `admin_ui_bridge.go`, `raft_bridge.go`)
+re-export types from `internal/` packages into the public `chronicle` package. They provide
+the public API surface while keeping implementation details private. See any bridge file's
+header comment for details.
+
+**API stability:** Types are classified as Stable, Beta (🔬), or Experimental (🧪).
+Check `api_stability.go` or look for markers in godoc comments. Only Stable APIs
+are covered by semver guarantees.
+
+**Quick commands:**
+
+```bash
+make check        # Pre-commit: vet + fast tests
+make test-short   # All tests in short mode
+make test-ci      # CI equivalent: vet + race + short tests
+```
+
+For the full architecture deep dive, continue reading below.
+
+---
+
 ## Overview
 
 Chronicle is an embedded time-series database for Go, designed for constrained and edge environments. It provides:
