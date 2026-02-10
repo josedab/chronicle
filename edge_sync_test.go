@@ -259,6 +259,9 @@ func TestEdgeSyncManagerFiltering(t *testing.T) {
 }
 
 func TestEdgeSyncManagerIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow edge sync integration test in short mode")
+	}
 	var syncedPoints []Point
 	var mu atomic.Int32
 
@@ -395,6 +398,9 @@ func TestEdgeSyncStatus(t *testing.T) {
 }
 
 func TestBandwidthLimiter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow bandwidth limiter test in short mode")
+	}
 	rl := newBandwidthLimiter(1000) // 1000 bytes per second
 
 	ctx := context.Background()
