@@ -87,6 +87,18 @@ type FeatureManager struct {
 	chronicleStudio  *ChronicleStudio
 	iotDeviceSDK     *IoTDeviceSDK
 
+	// Next-gen v8 features
+	multiRegionReplication  *MultiRegionReplicationEngine
+	universalSDK            *UniversalSDKEngine
+	studioEnhanced          *StudioEnhancedEngine
+	schemaInference         *SchemaInferenceEngine
+	cloudSaaS               *CloudSaaSEngine
+	streamDSLV2             *StreamDSLV2Engine
+	anomalyExplainability   *AnomalyExplainabilityEngine
+	hwAcceleratedQuery      *HWAcceleratedQueryEngine
+	marketplace             *MarketplaceEngine
+	regulatoryCompliance    *RegulatoryComplianceEngine
+
 	mu sync.RWMutex
 }
 
@@ -203,6 +215,18 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.blockchainAudit = NewBlockchainAuditTrail(db, DefaultBlockchainAuditConfig())
 	fm.chronicleStudio = NewChronicleStudio(db, DefaultChronicleStudioConfig())
 	fm.iotDeviceSDK = NewIoTDeviceSDK(db, DefaultIoTDeviceSDKConfig())
+
+	// Initialize next-gen v8 features
+	fm.multiRegionReplication = NewMultiRegionReplicationEngine(db, DefaultMultiRegionReplicationConfig())
+	fm.universalSDK = NewUniversalSDKEngine(db, DefaultUniversalSDKConfig())
+	fm.studioEnhanced = NewStudioEnhancedEngine(db, DefaultStudioEnhancedConfig())
+	fm.schemaInference = NewSchemaInferenceEngine(db, DefaultSchemaInferenceConfig())
+	fm.cloudSaaS = NewCloudSaaSEngine(db, DefaultCloudSaaSConfig())
+	fm.streamDSLV2 = NewStreamDSLV2Engine(db, DefaultStreamDSLV2Config())
+	fm.anomalyExplainability = NewAnomalyExplainabilityEngine(db, DefaultAnomalyExplainabilityConfig())
+	fm.hwAcceleratedQuery = NewHWAcceleratedQueryEngine(db, DefaultHWAcceleratedQueryConfig())
+	fm.marketplace = NewMarketplaceEngine(db, DefaultMarketplaceConfig())
+	fm.regulatoryCompliance = NewRegulatoryComplianceEngine(db, DefaultRegulatoryComplianceConfig())
 
 	return fm, nil
 }
@@ -702,6 +726,76 @@ func (fm *FeatureManager) IoTDeviceSDK() *IoTDeviceSDK {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.iotDeviceSDK
+}
+
+// MultiRegionReplication returns the multi-region replication engine.
+func (fm *FeatureManager) MultiRegionReplication() *MultiRegionReplicationEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.multiRegionReplication
+}
+
+// UniversalSDK returns the universal SDK generator engine.
+func (fm *FeatureManager) UniversalSDK() *UniversalSDKEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.universalSDK
+}
+
+// StudioEnhanced returns the enhanced Chronicle Studio IDE engine.
+func (fm *FeatureManager) StudioEnhanced() *StudioEnhancedEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.studioEnhanced
+}
+
+// SchemaInference returns the smart schema inference engine.
+func (fm *FeatureManager) SchemaInference() *SchemaInferenceEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.schemaInference
+}
+
+// CloudSaaS returns the Chronicle Cloud SaaS engine.
+func (fm *FeatureManager) CloudSaaS() *CloudSaaSEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.cloudSaaS
+}
+
+// StreamDSLV2 returns the advanced stream processing DSL engine.
+func (fm *FeatureManager) StreamDSLV2() *StreamDSLV2Engine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.streamDSLV2
+}
+
+// AnomalyExplainability returns the AI-powered anomaly explainability engine.
+func (fm *FeatureManager) AnomalyExplainability() *AnomalyExplainabilityEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.anomalyExplainability
+}
+
+// HWAcceleratedQuery returns the hardware-accelerated query engine.
+func (fm *FeatureManager) HWAcceleratedQuery() *HWAcceleratedQueryEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.hwAcceleratedQuery
+}
+
+// Marketplace returns the plugin marketplace engine.
+func (fm *FeatureManager) Marketplace() *MarketplaceEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.marketplace
+}
+
+// RegulatoryCompliance returns the regulatory compliance automation engine.
+func (fm *FeatureManager) RegulatoryCompliance() *RegulatoryComplianceEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.regulatoryCompliance
 }
 
 // ValidatePoint validates a point against registered schemas.

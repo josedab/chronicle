@@ -417,3 +417,83 @@ func (db *DB) IoTDeviceSDK() *IoTDeviceSDK {
 	}
 	return db.features.IoTDeviceSDK()
 }
+
+// MultiRegionReplication returns the multi-region replication engine.
+func (db *DB) MultiRegionReplication() *MultiRegionReplicationEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.MultiRegionReplication()
+}
+
+// UniversalSDK returns the universal SDK generator engine.
+func (db *DB) UniversalSDK() *UniversalSDKEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.UniversalSDK()
+}
+
+// StudioEnhanced returns the enhanced Chronicle Studio IDE engine.
+func (db *DB) StudioEnhanced() *StudioEnhancedEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.StudioEnhanced()
+}
+
+// SchemaInference returns the smart schema inference engine.
+func (db *DB) SchemaInference() *SchemaInferenceEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.SchemaInference()
+}
+
+// CloudSaaS returns the Chronicle Cloud SaaS engine.
+func (db *DB) CloudSaaS() *CloudSaaSEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.CloudSaaS()
+}
+
+// StreamDSLV2 returns the advanced stream processing DSL engine.
+func (db *DB) StreamDSLV2() *StreamDSLV2Engine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.StreamDSLV2()
+}
+
+// AnomalyExplainability returns the AI-powered anomaly explainability engine.
+func (db *DB) AnomalyExplainability() *AnomalyExplainabilityEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.AnomalyExplainability()
+}
+
+// HWAcceleratedQuery returns the hardware-accelerated query engine.
+func (db *DB) HWAcceleratedQuery() *HWAcceleratedQueryEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.HWAcceleratedQuery()
+}
+
+// Marketplace returns the plugin marketplace engine.
+func (db *DB) Marketplace() *MarketplaceEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.Marketplace()
+}
+
+// RegulatoryCompliance returns the regulatory compliance automation engine.
+func (db *DB) RegulatoryCompliance() *RegulatoryComplianceEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.RegulatoryCompliance()
+}
