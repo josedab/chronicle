@@ -428,7 +428,7 @@ func TestHandleExecuteRequest(t *testing.T) {
 		Header: MessageHeader{
 			MessageType: "execute_request",
 		},
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"code": "SHOW SERIES",
 		},
 	}
@@ -461,7 +461,7 @@ func TestHandleComplete(t *testing.T) {
 		Header: MessageHeader{
 			MessageType: "complete_request",
 		},
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"code":       "SEL",
 			"cursor_pos": 3.0,
 		},
@@ -498,7 +498,7 @@ func TestHandleIsComplete(t *testing.T) {
 		Header: MessageHeader{
 			MessageType: "is_complete_request",
 		},
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"code": "SELECT * FROM test",
 		},
 	}
@@ -529,7 +529,7 @@ func TestHandleShutdown(t *testing.T) {
 		Header: MessageHeader{
 			MessageType: "shutdown_request",
 		},
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"restart": false,
 		},
 	}
@@ -582,7 +582,7 @@ func TestRegisterCustomMagic(t *testing.T) {
 	kernel.RegisterMagic("custom", func(k *JupyterKernel, args string) (*ExecutionResult, error) {
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": "Custom magic executed with: " + args,
 			},
 		}, nil
@@ -772,11 +772,11 @@ func TestGenerateVegaSpec(t *testing.T) {
 		t.Errorf("Title = %s, want Test Series", spec["title"])
 	}
 
-	data, ok := spec["data"].(map[string]interface{})
+	data, ok := spec["data"].(map[string]any)
 	if !ok {
 		t.Error("Expected data object")
 	}
-	values, ok := data["values"].([]map[string]interface{})
+	values, ok := data["values"].([]map[string]any)
 	if !ok || len(values) != 2 {
 		t.Error("Expected 2 data values")
 	}

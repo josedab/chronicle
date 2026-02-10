@@ -44,7 +44,7 @@ func DefaultTinyMLConfig() TinyMLConfig {
 		Enabled:          true,
 		MaxModelSize:     10 * 1024 * 1024, // 10MB
 		MaxModels:        100,
-		DefaultThreshold: 2.0, // 2 standard deviations
+		DefaultThreshold: 2.0,  // 2 standard deviations
 		InferenceTimeout: 1000, // 1 second
 	}
 }
@@ -260,8 +260,8 @@ func NewIsolationForestModel(name string, numTrees, sampleSize int) *IsolationFo
 	}
 }
 
-func (m *IsolationForestModel) Name() string          { return m.name }
-func (m *IsolationForestModel) Type() MLModelType     { return MLModelTypeAnomalyDetector }
+func (m *IsolationForestModel) Name() string      { return m.name }
+func (m *IsolationForestModel) Type() MLModelType { return MLModelTypeAnomalyDetector }
 
 // Train trains the isolation forest on data.
 func (m *IsolationForestModel) Train(data []float64) error {
@@ -466,7 +466,7 @@ func (m *IsolationForestModel) avgPathLength(n float64) float64 {
 
 // Serialize serializes the model.
 func (m *IsolationForestModel) Serialize() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"name":        m.name,
 		"num_trees":   m.numTrees,
 		"sample_size": m.sampleSize,
@@ -476,7 +476,7 @@ func (m *IsolationForestModel) Serialize() ([]byte, error) {
 
 // Deserialize deserializes the model.
 func (m *IsolationForestModel) Deserialize(data []byte) error {
-	var state map[string]interface{}
+	var state map[string]any
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
@@ -512,8 +512,8 @@ func NewSimpleExponentialSmoothingModel(name string, alpha float64) *SimpleExpon
 	}
 }
 
-func (m *SimpleExponentialSmoothingModel) Name() string          { return m.name }
-func (m *SimpleExponentialSmoothingModel) Type() MLModelType     { return MLModelTypeForecaster }
+func (m *SimpleExponentialSmoothingModel) Name() string      { return m.name }
+func (m *SimpleExponentialSmoothingModel) Type() MLModelType { return MLModelTypeForecaster }
 
 // Train trains the model on historical data.
 func (m *SimpleExponentialSmoothingModel) Train(data []float64) error {
@@ -561,7 +561,7 @@ func (m *SimpleExponentialSmoothingModel) Predict(input []float64) ([]float64, e
 
 // Serialize serializes the model.
 func (m *SimpleExponentialSmoothingModel) Serialize() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"name":    m.name,
 		"alpha":   m.alpha,
 		"level":   m.level,
@@ -571,7 +571,7 @@ func (m *SimpleExponentialSmoothingModel) Serialize() ([]byte, error) {
 
 // Deserialize deserializes the model.
 func (m *SimpleExponentialSmoothingModel) Deserialize(data []byte) error {
-	var state map[string]interface{}
+	var state map[string]any
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
@@ -614,8 +614,8 @@ func NewKMeansModel(name string, k, maxIter int) *KMeansModel {
 	}
 }
 
-func (m *KMeansModel) Name() string          { return m.name }
-func (m *KMeansModel) Type() MLModelType     { return MLModelTypeClassifier }
+func (m *KMeansModel) Name() string      { return m.name }
+func (m *KMeansModel) Type() MLModelType { return MLModelTypeClassifier }
 
 // Train trains the k-means model.
 func (m *KMeansModel) Train(data []float64) error {
@@ -730,7 +730,7 @@ func tinyMLEuclideanDistance(a, b []float64) float64 {
 
 // Serialize serializes the model.
 func (m *KMeansModel) Serialize() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"name":      m.name,
 		"k":         m.k,
 		"max_iter":  m.maxIter,
@@ -741,7 +741,7 @@ func (m *KMeansModel) Serialize() ([]byte, error) {
 
 // Deserialize deserializes the model.
 func (m *KMeansModel) Deserialize(data []byte) error {
-	var state map[string]interface{}
+	var state map[string]any
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
@@ -780,8 +780,8 @@ func NewStatisticalAnomalyDetector(name string, threshold float64) *StatisticalA
 	}
 }
 
-func (m *StatisticalAnomalyDetector) Name() string          { return m.name }
-func (m *StatisticalAnomalyDetector) Type() MLModelType     { return MLModelTypeAnomalyDetector }
+func (m *StatisticalAnomalyDetector) Name() string      { return m.name }
+func (m *StatisticalAnomalyDetector) Type() MLModelType { return MLModelTypeAnomalyDetector }
 
 // Train calculates mean and standard deviation.
 func (m *StatisticalAnomalyDetector) Train(data []float64) error {
@@ -829,7 +829,7 @@ func (m *StatisticalAnomalyDetector) Predict(input []float64) ([]float64, error)
 
 // Serialize serializes the model.
 func (m *StatisticalAnomalyDetector) Serialize() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"name":      m.name,
 		"mean":      m.mean,
 		"std_dev":   m.stdDev,
@@ -840,7 +840,7 @@ func (m *StatisticalAnomalyDetector) Serialize() ([]byte, error) {
 
 // Deserialize deserializes the model.
 func (m *StatisticalAnomalyDetector) Deserialize(data []byte) error {
-	var state map[string]interface{}
+	var state map[string]any
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
@@ -882,8 +882,8 @@ func NewMADDetector(name string, threshold float64) *MedianAbsoluteDeviationDete
 	}
 }
 
-func (m *MedianAbsoluteDeviationDetector) Name() string          { return m.name }
-func (m *MedianAbsoluteDeviationDetector) Type() MLModelType     { return MLModelTypeAnomalyDetector }
+func (m *MedianAbsoluteDeviationDetector) Name() string      { return m.name }
+func (m *MedianAbsoluteDeviationDetector) Type() MLModelType { return MLModelTypeAnomalyDetector }
 
 // Train calculates median and MAD.
 func (m *MedianAbsoluteDeviationDetector) Train(data []float64) error {
@@ -930,7 +930,7 @@ func (m *MedianAbsoluteDeviationDetector) Predict(input []float64) ([]float64, e
 
 // Serialize serializes the model.
 func (m *MedianAbsoluteDeviationDetector) Serialize() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"name":      m.name,
 		"median":    m.median,
 		"mad":       m.mad,
@@ -941,7 +941,7 @@ func (m *MedianAbsoluteDeviationDetector) Serialize() ([]byte, error) {
 
 // Deserialize deserializes the model.
 func (m *MedianAbsoluteDeviationDetector) Deserialize(data []byte) error {
-	var state map[string]interface{}
+	var state map[string]any
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}

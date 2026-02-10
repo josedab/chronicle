@@ -31,7 +31,7 @@ func TestPlaygroundSuggestChart(t *testing.T) {
 
 	resp := PlaygroundQueryResponse{
 		Columns: []string{"time", "value"},
-		Rows:    [][]interface{}{{"2024-01-01", 42.0}},
+		Rows:    [][]any{{"2024-01-01", 42.0}},
 	}
 	suggestion := pg.SuggestChart(resp)
 	if suggestion == nil {
@@ -43,7 +43,7 @@ func TestPlaygroundSuggestChart(t *testing.T) {
 
 	resp2 := PlaygroundQueryResponse{
 		Columns: []string{"host", "count"},
-		Rows:    [][]interface{}{{"web-1", 100}},
+		Rows:    [][]any{{"web-1", 100}},
 	}
 	suggestion2 := pg.SuggestChart(resp2)
 	if suggestion2 == nil {

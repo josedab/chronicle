@@ -246,7 +246,7 @@ func TestIoTDeviceSDKSendCommand(t *testing.T) {
 
 	dev, _ := sdk.RegisterDevice("cmd-dev", IoTPlatformLinux, DeviceCapabilities{})
 
-	cmd, err := sdk.SendCommand(dev.ID, "reboot", map[string]interface{}{"force": true})
+	cmd, err := sdk.SendCommand(dev.ID, "reboot", map[string]any{"force": true})
 	if err != nil {
 		t.Fatalf("SendCommand failed: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestIoTDeviceSDKAcknowledgeCommand(t *testing.T) {
 
 	result := CommandResult{
 		Success:    true,
-		Response:   map[string]interface{}{"status": "ok"},
+		Response:   map[string]any{"status": "ok"},
 		ExecutedAt: time.Now(),
 	}
 	if err := sdk.AcknowledgeCommand(cmd.ID, result); err != nil {

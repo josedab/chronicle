@@ -11,7 +11,7 @@ import (
 type LSPLanguage int
 
 const (
-	LSPLanguageCQL    LSPLanguage = iota
+	LSPLanguageCQL LSPLanguage = iota
 	LSPLanguagePromQL
 	LSPLanguageSQL
 )
@@ -32,34 +32,34 @@ func (l LSPLanguage) String() string {
 
 // LSPMetricInfo provides metadata about a metric for LSP features.
 type LSPMetricInfo struct {
-	Name        string            `json:"name"`
-	Type        string            `json:"type"`
-	Description string            `json:"description"`
+	Name        string              `json:"name"`
+	Type        string              `json:"type"`
+	Description string              `json:"description"`
 	Tags        map[string][]string `json:"tags"`
-	Cardinality int64             `json:"cardinality"`
-	LastSeen    time.Time         `json:"last_seen"`
-	SampleRate  float64           `json:"sample_rate"`
+	Cardinality int64               `json:"cardinality"`
+	LastSeen    time.Time           `json:"last_seen"`
+	SampleRate  float64             `json:"sample_rate"`
 }
 
 // LSPEnhancedConfig extends LSP configuration with multi-language support.
 type LSPEnhancedConfig struct {
-	EnableCQL         bool `json:"enable_cql"`
-	EnablePromQL      bool `json:"enable_promql"`
-	EnableSQL         bool `json:"enable_sql"`
-	MetricCacheSize   int  `json:"metric_cache_size"`
-	TagCacheSize      int  `json:"tag_cache_size"`
+	EnableCQL           bool `json:"enable_cql"`
+	EnablePromQL        bool `json:"enable_promql"`
+	EnableSQL           bool `json:"enable_sql"`
+	MetricCacheSize     int  `json:"metric_cache_size"`
+	TagCacheSize        int  `json:"tag_cache_size"`
 	EnableSignatureHelp bool `json:"enable_signature_help"`
-	EnableCodeActions bool   `json:"enable_code_actions"`
+	EnableCodeActions   bool `json:"enable_code_actions"`
 }
 
 // DefaultLSPEnhancedConfig returns defaults for enhanced LSP.
 func DefaultLSPEnhancedConfig() LSPEnhancedConfig {
 	return LSPEnhancedConfig{
-		EnableCQL:          true,
-		EnablePromQL:       true,
-		EnableSQL:          true,
-		MetricCacheSize:    10000,
-		TagCacheSize:       50000,
+		EnableCQL:           true,
+		EnablePromQL:        true,
+		EnableSQL:           true,
+		MetricCacheSize:     10000,
+		TagCacheSize:        50000,
 		EnableSignatureHelp: true,
 		EnableCodeActions:   true,
 	}
@@ -68,8 +68,8 @@ func DefaultLSPEnhancedConfig() LSPEnhancedConfig {
 // SignatureHelp provides function signature information.
 type SignatureHelp struct {
 	Signatures      []SignatureInfo `json:"signatures"`
-	ActiveSignature int            `json:"activeSignature"`
-	ActiveParameter int            `json:"activeParameter"`
+	ActiveSignature int             `json:"activeSignature"`
+	ActiveParameter int             `json:"activeParameter"`
 }
 
 // SignatureInfo describes a callable signature.
@@ -435,11 +435,11 @@ func (s *LSPEnhancedServer) GetHoverInfo(word string) *Hover {
 
 	// Check built-in functions
 	builtins := map[string]string{
-		"rate":                "Calculate per-second rate of increase of a counter.",
-		"irate":               "Calculate instant rate based on last two data points.",
-		"increase":            "Calculate increase of a counter over a time range.",
-		"sum":                 "Sum values across dimensions.",
-		"avg":                 "Average values across dimensions.",
+		"rate":               "Calculate per-second rate of increase of a counter.",
+		"irate":              "Calculate instant rate based on last two data points.",
+		"increase":           "Calculate increase of a counter over a time range.",
+		"sum":                "Sum values across dimensions.",
+		"avg":                "Average values across dimensions.",
 		"histogram_quantile": "Calculate φ-quantile from histogram buckets.",
 		"label_replace":      "Replace label values using regex capture groups.",
 		"label_join":         "Join multiple label values into a new label.",

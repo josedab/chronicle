@@ -15,25 +15,25 @@ import (
 // EXPERIMENTAL: This API is unstable and may change without notice.
 // WASMConsoleConfig configures the interactive browser query console.
 type WASMConsoleConfig struct {
-	Title                string   `json:"title"`
-	MaxQueryHistory      int      `json:"max_query_history"`
-	EnableAutoComplete   bool     `json:"enable_auto_complete"`
-	EnableChartSuggestions bool   `json:"enable_chart_suggestions"`
-	Theme                string   `json:"theme"`
-	MaxResultRows        int      `json:"max_result_rows"`
-	SupportedLanguages   []string `json:"supported_languages"`
+	Title                  string   `json:"title"`
+	MaxQueryHistory        int      `json:"max_query_history"`
+	EnableAutoComplete     bool     `json:"enable_auto_complete"`
+	EnableChartSuggestions bool     `json:"enable_chart_suggestions"`
+	Theme                  string   `json:"theme"`
+	MaxResultRows          int      `json:"max_result_rows"`
+	SupportedLanguages     []string `json:"supported_languages"`
 }
 
 // DefaultWASMConsoleConfig returns sensible defaults for the WASM query console.
 func DefaultWASMConsoleConfig() WASMConsoleConfig {
 	return WASMConsoleConfig{
-		Title:                "Chronicle Query Console",
-		MaxQueryHistory:      100,
-		EnableAutoComplete:   true,
+		Title:                  "Chronicle Query Console",
+		MaxQueryHistory:        100,
+		EnableAutoComplete:     true,
 		EnableChartSuggestions: true,
-		Theme:                "dark",
-		MaxResultRows:        1000,
-		SupportedLanguages:   []string{"sql", "promql", "cql"},
+		Theme:                  "dark",
+		MaxResultRows:          1000,
+		SupportedLanguages:     []string{"sql", "promql", "cql"},
 	}
 }
 
@@ -59,7 +59,7 @@ type WASMConsoleQuery struct {
 // WASMConsoleResult holds the output of a console query execution.
 type WASMConsoleResult struct {
 	Columns   []string         `json:"columns"`
-	Rows      [][]interface{}  `json:"rows"`
+	Rows      [][]any          `json:"rows"`
 	RowCount  int              `json:"row_count"`
 	Truncated bool             `json:"truncated"`
 	Chart     *ChartSuggestion `json:"chart,omitempty"`
@@ -190,12 +190,12 @@ func (qc *WASMQueryConsole) executeCQL(query string) *WASMConsoleResult {
 		return &WASMConsoleResult{Error: err.Error()}
 	}
 
-	var generic interface{}
+	var generic any
 	json.Unmarshal(data, &generic)
 
 	return &WASMConsoleResult{
 		Columns:  []string{"result"},
-		Rows:     [][]interface{}{{generic}},
+		Rows:     [][]any{{generic}},
 		RowCount: 1,
 	}
 }
@@ -216,11 +216,11 @@ func (qc *WASMQueryConsole) executePromQL(query string) *WASMConsoleResult {
 
 func (qc *WASMQueryConsole) formatResult(result *Result) *WASMConsoleResult {
 	if result == nil {
-		return &WASMConsoleResult{Columns: []string{}, Rows: [][]interface{}{}}
+		return &WASMConsoleResult{Columns: []string{}, Rows: [][]any{}}
 	}
 
 	columns := []string{"time", "metric", "value"}
-	rows := make([][]interface{}, 0, len(result.Points))
+	rows := make([][]any, 0, len(result.Points))
 	truncated := false
 
 	for i, pt := range result.Points {
@@ -228,7 +228,7 @@ func (qc *WASMQueryConsole) formatResult(result *Result) *WASMConsoleResult {
 			truncated = true
 			break
 		}
-		rows = append(rows, []interface{}{
+		rows = append(rows, []any{
 			time.Unix(0, pt.Timestamp).UTC().Format(time.RFC3339Nano),
 			pt.Metric,
 			pt.Value,
@@ -518,9 +518,9 @@ func exportWASMConsoleCSV(result *WASMConsoleResult) ([]byte, error) {
 }
 
 func exportWASMConsoleJSON(result *WASMConsoleResult) ([]byte, error) {
-	rows := make([]map[string]interface{}, 0, len(result.Rows))
+	rows := make([]map[string]any, 0, len(result.Rows))
 	for _, row := range result.Rows {
-		m := make(map[string]interface{}, len(result.Columns))
+		m := make(map[string]any, len(result.Columns))
 		for i, col := range result.Columns {
 			if i < len(row) {
 				m[col] = row[i]

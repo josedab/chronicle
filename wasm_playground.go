@@ -13,19 +13,19 @@ import (
 // EXPERIMENTAL: This API is unstable and may change without notice.
 // PlaygroundConfig configures the embeddable WASM query playground.
 type PlaygroundConfig struct {
-	Enabled         bool   `json:"enabled"`
-	Title           string `json:"title"`
-	Theme           string `json:"theme"`
-	MaxQueryLength  int    `json:"max_query_length"`
-	DefaultQuery    string `json:"default_query"`
-	EnableCharts    bool   `json:"enable_charts"`
-	EnableExport    bool   `json:"enable_export"`
-	WASMPath        string `json:"wasm_path"`
-	CDNBaseURL      string `json:"cdn_base_url,omitempty"`
-	AllowedOrigins  string `json:"allowed_origins,omitempty"`
-	AutocompleteOn  bool   `json:"autocomplete_on"`
-	MaxResultRows   int    `json:"max_result_rows"`
-	SessionTimeout  time.Duration `json:"session_timeout"`
+	Enabled        bool          `json:"enabled"`
+	Title          string        `json:"title"`
+	Theme          string        `json:"theme"`
+	MaxQueryLength int           `json:"max_query_length"`
+	DefaultQuery   string        `json:"default_query"`
+	EnableCharts   bool          `json:"enable_charts"`
+	EnableExport   bool          `json:"enable_export"`
+	WASMPath       string        `json:"wasm_path"`
+	CDNBaseURL     string        `json:"cdn_base_url,omitempty"`
+	AllowedOrigins string        `json:"allowed_origins,omitempty"`
+	AutocompleteOn bool          `json:"autocomplete_on"`
+	MaxResultRows  int           `json:"max_result_rows"`
+	SessionTimeout time.Duration `json:"session_timeout"`
 }
 
 // DefaultPlaygroundConfig returns sensible defaults for the playground.
@@ -47,10 +47,10 @@ func DefaultPlaygroundConfig() PlaygroundConfig {
 
 // PlaygroundSession tracks an active playground session.
 type PlaygroundSession struct {
-	ID        string    `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	LastQuery string    `json:"last_query"`
-	QueryCount int      `json:"query_count"`
+	ID         string    `json:"id"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastQuery  string    `json:"last_query"`
+	QueryCount int       `json:"query_count"`
 }
 
 // PlaygroundQueryRequest represents a query from the playground.
@@ -62,12 +62,12 @@ type PlaygroundQueryRequest struct {
 
 // PlaygroundQueryResponse holds the result of a playground query.
 type PlaygroundQueryResponse struct {
-	Columns   []string        `json:"columns"`
-	Rows      [][]interface{} `json:"rows"`
-	RowCount  int             `json:"row_count"`
-	Duration  string          `json:"duration"`
-	QueryPlan string          `json:"query_plan,omitempty"`
-	Error     string          `json:"error,omitempty"`
+	Columns   []string `json:"columns"`
+	Rows      [][]any  `json:"rows"`
+	RowCount  int      `json:"row_count"`
+	Duration  string   `json:"duration"`
+	QueryPlan string   `json:"query_plan,omitempty"`
+	Error     string   `json:"error,omitempty"`
 }
 
 // ChartSuggestion describes a recommended visualization for query results.
@@ -118,7 +118,7 @@ func (p *Playground) ExecuteQuery(req PlaygroundQueryRequest) PlaygroundQueryRes
 	switch lang {
 	case "cql":
 		if p.db.CQLEngine() != nil {
-			var cqlResult interface{}
+			var cqlResult any
 			cqlResult, err = p.db.CQLEngine().Execute(nil, req.Query)
 			if err == nil {
 				return p.formatCQLResult(cqlResult, time.Since(start))
@@ -212,7 +212,7 @@ func (p *Playground) handlePlaygroundPage(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	tmpl := template.Must(template.New("playground").Parse(playgroundHTML))
-	tmpl.Execute(w, map[string]interface{}{
+	tmpl.Execute(w, map[string]any{
 		"Title":        p.config.Title,
 		"Theme":        p.config.Theme,
 		"DefaultQuery": p.config.DefaultQuery,
@@ -244,14 +244,14 @@ func (p *Playground) handlePlaygroundConfig(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"title":          p.config.Title,
-		"theme":          p.config.Theme,
-		"enable_charts":  p.config.EnableCharts,
-		"enable_export":  p.config.EnableExport,
-		"autocomplete":   p.config.AutocompleteOn,
+	json.NewEncoder(w).Encode(map[string]any{
+		"title":           p.config.Title,
+		"theme":           p.config.Theme,
+		"enable_charts":   p.config.EnableCharts,
+		"enable_export":   p.config.EnableExport,
+		"autocomplete":    p.config.AutocompleteOn,
 		"max_result_rows": p.config.MaxResultRows,
-		"default_query":  p.config.DefaultQuery,
+		"default_query":   p.config.DefaultQuery,
 	})
 }
 
@@ -266,13 +266,13 @@ func (p *Playground) formatResult(result *Result, duration time.Duration) Playgr
 	}
 
 	columns := []string{"time", "metric", "value"}
-	rows := make([][]interface{}, 0)
+	rows := make([][]any, 0)
 
 	for i, pt := range result.Points {
 		if i >= p.config.MaxResultRows {
 			break
 		}
-		rows = append(rows, []interface{}{
+		rows = append(rows, []any{
 			time.Unix(0, pt.Timestamp).UTC().Format(time.RFC3339Nano),
 			pt.Metric,
 			pt.Value,
@@ -287,19 +287,19 @@ func (p *Playground) formatResult(result *Result, duration time.Duration) Playgr
 	}
 }
 
-func (p *Playground) formatCQLResult(result interface{}, duration time.Duration) PlaygroundQueryResponse {
+func (p *Playground) formatCQLResult(result any, duration time.Duration) PlaygroundQueryResponse {
 	// CQL results are generic; serialize to JSON and re-parse
 	data, err := json.Marshal(result)
 	if err != nil {
 		return PlaygroundQueryResponse{Error: err.Error(), Duration: duration.String()}
 	}
 
-	var generic interface{}
+	var generic any
 	json.Unmarshal(data, &generic)
 
 	return PlaygroundQueryResponse{
 		Columns:  []string{"result"},
-		Rows:     [][]interface{}{{generic}},
+		Rows:     [][]any{{generic}},
 		RowCount: 1,
 		Duration: duration.String(),
 	}

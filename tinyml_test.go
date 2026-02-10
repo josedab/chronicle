@@ -345,7 +345,7 @@ func TestTinyMLEngine_DetectAnomalies(t *testing.T) {
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 
-	result, err := engine.DetectAnomalies("test_metric", 
+	result, err := engine.DetectAnomalies("test_metric",
 		now.Add(-2*time.Hour).UnixNano(),
 		now.UnixNano())
 	if err != nil {

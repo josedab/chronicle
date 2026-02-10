@@ -13,6 +13,9 @@ import (
 )
 
 // EXPERIMENTAL: This API is unstable and may change without notice.
+// NOTE: This is a placeholder integration. Deno Deploy API calls are stubbed and
+// require a real Deno Deploy project and authentication token to function.
+//
 // DenoRuntimeConfig configures Chronicle for Deno Deploy environment.
 type DenoRuntimeConfig struct {
 	// ProjectID is the Deno Deploy project ID.
@@ -50,7 +53,7 @@ type DenoRuntimeConfig struct {
 func DefaultDenoRuntimeConfig() DenoRuntimeConfig {
 	return DenoRuntimeConfig{
 		MaxMemoryMB:      512,
-		EnableStreaming:   true,
+		EnableStreaming:  true,
 		CacheEnabled:     true,
 		CacheTTL:         5 * time.Minute,
 		BatchSize:        500,
@@ -70,22 +73,22 @@ type DenoRuntime struct {
 
 // DenoMetrics tracks runtime metrics for Deno Deploy.
 type DenoMetrics struct {
-	KVReads       int64 `json:"kv_reads"`
-	KVWrites      int64 `json:"kv_writes"`
-	KVDeletes     int64 `json:"kv_deletes"`
-	CacheHits     int64 `json:"cache_hits"`
-	CacheMisses   int64 `json:"cache_misses"`
+	KVReads        int64 `json:"kv_reads"`
+	KVWrites       int64 `json:"kv_writes"`
+	KVDeletes      int64 `json:"kv_deletes"`
+	CacheHits      int64 `json:"cache_hits"`
+	CacheMisses    int64 `json:"cache_misses"`
 	TotalLatencyMs int64 `json:"total_latency_ms"`
-	RequestCount  int64 `json:"request_count"`
+	RequestCount   int64 `json:"request_count"`
 }
 
 // DenoKVBackend wraps Deno KV operations via the HTTP API.
 type DenoKVBackend struct {
-	databaseID string
-	apiToken   string
-	baseURL    string
-	client     *http.Client
-	batchSize  int
+	databaseID  string
+	apiToken    string
+	baseURL     string
+	client      *http.Client
+	batchSize   int
 	consistency string
 }
 
@@ -96,8 +99,8 @@ func NewDenoRuntime(config DenoRuntimeConfig) (*DenoRuntime, error) {
 	}
 
 	dr := &DenoRuntime{
-		config: config,
-		client: &http.Client{Timeout: 30 * time.Second},
+		config:  config,
+		client:  &http.Client{Timeout: 30 * time.Second},
 		metrics: &DenoMetrics{},
 	}
 
@@ -294,7 +297,7 @@ func denoMatchesTags(pointTags, queryTags map[string]string) bool {
 }
 
 func (kv *DenoKVBackend) kvSet(ctx context.Context, key string, value []byte) error {
-	body := map[string]interface{}{
+	body := map[string]any{
 		"key":   []string{key},
 		"value": value,
 	}
@@ -320,7 +323,7 @@ func (kv *DenoKVBackend) kvSet(ctx context.Context, key string, value []byte) er
 }
 
 func (kv *DenoKVBackend) kvAtomic(ctx context.Context, ops []denoKVOp) error {
-	body := map[string]interface{}{
+	body := map[string]any{
 		"operations": ops,
 	}
 	data, _ := json.Marshal(body)
@@ -383,8 +386,8 @@ func (kv *DenoKVBackend) setHeaders(req *http.Request) {
 }
 
 type denoKVOp struct {
-	Type  string   `json:"type"`
-	Key   []string `json:"key"`
+	Type  string          `json:"type"`
+	Key   []string        `json:"key"`
 	Value json.RawMessage `json:"value,omitempty"`
 }
 
@@ -446,10 +449,10 @@ const (
 
 // EdgeDeployConfig provides unified deployment configuration.
 type EdgeDeployConfig struct {
-	Platform      EdgePlatform         `json:"platform"`
-	Workers       *WorkersRuntimeConfig `json:"workers,omitempty"`
-	Deno          *DenoRuntimeConfig    `json:"deno,omitempty"`
-	FeatureFlags  map[string]bool      `json:"feature_flags,omitempty"`
+	Platform     EdgePlatform          `json:"platform"`
+	Workers      *WorkersRuntimeConfig `json:"workers,omitempty"`
+	Deno         *DenoRuntimeConfig    `json:"deno,omitempty"`
+	FeatureFlags map[string]bool       `json:"feature_flags,omitempty"`
 }
 
 // EdgePlatformManager manages deployments across edge platforms.

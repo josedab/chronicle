@@ -9,8 +9,8 @@ func TestWASMRuntime_LoadPlugin(t *testing.T) {
 	rt := NewWASMRuntime(nil, DefaultWASMRuntimeConfig())
 
 	err := rt.LoadPlugin(context.Background(), WASMPluginConfig{
-		Name:      "test-filter",
-		WASMBytes: []byte{0x00, 0x61, 0x73, 0x6d}, // wasm magic
+		Name:        "test-filter",
+		WASMBytes:   []byte{0x00, 0x61, 0x73, 0x6d}, // wasm magic
 		Permissions: DefaultWASMPermissions(),
 	})
 	if err != nil {
