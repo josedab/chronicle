@@ -20,6 +20,7 @@ Thank you for your interest in contributing to Chronicle! This document provides
 2. Install development dependencies:
    ```bash
    go mod download
+   go mod tidy
    make setup
    ```
 

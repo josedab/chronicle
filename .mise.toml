@@ -1,0 +1,10 @@
+# Chronicle development tool versions
+# Install mise: https://mise.jdx.dev/getting-started.html
+# Then run: mise install
+
+[tools]
+go = "1.24.4"
+
+[env]
+# Recommended: enable race detector during development
+# GOFLAGS = "-race"
