@@ -5,6 +5,7 @@
 [![codecov](https://codecov.io/gh/chronicle-db/chronicle/branch/main/graph/badge.svg)](https://codecov.io/gh/chronicle-db/chronicle)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/chronicle-db/chronicle/actions/workflows/ci.yml/badge.svg)](https://github.com/chronicle-db/chronicle/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/chronicle-db/chronicle/badge)](https://scorecard.dev/viewer/?uri=github.com/chronicle-db/chronicle)
 
 Chronicle is an embedded time-series database for Go designed for constrained and edge environments. It provides compressed columnar storage, SQL-like queries, retention, and downsampling in a single-file format.
 
@@ -14,7 +15,7 @@ Chronicle is an embedded time-series database for Go designed for constrained an
 go get github.com/chronicle-db/chronicle
 ```
 
-**Requirements:** Go 1.24 or later — Chronicle uses recent Go features (range-over-func, enhanced generics). If Go 1.24 is not yet packaged for your OS, install from [go.dev/dl](https://go.dev/dl/) or use `go install golang.org/dl/go1.24@latest`.
+**Requirements:** Go 1.24 or later (required by dependencies: `modernc.org/sqlite`, `golang.org/x/sys`).
 
 ## Getting Started
 
@@ -173,6 +174,8 @@ Chronicle is pre-1.0. Not all features have the same stability level.
 
 See [`api_stability.go`](api_stability.go) for the full classification of every exported symbol.
 
+For an honest assessment of every feature's production readiness, see [`FEATURE_MATURITY.md`](FEATURE_MATURITY.md).
+
 ## Configuration
 
 Legacy flat fields (for example, `MaxMemory`) remain supported, but new grouped config is preferred.
@@ -277,6 +280,8 @@ For a detailed package organization map and restructuring plan, see [docs/PACKAG
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — 10-minute tutorial from install to query
 - **[Core API Reference](docs/CORE_API.md)** — The 10 functions you need for 90% of use cases
+- **[Stable API](STABLE_API.md)** — The ~20 types you should depend on
+- **[Feature Maturity](FEATURE_MATURITY.md)** — Honest production-readiness assessment
 - [API Documentation](https://pkg.go.dev/github.com/chronicle-db/chronicle)
 - [HTTP API Reference](docs/API.md)
 - [Features Guide](docs/FEATURES.md)
@@ -349,3 +354,9 @@ For reporting security vulnerabilities, see [SECURITY.md](SECURITY.md). Chronicl
 ## License
 
 Apache 2.0 - see [LICENSE](LICENSE) for details.
+
+<!-- GitHub repository topics (set via Settings > General > Topics):
+time-series-database, embedded-database, golang, iot, edge-computing,
+metrics, monitoring, prometheus, opentelemetry, grafana, tsdb,
+columnar-storage, compression, embedded, wasm
+-->
