@@ -6,7 +6,7 @@ package chronicle
 #include <stdbool.h>
 
 // ChronicleDB opaque handle
-typedef void* chronicle_db_t;
+typedef uintptr_t chronicle_db_t;
 
 // Configuration for opening a database
 typedef struct {
@@ -108,12 +108,12 @@ func chronicle_version() *C.char {
 //export chronicle_open
 func chronicle_open(config *C.chronicle_config_t) C.chronicle_db_t {
 	if config == nil {
-		return nil
+		return 0
 	}
 
 	path := C.GoString(config.path)
 	if path == "" {
-		return nil
+		return 0
 	}
 
 	cfg := DefaultConfig(path)
@@ -127,20 +127,20 @@ func chronicle_open(config *C.chronicle_config_t) C.chronicle_db_t {
 
 	db, err := Open(path, cfg)
 	if err != nil {
-		return nil
+		return 0
 	}
 
 	handle := registerHandle(db)
-	return C.chronicle_db_t(unsafe.Pointer(uintptr(handle)))
+	return C.chronicle_db_t(handle)
 }
 
 //export chronicle_close
 func chronicle_close(db C.chronicle_db_t) C.chronicle_error_t {
-	if db == nil {
+	if db == 0 {
 		return C.CHRONICLE_ERR_INVALID_ARG
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return C.CHRONICLE_ERR_NOT_FOUND
@@ -156,11 +156,11 @@ func chronicle_close(db C.chronicle_db_t) C.chronicle_error_t {
 
 //export chronicle_write
 func chronicle_write(db C.chronicle_db_t, point *C.chronicle_point_t) C.chronicle_error_t {
-	if db == nil || point == nil {
+	if db == 0 || point == nil {
 		return C.CHRONICLE_ERR_INVALID_ARG
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return C.CHRONICLE_ERR_NOT_FOUND
@@ -190,11 +190,11 @@ func chronicle_write(db C.chronicle_db_t, point *C.chronicle_point_t) C.chronicl
 
 //export chronicle_write_batch
 func chronicle_write_batch(db C.chronicle_db_t, points *C.chronicle_point_t, count C.int32_t) C.chronicle_error_t {
-	if db == nil || points == nil || count <= 0 {
+	if db == 0 || points == nil || count <= 0 {
 		return C.CHRONICLE_ERR_INVALID_ARG
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return C.CHRONICLE_ERR_NOT_FOUND
@@ -234,12 +234,12 @@ func chronicle_query(db C.chronicle_db_t, query *C.chronicle_query_t) *C.chronic
 	result.count = 0
 	result.error = nil
 
-	if db == nil || query == nil {
+	if db == 0 || query == nil {
 		result.error = C.CString("invalid arguments")
 		return result
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		result.error = C.CString("database not found")
@@ -333,11 +333,11 @@ func chronicle_result_free(result *C.chronicle_result_t) {
 
 //export chronicle_flush
 func chronicle_flush(db C.chronicle_db_t) C.chronicle_error_t {
-	if db == nil {
+	if db == 0 {
 		return C.CHRONICLE_ERR_INVALID_ARG
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return C.CHRONICLE_ERR_NOT_FOUND
@@ -352,11 +352,11 @@ func chronicle_flush(db C.chronicle_db_t) C.chronicle_error_t {
 
 //export chronicle_metrics_count
 func chronicle_metrics_count(db C.chronicle_db_t) C.int32_t {
-	if db == nil {
+	if db == 0 {
 		return -1
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return -1
@@ -367,11 +367,11 @@ func chronicle_metrics_count(db C.chronicle_db_t) C.int32_t {
 
 //export chronicle_metrics_list
 func chronicle_metrics_list(db C.chronicle_db_t, out **C.char, maxCount C.int32_t) C.int32_t {
-	if db == nil || out == nil || maxCount <= 0 {
+	if db == 0 || out == nil || maxCount <= 0 {
 		return -1
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return -1
@@ -400,11 +400,11 @@ func chronicle_string_free(s *C.char) {
 
 //export chronicle_stats
 func chronicle_stats(db C.chronicle_db_t) *C.char {
-	if db == nil {
+	if db == 0 {
 		return nil
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return nil
@@ -425,11 +425,11 @@ func chronicle_stats(db C.chronicle_db_t) *C.char {
 
 //export chronicle_execute_sql
 func chronicle_execute_sql(db C.chronicle_db_t, sqlStr *C.char) *C.char {
-	if db == nil || sqlStr == nil {
+	if db == 0 || sqlStr == nil {
 		return C.CString(`{"error": "invalid arguments"}`)
 	}
 
-	handle := cgo.Handle(uintptr(unsafe.Pointer(db)))
+	handle := cgo.Handle(db)
 	dbPtr, ok := getHandle(handle)
 	if !ok {
 		return C.CString(`{"error": "database not found"}`)
@@ -521,7 +521,7 @@ extern "C" {
 #endif
 
 /* Opaque database handle */
-typedef void* chronicle_db_t;
+typedef uintptr_t chronicle_db_t;
 
 /* Configuration for opening a database */
 typedef struct {
