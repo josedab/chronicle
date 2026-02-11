@@ -96,6 +96,93 @@ func TestBenchmarkSuite_NilDB(t *testing.T) {
 	}
 }
 
+func TestBenchmarkSuite_ConcurrentWrite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping benchmark in short mode")
+	}
+	db, cleanup := setupBenchDB(t)
+	defer cleanup()
+
+	suite := NewBenchmarkSuite()
+	result, err := suite.RunConcurrentWriteBenchmark(db, 4, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Operations != 2000 {
+		t.Errorf("ops = %d, want 2000", result.Operations)
+	}
+	if result.OpsPerSec <= 0 {
+		t.Error("expected positive ops/sec")
+	}
+}
+
+func TestBenchmarkSuite_Cardinality(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping benchmark in short mode")
+	}
+	db, cleanup := setupBenchDB(t)
+	defer cleanup()
+
+	suite := NewBenchmarkSuite()
+	results, err := suite.RunCardinalityBenchmark(db, []int{10, 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 results, got %d", len(results))
+	}
+}
+
+func TestBenchmarkSuite_Aggregation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping benchmark in short mode")
+	}
+	db, cleanup := setupBenchDB(t)
+	defer cleanup()
+
+	suite := NewBenchmarkSuite()
+	results, err := suite.RunAggregationBenchmark(db, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 6 {
+		t.Errorf("expected 6 aggregation results, got %d", len(results))
+	}
+	for _, r := range results {
+		if r.OpsPerSec <= 0 {
+			t.Errorf("%s: expected positive ops/sec", r.Name)
+		}
+	}
+}
+
+func TestBenchmarkSuite_Retention(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping benchmark in short mode")
+	}
+	db, cleanup := setupBenchDB(t)
+	defer cleanup()
+
+	suite := NewBenchmarkSuite()
+	result, err := suite.RunRetentionBenchmark(db, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Operations != 1000 {
+		t.Errorf("ops = %d, want 1000", result.Operations)
+	}
+}
+
+func setupBenchDB(t *testing.T) (*DB, func()) {
+	t.Helper()
+	dir := t.TempDir()
+	path := dir + "/bench.db"
+	db, err := Open(path, DefaultConfig(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return db, func() { db.Close() }
+}
+
 func TestVarIntSize(t *testing.T) {
 	tests := []struct {
 		input    int64
