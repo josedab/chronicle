@@ -39,8 +39,11 @@ package chronicle
 //   DefaultConfig(path)       → Config               Sensible default config
 //   db.Close()                → error                 Close the database
 //   db.Write(Point)           → error                 Write a single point
+//   db.WriteContext(ctx, Point) → error               Write with context
 //   db.WriteBatch([]Point)    → error                 Write multiple points
+//   db.WriteBatchContext(ctx, []Point) → error        Write batch with context
 //   db.Execute(*Query)        → (*Result, error)      Execute a query
+//   db.ExecuteContext(ctx, *Query) → (*Result, error) Execute with context
 //   db.Metrics()              → []string              List known metric names
 //
 // ---------------------------------------------------------------------------

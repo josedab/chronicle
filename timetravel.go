@@ -90,13 +90,13 @@ type Version struct {
 
 // ChangeEvent represents a change data capture event.
 type ChangeEvent struct {
-	ID        string      `json:"id"`
-	Timestamp int64       `json:"timestamp"`
-	Operation CDCOp       `json:"operation"`
-	Metric    string      `json:"metric"`
+	ID        string            `json:"id"`
+	Timestamp int64             `json:"timestamp"`
+	Operation CDCOp             `json:"operation"`
+	Metric    string            `json:"metric"`
 	Tags      map[string]string `json:"tags"`
-	Before    *Point      `json:"before,omitempty"`
-	After     *Point      `json:"after,omitempty"`
+	Before    *Point            `json:"before,omitempty"`
+	After     *Point            `json:"after,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
 }
 
@@ -688,21 +688,21 @@ func (t *TimeTravelEngine) Stats() TimeTravelStats {
 	t.cdcLogMu.RUnlock()
 
 	return TimeTravelStats{
-		Enabled:        t.config.Enabled,
-		SnapshotCount:  snapshotCount,
-		VersionCount:   versionCount,
-		CDCEventCount:  cdcEventCount,
-		MaxRetention:   t.config.MaxRetention.String(),
+		Enabled:       t.config.Enabled,
+		SnapshotCount: snapshotCount,
+		VersionCount:  versionCount,
+		CDCEventCount: cdcEventCount,
+		MaxRetention:  t.config.MaxRetention.String(),
 	}
 }
 
 // TimeTravelStats contains time-travel statistics.
 type TimeTravelStats struct {
-	Enabled        bool   `json:"enabled"`
-	SnapshotCount  int    `json:"snapshot_count"`
-	VersionCount   int    `json:"version_count"`
-	CDCEventCount  int    `json:"cdc_event_count"`
-	MaxRetention   string `json:"max_retention"`
+	Enabled       bool   `json:"enabled"`
+	SnapshotCount int    `json:"snapshot_count"`
+	VersionCount  int    `json:"version_count"`
+	CDCEventCount int    `json:"cdc_event_count"`
+	MaxRetention  string `json:"max_retention"`
 }
 
 // TimeTravelDB wraps a DB with time-travel capabilities.

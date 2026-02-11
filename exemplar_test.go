@@ -73,8 +73,8 @@ func TestExemplarStore_QueryByTraceID(t *testing.T) {
 			Value:     float64(i),
 			Timestamp: now,
 			Exemplar: &Exemplar{
-				Labels:    map[string]string{"trace_id": "trace-" + string(rune('a'+i))},
-				Value:     float64(i),
+				Labels: map[string]string{"trace_id": "trace-" + string(rune('a'+i))},
+				Value:  float64(i),
 			},
 		})
 	}

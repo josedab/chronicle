@@ -23,7 +23,7 @@ func TestAdminUI_APIStats(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var stats map[string]interface{}
+	var stats map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&stats); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestAdminUI_APIMetrics(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var metrics []map[string]interface{}
+	var metrics []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&metrics); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestAdminUI_APIConfig(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&config); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestAdminUI_APIHealth(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var health map[string]interface{}
+	var health map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&health); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestAdminUI_APIQueryHistory(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var history []map[string]interface{}
+	var history []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&history); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestAdminUI_APIDataPreview(t *testing.T) {
 		t.Errorf("expected status 200, got %d; body: %s", rec.Code, rec.Body.String())
 	}
 
-	var preview map[string]interface{}
+	var preview map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&preview); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -307,7 +307,7 @@ func TestAdminUI_APIMetricDetails(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var details map[string]interface{}
+	var details map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&details); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestAdminUI_APIPartitions(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var partitions map[string]interface{}
+	var partitions map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&partitions); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -369,7 +369,7 @@ func TestAdminUI_APIQueryExplain(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -414,7 +414,7 @@ func TestAdminUI_APICluster(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var status map[string]interface{}
+	var status map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -439,7 +439,7 @@ func TestAdminUI_APIWAL(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var walInfo map[string]interface{}
+	var walInfo map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&walInfo); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

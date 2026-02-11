@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+var studioProjectCounter atomic.Int64
 
 // ChronicleStudioConfig configures the Visual Time-Series Programming IDE.
 type ChronicleStudioConfig struct {
@@ -69,16 +72,16 @@ const (
 
 // StudioProject represents a project in Chronicle Studio.
 type StudioProject struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Description   string            `json:"description"`
-	Owner         string            `json:"owner"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
-	Notebooks     []string          `json:"notebooks"`
-	Tags          []string          `json:"tags"`
-	Settings      ProjectSettings   `json:"settings"`
-	Collaborators []Collaborator    `json:"collaborators"`
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Description   string          `json:"description"`
+	Owner         string          `json:"owner"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
+	Notebooks     []string        `json:"notebooks"`
+	Tags          []string        `json:"tags"`
+	Settings      ProjectSettings `json:"settings"`
+	Collaborators []Collaborator  `json:"collaborators"`
 }
 
 // ProjectSettings holds default settings for a project.
@@ -99,47 +102,47 @@ type Collaborator struct {
 
 // StudioNotebook represents a notebook in Chronicle Studio.
 type StudioNotebook struct {
-	ID          string              `json:"id"`
-	ProjectID   string              `json:"project_id"`
-	Name        string              `json:"name"`
-	Description string              `json:"description"`
+	ID          string               `json:"id"`
+	ProjectID   string               `json:"project_id"`
+	Name        string               `json:"name"`
+	Description string               `json:"description"`
 	Cells       []StudioNotebookCell `json:"cells"`
-	CreatedAt   time.Time           `json:"created_at"`
-	UpdatedAt   time.Time           `json:"updated_at"`
-	Version     int                 `json:"version"`
-	Author      string              `json:"author"`
-	Tags        []string            `json:"tags"`
+	CreatedAt   time.Time            `json:"created_at"`
+	UpdatedAt   time.Time            `json:"updated_at"`
+	Version     int                  `json:"version"`
+	Author      string               `json:"author"`
+	Tags        []string             `json:"tags"`
 }
 
 // StudioNotebookCell represents a single cell in a notebook.
 type StudioNotebookCell struct {
-	ID        string           `json:"id"`
-	Type      StudioCellType   `json:"type"`
-	Content   string           `json:"content"`
+	ID        string            `json:"id"`
+	Type      StudioCellType    `json:"type"`
+	Content   string            `json:"content"`
 	Output    *StudioCellOutput `json:"output,omitempty"`
-	Position  int              `json:"position"`
-	CreatedAt time.Time        `json:"created_at"`
-	UpdatedAt time.Time        `json:"updated_at"`
-	Collapsed bool             `json:"collapsed"`
+	Position  int               `json:"position"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	Collapsed bool              `json:"collapsed"`
 }
 
 // StudioCellOutput holds the result of executing a cell.
 type StudioCellOutput struct {
-	Data       interface{} `json:"data"`
-	Error      string      `json:"error,omitempty"`
-	ExecutedAt time.Time   `json:"executed_at"`
-	DurationMs int64       `json:"duration_ms"`
-	RowCount   int         `json:"row_count"`
+	Data       any       `json:"data"`
+	Error      string    `json:"error,omitempty"`
+	ExecutedAt time.Time `json:"executed_at"`
+	DurationMs int64     `json:"duration_ms"`
+	RowCount   int       `json:"row_count"`
 }
 
 // VisualizationSpec describes a visualization configuration.
 type VisualizationSpec struct {
-	Type    VisualizationType      `json:"type"`
-	Title   string                 `json:"title"`
-	XAxis   AxisConfig             `json:"x_axis"`
-	YAxis   AxisConfig             `json:"y_axis"`
-	Series  []SeriesConfig         `json:"series"`
-	Options map[string]interface{} `json:"options,omitempty"`
+	Type    VisualizationType `json:"type"`
+	Title   string            `json:"title"`
+	XAxis   AxisConfig        `json:"x_axis"`
+	YAxis   AxisConfig        `json:"y_axis"`
+	Series  []SeriesConfig    `json:"series"`
+	Options map[string]any    `json:"options,omitempty"`
 }
 
 // AxisConfig describes an axis in a visualization.
@@ -238,7 +241,7 @@ func (s *ChronicleStudio) CreateProject(name, description, owner string) (*Studi
 
 	now := time.Now()
 	p := &StudioProject{
-		ID:          fmt.Sprintf("proj_%d", now.UnixNano()),
+		ID:          fmt.Sprintf("proj_%d_%d", now.UnixNano(), studioProjectCounter.Add(1)),
 		Name:        name,
 		Description: description,
 		Owner:       owner,

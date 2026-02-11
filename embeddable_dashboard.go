@@ -11,13 +11,13 @@ import (
 
 // DashboardConfig configures the embeddable dashboard component.
 type DashboardConfig struct {
-	Enabled         bool          `json:"enabled"`
-	Title           string        `json:"title"`
-	RefreshInterval time.Duration `json:"refresh_interval"`
-	MaxPanels       int           `json:"max_panels"`
-	Theme           string        `json:"theme"`
+	Enabled          bool          `json:"enabled"`
+	Title            string        `json:"title"`
+	RefreshInterval  time.Duration `json:"refresh_interval"`
+	MaxPanels        int           `json:"max_panels"`
+	Theme            string        `json:"theme"`
 	DefaultTimeRange time.Duration `json:"default_time_range"`
-	EnableExport    bool          `json:"enable_export"`
+	EnableExport     bool          `json:"enable_export"`
 }
 
 // DefaultDashboardConfig returns sensible defaults for the dashboard.
@@ -76,17 +76,17 @@ func (pt DashboardPanelType) String() string {
 
 // DashboardPanel represents a single panel in the dashboard.
 type DashboardPanel struct {
-	ID          string             `json:"id"`
-	Title       string             `json:"title"`
-	Type        DashboardPanelType `json:"type"`
-	Metric      string             `json:"metric"`
-	Tags        map[string]string  `json:"tags,omitempty"`
-	AggFunc     string             `json:"agg_func,omitempty"`
-	TimeRange   time.Duration      `json:"time_range,omitempty"`
-	Width       int                `json:"width"`
-	Height      int                `json:"height"`
-	Position    int                `json:"position"`
-	Thresholds  []PanelThreshold   `json:"thresholds,omitempty"`
+	ID         string             `json:"id"`
+	Title      string             `json:"title"`
+	Type       DashboardPanelType `json:"type"`
+	Metric     string             `json:"metric"`
+	Tags       map[string]string  `json:"tags,omitempty"`
+	AggFunc    string             `json:"agg_func,omitempty"`
+	TimeRange  time.Duration      `json:"time_range,omitempty"`
+	Width      int                `json:"width"`
+	Height     int                `json:"height"`
+	Position   int                `json:"position"`
+	Thresholds []PanelThreshold   `json:"thresholds,omitempty"`
 }
 
 // PanelThreshold defines a visual threshold on a panel.
@@ -290,7 +290,7 @@ func (d *EmbeddableDashboard) serveDashboardHTML(w http.ResponseWriter, r *http.
 	layout, _ := d.GetLayout("default")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	dashboardTmpl.Execute(w, map[string]interface{}{
+	dashboardTmpl.Execute(w, map[string]any{
 		"Title":           d.config.Title,
 		"Theme":           d.config.Theme,
 		"RefreshInterval": int(d.config.RefreshInterval.Seconds()),

@@ -58,17 +58,17 @@ type DataMeshConfig struct {
 // DefaultDataMeshConfig returns sensible defaults for data mesh federation.
 func DefaultDataMeshConfig() DataMeshConfig {
 	return DataMeshConfig{
-		Enabled:              true,
-		NodeID:               fmt.Sprintf("node-%d", time.Now().UnixNano()%100000),
-		ListenAddr:           ":9095",
-		GossipInterval:       5 * time.Second,
-		HeartbeatInterval:    10 * time.Second,
-		HeartbeatTimeout:     30 * time.Second,
-		MaxConcurrentQueries: 20,
-		QueryTimeout:         30 * time.Second,
-		ReplicationFactor:    2,
+		Enabled:               true,
+		NodeID:                fmt.Sprintf("node-%d", time.Now().UnixNano()%100000),
+		ListenAddr:            ":9095",
+		GossipInterval:        5 * time.Second,
+		HeartbeatInterval:     10 * time.Second,
+		HeartbeatTimeout:      30 * time.Second,
+		MaxConcurrentQueries:  20,
+		QueryTimeout:          30 * time.Second,
+		ReplicationFactor:     2,
 		EnableLocalityRouting: true,
-		MaxPeers:             100,
+		MaxPeers:              100,
 	}
 }
 
@@ -84,21 +84,21 @@ const (
 
 // MeshPeer represents a node in the data mesh.
 type DataMeshPeer struct {
-	ID           string            `json:"id"`
-	Address      string            `json:"address"`
-	State        DataMeshPeerState     `json:"state"`
-	Metadata     DataMeshPeerMetadata  `json:"metadata"`
-	LastSeen     time.Time         `json:"last_seen"`
-	JoinedAt     time.Time         `json:"joined_at"`
-	Latency      time.Duration     `json:"latency"`
-	QueryCount   int64             `json:"query_count"`
-	ErrorCount   int64             `json:"error_count"`
+	ID         string               `json:"id"`
+	Address    string               `json:"address"`
+	State      DataMeshPeerState    `json:"state"`
+	Metadata   DataMeshPeerMetadata `json:"metadata"`
+	LastSeen   time.Time            `json:"last_seen"`
+	JoinedAt   time.Time            `json:"joined_at"`
+	Latency    time.Duration        `json:"latency"`
+	QueryCount int64                `json:"query_count"`
+	ErrorCount int64                `json:"error_count"`
 }
 
 // DataMeshPeerMetadata describes a peer's data holdings and capabilities.
 type DataMeshPeerMetadata struct {
 	Metrics      []string          `json:"metrics"`
-	TimeRange    DataMeshTimeRange     `json:"time_range"`
+	TimeRange    DataMeshTimeRange `json:"time_range"`
 	Region       string            `json:"region"`
 	Zone         string            `json:"zone"`
 	Capabilities []string          `json:"capabilities"`
@@ -127,13 +127,13 @@ type DataMeshQueryRequest struct {
 
 // DataMeshQueryResult is the aggregated result from a distributed query.
 type DataMeshQueryResult struct {
-	RequestID     string             `json:"request_id"`
-	Points        []Point            `json:"points"`
-	PeerResults   []DataMeshPeerResult   `json:"peer_results"`
-	TotalPeers    int                `json:"total_peers"`
-	RespondedPeers int               `json:"responded_peers"`
-	Duration      time.Duration      `json:"duration"`
-	Errors        []string           `json:"errors,omitempty"`
+	RequestID      string               `json:"request_id"`
+	Points         []Point              `json:"points"`
+	PeerResults    []DataMeshPeerResult `json:"peer_results"`
+	TotalPeers     int                  `json:"total_peers"`
+	RespondedPeers int                  `json:"responded_peers"`
+	Duration       time.Duration        `json:"duration"`
+	Errors         []string             `json:"errors,omitempty"`
 }
 
 // DataMeshPeerResult is the result from a single peer.
@@ -146,19 +146,19 @@ type DataMeshPeerResult struct {
 
 // DataMeshTopology represents the current mesh network topology.
 type DataMeshTopology struct {
-	Nodes       []DataMeshTopologyNode `json:"nodes"`
-	Edges       []DataMeshTopologyEdge `json:"edges"`
-	TotalPeers  int                `json:"total_peers"`
-	HealthyPeers int               `json:"healthy_peers"`
-	GeneratedAt time.Time          `json:"generated_at"`
+	Nodes        []DataMeshTopologyNode `json:"nodes"`
+	Edges        []DataMeshTopologyEdge `json:"edges"`
+	TotalPeers   int                    `json:"total_peers"`
+	HealthyPeers int                    `json:"healthy_peers"`
+	GeneratedAt  time.Time              `json:"generated_at"`
 }
 
 // DataMeshTopologyNode is a node in the topology visualization.
 type DataMeshTopologyNode struct {
-	ID     string        `json:"id"`
+	ID     string            `json:"id"`
 	State  DataMeshPeerState `json:"state"`
-	Region string        `json:"region"`
-	Load   float64       `json:"load"`
+	Region string            `json:"region"`
+	Load   float64           `json:"load"`
 }
 
 // DataMeshTopologyEdge is a connection between nodes.
@@ -170,16 +170,16 @@ type DataMeshTopologyEdge struct {
 
 // DataMeshFedStats contains data mesh statistics.
 type DataMeshFedStats struct {
-	NodeID         string    `json:"node_id"`
-	TotalPeers     int       `json:"total_peers"`
-	HealthyPeers   int       `json:"healthy_peers"`
-	TotalQueries   int64     `json:"total_queries"`
-	FailedQueries  int64     `json:"failed_queries"`
-	AvgLatency     time.Duration `json:"avg_latency"`
-	TotalPoints    int64     `json:"total_points_routed"`
-	Uptime         time.Duration `json:"uptime"`
-	GossipRounds   int64     `json:"gossip_rounds"`
-	LastGossip     time.Time `json:"last_gossip"`
+	NodeID        string        `json:"node_id"`
+	TotalPeers    int           `json:"total_peers"`
+	HealthyPeers  int           `json:"healthy_peers"`
+	TotalQueries  int64         `json:"total_queries"`
+	FailedQueries int64         `json:"failed_queries"`
+	AvgLatency    time.Duration `json:"avg_latency"`
+	TotalPoints   int64         `json:"total_points_routed"`
+	Uptime        time.Duration `json:"uptime"`
+	GossipRounds  int64         `json:"gossip_rounds"`
+	LastGossip    time.Time     `json:"last_gossip"`
 }
 
 // DataMesh implements decentralized query execution across Chronicle instances.
@@ -187,10 +187,10 @@ type DataMesh struct {
 	db     *DB
 	config DataMeshConfig
 
-	peers       map[string]*DataMeshPeer
-	localMeta   DataMeshPeerMetadata
-	sem         chan struct{}
-	startTime   time.Time
+	peers     map[string]*DataMeshPeer
+	localMeta DataMeshPeerMetadata
+	sem       chan struct{}
+	startTime time.Time
 
 	totalQueries  atomic.Int64
 	failedQueries atomic.Int64

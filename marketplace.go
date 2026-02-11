@@ -36,15 +36,15 @@ const (
 
 // MarketplaceConfig configures the marketplace engine.
 type MarketplaceConfig struct {
-	MarketplaceURL     string        `json:"marketplace_url"`
-	CacheTTL           time.Duration `json:"cache_ttl"`
-	AutoUpdate         bool          `json:"auto_update"`
-	VerifySignatures   bool          `json:"verify_signatures"`
-	RevenueSharePct    float64       `json:"revenue_share_pct"`
-	MaxPluginSize      int64         `json:"max_plugin_size"`
-	EnableRatings      bool          `json:"enable_ratings"`
-	EnableReviews      bool          `json:"enable_reviews"`
-	SandboxEnabled     bool          `json:"sandbox_enabled"`
+	MarketplaceURL   string        `json:"marketplace_url"`
+	CacheTTL         time.Duration `json:"cache_ttl"`
+	AutoUpdate       bool          `json:"auto_update"`
+	VerifySignatures bool          `json:"verify_signatures"`
+	RevenueSharePct  float64       `json:"revenue_share_pct"`
+	MaxPluginSize    int64         `json:"max_plugin_size"`
+	EnableRatings    bool          `json:"enable_ratings"`
+	EnableReviews    bool          `json:"enable_reviews"`
+	SandboxEnabled   bool          `json:"sandbox_enabled"`
 }
 
 // DefaultMarketplaceConfig returns sensible defaults for the marketplace.
@@ -106,23 +106,23 @@ type PluginInstallation struct {
 
 // PluginUpdateInfo describes an available update for an installed plugin.
 type PluginUpdateInfo struct {
-	PluginID           string `json:"plugin_id"`
-	CurrentVersion     string `json:"current_version"`
-	LatestVersion      string `json:"latest_version"`
-	Changelog          string `json:"changelog"`
-	BreakingChanges    bool   `json:"breaking_changes"`
-	AutoUpdateAvailable bool  `json:"auto_update_available"`
+	PluginID            string `json:"plugin_id"`
+	CurrentVersion      string `json:"current_version"`
+	LatestVersion       string `json:"latest_version"`
+	Changelog           string `json:"changelog"`
+	BreakingChanges     bool   `json:"breaking_changes"`
+	AutoUpdateAvailable bool   `json:"auto_update_available"`
 }
 
 // MarketplaceSearchQuery defines search/filter criteria for marketplace listings.
 type MarketplaceSearchQuery struct {
-	Query    string         `json:"query,omitempty"`
-	Category PluginCategory `json:"category,omitempty"`
-	MinRating float64       `json:"min_rating,omitempty"`
-	FreeOnly bool           `json:"free_only,omitempty"`
-	SortBy   string         `json:"sort_by,omitempty"` // "downloads", "rating", "updated", "name"
-	Page     int            `json:"page,omitempty"`
-	PerPage  int            `json:"per_page,omitempty"`
+	Query     string         `json:"query,omitempty"`
+	Category  PluginCategory `json:"category,omitempty"`
+	MinRating float64        `json:"min_rating,omitempty"`
+	FreeOnly  bool           `json:"free_only,omitempty"`
+	SortBy    string         `json:"sort_by,omitempty"` // "downloads", "rating", "updated", "name"
+	Page      int            `json:"page,omitempty"`
+	PerPage   int            `json:"per_page,omitempty"`
 }
 
 // PublishRequest is the payload for publishing a new plugin to the marketplace.
@@ -140,12 +140,12 @@ type PublishRequest struct {
 
 // MarketplaceStats aggregates marketplace-wide statistics.
 type MarketplaceStats struct {
-	TotalListings  int                    `json:"total_listings"`
-	TotalInstalls  int64                  `json:"total_installs"`
-	ActivePlugins  int                    `json:"active_plugins"`
-	Categories     map[PluginCategory]int `json:"categories"`
-	AvgRating      float64                `json:"avg_rating"`
-	TotalRevenue   float64                `json:"total_revenue"`
+	TotalListings int                    `json:"total_listings"`
+	TotalInstalls int64                  `json:"total_installs"`
+	ActivePlugins int                    `json:"active_plugins"`
+	Categories    map[PluginCategory]int `json:"categories"`
+	AvgRating     float64                `json:"avg_rating"`
+	TotalRevenue  float64                `json:"total_revenue"`
 }
 
 // MarketplaceEngine provides a full marketplace and plugin ecosystem.
@@ -532,8 +532,8 @@ func (me *MarketplaceEngine) handleSearch(w http.ResponseWriter, r *http.Request
 		return
 	}
 	q := MarketplaceSearchQuery{
-		Query:    r.URL.Query().Get("q"),
-		SortBy:   r.URL.Query().Get("sort"),
+		Query:  r.URL.Query().Get("q"),
+		SortBy: r.URL.Query().Get("sort"),
 	}
 	if cat := r.URL.Query().Get("category"); cat != "" {
 		q.Category = PluginCategory(cat)

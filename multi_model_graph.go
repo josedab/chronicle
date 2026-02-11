@@ -16,22 +16,22 @@ import (
 type GraphNodeType string
 
 const (
-	GraphNodeService    GraphNodeType = "service"
-	GraphNodeHost       GraphNodeType = "host"
-	GraphNodeContainer  GraphNodeType = "container"
-	GraphNodeMetric     GraphNodeType = "metric"
-	GraphNodeCustom     GraphNodeType = "custom"
+	GraphNodeService   GraphNodeType = "service"
+	GraphNodeHost      GraphNodeType = "host"
+	GraphNodeContainer GraphNodeType = "container"
+	GraphNodeMetric    GraphNodeType = "metric"
+	GraphNodeCustom    GraphNodeType = "custom"
 )
 
 // GraphEdgeType classifies a graph relationship.
 type GraphEdgeType string
 
 const (
-	GraphEdgeDependsOn  GraphEdgeType = "depends_on"
-	GraphEdgeCallsTo    GraphEdgeType = "calls_to"
-	GraphEdgeRunsOn     GraphEdgeType = "runs_on"
-	GraphEdgeEmits      GraphEdgeType = "emits"
-	GraphEdgeCustom     GraphEdgeType = "custom"
+	GraphEdgeDependsOn GraphEdgeType = "depends_on"
+	GraphEdgeCallsTo   GraphEdgeType = "calls_to"
+	GraphEdgeRunsOn    GraphEdgeType = "runs_on"
+	GraphEdgeEmits     GraphEdgeType = "emits"
+	GraphEdgeCustom    GraphEdgeType = "custom"
 )
 
 // GraphNode represents an entity in the topology graph.
@@ -39,30 +39,30 @@ type GraphNode struct {
 	ID         string            `json:"id"`
 	Type       GraphNodeType     `json:"type"`
 	Labels     map[string]string `json:"labels,omitempty"`
-	Properties map[string]interface{} `json:"properties,omitempty"`
+	Properties map[string]any    `json:"properties,omitempty"`
 	Created    time.Time         `json:"created"`
 	Updated    time.Time         `json:"updated"`
 }
 
 // GraphEdge represents a relationship between two nodes.
 type GraphEdge struct {
-	ID         string            `json:"id"`
-	Source     string            `json:"source"`
-	Target     string            `json:"target"`
-	Type       GraphEdgeType     `json:"type"`
-	Properties map[string]interface{} `json:"properties,omitempty"`
-	ValidFrom  int64             `json:"valid_from,omitempty"`
-	ValidTo    int64             `json:"valid_to,omitempty"`
-	Weight     float64           `json:"weight"`
-	Created    time.Time         `json:"created"`
+	ID         string         `json:"id"`
+	Source     string         `json:"source"`
+	Target     string         `json:"target"`
+	Type       GraphEdgeType  `json:"type"`
+	Properties map[string]any `json:"properties,omitempty"`
+	ValidFrom  int64          `json:"valid_from,omitempty"`
+	ValidTo    int64          `json:"valid_to,omitempty"`
+	Weight     float64        `json:"weight"`
+	Created    time.Time      `json:"created"`
 }
 
 // GraphTraversalResult is returned by graph traversal queries.
 type GraphTraversalResult struct {
-	Paths    []GraphPath  `json:"paths"`
-	Nodes    []GraphNode  `json:"nodes"`
-	Edges    []GraphEdge  `json:"edges"`
-	Duration int64        `json:"duration_ms"`
+	Paths    []GraphPath `json:"paths"`
+	Nodes    []GraphNode `json:"nodes"`
+	Edges    []GraphEdge `json:"edges"`
+	Duration int64       `json:"duration_ms"`
 }
 
 // GraphPath is a sequence of nodes/edges in a traversal.
@@ -387,7 +387,7 @@ func NewDocumentIndex() *DocumentIndex {
 }
 
 // Index indexes a document by extracting terms.
-func (di *DocumentIndex) Index(docID string, data map[string]interface{}) {
+func (di *DocumentIndex) Index(docID string, data map[string]any) {
 	di.mu.Lock()
 	defer di.mu.Unlock()
 
@@ -435,7 +435,7 @@ func (di *DocumentIndex) TermCount() int {
 	return len(di.index)
 }
 
-func extractTerms(data map[string]interface{}, prefix string) []string {
+func extractTerms(data map[string]any, prefix string) []string {
 	var terms []string
 	for key, val := range data {
 		path := key
@@ -452,7 +452,7 @@ func extractTerms(data map[string]interface{}, prefix string) []string {
 			}
 		case float64:
 			terms = append(terms, fmt.Sprintf("%s:%g", strings.ToLower(path), v))
-		case map[string]interface{}:
+		case map[string]any:
 			terms = append(terms, extractTerms(v, path)...)
 		}
 	}
@@ -472,16 +472,16 @@ type CrossModelQuery struct {
 	GraphEdgeTypes []GraphEdgeType `json:"graph_edge_types,omitempty"`
 
 	// Document component
-	DocSearch   string `json:"doc_search,omitempty"`
+	DocSearch     string `json:"doc_search,omitempty"`
 	DocCollection string `json:"doc_collection,omitempty"`
 }
 
 // CrossModelResult combines results from all models.
 type CrossModelResult struct {
-	Points     []Point              `json:"points,omitempty"`
+	Points      []Point               `json:"points,omitempty"`
 	GraphResult *GraphTraversalResult `json:"graph,omitempty"`
-	Documents  []*Document          `json:"documents,omitempty"`
-	Duration   int64                `json:"duration_ms"`
+	Documents   []*Document           `json:"documents,omitempty"`
+	Duration    int64                 `json:"duration_ms"`
 }
 
 // MultiModelGraphStore combines graph, document, and time-series capabilities.
@@ -597,7 +597,7 @@ func (mm *MultiModelGraphStore) ExportTopology() ([]byte, error) {
 		edges = append(edges, *e)
 	}
 
-	topology := map[string]interface{}{
+	topology := map[string]any{
 		"nodes": nodes,
 		"edges": edges,
 	}

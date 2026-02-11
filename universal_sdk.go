@@ -99,11 +99,11 @@ type SDKField struct {
 
 // UniversalSDKStats contains statistics about SDK generation.
 type UniversalSDKStats struct {
-	TotalGenerated     int       `json:"total_generated"`
-	LanguagesSupported int       `json:"languages_supported"`
-	EndpointsDiscovered int      `json:"endpoints_discovered"`
-	SchemasDiscovered  int       `json:"schemas_discovered"`
-	LastGenerationTime time.Time `json:"last_generation_time"`
+	TotalGenerated      int       `json:"total_generated"`
+	LanguagesSupported  int       `json:"languages_supported"`
+	EndpointsDiscovered int       `json:"endpoints_discovered"`
+	SchemasDiscovered   int       `json:"schemas_discovered"`
+	LastGenerationTime  time.Time `json:"last_generation_time"`
 }
 
 // UniversalSDKEngine manages universal SDK generation for all languages.

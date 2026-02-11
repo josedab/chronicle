@@ -23,7 +23,7 @@ func TestAdminUI_APIAlerts(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var alerts []map[string]interface{}
+	var alerts []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&alerts); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestAdminUI_APIAlerts(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var created map[string]interface{}
+	var created map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestAdminUI_APIAuditLog(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var entries []map[string]interface{}
+	var entries []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&entries); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestAdminUI_APIAlertHistory(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var history []map[string]interface{}
+	var history []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&history); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

@@ -12,15 +12,15 @@ import (
 
 // DataContractConfig configures the declarative data contracts engine.
 type DataContractConfig struct {
-	Enabled              bool          `json:"enabled"`
-	ValidateOnWrite      bool          `json:"validate_on_write"`
-	AsyncValidation      bool          `json:"async_validation"`
-	SamplingRate         float64       `json:"sampling_rate"`
-	MaxViolationsPerMin  int           `json:"max_violations_per_min"`
-	ProfilingEnabled     bool          `json:"profiling_enabled"`
-	ProfilingWindow      time.Duration `json:"profiling_window"`
-	AlertOnViolation     bool          `json:"alert_on_violation"`
-	EnforcementMode      ContractEnforcementMode `json:"enforcement_mode"`
+	Enabled             bool                    `json:"enabled"`
+	ValidateOnWrite     bool                    `json:"validate_on_write"`
+	AsyncValidation     bool                    `json:"async_validation"`
+	SamplingRate        float64                 `json:"sampling_rate"`
+	MaxViolationsPerMin int                     `json:"max_violations_per_min"`
+	ProfilingEnabled    bool                    `json:"profiling_enabled"`
+	ProfilingWindow     time.Duration           `json:"profiling_window"`
+	AlertOnViolation    bool                    `json:"alert_on_violation"`
+	EnforcementMode     ContractEnforcementMode `json:"enforcement_mode"`
 }
 
 // ContractEnforcementMode controls how violations are handled.
@@ -49,32 +49,32 @@ func DefaultDataContractConfig() DataContractConfig {
 
 // DataContract defines quality expectations for a metric.
 type DataContract struct {
-	ID              string                 `json:"id"`
-	Name            string                 `json:"name"`
-	Version         int                    `json:"version"`
-	Description     string                 `json:"description"`
-	MetricPattern   string                 `json:"metric_pattern"`
-	Owner           string                 `json:"owner"`
-	Rules           []ContractRule         `json:"rules"`
-	SLOs            []ContractSLO          `json:"slos"`
-	Tags            map[string]string      `json:"tags,omitempty"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
-	Active          bool                   `json:"active"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Version       int               `json:"version"`
+	Description   string            `json:"description"`
+	MetricPattern string            `json:"metric_pattern"`
+	Owner         string            `json:"owner"`
+	Rules         []ContractRule    `json:"rules"`
+	SLOs          []ContractSLO     `json:"slos"`
+	Tags          map[string]string `json:"tags,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
+	Active        bool              `json:"active"`
 }
 
 // ContractRule is a single validation rule within a contract.
 type ContractRule struct {
-	Name       string          `json:"name"`
-	Type       ContractRuleType `json:"type"`
-	Field      string          `json:"field"` // "value", "tags.<key>", "timestamp"
-	Operator   string          `json:"operator"` // "gt", "lt", "gte", "lte", "eq", "ne", "in", "between", "regex"
-	Threshold  float64         `json:"threshold,omitempty"`
-	ThresholdHigh float64      `json:"threshold_high,omitempty"`
-	StringValue string         `json:"string_value,omitempty"`
-	StringList  []string       `json:"string_list,omitempty"`
-	Severity   string          `json:"severity"` // "info", "warning", "error", "critical"
-	Message    string          `json:"message,omitempty"`
+	Name          string           `json:"name"`
+	Type          ContractRuleType `json:"type"`
+	Field         string           `json:"field"`    // "value", "tags.<key>", "timestamp"
+	Operator      string           `json:"operator"` // "gt", "lt", "gte", "lte", "eq", "ne", "in", "between", "regex"
+	Threshold     float64          `json:"threshold,omitempty"`
+	ThresholdHigh float64          `json:"threshold_high,omitempty"`
+	StringValue   string           `json:"string_value,omitempty"`
+	StringList    []string         `json:"string_list,omitempty"`
+	Severity      string           `json:"severity"` // "info", "warning", "error", "critical"
+	Message       string           `json:"message,omitempty"`
 }
 
 // ContractRuleType identifies the type of contract rule.
@@ -100,56 +100,56 @@ type ContractSLO struct {
 
 // ContractViolation records a contract rule violation.
 type ContractViolation struct {
-	ID           string        `json:"id"`
-	ContractID   string        `json:"contract_id"`
-	RuleName     string        `json:"rule_name"`
-	Metric       string        `json:"metric"`
-	ActualValue  float64       `json:"actual_value"`
-	ExpectedOp   string        `json:"expected_operator"`
-	Threshold    float64       `json:"threshold"`
-	Severity     string        `json:"severity"`
-	Message      string        `json:"message"`
-	Timestamp    time.Time     `json:"timestamp"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	ID          string            `json:"id"`
+	ContractID  string            `json:"contract_id"`
+	RuleName    string            `json:"rule_name"`
+	Metric      string            `json:"metric"`
+	ActualValue float64           `json:"actual_value"`
+	ExpectedOp  string            `json:"expected_operator"`
+	Threshold   float64           `json:"threshold"`
+	Severity    string            `json:"severity"`
+	Message     string            `json:"message"`
+	Timestamp   time.Time         `json:"timestamp"`
+	Tags        map[string]string `json:"tags,omitempty"`
 }
 
 // ContractProfile holds statistical profile data for a metric.
 type ContractProfile struct {
-	Metric        string    `json:"metric"`
-	Count         int64     `json:"count"`
-	Mean          float64   `json:"mean"`
-	StdDev        float64   `json:"stddev"`
-	Min           float64   `json:"min"`
-	Max           float64   `json:"max"`
-	P50           float64   `json:"p50"`
-	P95           float64   `json:"p95"`
-	P99           float64   `json:"p99"`
-	NullRate      float64   `json:"null_rate"`
-	Freshness     time.Duration `json:"freshness"`
-	LastSeen      time.Time `json:"last_seen"`
-	ProfiledAt    time.Time `json:"profiled_at"`
+	Metric     string        `json:"metric"`
+	Count      int64         `json:"count"`
+	Mean       float64       `json:"mean"`
+	StdDev     float64       `json:"stddev"`
+	Min        float64       `json:"min"`
+	Max        float64       `json:"max"`
+	P50        float64       `json:"p50"`
+	P95        float64       `json:"p95"`
+	P99        float64       `json:"p99"`
+	NullRate   float64       `json:"null_rate"`
+	Freshness  time.Duration `json:"freshness"`
+	LastSeen   time.Time     `json:"last_seen"`
+	ProfiledAt time.Time     `json:"profiled_at"`
 }
 
 // ContractSLOStatus tracks SLO compliance.
 type ContractSLOStatus struct {
-	SLO           ContractSLO `json:"slo"`
-	CurrentValue  float64     `json:"current_value"`
-	IsCompliant   bool        `json:"is_compliant"`
-	BudgetUsed    float64     `json:"budget_used"`
-	BudgetRemaining float64   `json:"budget_remaining"`
-	EvaluatedAt   time.Time   `json:"evaluated_at"`
+	SLO             ContractSLO `json:"slo"`
+	CurrentValue    float64     `json:"current_value"`
+	IsCompliant     bool        `json:"is_compliant"`
+	BudgetUsed      float64     `json:"budget_used"`
+	BudgetRemaining float64     `json:"budget_remaining"`
+	EvaluatedAt     time.Time   `json:"evaluated_at"`
 }
 
 // DataContractStats contains contract engine statistics.
 type DataContractStats struct {
-	TotalContracts      int   `json:"total_contracts"`
-	ActiveContracts     int   `json:"active_contracts"`
-	TotalRules          int   `json:"total_rules"`
-	TotalViolations     int64 `json:"total_violations"`
-	ViolationsLastHour  int64 `json:"violations_last_hour"`
-	ValidationCount     int64 `json:"validation_count"`
-	AvgValidationTimeNs int64 `json:"avg_validation_time_ns"`
-	TotalSLOs           int   `json:"total_slos"`
+	TotalContracts      int     `json:"total_contracts"`
+	ActiveContracts     int     `json:"active_contracts"`
+	TotalRules          int     `json:"total_rules"`
+	TotalViolations     int64   `json:"total_violations"`
+	ViolationsLastHour  int64   `json:"violations_last_hour"`
+	ValidationCount     int64   `json:"validation_count"`
+	AvgValidationTimeNs int64   `json:"avg_validation_time_ns"`
+	TotalSLOs           int     `json:"total_slos"`
 	SLOCompliance       float64 `json:"slo_compliance_pct"`
 }
 

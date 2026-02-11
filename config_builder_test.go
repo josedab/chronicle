@@ -23,10 +23,10 @@ func TestConfigBuilder_Defaults(t *testing.T) {
 
 func TestConfigBuilder_Chaining(t *testing.T) {
 	cfg, err := NewConfigBuilder("/test.db").
-		WithMaxMemory(256 * 1024 * 1024).
+		WithMaxMemory(256*1024*1024).
 		WithBufferSize(50_000).
-		WithPartitionDuration(2 * time.Hour).
-		WithRetention(7 * 24 * time.Hour).
+		WithPartitionDuration(2*time.Hour).
+		WithRetention(7*24*time.Hour).
 		WithQueryTimeout(time.Minute).
 		WithCompaction(4, 15*time.Minute).
 		WithHTTP(9090).

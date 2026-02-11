@@ -29,7 +29,7 @@ func TestAdminUI_APISparkline(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestAdminUI_APICompare(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestAdminUI_APIFavorites(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var favorites []map[string]interface{}
+	var favorites []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&favorites); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestAdminUI_APIRecent(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var recent []map[string]interface{}
+	var recent []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&recent); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

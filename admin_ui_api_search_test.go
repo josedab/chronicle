@@ -26,7 +26,7 @@ func TestAdminUI_APISearch(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var results []map[string]interface{}
+	var results []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&results); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestAdminUI_APISearch_Empty(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var results []interface{}
+	var results []any
 	if err := json.NewDecoder(rec.Body).Decode(&results); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestAdminUI_APISavedQueries(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var queries []map[string]interface{}
+	var queries []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&queries); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

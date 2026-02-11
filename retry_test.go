@@ -150,7 +150,7 @@ func TestRetryerWithResult(t *testing.T) {
 	})
 
 	calls := 0
-	val, result := r.DoWithResult(context.Background(), func() (interface{}, error) {
+	val, result := r.DoWithResult(context.Background(), func() (any, error) {
 		calls++
 		if calls < 2 {
 			return nil, errors.New("error")

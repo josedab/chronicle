@@ -109,12 +109,12 @@ const (
 
 // FeatureSchema defines the feature schema.
 type FeatureSchema struct {
-	Fields    []FeatureField `json:"fields"`
-	Required  []string       `json:"required"`
-	Nullable  bool           `json:"nullable"`
-	MinValue  *float64       `json:"min_value,omitempty"`
-	MaxValue  *float64       `json:"max_value,omitempty"`
-	AllowedValues []string   `json:"allowed_values,omitempty"`
+	Fields        []FeatureField `json:"fields"`
+	Required      []string       `json:"required"`
+	Nullable      bool           `json:"nullable"`
+	MinValue      *float64       `json:"min_value,omitempty"`
+	MaxValue      *float64       `json:"max_value,omitempty"`
+	AllowedValues []string       `json:"allowed_values,omitempty"`
 }
 
 // FeatureField describes a field in a complex feature.
@@ -126,8 +126,8 @@ type FeatureField struct {
 
 // FeatureTransform describes feature transformations.
 type FeatureTransform struct {
-	Type       TransformType     `json:"type"`
-	Parameters map[string]interface{} `json:"parameters"`
+	Type           TransformType  `json:"type"`
+	Parameters     map[string]any `json:"parameters"`
 	SourceFeatures []string       `json:"source_features,omitempty"`
 }
 
@@ -147,20 +147,20 @@ const (
 
 // FeatureGroup is a collection of related features.
 type FeatureGroup struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	EntityType  string   `json:"entity_type"`
-	Features    []string `json:"features"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	EntityType  string        `json:"entity_type"`
+	Features    []string      `json:"features"`
 	TTL         time.Duration `json:"ttl"`
-	Version     int      `json:"version"`
-	CreatedAt   time.Time `json:"created_at"`
+	Version     int           `json:"version"`
+	CreatedAt   time.Time     `json:"created_at"`
 }
 
 // FeatureValue represents a stored feature value.
 type FeatureValue struct {
 	FeatureName string            `json:"feature_name"`
 	EntityID    string            `json:"entity_id"`
-	Value       interface{}       `json:"value"`
+	Value       any               `json:"value"`
 	Timestamp   int64             `json:"timestamp"`
 	EventTime   int64             `json:"event_time"`
 	Version     int               `json:"version"`
@@ -169,22 +169,22 @@ type FeatureValue struct {
 
 // FeatureVector represents a set of feature values.
 type FeatureVector struct {
-	EntityID   string                    `json:"entity_id"`
-	Features   map[string]interface{}    `json:"features"`
-	Timestamps map[string]int64          `json:"timestamps"`
-	AsOfTime   int64                     `json:"as_of_time"`
+	EntityID   string           `json:"entity_id"`
+	Features   map[string]any   `json:"features"`
+	Timestamps map[string]int64 `json:"timestamps"`
+	AsOfTime   int64            `json:"as_of_time"`
 }
 
 // FeatureStoreStats contains feature store statistics.
 type FeatureStoreStats struct {
-	FeatureCount      int           `json:"feature_count"`
-	GroupCount        int           `json:"group_count"`
-	TotalWrites       int64         `json:"total_writes"`
-	TotalReads        int64         `json:"total_reads"`
-	CacheHits         int64         `json:"cache_hits"`
-	CacheMisses       int64         `json:"cache_misses"`
-	AverageLatencyMs  float64       `json:"average_latency_ms"`
-	PointInTimeQueries int64        `json:"point_in_time_queries"`
+	FeatureCount       int     `json:"feature_count"`
+	GroupCount         int     `json:"group_count"`
+	TotalWrites        int64   `json:"total_writes"`
+	TotalReads         int64   `json:"total_reads"`
+	CacheHits          int64   `json:"cache_hits"`
+	CacheMisses        int64   `json:"cache_misses"`
+	AverageLatencyMs   float64 `json:"average_latency_ms"`
+	PointInTimeQueries int64   `json:"point_in_time_queries"`
 }
 
 // NewFeatureStore creates a new feature store.
@@ -349,11 +349,11 @@ func (fs *FeatureStore) WriteFeature(ctx context.Context, fv *FeatureValue) erro
 
 	// Write to database as a point
 	p := Point{
-		Metric:    fmt.Sprintf("feature:%s", fv.FeatureName),
+		Metric: fmt.Sprintf("feature:%s", fv.FeatureName),
 		Tags: map[string]string{
-			"entity_id":    fv.EntityID,
-			"entity_type":  def.EntityType,
-			"version":      fmt.Sprintf("%d", fv.Version),
+			"entity_id":   fv.EntityID,
+			"entity_type": def.EntityType,
+			"version":     fmt.Sprintf("%d", fv.Version),
 		},
 		Value:     fs.valueToFloat(fv.Value),
 		Timestamp: fv.EventTime,
@@ -489,7 +489,7 @@ func (fs *FeatureStore) GetFeatureValueAsOf(ctx context.Context, featureName, en
 func (fs *FeatureStore) GetFeatureVector(ctx context.Context, entityID string, featureNames []string) (*FeatureVector, error) {
 	fv := &FeatureVector{
 		EntityID:   entityID,
-		Features:   make(map[string]interface{}),
+		Features:   make(map[string]any),
 		Timestamps: make(map[string]int64),
 		AsOfTime:   time.Now().UnixNano(),
 	}
@@ -510,7 +510,7 @@ func (fs *FeatureStore) GetFeatureVector(ctx context.Context, entityID string, f
 func (fs *FeatureStore) GetFeatureVectorAsOf(ctx context.Context, entityID string, featureNames []string, asOfTime int64) (*FeatureVector, error) {
 	fv := &FeatureVector{
 		EntityID:   entityID,
-		Features:   make(map[string]interface{}),
+		Features:   make(map[string]any),
 		Timestamps: make(map[string]int64),
 		AsOfTime:   asOfTime,
 	}
@@ -544,7 +544,7 @@ func (fs *FeatureStore) GetTrainingData(ctx context.Context, req *TrainingDataRe
 			row := TrainingRow{
 				EntityID:  entity,
 				Timestamp: ts,
-				Values:    make(map[string]interface{}),
+				Values:    make(map[string]any),
 			}
 
 			// Get point-in-time correct values
@@ -581,9 +581,9 @@ type TrainingDataResponse struct {
 
 // TrainingRow represents a single training example.
 type TrainingRow struct {
-	EntityID  string                 `json:"entity_id"`
-	Timestamp int64                  `json:"timestamp"`
-	Values    map[string]interface{} `json:"values"`
+	EntityID  string         `json:"entity_id"`
+	Timestamp int64          `json:"timestamp"`
+	Values    map[string]any `json:"values"`
 }
 
 // Stats returns feature store statistics.
@@ -608,7 +608,7 @@ func (fs *FeatureStore) Stats() FeatureStoreStats {
 
 // --- Helper Functions ---
 
-func (fs *FeatureStore) validateValue(value interface{}, def *FeatureDefinition) error {
+func (fs *FeatureStore) validateValue(value any, def *FeatureDefinition) error {
 	if def.Schema == nil {
 		return nil
 	}
@@ -648,7 +648,7 @@ func (fs *FeatureStore) validateValue(value interface{}, def *FeatureDefinition)
 	return nil
 }
 
-func (fs *FeatureStore) valueToFloat(value interface{}) float64 {
+func (fs *FeatureStore) valueToFloat(value any) float64 {
 	switch v := value.(type) {
 	case float64:
 		return v
@@ -835,7 +835,7 @@ func (fs *FeatureStore) materializeAggregate(ctx context.Context, def *FeatureDe
 		// Write aggregated values
 		for entityID, values := range byEntity {
 			aggValue := computeFeatureAgg(values, aggFunc)
-			
+
 			fv := &FeatureValue{
 				FeatureName: def.Name,
 				EntityID:    entityID,
