@@ -86,9 +86,9 @@ func handleAlerts(db *DB, w http.ResponseWriter, r *http.Request) {
 	}
 	alerts := am.ListAlerts()
 
-	resp := make([]map[string]interface{}, len(alerts))
+	resp := make([]map[string]any, len(alerts))
 	for i, a := range alerts {
-		resp[i] = map[string]interface{}{
+		resp[i] = map[string]any{
 			"name":    a.Rule.Name,
 			"state":   a.State.String(),
 			"value":   a.Value,
@@ -97,9 +97,9 @@ func handleAlerts(db *DB, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"status": "success",
-		"data":   map[string]interface{}{"alerts": resp},
+		"data":   map[string]any{"alerts": resp},
 	})
 }
 
@@ -114,9 +114,9 @@ func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		rules := am.ListRules()
-		resp := make([]map[string]interface{}, len(rules))
+		resp := make([]map[string]any, len(rules))
 		for i, r := range rules {
-			resp[i] = map[string]interface{}{
+			resp[i] = map[string]any{
 				"name":        r.Name,
 				"metric":      r.Metric,
 				"condition":   conditionString(r.Condition),
@@ -124,9 +124,9 @@ func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 				"forDuration": r.ForDuration.String(),
 			}
 		}
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"status": "success",
-			"data":   map[string]interface{}{"groups": []interface{}{map[string]interface{}{"rules": resp}}},
+			"data":   map[string]any{"groups": []any{map[string]any{"rules": resp}}},
 		})
 
 	case http.MethodPost:

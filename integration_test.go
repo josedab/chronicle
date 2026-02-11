@@ -14,7 +14,7 @@ func TestIntegration_SemanticSearchWithData(t *testing.T) {
 
 	// Write test data with patterns
 	now := time.Now()
-	
+
 	// Pattern 1: CPU spike pattern
 	for i := 0; i < 100; i++ {
 		value := 20.0
@@ -47,7 +47,7 @@ func TestIntegration_SemanticSearchWithData(t *testing.T) {
 	// Index the data
 	start := now.Add(-2 * time.Hour)
 	end := now
-	
+
 	cpuCount, err := engine.IndexFromDatabase("cpu_usage", map[string]string{"host": "server1"}, start, end)
 	if err != nil {
 		t.Logf("indexing returned error: %v", err)
@@ -63,7 +63,7 @@ func TestIntegration_SemanticSearchWithData(t *testing.T) {
 	// Verify stats
 	stats := engine.Stats()
 	t.Logf("Semantic search stats: PatternsIndexed=%d", stats.PatternsIndexed)
-	
+
 	// Try basic search if patterns were indexed
 	if stats.PatternsIndexed > 0 {
 		results, err := engine.SearchSimilar("cpu_usage", map[string]string{"host": "server1"}, start, end, 5)
@@ -95,7 +95,7 @@ func TestIntegration_CapacityPlanningWithData(t *testing.T) {
 	config.Enabled = false // Don't auto-start workers
 	config.MinDataPoints = 5
 	config.ForecastHorizon = 24 * time.Hour
-	
+
 	engine := NewCapacityPlanningEngine(db, config)
 	defer engine.Close()
 
@@ -141,7 +141,7 @@ func TestIntegration_CapacityPlanningWithData(t *testing.T) {
 		}())
 	} else {
 		// With growing data, verify forecast was generated
-		t.Logf("Storage forecast: predicted=%f, confidence=%f", 
+		t.Logf("Storage forecast: predicted=%f, confidence=%f",
 			storageForecast.PredictedValue, storageForecast.Confidence)
 	}
 
@@ -280,8 +280,8 @@ func TestIntegration_ZKQueryWithCommitment(t *testing.T) {
 	defer engine.Close()
 
 	// Create commitment
-	commitment, err := engine.CreateCommitment(context.Background(), 
-		"verified_metric", 
+	commitment, err := engine.CreateCommitment(context.Background(),
+		"verified_metric",
 		map[string]string{"type": "test"},
 		now.Add(-2*time.Hour), now)
 	if err != nil {
@@ -392,7 +392,7 @@ func TestIntegration_DigitalTwinSync(t *testing.T) {
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false // Don't auto-start sync
-	
+
 	engine := NewDigitalTwinEngine(db, config)
 	defer engine.Close()
 
@@ -430,9 +430,9 @@ func TestIntegration_FederatedLearning(t *testing.T) {
 	defer db.Close()
 
 	config := DefaultFederatedLearningConfig()
-	config.Enabled = false // Don't auto-start
+	config.Enabled = false      // Don't auto-start
 	config.Role = "coordinator" // Set as coordinator to be able to start training rounds
-	
+
 	engine := NewFederatedLearningEngine(db, config)
 	defer engine.Close()
 
@@ -486,7 +486,7 @@ func TestIntegration_AutoRemediation(t *testing.T) {
 
 	config := DefaultAutoRemediationConfig()
 	config.Enabled = false // Don't auto-start
-	
+
 	engine := NewAutoRemediationEngine(db, config)
 	defer engine.Close()
 
@@ -499,7 +499,7 @@ func TestIntegration_AutoRemediation(t *testing.T) {
 		Priority:    2,
 		RiskLevel:   3,
 		Enabled:     true,
-		Parameters: map[string]interface{}{
+		Parameters: map[string]any{
 			"scale_factor": 1.5,
 		},
 	}
@@ -521,13 +521,13 @@ func TestIntegration_AutoRemediation(t *testing.T) {
 
 	// Register rule
 	rule := &AutoRemediationRule{
-		ID:           "high-cpu-rule",
-		Name:         "High CPU Rule",
-		Enabled:      true,
-		Priority:     1,
-		AnomalyTypes: []string{"spike"},
+		ID:            "high-cpu-rule",
+		Name:          "High CPU Rule",
+		Enabled:       true,
+		Priority:      1,
+		AnomalyTypes:  []string{"spike"},
 		MetricPattern: "cpu.*",
-		Actions:      []string{"scale-up"},
+		Actions:       []string{"scale-up"},
 	}
 
 	err = engine.RegisterRule(rule)
@@ -566,7 +566,7 @@ func TestIntegration_PluginMarketplace(t *testing.T) {
 	})
 
 	// Load plugin
-	plugin, err := registry.LoadPlugin(context.Background(), "test-compression", map[string]interface{}{
+	plugin, err := registry.LoadPlugin(context.Background(), "test-compression", map[string]any{
 		"level": 9,
 	})
 	if err != nil {
@@ -601,10 +601,10 @@ func TestIntegration_PluginMarketplace(t *testing.T) {
 // Test helper plugin
 type testCompressionPlugin struct {
 	ratio  float64
-	config map[string]interface{}
+	config map[string]any
 }
 
-func (p *testCompressionPlugin) Init(config map[string]interface{}) error {
+func (p *testCompressionPlugin) Init(config map[string]any) error {
 	p.config = config
 	return nil
 }

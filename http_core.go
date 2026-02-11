@@ -136,29 +136,33 @@ func (rl *rateLimiter) allow(ip string) bool {
 	return false
 }
 
-// getClientIP extracts the client IP from the request
+// getClientIP extracts the client IP from the request.
+// X-Forwarded-For and X-Real-IP headers are only trusted when the request
+// originates from a loopback address, which is the common case when running
+// behind a local reverse proxy (nginx, HAProxy, etc.).
 func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header
-	xff := r.Header.Get("X-Forwarded-For")
-	if xff != "" {
-		ips := strings.Split(xff, ",")
-		if len(ips) > 0 {
-			return strings.TrimSpace(ips[0])
+	remoteIP, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	// Only trust proxy headers from loopback addresses.
+	trusted := remoteIP == "127.0.0.1" || remoteIP == "::1"
+
+	if trusted {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			ips := strings.Split(xff, ",")
+			if len(ips) > 0 {
+				return strings.TrimSpace(ips[0])
+			}
+		}
+		if xri := r.Header.Get("X-Real-IP"); xri != "" {
+			return xri
 		}
 	}
 
-	// Check X-Real-IP header
-	xri := r.Header.Get("X-Real-IP")
-	if xri != "" {
-		return xri
-	}
-
 	// Fall back to RemoteAddr
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
+	if remoteIP != "" {
+		return remoteIP
 	}
-	return ip
+	return r.RemoteAddr
 }
 
 // rateLimitMiddleware wraps a handler with rate limiting

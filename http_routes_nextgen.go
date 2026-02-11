@@ -114,7 +114,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"metric":       metric,
 				"mean":         b.mean,
 				"stddev":       b.stddev,
@@ -483,11 +483,11 @@ func handleCQLValidate(engine *CQLEngine, w http.ResponseWriter, r *http.Request
 	}
 	if err := engine.Validate(string(body)); err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"valid": false, "error": err.Error()})
+		json.NewEncoder(w).Encode(map[string]any{"valid": false, "error": err.Error()})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"valid": true})
+	json.NewEncoder(w).Encode(map[string]any{"valid": true})
 }
 
 func handleCQLExplain(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {

@@ -425,7 +425,7 @@ func TestHTTPPromQueryInstant(t *testing.T) {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -629,20 +629,32 @@ func TestGetClientIP(t *testing.T) {
 			want:       "192.168.1.1",
 		},
 		{
-			name:       "x-forwarded-for",
+			name:       "x-forwarded-for from untrusted proxy ignored",
 			remoteAddr: "10.0.0.1:12345",
+			headers:    map[string]string{"X-Forwarded-For": "203.0.113.1, 70.41.3.18"},
+			want:       "10.0.0.1",
+		},
+		{
+			name:       "x-forwarded-for from loopback trusted",
+			remoteAddr: "127.0.0.1:12345",
 			headers:    map[string]string{"X-Forwarded-For": "203.0.113.1, 70.41.3.18"},
 			want:       "203.0.113.1",
 		},
 		{
-			name:       "x-real-ip",
+			name:       "x-real-ip from untrusted proxy ignored",
 			remoteAddr: "10.0.0.1:12345",
+			headers:    map[string]string{"X-Real-IP": "203.0.113.2"},
+			want:       "10.0.0.1",
+		},
+		{
+			name:       "x-real-ip from loopback trusted",
+			remoteAddr: "127.0.0.1:12345",
 			headers:    map[string]string{"X-Real-IP": "203.0.113.2"},
 			want:       "203.0.113.2",
 		},
 		{
-			name:       "x-forwarded-for takes precedence",
-			remoteAddr: "10.0.0.1:12345",
+			name:       "x-forwarded-for takes precedence from loopback",
+			remoteAddr: "127.0.0.1:12345",
 			headers: map[string]string{
 				"X-Forwarded-For": "203.0.113.1",
 				"X-Real-IP":       "203.0.113.2",
@@ -653,16 +665,16 @@ func TestGetClientIP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-req := httptest.NewRequest("GET", "/", nil)
-req.RemoteAddr = tt.remoteAddr
-for k, v := range tt.headers {
-req.Header.Set(k, v)
-}
-got := getClientIP(req)
-if got != tt.want {
-t.Errorf("getClientIP() = %q, want %q", got, tt.want)
-}
-})
+			req := httptest.NewRequest("GET", "/", nil)
+			req.RemoteAddr = tt.remoteAddr
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
+			}
+			got := getClientIP(req)
+			if got != tt.want {
+				t.Errorf("getClientIP() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -670,8 +682,8 @@ func TestRateLimitMiddleware(t *testing.T) {
 	rl := newRateLimiter(2, time.Second)
 
 	handler := rateLimitMiddleware(rl, func(w http.ResponseWriter, r *http.Request) {
-w.WriteHeader(http.StatusOK)
-})
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// First 2 requests should succeed
 	for i := 0; i < 2; i++ {
@@ -769,19 +781,19 @@ func TestExtractAPIKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-url := "/"
-if tt.query != "" {
-url = "/?" + tt.query
-}
-req := httptest.NewRequest("GET", url, nil)
-for k, v := range tt.headers {
-req.Header.Set(k, v)
-}
-got := extractAPIKey(req)
-if got != tt.want {
-t.Errorf("extractAPIKey() = %q, want %q", got, tt.want)
-}
-})
+			url := "/"
+			if tt.query != "" {
+				url = "/?" + tt.query
+			}
+			req := httptest.NewRequest("GET", url, nil)
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
+			}
+			got := extractAPIKey(req)
+			if got != tt.want {
+				t.Errorf("extractAPIKey() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -804,12 +816,12 @@ func TestIsWriteOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
-req := httptest.NewRequest(tt.method, tt.path, nil)
-got := isWriteOperation(req)
-if got != tt.want {
-t.Errorf("isWriteOperation() = %v, want %v", got, tt.want)
-}
-})
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			got := isWriteOperation(req)
+			if got != tt.want {
+				t.Errorf("isWriteOperation() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -817,9 +829,9 @@ func TestAuthMiddleware_NoAuth(t *testing.T) {
 	auth := newAuthenticator(nil)
 	called := false
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-called = true
-w.WriteHeader(http.StatusOK)
-})
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -840,9 +852,9 @@ func TestAuthMiddleware_ExcludedPath(t *testing.T) {
 	})
 	called := false
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-called = true
-w.WriteHeader(http.StatusOK)
-})
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// /health is always excluded
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -860,8 +872,8 @@ func TestAuthMiddleware_MissingKey(t *testing.T) {
 		APIKeys: []string{"secret"},
 	})
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-w.WriteHeader(http.StatusOK)
-})
+		w.WriteHeader(http.StatusOK)
+	})
 
 	req := httptest.NewRequest("GET", "/write", nil)
 	w := httptest.NewRecorder()
@@ -881,8 +893,8 @@ func TestAuthMiddleware_InvalidKey(t *testing.T) {
 		APIKeys: []string{"secret"},
 	})
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-w.WriteHeader(http.StatusOK)
-})
+		w.WriteHeader(http.StatusOK)
+	})
 
 	req := httptest.NewRequest("GET", "/write", nil)
 	req.Header.Set("Authorization", "Bearer wrongkey")
@@ -901,9 +913,9 @@ func TestAuthMiddleware_ValidKey(t *testing.T) {
 	})
 	called := false
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-called = true
-w.WriteHeader(http.StatusOK)
-})
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
 
 	req := httptest.NewRequest("POST", "/write", nil)
 	req.Header.Set("Authorization", "Bearer secret")
@@ -925,9 +937,9 @@ func TestAuthMiddleware_ReadOnlyKey_ReadOp(t *testing.T) {
 	})
 	called := false
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-called = true
-w.WriteHeader(http.StatusOK)
-})
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
 
 	req := httptest.NewRequest("GET", "/query", nil)
 	req.Header.Set("X-API-Key", "readonly")
@@ -945,8 +957,8 @@ func TestAuthMiddleware_ReadOnlyKey_WriteOp(t *testing.T) {
 		ReadOnlyKeys: []string{"readonly"},
 	})
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
-w.WriteHeader(http.StatusOK)
-})
+		w.WriteHeader(http.StatusOK)
+	})
 
 	req := httptest.NewRequest("POST", "/write", nil)
 	req.Header.Set("X-API-Key", "readonly")
