@@ -51,6 +51,29 @@ err := db.WriteBatch([]chronicle.Point{
 })
 ```
 
+### Context-Aware Writes
+
+For production use with timeouts and cancellation, use the context-aware variants:
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+// Single point with context
+err := db.WriteContext(ctx, chronicle.Point{
+    Metric:    "temperature",
+    Value:     22.5,
+    Timestamp: time.Now().UnixNano(),
+    Tags:      map[string]string{"room": "lab"},
+})
+
+// Batch with context — checks for cancellation before validation,
+// cardinality tracking, and flush for responsive large-batch cancellation.
+err := db.WriteBatchContext(ctx, points)
+```
+
+`Write()` and `WriteBatch()` are convenience wrappers that call the context variants with `context.Background()`.
+
 ## Flush
 
 Force buffered writes to storage. Required before queries can see recently written data.
@@ -83,6 +106,25 @@ result, err := db.Execute(&chronicle.Query{
     GroupBy: []string{"room"},
 })
 ```
+
+### Context-Aware Queries
+
+For queries with timeouts or cancellation:
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+result, err := db.ExecuteContext(ctx, &chronicle.Query{
+    Metric: "temperature",
+    Aggregation: &chronicle.Aggregation{
+        Function: chronicle.AggMean,
+        Window:   5 * time.Minute,
+    },
+})
+```
+
+`Execute()` automatically applies `QueryConfig.QueryTimeout` if set. Use `ExecuteContext()` when you need explicit control over cancellation.
 
 ## List Metrics
 

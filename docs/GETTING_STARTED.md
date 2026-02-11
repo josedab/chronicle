@@ -138,7 +138,35 @@ Available aggregation functions:
 | `AggLast` | Last value in window |
 | `AggStddev` | Standard deviation |
 
-## Step 5: Configure for Production
+## Step 5: Use Context for Production Code
+
+For production applications, use context-aware methods for timeout and cancellation support:
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+// Write with context — respects cancellation
+err := db.WriteContext(ctx, chronicle.Point{
+    Metric:    "temperature",
+    Value:     22.5,
+    Timestamp: time.Now().UnixNano(),
+    Tags:      map[string]string{"room": "lab"},
+})
+
+// Batch write with context — checks cancellation before each phase
+err = db.WriteBatchContext(ctx, points)
+
+// Query with context — cancels if deadline exceeded
+result, err := db.ExecuteContext(ctx, &chronicle.Query{
+    Metric:      "temperature",
+    Aggregation: &chronicle.Aggregation{Function: chronicle.AggMean, Window: time.Minute},
+})
+```
+
+The non-context methods (`Write`, `WriteBatch`, `Execute`) still work and are fine for scripts or simple applications. The context variants are recommended for servers and long-running processes.
+
+## Step 6: Configure for Production
 
 Use the `ConfigBuilder` for type-safe configuration:
 
@@ -156,7 +184,7 @@ if err != nil {
 db, err := chronicle.Open("metrics.db", cfg)
 ```
 
-## Step 6: Enable the HTTP API
+## Step 7: Enable the HTTP API
 
 Add HTTP to serve data remotely:
 
@@ -181,7 +209,7 @@ curl 'http://localhost:8086/query?metric=cpu'
 curl http://localhost:8086/health
 ```
 
-## Step 7: Prometheus Compatibility
+## Step 8: Prometheus Compatibility
 
 Chronicle supports PromQL queries and Prometheus remote write:
 
