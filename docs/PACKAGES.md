@@ -69,3 +69,20 @@ Then 44+ engine types can implement it uniformly.
 2. **New engines** should implement the `Engine` interface when it exists
 3. **New configs** should be added to `FeatureManagerConfig` if feature-specific
 4. **Test helpers** go in `internal/testutil/`
+
+## Current Progress (v0.1.0)
+
+### Completed
+- ✅ `FeatureRegistry` created (`feature_registry.go`) with `Feature`, `StartableFeature`, `HTTPFeature` interfaces
+- ✅ 5 core features bridged to registry: CQL, Observability, AnomalyPipeline, QueryPlanner, Dashboard
+- ✅ `safeInit()` wrapper prevents nil-pointer panics in FeatureManager
+- ✅ 19 internal packages extracted
+- ✅ `STABLE_API.md` documents the ~20 core types users should depend on
+- ✅ `FEATURE_MATURITY.md` honestly labels stubs
+
+### Next Steps (v0.2.0)
+1. Migrate all remaining FeatureManager features to FeatureRegistry
+2. Extract query parsers (PromQL, CQL, SQL) to `internal/query/` sub-packages
+3. Extract HTTP routes to `internal/http/` package
+4. Reduce root package to <50 exported types via type aliases
+5. Add CI check: fail if new exported types added to root without approval
