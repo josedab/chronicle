@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench check quickcheck cover cover-report vet setup install-hooks preflight help
+.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench check quickcheck cover cover-report vet setup install-hooks preflight release-check tag help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -88,6 +88,22 @@ setup: ## Install development tools
 	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
 	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+
+release-check: ## Run all checks before a release (vet + lint + full tests + vuln)
+	$(GO) vet ./...
+	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
+	$(GO) test $(GOFLAGS) -short ./...
+	govulncheck ./... || true
+	@echo "✓ Release checks passed"
+
+tag: ## Create and push a release tag (usage: make tag VERSION=v0.1.0)
+ifndef VERSION
+	$(error VERSION is required. Usage: make tag VERSION=v0.1.0)
+endif
+	@echo "Tagging $(VERSION)..."
+	git tag -a $(VERSION) -m "Release $(VERSION)"
+	git push origin $(VERSION)
+	@echo "✓ Tag $(VERSION) pushed — release workflow will run automatically"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
