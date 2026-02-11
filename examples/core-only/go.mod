@@ -1,6 +1,6 @@
 module github.com/chronicle-db/chronicle/examples/core-only
 
-go 1.24.4
+go 1.24.0
 
 require github.com/chronicle-db/chronicle v0.0.0
 

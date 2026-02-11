@@ -31,7 +31,7 @@ func main() {
 
 	// Write some data points (context-aware)
 	now := time.Now().UnixNano()
-	for i := range 5 {
+	for i := 0; i < 5; i++ {
 		err := db.WriteContext(ctx, chronicle.Point{
 			Metric:    "cpu",
 			Value:     40.0 + float64(i)*5.0,
