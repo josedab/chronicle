@@ -34,20 +34,20 @@ func TestIndex_GetOrCreatePartition(t *testing.T) {
 	if part == nil {
 		t.Fatal("partition should not be nil")
 	}
-	if part.ID != 1 {
-		t.Errorf("expected ID 1, got %d", part.ID)
+	if part.id != 1 {
+		t.Errorf("expected id 1, got %d", part.id)
 	}
-	if part.StartTime != 1000 {
-		t.Errorf("expected StartTime 1000, got %d", part.StartTime)
+	if part.startTime != 1000 {
+		t.Errorf("expected startTime 1000, got %d", part.startTime)
 	}
-	if part.EndTime != 2000 {
-		t.Errorf("expected EndTime 2000, got %d", part.EndTime)
+	if part.endTime != 2000 {
+		t.Errorf("expected endTime 2000, got %d", part.endTime)
 	}
 
 	// Get same partition again
 	part2 := idx.GetOrCreatePartition(1, 1000, 2000)
 	if part != part2 {
-		t.Error("should return same partition for same ID")
+		t.Error("should return same partition for same id")
 	}
 }
 
@@ -210,22 +210,22 @@ func TestIndex_RegisterSeries(t *testing.T) {
 
 	series := idx.RegisterSeries("cpu", map[string]string{"host": "server1"})
 	if series.ID == 0 {
-		t.Error("series ID should not be 0")
+		t.Error("series id should not be 0")
 	}
 	if series.Metric != "cpu" {
 		t.Error("series metric not set correctly")
 	}
 
-	// Same series should return same ID
+	// Same series should return same id
 	series2 := idx.RegisterSeries("cpu", map[string]string{"host": "server1"})
 	if series.ID != series2.ID {
-		t.Error("same series should have same ID")
+		t.Error("same series should have same id")
 	}
 
-	// Different series should have different ID
+	// Different series should have different id
 	series3 := idx.RegisterSeries("cpu", map[string]string{"host": "server2"})
 	if series.ID == series3.ID {
-		t.Error("different series should have different ID")
+		t.Error("different series should have different id")
 	}
 }
 
