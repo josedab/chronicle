@@ -1,4 +1,4 @@
-package chronicle
+package pluginmkt
 
 import (
 	"bytes"
@@ -138,7 +138,7 @@ func TestUnloadPlugin(t *testing.T) {
 
 	// Load then unload
 	registry.LoadPlugin(context.Background(), "test-plugin", nil)
-	
+
 	if err := registry.UnloadPlugin("test-plugin"); err != nil {
 		t.Fatalf("failed to unload: %v", err)
 	}

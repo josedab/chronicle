@@ -1,28 +1,26 @@
-package chronicle
+package oteldistro
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 )
 
-func TestChronicleOTelDistro(t *testing.T) {
-	path := "test_otel_distro.db"
-	defer os.Remove(path)
-	defer os.Remove(path + ".wal")
+// mockPointWriter implements PointWriter for testing.
+type mockPointWriter struct {
+	points []Point
+}
 
-	db, err := Open(path, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	if err != nil {
-		t.Fatalf("Failed to open DB: %v", err)
-	}
-	defer db.Close()
+func (m *mockPointWriter) Write(p Point) error {
+	m.points = append(m.points, p)
+	return nil
+}
+
+func TestChronicleOTelDistro(t *testing.T) {
+	pw := &mockPointWriter{}
 
 	config := DefaultOTelDistroConfig()
-	distro := NewChronicleOTelDistro(db, config)
+	distro := NewChronicleOTelDistro(pw, config)
 
 	t.Run("StartStop", func(t *testing.T) {
 		if err := distro.Start(); err != nil {
@@ -218,15 +216,7 @@ func TestFilterDistroProcessor(t *testing.T) {
 }
 
 func TestChronicleDistroExporter(t *testing.T) {
-	path := "test_otel_exporter.db"
-	defer os.Remove(path)
-	defer os.Remove(path + ".wal")
-
-	db, _ := Open(path, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	defer db.Close()
+	pw := &mockPointWriter{}
 
 	config := &ChronicleExporterConfig{
 		Endpoint:      "http://localhost:8086",
@@ -234,7 +224,7 @@ func TestChronicleDistroExporter(t *testing.T) {
 		FlushInterval: time.Second,
 	}
 
-	exp := NewChronicleDistroExporter(db, config)
+	exp := NewChronicleDistroExporter(pw, config)
 
 	ctx := context.Background()
 	if err := exp.Start(ctx, nil); err != nil {
@@ -477,18 +467,10 @@ func TestDistroMetrics(t *testing.T) {
 }
 
 func TestPipelineProcessing(t *testing.T) {
-	path := "test_otel_pipeline.db"
-	defer os.Remove(path)
-	defer os.Remove(path + ".wal")
-
-	db, _ := Open(path, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	defer db.Close()
+	pw := &mockPointWriter{}
 
 	config := DefaultOTelDistroConfig()
-	distro := NewChronicleOTelDistro(db, config)
+	distro := NewChronicleOTelDistro(pw, config)
 
 	// Start distro
 	if err := distro.Start(); err != nil {

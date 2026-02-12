@@ -1,4 +1,4 @@
-package chronicle
+package gpucompression
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
 
 func TestGPUCompressor(t *testing.T) {
@@ -28,7 +30,7 @@ func TestGPUCompressor(t *testing.T) {
 		// Generate float64 time-series data
 		data := generateFloat64Data(1000)
 
-		compressed, err := gc.Compress(data, CodecGorilla)
+		compressed, err := gc.Compress(data, chronicle.CodecGorilla)
 		if err != nil {
 			t.Fatalf("Compression failed: %v", err)
 		}
@@ -38,7 +40,7 @@ func TestGPUCompressor(t *testing.T) {
 		}
 
 		// Verify decompression
-		decompressed, err := gc.Decompress(compressed, CodecGorilla)
+		decompressed, err := gc.Decompress(compressed, chronicle.CodecGorilla)
 		if err != nil {
 			t.Fatalf("Decompression failed: %v", err)
 		}
@@ -52,7 +54,7 @@ func TestGPUCompressor(t *testing.T) {
 		// Generate timestamp-like data
 		data := generateTimestampData(1000)
 
-		compressed, err := gc.Compress(data, CodecDeltaDelta)
+		compressed, err := gc.Compress(data, chronicle.CodecDeltaDelta)
 		if err != nil {
 			t.Fatalf("Compression failed: %v", err)
 		}
@@ -63,7 +65,7 @@ func TestGPUCompressor(t *testing.T) {
 	})
 
 	t.Run("EmptyData", func(t *testing.T) {
-		compressed, err := gc.Compress([]byte{}, CodecGorilla)
+		compressed, err := gc.Compress([]byte{}, chronicle.CodecGorilla)
 		if err != nil {
 			t.Fatalf("Empty compression failed: %v", err)
 		}
@@ -77,7 +79,7 @@ func TestGPUCompressor(t *testing.T) {
 		// Data smaller than min batch size
 		data := generateFloat64Data(10)
 
-		compressed, err := gc.Compress(data, CodecGorilla)
+		compressed, err := gc.Compress(data, chronicle.CodecGorilla)
 		if err != nil {
 			t.Fatalf("Small data compression failed: %v", err)
 		}
@@ -105,7 +107,7 @@ func TestGPUCompressor_BatchCompression(t *testing.T) {
 		batches[i] = generateFloat64Data(500)
 	}
 
-	results, err := gc.CompressBatch(batches, CodecGorilla)
+	results, err := gc.CompressBatch(batches, chronicle.CodecGorilla)
 	if err != nil {
 		t.Fatalf("Batch compression failed: %v", err)
 	}
@@ -136,7 +138,7 @@ func TestGPUCompressor_AsyncCompression(t *testing.T) {
 	data := generateFloat64Data(1000)
 
 	// Start async compression
-	resultChan := gc.CompressAsync(data, CodecGorilla)
+	resultChan := gc.CompressAsync(data, chronicle.CodecGorilla)
 
 	// Wait for result
 	select {
@@ -166,7 +168,7 @@ func TestGPUCompressor_Stats(t *testing.T) {
 	// Perform some compressions
 	data := generateFloat64Data(1000)
 	for i := 0; i < 10; i++ {
-		gc.Compress(data, CodecGorilla)
+		gc.Compress(data, chronicle.CodecGorilla)
 	}
 
 	stats := gc.GetStats()
@@ -258,7 +260,7 @@ func TestBatchCompressor(t *testing.T) {
 	}
 
 	// Flush
-	results, err := bc.Flush(CodecGorilla)
+	results, err := bc.Flush(chronicle.CodecGorilla)
 	if err != nil {
 		t.Fatalf("Batch flush failed: %v", err)
 	}
@@ -268,7 +270,7 @@ func TestBatchCompressor(t *testing.T) {
 	}
 
 	// Empty flush
-	results, err = bc.Flush(CodecGorilla)
+	results, err = bc.Flush(chronicle.CodecGorilla)
 	if err != nil {
 		t.Fatalf("Empty flush failed: %v", err)
 	}
@@ -290,7 +292,7 @@ func TestStreamingCompressor(t *testing.T) {
 	gc.Start()
 
 	windowSize := 1024
-	sc := NewStreamingCompressor(gc, CodecGorilla, windowSize)
+	sc := NewStreamingCompressor(gc, chronicle.CodecGorilla, windowSize)
 	defer sc.Close()
 
 	// Write data in chunks
@@ -336,7 +338,7 @@ func TestGPUBenchmark(t *testing.T) {
 	defer gc.Stop()
 	gc.Start()
 
-	benchmark := NewGPUBenchmark(gc, CodecGorilla)
+	benchmark := NewGPUBenchmark(gc, chronicle.CodecGorilla)
 
 	// Run single benchmark
 	data := generateFloat64Data(10000)
@@ -373,7 +375,7 @@ func TestGPUBenchmark_Suite(t *testing.T) {
 	defer gc.Stop()
 	gc.Start()
 
-	benchmark := NewGPUBenchmark(gc, CodecGorilla)
+	benchmark := NewGPUBenchmark(gc, chronicle.CodecGorilla)
 
 	// Run suite with various sizes
 	results := benchmark.RunSuite(1024, 65536, 3)
@@ -473,7 +475,7 @@ func TestGPUCompressor_ConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 			data := generateFloat64Data(1000)
 			for j := 0; j < iterations; j++ {
-				_, err := gc.Compress(data, CodecGorilla)
+				_, err := gc.Compress(data, chronicle.CodecGorilla)
 				if err != nil {
 					t.Errorf("Concurrent compression failed: %v", err)
 					return
@@ -505,7 +507,7 @@ func TestGPUCompressor_RoundTrip(t *testing.T) {
 	defer gc.Stop()
 	gc.Start()
 
-	codecs := []CodecType{CodecGorilla, CodecFloatXOR}
+	codecs := []chronicle.CodecType{chronicle.CodecGorilla, chronicle.CodecFloatXOR}
 
 	for _, codec := range codecs {
 		t.Run(codec.String(), func(t *testing.T) {
@@ -602,7 +604,7 @@ func TestGPUCompressor_MemoryLimit(t *testing.T) {
 	largeData := generateFloat64Data(10000)
 
 	// Should fallback to CPU due to memory limit
-	compressed, err := gc.Compress(largeData, CodecGorilla)
+	compressed, err := gc.Compress(largeData, chronicle.CodecGorilla)
 	if err != nil {
 		t.Fatalf("Compression failed: %v", err)
 	}
@@ -653,7 +655,7 @@ func BenchmarkGPUCompressor_Gorilla(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		gc.Compress(data, CodecGorilla)
+		gc.Compress(data, chronicle.CodecGorilla)
 	}
 }
 
@@ -669,7 +671,7 @@ func BenchmarkGPUCompressor_DeltaDelta(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		gc.Compress(data, CodecDeltaDelta)
+		gc.Compress(data, chronicle.CodecDeltaDelta)
 	}
 }
 
@@ -689,7 +691,7 @@ func BenchmarkGPUCompressor_Batch(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		gc.CompressBatch(batches, CodecGorilla)
+		gc.CompressBatch(batches, chronicle.CodecGorilla)
 	}
 }
 
@@ -706,7 +708,7 @@ func BenchmarkGPUCompressor_Concurrent(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			gc.Compress(data, CodecGorilla)
+			gc.Compress(data, chronicle.CodecGorilla)
 		}
 	})
 }

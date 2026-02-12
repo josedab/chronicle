@@ -1,272 +1,16 @@
-package chronicle
+package gpucompression
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
-	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
+
+	chronicle "github.com/chronicle-db/chronicle"
 )
-
-// GPUBackend represents the type of GPU backend available.
-type GPUBackend int
-
-const (
-	// GPUBackendNone indicates no GPU acceleration available.
-	GPUBackendNone GPUBackend = iota
-	// GPUBackendCUDA uses NVIDIA CUDA for acceleration.
-	GPUBackendCUDA
-	// GPUBackendMetal uses Apple Metal for acceleration.
-	GPUBackendMetal
-	// GPUBackendOpenCL uses OpenCL for acceleration.
-	GPUBackendOpenCL
-	// GPUBackendWebGPU uses WebGPU for acceleration.
-	GPUBackendWebGPU
-	// GPUBackendVulkan uses Vulkan Compute for acceleration.
-	GPUBackendVulkan
-)
-
-func (b GPUBackend) String() string {
-	switch b {
-	case GPUBackendCUDA:
-		return "cuda"
-	case GPUBackendMetal:
-		return "metal"
-	case GPUBackendOpenCL:
-		return "opencl"
-	case GPUBackendWebGPU:
-		return "webgpu"
-	case GPUBackendVulkan:
-		return "vulkan"
-	default:
-		return "none"
-	}
-}
-
-// GPUCompressionConfig configures GPU-accelerated compression.
-type GPUCompressionConfig struct {
-	// Enabled enables GPU acceleration when available.
-	Enabled bool
-
-	// PreferredBackend specifies the preferred GPU backend.
-	PreferredBackend GPUBackend
-
-	// FallbackToCPU enables automatic fallback to CPU when GPU unavailable.
-	FallbackToCPU bool
-
-	// MinBatchSize is the minimum number of values to trigger GPU processing.
-	MinBatchSize int
-
-	// MaxBatchSize is the maximum batch size for GPU processing.
-	MaxBatchSize int
-
-	// DeviceID specifies which GPU device to use (for multi-GPU systems).
-	DeviceID int
-
-	// MemoryLimit limits GPU memory usage in bytes.
-	MemoryLimit int64
-
-	// AsyncMode enables asynchronous GPU operations.
-	AsyncMode bool
-
-	// StreamCount is the number of CUDA streams for concurrent execution.
-	StreamCount int
-
-	// EnableProfiling enables GPU performance profiling.
-	EnableProfiling bool
-
-	// PipelineDepth is the depth of the compression pipeline.
-	PipelineDepth int
-
-	// UseUnifiedMemory enables CUDA unified memory (managed memory).
-	UseUnifiedMemory bool
-}
-
-// DefaultGPUCompressionConfig returns default GPU compression configuration.
-func DefaultGPUCompressionConfig() GPUCompressionConfig {
-	return GPUCompressionConfig{
-		Enabled:          true,
-		PreferredBackend: GPUBackendNone, // Auto-detect
-		FallbackToCPU:    true,
-		MinBatchSize:     1024,
-		MaxBatchSize:     1024 * 1024,
-		DeviceID:         0,
-		MemoryLimit:      512 * 1024 * 1024, // 512MB
-		AsyncMode:        true,
-		StreamCount:      4,
-		EnableProfiling:  false,
-		PipelineDepth:    3,
-		UseUnifiedMemory: false,
-	}
-}
-
-// GPUCompressor provides GPU-accelerated compression for time-series data.
-type GPUCompressor struct {
-	config GPUCompressionConfig
-
-	// Backend state
-	backend       GPUBackend
-	deviceInfo    *GPUDeviceInfo
-	initialized   bool
-	initMu        sync.Mutex
-
-	// Memory management
-	memoryPool    *GPUMemoryPool
-	allocatedMem  int64
-
-	// Stream management (for CUDA)
-	streams       []GPUStream
-	streamIdx     uint32
-
-	// Pipeline
-	pipeline      *CompressionPipeline
-	pipelineInput chan *compressionJob
-	pipelineWg    sync.WaitGroup
-
-	// Statistics
-	stats         GPUCompressionStats
-	statsMu       sync.RWMutex
-
-	// CPU fallback
-	cpuEncoder    *AdaptiveCompressionEngine
-
-	// Lifecycle
-	ctx           context.Context
-	cancel        context.CancelFunc
-}
-
-// GPUDeviceInfo contains GPU device information.
-type GPUDeviceInfo struct {
-	Name              string
-	ComputeCapability string
-	TotalMemory       int64
-	FreeMemory        int64
-	MultiProcessors   int
-	MaxThreadsPerMP   int
-	ClockRate         int // MHz
-	MemoryClockRate   int // MHz
-	MemoryBusWidth    int // bits
-	L2CacheSize       int
-	Warp              int
-}
-
-// GPUStream represents a GPU execution stream.
-type GPUStream struct {
-	ID       int
-	Handle   unsafe.Pointer
-	InUse    int32
-	LastUsed time.Time
-}
-
-// GPUMemoryPool manages GPU memory allocation.
-type GPUMemoryPool struct {
-	mu           sync.Mutex
-	blocks       map[int64]*GPUMemoryBlock
-	totalAlloc   int64
-	maxAlloc     int64
-	hitCount     int64
-	missCount    int64
-}
-
-// GPUMemoryBlock represents an allocated GPU memory block.
-type GPUMemoryBlock struct {
-	Ptr       unsafe.Pointer
-	Size      int64
-	InUse     bool
-	Timestamp time.Time
-}
-
-// GPUCompressionStats contains GPU compression statistics.
-type GPUCompressionStats struct {
-	// Operation counts
-	TotalCompressions   int64
-	TotalDecompressions int64
-	GPUCompressions     int64
-	CPUFallbacks        int64
-
-	// Performance metrics
-	TotalBytesIn        int64
-	TotalBytesOut       int64
-	TotalGPUTime        time.Duration
-	TotalCPUTime        time.Duration
-
-	// Memory stats
-	PeakGPUMemory       int64
-	CurrentGPUMemory    int64
-	MemoryPoolHits      int64
-	MemoryPoolMisses    int64
-
-	// Throughput
-	LastThroughput      float64 // MB/s
-	AverageThroughput   float64 // MB/s
-
-	// Errors
-	GPUErrors           int64
-	RecoveredErrors     int64
-}
-
-// CompressionPipeline manages the GPU compression pipeline.
-type CompressionPipeline struct {
-	stages    []pipelineStage
-	depth     int
-	batchSize int
-}
-
-type pipelineStage struct {
-	name    string
-	process func(data []byte) ([]byte, error)
-}
-
-type compressionJob struct {
-	data     []byte
-	codec    CodecType
-	result   chan compressionResult
-}
-
-type compressionResult struct {
-	data []byte
-	err  error
-}
-
-// NewGPUCompressor creates a new GPU-accelerated compressor.
-func NewGPUCompressor(config GPUCompressionConfig) (*GPUCompressor, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	gc := &GPUCompressor{
-		config:        config,
-		backend:       GPUBackendNone,
-		pipelineInput: make(chan *compressionJob, config.PipelineDepth*10),
-		ctx:           ctx,
-		cancel:        cancel,
-	}
-
-	// Initialize CPU fallback
-	gc.cpuEncoder = NewAdaptiveCompressionEngine(DefaultAdaptiveCompressionConfig())
-
-	// Initialize memory pool
-	gc.memoryPool = &GPUMemoryPool{
-		blocks:   make(map[int64]*GPUMemoryBlock),
-		maxAlloc: config.MemoryLimit,
-	}
-
-	// Detect and initialize GPU
-	if config.Enabled {
-		if err := gc.initializeGPU(); err != nil {
-			if !config.FallbackToCPU {
-				cancel()
-				return nil, err
-			}
-			// Continue with CPU fallback
-		}
-	}
-
-	return gc, nil
-}
 
 // initializeGPU initializes the GPU backend.
 func (gc *GPUCompressor) initializeGPU() error {
@@ -277,7 +21,6 @@ func (gc *GPUCompressor) initializeGPU() error {
 		return nil
 	}
 
-	// Detect available GPU backend
 	backend := gc.detectGPUBackend()
 	if backend == GPUBackendNone {
 		return errors.New("no GPU backend available")
@@ -286,7 +29,6 @@ func (gc *GPUCompressor) initializeGPU() error {
 	gc.backend = backend
 	gc.deviceInfo = gc.getDeviceInfo()
 
-	// Initialize streams for async operations
 	if gc.config.AsyncMode && gc.config.StreamCount > 0 {
 		gc.streams = make([]GPUStream, gc.config.StreamCount)
 		for i := range gc.streams {
@@ -297,7 +39,6 @@ func (gc *GPUCompressor) initializeGPU() error {
 		}
 	}
 
-	// Initialize pipeline
 	gc.pipeline = &CompressionPipeline{
 		depth:     gc.config.PipelineDepth,
 		batchSize: gc.config.MaxBatchSize,
@@ -309,22 +50,21 @@ func (gc *GPUCompressor) initializeGPU() error {
 
 // detectGPUBackend detects the available GPU backend.
 func (gc *GPUCompressor) detectGPUBackend() GPUBackend {
-	// Check preferred backend first
+
 	if gc.config.PreferredBackend != GPUBackendNone {
 		if gc.isBackendAvailable(gc.config.PreferredBackend) {
 			return gc.config.PreferredBackend
 		}
 	}
 
-	// Auto-detect based on platform
 	switch runtime.GOOS {
 	case "darwin":
-		// Check Metal first on macOS
+
 		if gc.isBackendAvailable(GPUBackendMetal) {
 			return GPUBackendMetal
 		}
 	case "linux", "windows":
-		// Check CUDA first on Linux/Windows
+
 		if gc.isBackendAvailable(GPUBackendCUDA) {
 			return GPUBackendCUDA
 		}
@@ -336,7 +76,6 @@ func (gc *GPUCompressor) detectGPUBackend() GPUBackend {
 		}
 	}
 
-	// Check WebGPU as fallback
 	if gc.isBackendAvailable(GPUBackendWebGPU) {
 		return GPUBackendWebGPU
 	}
@@ -346,8 +85,7 @@ func (gc *GPUCompressor) detectGPUBackend() GPUBackend {
 
 // isBackendAvailable checks if a GPU backend is available.
 func (gc *GPUCompressor) isBackendAvailable(backend GPUBackend) bool {
-	// In a real implementation, this would check for actual GPU availability
-	// For now, return false to trigger CPU fallback in pure Go
+
 	switch backend {
 	case GPUBackendCUDA:
 		return gc.checkCUDAAvailable()
@@ -365,33 +103,37 @@ func (gc *GPUCompressor) isBackendAvailable(backend GPUBackend) bool {
 }
 
 // GPU availability checks (stubs for pure Go implementation)
-func (gc *GPUCompressor) checkCUDAAvailable() bool   { return false }
-func (gc *GPUCompressor) checkMetalAvailable() bool  { return false }
+func (gc *GPUCompressor) checkCUDAAvailable() bool { return false }
+
+func (gc *GPUCompressor) checkMetalAvailable() bool { return false }
+
 func (gc *GPUCompressor) checkOpenCLAvailable() bool { return false }
+
 func (gc *GPUCompressor) checkWebGPUAvailable() bool { return false }
+
 func (gc *GPUCompressor) checkVulkanAvailable() bool { return false }
 
 // getDeviceInfo returns GPU device information.
 func (gc *GPUCompressor) getDeviceInfo() *GPUDeviceInfo {
-	// Return simulated device info for pure Go implementation
+
 	return &GPUDeviceInfo{
 		Name:              "Simulated GPU",
 		ComputeCapability: "8.6",
-		TotalMemory:       8 * 1024 * 1024 * 1024, // 8GB
-		FreeMemory:        6 * 1024 * 1024 * 1024, // 6GB
+		TotalMemory:       8 * 1024 * 1024 * 1024,
+		FreeMemory:        6 * 1024 * 1024 * 1024,
 		MultiProcessors:   80,
 		MaxThreadsPerMP:   1536,
-		ClockRate:         1800, // MHz
-		MemoryClockRate:   9500, // MHz
+		ClockRate:         1800,
+		MemoryClockRate:   9500,
 		MemoryBusWidth:    256,
-		L2CacheSize:       6 * 1024 * 1024, // 6MB
+		L2CacheSize:       6 * 1024 * 1024,
 		Warp:              32,
 	}
 }
 
 // Start starts the GPU compressor.
 func (gc *GPUCompressor) Start() error {
-	// Start pipeline workers
+
 	if gc.config.AsyncMode {
 		for i := 0; i < gc.config.PipelineDepth; i++ {
 			gc.pipelineWg.Add(1)
@@ -407,7 +149,6 @@ func (gc *GPUCompressor) Stop() error {
 	close(gc.pipelineInput)
 	gc.pipelineWg.Wait()
 
-	// Clean up GPU resources
 	gc.cleanupGPU()
 	return nil
 }
@@ -434,7 +175,6 @@ func (gc *GPUCompressor) cleanupGPU() {
 	gc.initMu.Lock()
 	defer gc.initMu.Unlock()
 
-	// Release memory pool
 	if gc.memoryPool != nil {
 		gc.memoryPool.mu.Lock()
 		gc.memoryPool.blocks = nil
@@ -445,26 +185,24 @@ func (gc *GPUCompressor) cleanupGPU() {
 }
 
 // Compress compresses data using GPU acceleration.
-func (gc *GPUCompressor) Compress(data []byte, codec CodecType) ([]byte, error) {
+func (gc *GPUCompressor) Compress(data []byte, codec chronicle.CodecType) ([]byte, error) {
 	if len(data) == 0 {
 		return data, nil
 	}
 
-	// Check if GPU should be used
 	if gc.shouldUseGPU(len(data)) {
 		return gc.compressGPU(data, codec)
 	}
 
-	// Fall back to CPU
 	return gc.compressCPU(data, codec)
 }
 
 // CompressAsync compresses data asynchronously.
-func (gc *GPUCompressor) CompressAsync(data []byte, codec CodecType) <-chan compressionResult {
+func (gc *GPUCompressor) CompressAsync(data []byte, codec chronicle.CodecType) <-chan compressionResult {
 	resultChan := make(chan compressionResult, 1)
 
 	if !gc.config.AsyncMode {
-		// Synchronous fallback
+
 		result, err := gc.Compress(data, codec)
 		resultChan <- compressionResult{data: result, err: err}
 		close(resultChan)
@@ -480,7 +218,7 @@ func (gc *GPUCompressor) CompressAsync(data []byte, codec CodecType) <-chan comp
 	select {
 	case gc.pipelineInput <- job:
 	default:
-		// Pipeline full, process synchronously
+
 		result, err := gc.Compress(data, codec)
 		resultChan <- compressionResult{data: result, err: err}
 	}
@@ -489,7 +227,7 @@ func (gc *GPUCompressor) CompressAsync(data []byte, codec CodecType) <-chan comp
 }
 
 // CompressBatch compresses multiple data blocks in parallel.
-func (gc *GPUCompressor) CompressBatch(batches [][]byte, codec CodecType) ([][]byte, error) {
+func (gc *GPUCompressor) CompressBatch(batches [][]byte, codec chronicle.CodecType) ([][]byte, error) {
 	if len(batches) == 0 {
 		return batches, nil
 	}
@@ -497,13 +235,11 @@ func (gc *GPUCompressor) CompressBatch(batches [][]byte, codec CodecType) ([][]b
 	results := make([][]byte, len(batches))
 	errors := make([]error, len(batches))
 
-	// Calculate total size
 	totalSize := 0
 	for _, b := range batches {
 		totalSize += len(b)
 	}
 
-	// Use GPU for large batches
 	if gc.shouldUseGPU(totalSize) && gc.initialized {
 		return gc.compressBatchGPU(batches, codec)
 	}
@@ -524,7 +260,6 @@ func (gc *GPUCompressor) CompressBatch(batches [][]byte, codec CodecType) ([][]b
 
 	wg.Wait()
 
-	// Check for errors
 	for _, err := range errors {
 		if err != nil {
 			return nil, err
@@ -552,13 +287,11 @@ func (gc *GPUCompressor) shouldUseGPU(dataSize int) bool {
 }
 
 // compressGPU compresses data using GPU.
-func (gc *GPUCompressor) compressGPU(data []byte, codec CodecType) ([]byte, error) {
+func (gc *GPUCompressor) compressGPU(data []byte, codec chronicle.CodecType) ([]byte, error) {
 	start := time.Now()
 	atomic.AddInt64(&gc.stats.GPUCompressions, 1)
 	atomic.AddInt64(&gc.stats.TotalBytesIn, int64(len(data)))
 
-	// In a real implementation, this would dispatch to GPU
-	// For now, use optimized SIMD-friendly CPU implementation
 	result, err := gc.compressInternal(data, codec)
 	if err != nil {
 		atomic.AddInt64(&gc.stats.GPUErrors, 1)
@@ -578,7 +311,7 @@ func (gc *GPUCompressor) compressGPU(data []byte, codec CodecType) ([]byte, erro
 }
 
 // compressCPU compresses data using CPU.
-func (gc *GPUCompressor) compressCPU(data []byte, codec CodecType) ([]byte, error) {
+func (gc *GPUCompressor) compressCPU(data []byte, codec chronicle.CodecType) ([]byte, error) {
 	start := time.Now()
 	atomic.AddInt64(&gc.stats.CPUFallbacks, 1)
 	atomic.AddInt64(&gc.stats.TotalBytesIn, int64(len(data)))
@@ -597,13 +330,13 @@ func (gc *GPUCompressor) compressCPU(data []byte, codec CodecType) ([]byte, erro
 }
 
 // compressInternal is the internal compression implementation.
-func (gc *GPUCompressor) compressInternal(data []byte, codec CodecType) ([]byte, error) {
+func (gc *GPUCompressor) compressInternal(data []byte, codec chronicle.CodecType) ([]byte, error) {
 	switch codec {
-	case CodecGorilla:
+	case chronicle.CodecGorilla:
 		return gc.compressGorillaGPU(data)
-	case CodecDeltaDelta:
+	case chronicle.CodecDeltaDelta:
 		return gc.compressDeltaDeltaGPU(data)
-	case CodecFloatXOR:
+	case chronicle.CodecFloatXOR:
 		return gc.compressFloatXORGPU(data)
 	default:
 		return gc.cpuEncoder.Compress(data, codec)
@@ -622,11 +355,8 @@ func (gc *GPUCompressor) compressGorillaGPU(data []byte) ([]byte, error) {
 		values[i] = binary.LittleEndian.Uint64(data[i*8:])
 	}
 
-	// GPU-friendly parallel XOR computation
-	// In real implementation, this would be a GPU kernel
 	xors := gc.parallelXOR(values)
 
-	// Bit-pack the XOR values
 	return gc.bitPackXOR(values[0], xors)
 }
 
@@ -638,8 +368,7 @@ func (gc *GPUCompressor) parallelXOR(values []uint64) []uint64 {
 
 	xors := make([]uint64, len(values)-1)
 
-	// Process in chunks for better cache utilization (simulating GPU blocks)
-	blockSize := 256 // Simulate GPU thread block size
+	blockSize := 256
 	numBlocks := (len(xors) + blockSize - 1) / blockSize
 
 	var wg sync.WaitGroup
@@ -666,14 +395,12 @@ func (gc *GPUCompressor) parallelXOR(values []uint64) []uint64 {
 func (gc *GPUCompressor) bitPackXOR(firstValue uint64, xors []uint64) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// Write header: first value
 	binary.Write(&buf, binary.LittleEndian, firstValue)
 
 	if len(xors) == 0 {
 		return buf.Bytes(), nil
 	}
 
-	// Analyze XOR distribution for optimal bit packing
 	maxBits := 0
 	for _, xor := range xors {
 		bits := bitsRequired(xor)
@@ -682,11 +409,8 @@ func (gc *GPUCompressor) bitPackXOR(firstValue uint64, xors []uint64) ([]byte, e
 		}
 	}
 
-	// Write bit width
 	buf.WriteByte(byte(maxBits))
 
-	// Pack values
-	// For simplicity, use byte-aligned storage
 	bytesNeeded := (maxBits + 7) / 8
 	for _, xor := range xors {
 		for b := 0; b < bytesNeeded; b++ {
@@ -709,7 +433,6 @@ func (gc *GPUCompressor) compressDeltaDeltaGPU(data []byte) ([]byte, error) {
 		values[i] = int64(binary.LittleEndian.Uint64(data[i*8:]))
 	}
 
-	// Parallel delta computation
 	deltas := gc.parallelDelta(values)
 	if len(deltas) == 0 {
 		var buf bytes.Buffer
@@ -717,10 +440,8 @@ func (gc *GPUCompressor) compressDeltaDeltaGPU(data []byte) ([]byte, error) {
 		return buf.Bytes(), nil
 	}
 
-	// Parallel delta-of-delta computation
 	dods := gc.parallelDeltaOfDelta(deltas)
 
-	// Encode
 	return gc.encodeDeltaDelta(values[0], deltas[0], dods)
 }
 
@@ -790,11 +511,9 @@ func (gc *GPUCompressor) parallelDeltaOfDelta(deltas []int64) []int64 {
 func (gc *GPUCompressor) encodeDeltaDelta(firstValue int64, firstDelta int64, dods []int64) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// Write first value and delta
 	binary.Write(&buf, binary.LittleEndian, firstValue)
 	binary.Write(&buf, binary.LittleEndian, firstDelta)
 
-	// Variable-length encode delta-of-deltas
 	for _, dod := range dods {
 		gc.writeVarInt(&buf, dod)
 	}
@@ -804,7 +523,7 @@ func (gc *GPUCompressor) encodeDeltaDelta(firstValue int64, firstDelta int64, do
 
 // writeVarInt writes a variable-length integer.
 func (gc *GPUCompressor) writeVarInt(buf *bytes.Buffer, v int64) {
-	// ZigZag encoding for signed integers
+
 	uv := uint64((v << 1) ^ (v >> 63))
 
 	for uv >= 0x80 {
@@ -820,14 +539,8 @@ func (gc *GPUCompressor) compressFloatXORGPU(data []byte) ([]byte, error) {
 }
 
 // compressBatchGPU compresses multiple batches on GPU.
-func (gc *GPUCompressor) compressBatchGPU(batches [][]byte, codec CodecType) ([][]byte, error) {
-	// In a real implementation, this would:
-	// 1. Allocate GPU memory for all batches
-	// 2. Copy all batches to GPU in a single transfer
-	// 3. Launch parallel kernels for each batch
-	// 4. Copy results back in a single transfer
+func (gc *GPUCompressor) compressBatchGPU(batches [][]byte, codec chronicle.CodecType) ([][]byte, error) {
 
-	// For pure Go, use parallel CPU processing
 	results := make([][]byte, len(batches))
 	errs := make([]error, len(batches))
 
@@ -856,7 +569,7 @@ func (gc *GPUCompressor) compressBatchGPU(batches [][]byte, codec CodecType) ([]
 }
 
 // Decompress decompresses data.
-func (gc *GPUCompressor) Decompress(data []byte, codec CodecType) ([]byte, error) {
+func (gc *GPUCompressor) Decompress(data []byte, codec chronicle.CodecType) ([]byte, error) {
 	if len(data) == 0 {
 		return data, nil
 	}
@@ -871,11 +584,11 @@ func (gc *GPUCompressor) Decompress(data []byte, codec CodecType) ([]byte, error
 }
 
 // decompressGPU decompresses using GPU.
-func (gc *GPUCompressor) decompressGPU(data []byte, codec CodecType) ([]byte, error) {
+func (gc *GPUCompressor) decompressGPU(data []byte, codec chronicle.CodecType) ([]byte, error) {
 	switch codec {
-	case CodecGorilla:
+	case chronicle.CodecGorilla:
 		return gc.decompressGorillaGPU(data)
-	case CodecDeltaDelta:
+	case chronicle.CodecDeltaDelta:
 		return gc.decompressDeltaDeltaGPU(data)
 	default:
 		return gc.cpuEncoder.Decompress(data, codec)
@@ -888,7 +601,6 @@ func (gc *GPUCompressor) decompressGorillaGPU(data []byte) ([]byte, error) {
 		return decompressGorilla(data)
 	}
 
-	// Read first value
 	firstValue := binary.LittleEndian.Uint64(data[0:8])
 	bitWidth := int(data[8])
 	bytesPerValue := (bitWidth + 7) / 8
@@ -901,7 +613,6 @@ func (gc *GPUCompressor) decompressGorillaGPU(data []byte) ([]byte, error) {
 		return buf.Bytes(), nil
 	}
 
-	// Read XOR values
 	xors := make([]uint64, numXors)
 	for i := 0; i < numXors; i++ {
 		var xor uint64
@@ -911,7 +622,6 @@ func (gc *GPUCompressor) decompressGorillaGPU(data []byte) ([]byte, error) {
 		xors[i] = xor
 	}
 
-	// Parallel prefix XOR to reconstruct values (GPU-optimized pattern)
 	values := gc.parallelPrefixXOR(firstValue, xors)
 
 	// Output
@@ -928,7 +638,6 @@ func (gc *GPUCompressor) parallelPrefixXOR(firstValue uint64, xors []uint64) []u
 	values := make([]uint64, len(xors)+1)
 	values[0] = firstValue
 
-	// Sequential for correctness (parallel prefix scan would be used on GPU)
 	for i := 0; i < len(xors); i++ {
 		values[i+1] = values[i] ^ xors[i]
 	}
@@ -942,24 +651,20 @@ func (gc *GPUCompressor) decompressDeltaDeltaGPU(data []byte) ([]byte, error) {
 		return decompressDeltaDelta(data)
 	}
 
-	// Read first value and delta
 	firstValue := int64(binary.LittleEndian.Uint64(data[0:8]))
 	firstDelta := int64(binary.LittleEndian.Uint64(data[8:16]))
 
-	// Read variable-length encoded delta-of-deltas
 	dods, err := gc.readVarInts(data[16:])
 	if err != nil {
 		return nil, err
 	}
 
-	// Reconstruct deltas from delta-of-deltas
 	deltas := make([]int64, len(dods)+1)
 	deltas[0] = firstDelta
 	for i := 0; i < len(dods); i++ {
 		deltas[i+1] = deltas[i] + dods[i]
 	}
 
-	// Reconstruct values from deltas
 	values := make([]int64, len(deltas)+1)
 	values[0] = firstValue
 	for i := 0; i < len(deltas); i++ {
@@ -995,7 +700,7 @@ func (gc *GPUCompressor) readVarInts(data []byte) ([]int64, error) {
 			}
 			shift += 7
 		}
-		// ZigZag decode
+
 		v := int64(uv>>1) ^ -int64(uv&1)
 		values = append(values, v)
 	}
@@ -1010,14 +715,12 @@ func (gc *GPUCompressor) GetStats() GPUCompressionStats {
 
 	stats := gc.stats
 
-	// Calculate throughput
 	totalBytes := float64(stats.TotalBytesIn)
 	totalTime := stats.TotalGPUTime + stats.TotalCPUTime
 	if totalTime > 0 {
-		stats.AverageThroughput = totalBytes / totalTime.Seconds() / (1024 * 1024) // MB/s
+		stats.AverageThroughput = totalBytes / totalTime.Seconds() / (1024 * 1024)
 	}
 
-	// Memory pool stats
 	if gc.memoryPool != nil {
 		gc.memoryPool.mu.Lock()
 		stats.MemoryPoolHits = gc.memoryPool.hitCount
@@ -1041,230 +744,4 @@ func (gc *GPUCompressor) GetBackend() GPUBackend {
 // IsGPUAvailable returns true if GPU acceleration is available.
 func (gc *GPUCompressor) IsGPUAvailable() bool {
 	return gc.initialized && gc.backend != GPUBackendNone
-}
-
-// ========== Batch Processing API ==========
-
-// BatchCompressor provides high-throughput batch compression.
-type BatchCompressor struct {
-	gc        *GPUCompressor
-	batchSize int
-	buffer    [][]byte
-	bufferMu  sync.Mutex
-	results   chan batchResult
-}
-
-type batchResult struct {
-	index int
-	data  []byte
-	err   error
-}
-
-// NewBatchCompressor creates a new batch compressor.
-func NewBatchCompressor(gc *GPUCompressor, batchSize int) *BatchCompressor {
-	return &BatchCompressor{
-		gc:        gc,
-		batchSize: batchSize,
-		buffer:    make([][]byte, 0, batchSize),
-		results:   make(chan batchResult, batchSize),
-	}
-}
-
-// Add adds data to the batch buffer.
-func (bc *BatchCompressor) Add(data []byte) {
-	bc.bufferMu.Lock()
-	bc.buffer = append(bc.buffer, data)
-	bc.bufferMu.Unlock()
-}
-
-// Flush compresses all buffered data.
-func (bc *BatchCompressor) Flush(codec CodecType) ([][]byte, error) {
-	bc.bufferMu.Lock()
-	batch := bc.buffer
-	bc.buffer = make([][]byte, 0, bc.batchSize)
-	bc.bufferMu.Unlock()
-
-	if len(batch) == 0 {
-		return nil, nil
-	}
-
-	return bc.gc.CompressBatch(batch, codec)
-}
-
-// ========== Streaming Compression ==========
-
-// StreamingCompressor provides streaming compression with GPU acceleration.
-type StreamingCompressor struct {
-	gc       *GPUCompressor
-	codec    CodecType
-	buffer   *bytes.Buffer
-	bufferMu sync.Mutex
-	window   int
-	output   chan []byte
-}
-
-// NewStreamingCompressor creates a new streaming compressor.
-func NewStreamingCompressor(gc *GPUCompressor, codec CodecType, windowSize int) *StreamingCompressor {
-	return &StreamingCompressor{
-		gc:     gc,
-		codec:  codec,
-		buffer: bytes.NewBuffer(nil),
-		window: windowSize,
-		output: make(chan []byte, 10),
-	}
-}
-
-// Write writes data to the streaming compressor.
-func (sc *StreamingCompressor) Write(data []byte) (int, error) {
-	sc.bufferMu.Lock()
-	defer sc.bufferMu.Unlock()
-
-	n, err := sc.buffer.Write(data)
-	if err != nil {
-		return n, err
-	}
-
-	// Compress when buffer reaches window size
-	if sc.buffer.Len() >= sc.window {
-		chunk := make([]byte, sc.window)
-		sc.buffer.Read(chunk)
-
-		compressed, err := sc.gc.Compress(chunk, sc.codec)
-		if err != nil {
-			return n, err
-		}
-
-		select {
-		case sc.output <- compressed:
-		default:
-			// Output buffer full
-		}
-	}
-
-	return n, nil
-}
-
-// Output returns the compressed output channel.
-func (sc *StreamingCompressor) Output() <-chan []byte {
-	return sc.output
-}
-
-// Flush flushes remaining data.
-func (sc *StreamingCompressor) Flush() ([]byte, error) {
-	sc.bufferMu.Lock()
-	defer sc.bufferMu.Unlock()
-
-	if sc.buffer.Len() == 0 {
-		return nil, nil
-	}
-
-	data := sc.buffer.Bytes()
-	sc.buffer.Reset()
-
-	return sc.gc.Compress(data, sc.codec)
-}
-
-// Close closes the streaming compressor.
-func (sc *StreamingCompressor) Close() error {
-	close(sc.output)
-	return nil
-}
-
-// ========== Benchmark Utilities ==========
-
-// GPUBenchmark provides GPU compression benchmarking.
-type GPUBenchmark struct {
-	gc     *GPUCompressor
-	codec  CodecType
-}
-
-// NewGPUBenchmark creates a new benchmark utility.
-func NewGPUBenchmark(gc *GPUCompressor, codec CodecType) *GPUBenchmark {
-	return &GPUBenchmark{gc: gc, codec: codec}
-}
-
-// BenchmarkResult contains benchmark results.
-type BenchmarkResult struct {
-	DataSize          int
-	CompressedSize    int
-	CompressionRatio  float64
-	CompressionTime   time.Duration
-	DecompressionTime time.Duration
-	Throughput        float64 // MB/s
-	UsedGPU           bool
-}
-
-// Run runs the benchmark with the specified data.
-func (b *GPUBenchmark) Run(data []byte, iterations int) BenchmarkResult {
-	result := BenchmarkResult{
-		DataSize: len(data),
-		UsedGPU:  b.gc.IsGPUAvailable(),
-	}
-
-	// Warmup
-	b.gc.Compress(data, b.codec)
-
-	// Benchmark compression
-	var compressedData []byte
-	start := time.Now()
-	for i := 0; i < iterations; i++ {
-		var err error
-		compressedData, err = b.gc.Compress(data, b.codec)
-		if err != nil {
-			return result
-		}
-	}
-	result.CompressionTime = time.Since(start) / time.Duration(iterations)
-	result.CompressedSize = len(compressedData)
-	result.CompressionRatio = float64(len(data)) / float64(len(compressedData))
-
-	// Benchmark decompression
-	start = time.Now()
-	for i := 0; i < iterations; i++ {
-		_, err := b.gc.Decompress(compressedData, b.codec)
-		if err != nil {
-			return result
-		}
-	}
-	result.DecompressionTime = time.Since(start) / time.Duration(iterations)
-
-	// Calculate throughput
-	result.Throughput = float64(len(data)) / result.CompressionTime.Seconds() / (1024 * 1024)
-
-	return result
-}
-
-// RunSuite runs a benchmark suite with various data sizes.
-func (b *GPUBenchmark) RunSuite(minSize, maxSize, iterations int) []BenchmarkResult {
-	var results []BenchmarkResult
-
-	for size := minSize; size <= maxSize; size *= 2 {
-		// Generate test data (simulated time-series)
-		data := generateBenchmarkData(size)
-		result := b.Run(data, iterations)
-		results = append(results, result)
-	}
-
-	return results
-}
-
-// gpuGenerateBenchmarkData generates benchmark test data for GPU compression.
-func gpuGenerateBenchmarkData(size int) []byte {
-	numFloats := size / 8
-	data := make([]byte, numFloats*8)
-
-	// Generate time-series-like data (monotonic with noise)
-	var prevValue float64 = 100.0
-	for i := 0; i < numFloats; i++ {
-		// Add small delta with occasional larger changes
-		delta := 0.1
-		if i%100 == 0 {
-			delta = 5.0
-		}
-		prevValue += delta
-		bits := math.Float64bits(prevValue)
-		binary.LittleEndian.PutUint64(data[i*8:], bits)
-	}
-
-	return data
 }
