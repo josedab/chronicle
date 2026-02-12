@@ -70,7 +70,7 @@ package chronicle
 // and advanced features still under active development.
 
 // APIVersion is the current API version of Chronicle.
-const APIVersion = "0.1.0"
+const APIVersion = "0.2.0"
 
 // StabilityTier classifies the stability of an API symbol.
 type StabilityTier int
@@ -153,6 +153,26 @@ func BetaAPI() []APISymbol {
 		{Name: "SLOTracker", Kind: "type", Stability: StabilityBeta, Since: "0.1.0"},
 		{Name: "WorkloadLearner", Kind: "type", Stability: StabilityBeta, Since: "0.1.0"},
 		{Name: "Forecaster", Kind: "type", Stability: StabilityBeta, Since: "0.1.0"},
+		// Promoted from Experimental → Beta in v0.9.0
+		{Name: "GRPCIngestionEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "EmbeddedClusterEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "AnomalyDetectionV2Engine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "PrometheusDropInEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "SchemaEvolutionEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "QueryProfilerEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "DistributedQueryCoordinator", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "ContinuousAggEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "DataQualityEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "QueryCostEstimator", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "TagInvertedIndex", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "WritePipelineEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "PointValidatorEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "HealthCheckEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "AuditLogEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "ResultCacheEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "RateControllerEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "WALSnapshotEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
+		{Name: "IncrementalBackupEngine", Kind: "type", Stability: StabilityBeta, Since: "0.9.0"},
 	}
 }
 
@@ -182,5 +202,41 @@ func ExperimentalAPI() []APISymbol {
 		{Name: "HWAcceleratedQueryEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
 		{Name: "MarketplaceEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
 		{Name: "RegulatoryComplianceEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "DuckDBBackendEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.5.0"},
+		{Name: "WASMUDFEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.5.0"},
+		{Name: "EdgeCloudFabricEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.5.0"},
+		{Name: "MetricsSDKEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.5.0"},
+		{Name: "DataLineageEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.6.0"},
+		{Name: "SmartCompactionEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.6.0"},
+		{Name: "MetricCorrelationEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.6.0"},
+		{Name: "AdaptiveSamplingEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.6.0"},
+		{Name: "TSDiffEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.6.0"},
+		{Name: "StreamReplayEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.6.0"},
+		{Name: "MetricLifecycleManager", Kind: "type", Stability: StabilityExperimental, Since: "0.7.0"},
+		{Name: "HotBackupEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.7.0"},
+		{Name: "CrossAlertEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.7.0"},
+		{Name: "WebhookEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.7.0"},
+		{Name: "RetentionOptimizerEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.7.0"},
+		{Name: "BenchRunnerEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.7.0"},
+		{Name: "MetricMetadataStoreEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "ConfigReloadEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "SeriesDedupEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "PartitionPrunerEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "QueryMiddlewareEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "ConnectionPoolEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "StorageStatsEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.8.0"},
+		{Name: "WireProtocolEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "PromScraperEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "ForecastV2Engine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "TenantIsolationEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "OTLPProtoEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "QueryPlanVizEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "DataRehydrationEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "DataMaskingEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "ImportEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "ChaosRecoveryEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.9.0"},
+		{Name: "FeatureFlagEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.10.0"},
+		{Name: "SelfInstrumentationEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.10.0"},
+		{Name: "DeprecationEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.10.0"},
 	}
 }
