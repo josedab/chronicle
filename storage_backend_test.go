@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestFileBackend(t *testing.T) {
@@ -309,5 +310,44 @@ func TestFileBackend_SafePath(t *testing.T) {
 				t.Errorf("unexpected error for key %q: %v", tt.key, err)
 			}
 		})
+	}
+}
+
+func TestLRUCacheWithTTL(t *testing.T) {
+	cache := NewLRUCacheWithTTL(10, 50*time.Millisecond)
+
+	cache.Put("key1", []byte("value1"))
+
+	// Should be retrievable immediately
+	data, ok := cache.Get("key1")
+	if !ok || string(data) != "value1" {
+		t.Errorf("expected to get value1, got %v/%v", string(data), ok)
+	}
+
+	// Wait for TTL to expire
+	time.Sleep(60 * time.Millisecond)
+
+	// Should be expired now
+	_, ok = cache.Get("key1")
+	if ok {
+		t.Error("expected cache entry to be expired")
+	}
+}
+
+func TestLRUCacheNoTTL(t *testing.T) {
+	cache := NewLRUCache(2)
+
+	cache.Put("a", []byte("1"))
+	cache.Put("b", []byte("2"))
+	cache.Put("c", []byte("3")) // evicts "a"
+
+	if _, ok := cache.Get("a"); ok {
+		t.Error("expected 'a' to be evicted")
+	}
+	if _, ok := cache.Get("b"); !ok {
+		t.Error("expected 'b' to still be cached")
+	}
+	if _, ok := cache.Get("c"); !ok {
+		t.Error("expected 'c' to still be cached")
 	}
 }

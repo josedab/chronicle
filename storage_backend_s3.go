@@ -30,9 +30,18 @@ type S3BackendConfig struct {
 	Prefix          string // Key prefix for all objects
 	UsePathStyle    bool   // Use path-style addressing
 	CacheSize       int    // Number of partitions to cache (default: 100)
+	CacheTTL        time.Duration // TTL for cached items (default: 0 = no expiry)
 
 	// Retry configuration
 	MaxRetries int // Max retry attempts for S3 operations (default: 3)
+
+	// MultipartThreshold is the size above which uploads use multipart.
+	// Default: 5MB. Set to 0 to disable multipart.
+	MultipartThreshold int64
+
+	// MultipartPartSize is the size of each multipart upload part.
+	// Default: 5MB. Must be at least 5MB per S3 spec.
+	MultipartPartSize int64
 }
 
 // S3Backend implements StorageBackend using S3 or S3-compatible storage.
@@ -47,6 +56,7 @@ type S3Backend struct {
 // LRUCache is a simple LRU cache for partition data.
 type LRUCache struct {
 	capacity int
+	ttl      time.Duration
 	items    map[string]*cacheItem
 	order    []string
 	mu       sync.Mutex
@@ -65,6 +75,15 @@ func NewLRUCache(capacity int) *LRUCache {
 	}
 }
 
+// NewLRUCacheWithTTL creates a new LRU cache with time-based expiry.
+func NewLRUCacheWithTTL(capacity int, ttl time.Duration) *LRUCache {
+	return &LRUCache{
+		capacity: capacity,
+		ttl:      ttl,
+		items:    make(map[string]*cacheItem),
+	}
+}
+
 // Get retrieves an item from the cache.
 func (c *LRUCache) Get(key string) ([]byte, bool) {
 	c.mu.Lock()
@@ -72,6 +91,18 @@ func (c *LRUCache) Get(key string) ([]byte, bool) {
 
 	item, ok := c.items[key]
 	if !ok {
+		return nil, false
+	}
+
+	// TTL eviction
+	if c.ttl > 0 && time.Since(item.timestamp) > c.ttl {
+		delete(c.items, key)
+		for i, k := range c.order {
+			if k == key {
+				c.order = append(c.order[:i], c.order[i+1:]...)
+				break
+			}
+		}
 		return nil, false
 	}
 
@@ -141,6 +172,12 @@ func NewS3Backend(cfg S3BackendConfig) (*S3Backend, error) {
 	if cfg.MaxRetries <= 0 {
 		cfg.MaxRetries = 3
 	}
+	if cfg.MultipartThreshold <= 0 {
+		cfg.MultipartThreshold = 5 * 1024 * 1024 // 5MB
+	}
+	if cfg.MultipartPartSize <= 0 {
+		cfg.MultipartPartSize = 5 * 1024 * 1024 // 5MB minimum per S3 spec
+	}
 
 	// Build AWS config options
 	var opts []func(*config.LoadOptions) error
@@ -172,7 +209,7 @@ func NewS3Backend(cfg S3BackendConfig) (*S3Backend, error) {
 	return &S3Backend{
 		client: client,
 		config: cfg,
-		cache:  NewLRUCache(cfg.CacheSize),
+		cache:  NewLRUCacheWithTTL(cfg.CacheSize, cfg.CacheTTL),
 		retryer: NewRetryer(RetryConfig{
 			MaxAttempts:       cfg.MaxRetries,
 			InitialBackoff:    100 * time.Millisecond,
@@ -221,6 +258,15 @@ func (s *S3Backend) Read(ctx context.Context, key string) ([]byte, error) {
 func (s *S3Backend) Write(ctx context.Context, key string, data []byte) error {
 	fullKey := s.config.Prefix + key
 
+	// Use multipart upload for large objects
+	if int64(len(data)) > s.config.MultipartThreshold {
+		if err := s.writeMultipart(ctx, fullKey, data); err != nil {
+			return err
+		}
+		s.cache.Put(fullKey, data)
+		return nil
+	}
+
 	result := s.retryer.Do(ctx, func() error {
 		_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 			Bucket: aws.String(s.config.Bucket),
@@ -238,6 +284,64 @@ func (s *S3Backend) Write(ctx context.Context, key string, data []byte) error {
 	}
 
 	s.cache.Put(fullKey, data)
+	return nil
+}
+
+func (s *S3Backend) writeMultipart(ctx context.Context, fullKey string, data []byte) error {
+	createResp, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(s.config.Bucket),
+		Key:    aws.String(fullKey),
+	})
+	if err != nil {
+		return fmt.Errorf("S3 create multipart upload failed: %w", err)
+	}
+
+	uploadID := createResp.UploadId
+	partSize := s.config.MultipartPartSize
+	var completedParts []s3types.CompletedPart
+
+	for partNum := int32(1); int64((partNum-1))*partSize < int64(len(data)); partNum++ {
+		start := int64(partNum-1) * partSize
+		end := start + partSize
+		if end > int64(len(data)) {
+			end = int64(len(data))
+		}
+
+		uploadResult, err := s.client.UploadPart(ctx, &s3.UploadPartInput{
+			Bucket:     aws.String(s.config.Bucket),
+			Key:        aws.String(fullKey),
+			UploadId:   uploadID,
+			PartNumber: aws.Int32(partNum),
+			Body:       bytes.NewReader(data[start:end]),
+		})
+		if err != nil {
+			// Abort on failure
+			_, _ = s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+				Bucket:   aws.String(s.config.Bucket),
+				Key:      aws.String(fullKey),
+				UploadId: uploadID,
+			})
+			return fmt.Errorf("S3 upload part %d failed: %w", partNum, err)
+		}
+
+		completedParts = append(completedParts, s3types.CompletedPart{
+			ETag:       uploadResult.ETag,
+			PartNumber: aws.Int32(partNum),
+		})
+	}
+
+	_, err = s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(s.config.Bucket),
+		Key:      aws.String(fullKey),
+		UploadId: uploadID,
+		MultipartUpload: &s3types.CompletedMultipartUpload{
+			Parts: completedParts,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("S3 complete multipart upload failed: %w", err)
+	}
+
 	return nil
 }
 
