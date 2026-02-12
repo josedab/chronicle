@@ -8,6 +8,10 @@ before:
 builds:
   - skip: true  # Library-only, no binaries
 
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
 changelog:
   sort: asc
   use: github
@@ -23,6 +27,9 @@ changelog:
     - title: Bug Fixes
       regexp: "^.*fix.*"
       order: 1
+    - title: Performance
+      regexp: "^.*perf.*"
+      order: 2
     - title: Others
       order: 999
 
@@ -37,3 +44,11 @@ release:
     ## Chronicle {{ .Tag }}
     
     Install: `go get github.com/chronicle-db/chronicle@{{ .Tag }}`
+    
+    ### Verification
+    ```bash
+    # Verify checksum
+    sha256sum -c checksums.txt
+    ```
+  extra_files:
+    - glob: sbom.spdx.json

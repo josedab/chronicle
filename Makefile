@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench check quickcheck cover cover-report vet setup install-hooks preflight release-check tag help
+.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench benchmark check quickcheck cover cover-report vet setup install-hooks preflight release-check tag check-interface check-api-stability wasm help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -25,7 +25,7 @@ build: ## Build the package
 	$(GO) build ./...
 
 test: ## Run tests with race detector
-	$(GO) test $(GOFLAGS) ./...
+	$(GO) test $(GOFLAGS) -count=1 ./...
 
 test-short: ## Run short tests only (fast iteration)
 	$(GO) test -short ./...
@@ -76,10 +76,19 @@ fmt: ## Format code
 bench: ## Run benchmarks
 	$(GO) test -bench=. -benchmem ./...
 
+benchmark: ## Run benchmarks and save results for comparison
+	$(GO) test -bench=. -benchmem -count=5 -short -run=^$$ ./... | tee benchmark-results.txt
+	@echo "✓ Results saved to benchmark-results.txt"
+	@echo "  Compare with: benchstat old.txt benchmark-results.txt"
+
 clean: ## Clean build artifacts
-	rm -f coverage.out coverage.html
+	rm -f coverage.out coverage.html benchmark-results.txt
 	rm -f *.db *.db.wal
 	rm -f *.test
+	rm -f wasm/chronicle.wasm
+
+wasm: ## Build WASM module
+	@./scripts/build-wasm.sh
 
 vuln: ## Check for vulnerabilities
 	govulncheck ./...
@@ -88,11 +97,14 @@ setup: ## Install development tools
 	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
 	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+	$(GO) install golang.org/x/perf/cmd/benchstat@latest
 
-release-check: ## Run all checks before a release (vet + lint + full tests + vuln)
+release-check: ## Run all checks before a release (vet + lint + full tests + vuln + interface + API stability)
 	$(GO) vet ./...
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
 	$(GO) test $(GOFLAGS) -short ./...
+	@$(MAKE) check-interface
+	@$(MAKE) check-api-stability
 	govulncheck ./... || true
 	@echo "✓ Release checks passed"
 
@@ -104,6 +116,18 @@ endif
 	git tag -a $(VERSION) -m "Release $(VERSION)"
 	git push origin $(VERSION)
 	@echo "✓ Tag $(VERSION) pushed — release workflow will run automatically"
+
+check-interface: ## Check for legacy interface{} usage (should use 'any')
+	@FOUND=$$(grep -rn 'interface{}' --include='*.go' . | grep -v vendor | grep -v '.git' | grep -v '_test.go' || true); \
+	if [ -n "$$FOUND" ]; then \
+		echo "ERROR: Found legacy interface{} usage (use 'any' instead):"; \
+		echo "$$FOUND"; \
+		exit 1; \
+	fi
+	@echo "✓ No legacy interface{} found"
+
+check-api-stability: ## Verify stable API symbols are tested
+	@$(GO) test -run 'TestStableAPI' -count=1 ./... > /dev/null 2>&1 && echo "✓ API stability tests pass" || { echo "ERROR: API stability tests failed"; exit 1; }
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
