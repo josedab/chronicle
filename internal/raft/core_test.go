@@ -1,4 +1,4 @@
-package chronicle
+package raft
 
 import (
 	"context"
@@ -10,6 +10,42 @@ import (
 	"testing"
 	"time"
 )
+
+// mockStorageEngine implements StorageEngine for testing.
+type mockStorageEngine struct {
+	mu      sync.Mutex
+	points  []Point
+	metrics []string
+}
+
+func (m *mockStorageEngine) Write(p Point) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.points = append(m.points, p)
+	return nil
+}
+
+func (m *mockStorageEngine) ExecuteQuery(_ context.Context, metric string, start, end int64) (*QueryResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var pts []Point
+	for _, p := range m.points {
+		if p.Metric == metric && p.Timestamp >= start && p.Timestamp <= end {
+			pts = append(pts, p)
+		}
+	}
+	return &QueryResult{Points: pts}, nil
+}
+
+func (m *mockStorageEngine) Metrics() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.metrics
+}
+
+func newTestStore() *mockStorageEngine {
+	return &mockStorageEngine{}
+}
 
 func TestRaftConfig(t *testing.T) {
 	config := DefaultRaftConfig()
@@ -223,14 +259,13 @@ func TestRaftLogPersistence(t *testing.T) {
 }
 
 func TestRaftNodeCreation(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "test-node"
 	config.BindAddr = ""
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -247,14 +282,13 @@ func TestRaftNodeCreation(t *testing.T) {
 }
 
 func TestRaftNodeStartStop(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "test-node"
 	config.BindAddr = "" // No server
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -276,8 +310,7 @@ func TestRaftNodeStartStop(t *testing.T) {
 }
 
 func TestRaftNodeStats(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "stats-node"
@@ -286,7 +319,7 @@ func TestRaftNodeStats(t *testing.T) {
 		{ID: "peer2", Addr: "localhost:9002"},
 	}
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -378,8 +411,7 @@ func TestRaftCommand(t *testing.T) {
 func TestRaftPersistentState(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "persist-node"
@@ -387,7 +419,7 @@ func TestRaftPersistentState(t *testing.T) {
 	config.BindAddr = ""
 
 	// Create node and set state
-	node1, err := NewRaftNode(db, config)
+	node1, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -402,7 +434,7 @@ func TestRaftPersistentState(t *testing.T) {
 	}
 
 	// Create new node and verify state was loaded
-	node2, err := NewRaftNode(db, config)
+	node2, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create second node: %v", err)
 	}
@@ -451,14 +483,13 @@ func TestRaftEventListener(t *testing.T) {
 		commits:       make([]uint64, 0),
 	}
 
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "listener-node"
 	config.BindAddr = ""
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -522,15 +553,14 @@ func (l *testRaftEventListener) OnSnapshot(index uint64, term uint64) {
 func TestRaftSnapshot(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "snapshot-node"
 	config.DataDir = tmpDir
 	config.BindAddr = ""
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -582,14 +612,13 @@ func TestRaftMembershipChange(t *testing.T) {
 }
 
 func TestRaftCluster(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "cluster-node"
 	config.BindAddr = ""
 
-	cluster, err := NewRaftCluster(db, config)
+	cluster, err := NewRaftCluster(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
@@ -692,14 +721,13 @@ func TestRaftLogEntryTypes(t *testing.T) {
 }
 
 func TestRaftBecomeFollower(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "test-node"
 	config.BindAddr = ""
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -796,14 +824,13 @@ func TestRaftLogConcurrency(t *testing.T) {
 }
 
 func TestRaftNodeNotRunning(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "test-node"
 	config.BindAddr = ""
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -817,14 +844,13 @@ func TestRaftNodeNotRunning(t *testing.T) {
 }
 
 func TestRaftLinearizableReadNotLeader(t *testing.T) {
-	db, cleanup := createTestDB(t)
-	defer cleanup()
+	store := newTestStore()
 
 	config := DefaultRaftConfig()
 	config.NodeID = "test-node"
 	config.BindAddr = ""
 
-	node, err := NewRaftNode(db, config)
+	node, err := NewRaftNode(store, config)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
@@ -885,25 +911,4 @@ func BenchmarkRaftCommandSerialization(b *testing.B) {
 		var decoded RaftCommand
 		_ = json.Unmarshal(data, &decoded)
 	}
-}
-
-func createTestDB(t *testing.T) (*DB, func()) {
-	t.Helper()
-
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-
-	db, err := Open(dbPath, Config{
-		PartitionDuration: time.Hour,
-		BufferSize:        100,
-	})
-	if err != nil {
-		t.Fatalf("Failed to open DB: %v", err)
-	}
-
-	cleanup := func() {
-		db.Close()
-	}
-
-	return db, cleanup
 }
