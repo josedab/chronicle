@@ -20,6 +20,8 @@ import (
 )
 
 // AdaptiveCompressionConfig configures the adaptive compression engine.
+//
+// Deprecated: Use [AdaptiveCompressionV3Config] instead.
 type AdaptiveCompressionConfig struct {
 	// Enabled enables adaptive compression.
 	Enabled bool
@@ -44,6 +46,8 @@ type AdaptiveCompressionConfig struct {
 }
 
 // DefaultAdaptiveCompressionConfig returns default configuration.
+//
+// Deprecated: Use [DefaultAdaptiveCompressionV3Config] instead.
 func DefaultAdaptiveCompressionConfig() AdaptiveCompressionConfig {
 	return AdaptiveCompressionConfig{
 		Enabled:             true,
@@ -147,6 +151,8 @@ type DataCharacteristics struct {
 }
 
 // AdaptiveCompressionEngine provides ML-driven adaptive compression.
+//
+// Deprecated: Use [AdaptiveCompressorV3] (BanditCompressor) instead.
 type AdaptiveCompressionEngine struct {
 	config AdaptiveCompressionConfig
 
@@ -179,6 +185,8 @@ type CodecPerformance struct {
 }
 
 // NewAdaptiveCompressionEngine creates a new adaptive compression engine.
+//
+// Deprecated: Use [NewAdaptiveCompressorV3] instead.
 func NewAdaptiveCompressionEngine(config AdaptiveCompressionConfig) *AdaptiveCompressionEngine {
 	ctx, cancel := context.WithCancel(context.Background())
 

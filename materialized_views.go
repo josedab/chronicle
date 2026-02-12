@@ -23,6 +23,8 @@ const (
 )
 
 // MaterializedViewConfig controls the materialized view engine behaviour.
+//
+// Deprecated: Use [MaterializedViewV2Config] instead.
 type MaterializedViewConfig struct {
 	MaxViews         int
 	DefaultStaleness time.Duration
@@ -32,6 +34,8 @@ type MaterializedViewConfig struct {
 }
 
 // DefaultMaterializedViewConfig returns sensible defaults.
+//
+// Deprecated: Use [DefaultMaterializedViewV2Config] instead.
 func DefaultMaterializedViewConfig() MaterializedViewConfig {
 	return MaterializedViewConfig{
 		MaxViews:         256,
@@ -408,6 +412,8 @@ type MaterializedViewStats struct {
 // --- Materialized View Engine ----------------------------------------------
 
 // MaterializedViewEngine is the main orchestrator for incremental materialized views.
+//
+// Deprecated: Use [MaterializedViewV2Engine] instead.
 type MaterializedViewEngine struct {
 	config  MaterializedViewConfig
 	store   *MaterializedViewStore
@@ -425,6 +431,8 @@ type MaterializedViewEngine struct {
 }
 
 // NewMaterializedViewEngine creates a new engine bound to the given DB.
+//
+// Deprecated: Use [NewMaterializedViewV2Engine] instead.
 func NewMaterializedViewEngine(db *DB, config MaterializedViewConfig) *MaterializedViewEngine {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MaterializedViewEngine{
