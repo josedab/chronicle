@@ -1,5 +1,9 @@
 package chronicle
 
+// STUB: The Terraform provider defines resource types but does not integrate with
+// the Terraform plugin SDK. It cannot manage real infrastructure.
+// See FEATURE_MATURITY.md for details.
+
 import (
 	"encoding/json"
 	"fmt"

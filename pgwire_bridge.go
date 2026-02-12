@@ -1,10 +1,9 @@
 // Bridge: pgwire_bridge.go
 //
-// This file bridges internal/pgwire/ into the public chronicle package.
-// It re-exports types so that callers can use the PostgreSQL wire protocol
-// server via the top-level chronicle API.
-//
-// Pattern: internal/pgwire/ (implementation) → pgwire_bridge.go (public API)
+// STUB: The PostgreSQL wire protocol is not fully implemented.
+// This bridge re-exports internal types but the wire protocol handshake,
+// authentication, and query execution over the wire are not functional.
+// See FEATURE_MATURITY.md for details.
 
 package chronicle
 
