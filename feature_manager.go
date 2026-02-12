@@ -1,8 +1,20 @@
 package chronicle
 
 import (
+	"log"
 	"sync"
 )
+
+// safeInit runs fn and recovers from panics, logging the error.
+// This prevents a single feature initialization failure from crashing the process.
+func safeInit(name string, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("chronicle: feature %q initialization panicked: %v", name, r)
+		}
+	}()
+	fn()
+}
 
 // FeatureManager manages optional database features like exemplars,
 // histograms, cardinality tracking, and alerting.
@@ -321,7 +333,9 @@ func (fm *FeatureManager) SchemaRegistry() *SchemaRegistry {
 // CQLEngine returns the CQL query engine.
 func (fm *FeatureManager) CQLEngine() *CQLEngine {
 	fm.cqlEngineOnce.Do(func() {
-		fm.cqlEngine = NewCQLEngine(fm.db, fm.cqlConfig)
+		safeInit("cql", func() {
+			fm.cqlEngine = NewCQLEngine(fm.db, fm.cqlConfig)
+		})
 	})
 	return fm.cqlEngine
 }
@@ -329,15 +343,21 @@ func (fm *FeatureManager) CQLEngine() *CQLEngine {
 // Observability returns the observability suite.
 func (fm *FeatureManager) Observability() *ObservabilitySuite {
 	fm.observabilityOnce.Do(func() {
-		fm.observability = NewObservabilitySuite(fm.observabilityConfig)
+		safeInit("observability", func() {
+			fm.observability = NewObservabilitySuite(fm.observabilityConfig)
+		})
 	})
 	return fm.observability
 }
 
-// MaterializedViews returns the materialized view engine.
+// MaterializedViews returns the V1 materialized view engine.
+//
+// Deprecated: Use [FeatureManager.MaterializedViewsV2] instead.
 func (fm *FeatureManager) MaterializedViews() *MaterializedViewEngine {
 	fm.materializedViewsOnce.Do(func() {
-		fm.materializedViews = NewMaterializedViewEngine(fm.db, fm.materializedViewsConfig)
+		safeInit("materialized_views", func() {
+			fm.materializedViews = NewMaterializedViewEngine(fm.db, fm.materializedViewsConfig)
+		})
 	})
 	return fm.materializedViews
 }
@@ -345,7 +365,9 @@ func (fm *FeatureManager) MaterializedViews() *MaterializedViewEngine {
 // ChaosInjector returns the fault injector.
 func (fm *FeatureManager) ChaosInjector() *FaultInjector {
 	fm.chaosInjectorOnce.Do(func() {
-		fm.chaosInjector = NewFaultInjector(DefaultChaosConfig())
+		safeInit("chaos", func() {
+			fm.chaosInjector = NewFaultInjector(DefaultChaosConfig())
+		})
 	})
 	return fm.chaosInjector
 }
@@ -353,7 +375,9 @@ func (fm *FeatureManager) ChaosInjector() *FaultInjector {
 // OfflineSync returns the offline sync manager.
 func (fm *FeatureManager) OfflineSync() *OfflineSyncManager {
 	fm.offlineSyncOnce.Do(func() {
-		fm.offlineSync = NewOfflineSyncManager(DefaultOfflineSyncConfig())
+		safeInit("offline_sync", func() {
+			fm.offlineSync = NewOfflineSyncManager(DefaultOfflineSyncConfig())
+		})
 	})
 	return fm.offlineSync
 }
@@ -361,7 +385,9 @@ func (fm *FeatureManager) OfflineSync() *OfflineSyncManager {
 // AnomalyPipeline returns the streaming anomaly detection pipeline.
 func (fm *FeatureManager) AnomalyPipeline() *AnomalyPipeline {
 	fm.anomalyPipelineOnce.Do(func() {
-		fm.anomalyPipeline = NewAnomalyPipeline(fm.db, DefaultAnomalyPipelineConfig())
+		safeInit("anomaly_pipeline", func() {
+			fm.anomalyPipeline = NewAnomalyPipeline(fm.db, DefaultAnomalyPipelineConfig())
+		})
 	})
 	return fm.anomalyPipeline
 }
@@ -369,7 +395,9 @@ func (fm *FeatureManager) AnomalyPipeline() *AnomalyPipeline {
 // AnomalyCorrelation returns the anomaly correlation engine.
 func (fm *FeatureManager) AnomalyCorrelation() *AnomalyCorrelationEngine {
 	fm.anomalyCorrelationOnce.Do(func() {
-		fm.anomalyCorrelation = NewAnomalyCorrelationEngine(fm.db, DefaultAnomalyCorrelationConfig())
+		safeInit("anomaly_correlation", func() {
+			fm.anomalyCorrelation = NewAnomalyCorrelationEngine(fm.db, DefaultAnomalyCorrelationConfig())
+		})
 	})
 	return fm.anomalyCorrelation
 }
@@ -377,7 +405,9 @@ func (fm *FeatureManager) AnomalyCorrelation() *AnomalyCorrelationEngine {
 // CloudRelay returns the cloud relay agent.
 func (fm *FeatureManager) CloudRelay() *CloudRelay {
 	fm.cloudRelayOnce.Do(func() {
-		fm.cloudRelay = NewCloudRelay(fm.db, DefaultCloudRelayConfig())
+		safeInit("cloud_relay", func() {
+			fm.cloudRelay = NewCloudRelay(fm.db, DefaultCloudRelayConfig())
+		})
 	})
 	return fm.cloudRelay
 }
@@ -385,7 +415,9 @@ func (fm *FeatureManager) CloudRelay() *CloudRelay {
 // Playground returns the query playground.
 func (fm *FeatureManager) Playground() *Playground {
 	fm.playgroundOnce.Do(func() {
-		fm.playground = NewPlayground(fm.db, DefaultPlaygroundConfig())
+		safeInit("playground", func() {
+			fm.playground = NewPlayground(fm.db, DefaultPlaygroundConfig())
+		})
 	})
 	return fm.playground
 }
@@ -393,7 +425,9 @@ func (fm *FeatureManager) Playground() *Playground {
 // QueryPlanner returns the adaptive query planner.
 func (fm *FeatureManager) QueryPlanner() *QueryPlanner {
 	fm.queryPlannerOnce.Do(func() {
-		fm.queryPlanner = NewQueryPlanner(fm.db, DefaultQueryPlannerConfig())
+		safeInit("query_planner", func() {
+			fm.queryPlanner = NewQueryPlanner(fm.db, DefaultQueryPlannerConfig())
+		})
 	})
 	return fm.queryPlanner
 }
@@ -401,7 +435,9 @@ func (fm *FeatureManager) QueryPlanner() *QueryPlanner {
 // ConnectorHub returns the connector hub.
 func (fm *FeatureManager) ConnectorHub() *ConnectorHub {
 	fm.connectorHubOnce.Do(func() {
-		fm.connectorHub = NewConnectorHub(fm.db, DefaultConnectorHubConfig())
+		safeInit("connector_hub", func() {
+			fm.connectorHub = NewConnectorHub(fm.db, DefaultConnectorHubConfig())
+		})
 	})
 	return fm.connectorHub
 }
