@@ -3,6 +3,7 @@ package chronicle
 import (
 	"context"
 	"errors"
+	"regexp"
 	"sort"
 	"time"
 )
@@ -259,6 +260,21 @@ func matchesTagFilters(seriesTags map[string]string, filters []TagFilter) bool {
 			}
 			if !matched {
 				return false
+			}
+		case TagOpRegex:
+			if len(filter.Values) == 0 {
+				return false
+			}
+			re, err := regexp.Compile(filter.Values[0])
+			if err != nil || !re.MatchString(value) {
+				return false
+			}
+		case TagOpNotRegex:
+			if len(filter.Values) > 0 {
+				re, err := regexp.Compile(filter.Values[0])
+				if err == nil && re.MatchString(value) {
+					return false
+				}
 			}
 		default:
 			return false

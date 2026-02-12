@@ -187,6 +187,30 @@ func TestMatchSeriesTagFilters(t *testing.T) {
 			filters:    []TagFilter{{Key: "host", Op: TagOp(99), Values: []string{"a"}}},
 			want:       false,
 		},
+		{
+			name:       "regex match",
+			seriesTags: map[string]string{"method": "GET"},
+			filters:    []TagFilter{{Key: "method", Op: TagOpRegex, Values: []string{"GET|POST"}}},
+			want:       true,
+		},
+		{
+			name:       "regex no match",
+			seriesTags: map[string]string{"method": "DELETE"},
+			filters:    []TagFilter{{Key: "method", Op: TagOpRegex, Values: []string{"GET|POST"}}},
+			want:       false,
+		},
+		{
+			name:       "not regex match (excluded)",
+			seriesTags: map[string]string{"status": "500"},
+			filters:    []TagFilter{{Key: "status", Op: TagOpNotRegex, Values: []string{"5.."}}},
+			want:       false,
+		},
+		{
+			name:       "not regex no match (included)",
+			seriesTags: map[string]string{"status": "200"},
+			filters:    []TagFilter{{Key: "status", Op: TagOpNotRegex, Values: []string{"5.."}}},
+			want:       true,
+		},
 	}
 
 	for _, tt := range tests {
