@@ -1,4 +1,4 @@
-package chronicle
+package cql
 
 import (
 	"testing"
@@ -159,15 +159,7 @@ func TestCQLTranslator_ToQuery(t *testing.T) {
 }
 
 func TestCQLEngine_Validate(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := dir + "/test.db"
-	db, err := Open(dbPath, DefaultConfig(dbPath))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
-
-	engine := NewCQLEngine(db, DefaultCQLConfig())
+	engine := NewCQLEngine(nil, DefaultCQLConfig())
 
 	t.Run("ValidQuery", func(t *testing.T) {
 		if err := engine.Validate("SELECT value FROM cpu"); err != nil {
@@ -183,15 +175,7 @@ func TestCQLEngine_Validate(t *testing.T) {
 }
 
 func TestCQLEngine_Explain(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := dir + "/test.db"
-	db, err := Open(dbPath, DefaultConfig(dbPath))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
-
-	engine := NewCQLEngine(db, DefaultCQLConfig())
+	engine := NewCQLEngine(nil, DefaultCQLConfig())
 	result, err := engine.Explain("SELECT avg(value) FROM cpu")
 	if err != nil {
 		t.Fatalf("Explain: %v", err)

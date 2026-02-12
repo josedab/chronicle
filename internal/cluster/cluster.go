@@ -1,7 +1,6 @@
-package chronicle
+package cluster
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,223 +8,10 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 )
-
-// ClusterConfig configures the distributed clustering behavior.
-type ClusterConfig struct {
-	// NodeID is the unique identifier for this node.
-	NodeID string
-
-	// BindAddr is the address to bind for cluster communication.
-	BindAddr string
-
-	// AdvertiseAddr is the address to advertise to other nodes.
-	AdvertiseAddr string
-
-	// Seeds are initial nodes to join the cluster.
-	Seeds []string
-
-	// ElectionTimeout is the timeout for leader election.
-	ElectionTimeout time.Duration
-
-	// HeartbeatInterval is how often the leader sends heartbeats.
-	HeartbeatInterval time.Duration
-
-	// ReplicationMode determines how data is replicated.
-	ReplicationMode ReplicationMode
-
-	// MinReplicas is the minimum replicas required for write acknowledgment.
-	MinReplicas int
-
-	// EnableLocalWrites allows writes on followers (eventual consistency).
-	EnableLocalWrites bool
-
-	// GossipInterval is how often to exchange cluster state.
-	GossipInterval time.Duration
-
-	// FailureDetectorTimeout is how long before a node is considered failed.
-	FailureDetectorTimeout time.Duration
-}
-
-// ReplicationMode defines how data is replicated across the cluster.
-type ReplicationMode int
-
-const (
-	// ReplicationAsync performs asynchronous replication.
-	ReplicationAsync ReplicationMode = iota
-	// ReplicationSync performs synchronous replication (strong consistency).
-	ReplicationSync
-	// ReplicationQuorum requires majority acknowledgment.
-	ReplicationQuorum
-)
-
-// NodeState represents the state of a cluster node.
-type NodeState int
-
-const (
-	// NodeStateFollower is a node following the leader.
-	NodeStateFollower NodeState = iota
-	// NodeStateCandidate is a node running for leader election.
-	NodeStateCandidate
-	// NodeStateLeader is the cluster leader.
-	NodeStateLeader
-)
-
-func (s NodeState) String() string {
-	switch s {
-	case NodeStateFollower:
-		return "follower"
-	case NodeStateCandidate:
-		return "candidate"
-	case NodeStateLeader:
-		return "leader"
-	default:
-		return "unknown"
-	}
-}
-
-// DefaultClusterConfig returns default cluster configuration.
-func DefaultClusterConfig() ClusterConfig {
-	return ClusterConfig{
-		NodeID:                 fmt.Sprintf("node-%d", time.Now().UnixNano()%10000),
-		ElectionTimeout:        150 * time.Millisecond,
-		HeartbeatInterval:      50 * time.Millisecond,
-		ReplicationMode:        ReplicationQuorum,
-		MinReplicas:            1,
-		EnableLocalWrites:      true,
-		GossipInterval:         time.Second,
-		FailureDetectorTimeout: 5 * time.Second,
-	}
-}
-
-// ClusterNode represents a node in the cluster.
-type ClusterNode struct {
-	ID            string
-	Addr          string
-	State         NodeState
-	Term          uint64
-	LastHeartbeat time.Time
-	Healthy       bool
-	Metadata      map[string]string
-}
-
-// Cluster manages distributed coordination for Chronicle.
-type Cluster struct {
-	db     *DB
-	config ClusterConfig
-
-	// Raft-like state
-	currentTerm  uint64
-	votedFor     string
-	state        NodeState
-	leaderID     string
-	lastLogIndex uint64
-	lastLogTerm  uint64
-	commitIndex  uint64
-
-	// Cluster membership
-	nodes   map[string]*ClusterNode
-	nodesMu sync.RWMutex
-
-	// Log replication
-	log     []LogEntry
-	logMu   sync.RWMutex
-	applied uint64
-
-	// Election state
-	electionTimer   *time.Timer
-	heartbeatTicker *time.Ticker
-	votesReceived   map[string]bool
-
-	// Communication
-	client *http.Client
-	server *http.Server
-
-	// Lifecycle
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
-	running   atomic.Bool
-	stateMu   sync.RWMutex
-	listeners []ClusterEventListener
-}
-
-// LogEntry represents a replicated log entry.
-type LogEntry struct {
-	Index     uint64          `json:"index"`
-	Term      uint64          `json:"term"`
-	Type      LogEntryType    `json:"type"`
-	Data      json.RawMessage `json:"data"`
-	Timestamp time.Time       `json:"timestamp"`
-}
-
-// LogEntryType identifies the type of log entry.
-type LogEntryType int
-
-const (
-	// LogEntryWrite is a write operation.
-	LogEntryWrite LogEntryType = iota
-	// LogEntryConfig is a configuration change.
-	LogEntryConfig
-	// LogEntryNoop is a no-op entry for leader confirmation.
-	LogEntryNoop
-)
-
-// ClusterEventListener receives cluster events.
-type ClusterEventListener interface {
-	OnLeaderChange(leaderID string)
-	OnNodeJoin(nodeID string)
-	OnNodeLeave(nodeID string)
-	OnStateChange(state NodeState)
-}
-
-// NewCluster creates a new cluster coordinator.
-func NewCluster(db *DB, config ClusterConfig) (*Cluster, error) {
-	if config.NodeID == "" {
-		config.NodeID = fmt.Sprintf("node-%d", time.Now().UnixNano()%10000)
-	}
-	if config.ElectionTimeout <= 0 {
-		config.ElectionTimeout = 150 * time.Millisecond
-	}
-	if config.HeartbeatInterval <= 0 {
-		config.HeartbeatInterval = 50 * time.Millisecond
-	}
-	if config.FailureDetectorTimeout <= 0 {
-		config.FailureDetectorTimeout = 5 * time.Second
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	c := &Cluster{
-		db:            db,
-		config:        config,
-		state:         NodeStateFollower,
-		nodes:         make(map[string]*ClusterNode),
-		log:           make([]LogEntry, 0),
-		votesReceived: make(map[string]bool),
-		client: &http.Client{
-			Timeout: config.ElectionTimeout,
-		},
-		ctx:    ctx,
-		cancel: cancel,
-	}
-
-	// Add self to nodes
-	c.nodes[config.NodeID] = &ClusterNode{
-		ID:            config.NodeID,
-		Addr:          config.AdvertiseAddr,
-		State:         NodeStateFollower,
-		LastHeartbeat: time.Now(),
-		Healthy:       true,
-		Metadata:      make(map[string]string),
-	}
-
-	return c, nil
-}
 
 // Start begins cluster operations.
 func (c *Cluster) Start() error {
@@ -234,7 +20,6 @@ func (c *Cluster) Start() error {
 	}
 	c.running.Store(true)
 
-	// Start HTTP server for cluster communication
 	if c.config.BindAddr != "" {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/cluster/vote", c.handleVoteRequest)
@@ -251,26 +36,22 @@ func (c *Cluster) Start() error {
 		go func() {
 			defer c.wg.Done()
 			if err := c.server.ListenAndServe(); err != http.ErrServerClosed {
-				// Log error
+
 			}
 		}()
 	}
 
-	// Join seed nodes
 	for _, seed := range c.config.Seeds {
 		if err := c.joinNode(seed); err != nil {
-			// Log but continue
+
 		}
 	}
 
-	// Start election timer
 	c.resetElectionTimer()
 
-	// Start gossip
 	c.wg.Add(1)
 	go c.gossipLoop()
 
-	// Start failure detector
 	c.wg.Add(1)
 	go c.failureDetectorLoop()
 
@@ -349,27 +130,25 @@ func (c *Cluster) Nodes() []*ClusterNode {
 
 // Write performs a replicated write operation.
 func (c *Cluster) Write(p Point) error {
-	// If we're the leader, replicate to followers
+
 	if c.IsLeader() {
 		return c.leaderWrite(p)
 	}
 
-	// If local writes enabled, write locally and forward to leader
 	if c.config.EnableLocalWrites {
-		if err := c.db.Write(p); err != nil {
+		if err := c.pw.WritePoint(p); err != nil {
 			return err
 		}
-		// Forward to leader asynchronously
+
 		go c.forwardToLeader(p)
 		return nil
 	}
 
-	// Forward to leader synchronously
 	return c.forwardToLeader(p)
 }
 
 func (c *Cluster) leaderWrite(p Point) error {
-	// Create log entry
+
 	data, err := json.Marshal(p)
 	if err != nil {
 		return err
@@ -387,15 +166,14 @@ func (c *Cluster) leaderWrite(p Point) error {
 	c.lastLogIndex = entry.Index
 	c.logMu.Unlock()
 
-	// Replicate based on mode
 	switch c.config.ReplicationMode {
 	case ReplicationSync:
 		return c.replicateSync(entry)
 	case ReplicationQuorum:
 		return c.replicateQuorum(entry)
-	default: // ReplicationAsync
+	default:
 		go c.replicateAsync(entry)
-		return c.db.Write(p)
+		return c.pw.WritePoint(p)
 	}
 }
 
@@ -426,7 +204,6 @@ func (c *Cluster) replicateSync(entry LogEntry) error {
 	wg.Wait()
 	close(errors)
 
-	// Check for errors
 	for err := range errors {
 		if err != nil {
 			return err
@@ -438,7 +215,7 @@ func (c *Cluster) replicateSync(entry LogEntry) error {
 	if err := json.Unmarshal(entry.Data, &p); err != nil {
 		return err
 	}
-	return c.db.Write(p)
+	return c.pw.WritePoint(p)
 }
 
 func (c *Cluster) replicateQuorum(entry LogEntry) error {
@@ -453,7 +230,7 @@ func (c *Cluster) replicateQuorum(entry LogEntry) error {
 	c.nodesMu.RUnlock()
 
 	quorum := (totalNodes / 2) + 1
-	successCount := int32(1) // Count self
+	successCount := int32(1)
 
 	var wg sync.WaitGroup
 	for _, node := range nodes {
@@ -474,7 +251,7 @@ func (c *Cluster) replicateQuorum(entry LogEntry) error {
 		if err := json.Unmarshal(entry.Data, &p); err != nil {
 			return err
 		}
-		return c.db.Write(p)
+		return c.pw.WritePoint(p)
 	}
 
 	return errors.New("failed to achieve quorum")
@@ -569,14 +346,11 @@ func (c *Cluster) forwardToLeader(p Point) error {
 	return nil
 }
 
-// Election management
-
 func (c *Cluster) resetElectionTimer() {
 	if c.electionTimer != nil {
 		c.electionTimer.Stop()
 	}
 
-	// Randomize timeout to prevent split votes
 	timeout := c.config.ElectionTimeout + time.Duration(rand.Int63n(int64(c.config.ElectionTimeout)))
 	c.electionTimer = time.AfterFunc(timeout, c.startElection)
 }
@@ -605,12 +379,10 @@ func (c *Cluster) startElection() {
 	}
 	c.nodesMu.RUnlock()
 
-	// Request votes from all nodes
 	for _, node := range nodes {
 		go c.requestVote(node, term)
 	}
 
-	// Reset election timer
 	c.resetElectionTimer()
 }
 
@@ -654,7 +426,6 @@ func (c *Cluster) requestVote(node *ClusterNode, term uint64) {
 	c.stateMu.Lock()
 	defer c.stateMu.Unlock()
 
-	// Check if we're still a candidate for the same term
 	if c.state != NodeStateCandidate || c.currentTerm != term {
 		return
 	}
@@ -667,7 +438,6 @@ func (c *Cluster) requestVote(node *ClusterNode, term uint64) {
 	if voteResp.VoteGranted {
 		c.votesReceived[node.ID] = true
 
-		// Check if we have majority
 		c.nodesMu.RLock()
 		majority := (len(c.nodes) / 2) + 1
 		c.nodesMu.RUnlock()
@@ -694,7 +464,6 @@ func (c *Cluster) becomeLeader() {
 		c.electionTimer.Stop()
 	}
 
-	// Start heartbeat ticker
 	c.heartbeatTicker = time.NewTicker(c.config.HeartbeatInterval)
 	go c.heartbeatLoop()
 
@@ -785,8 +554,6 @@ func (c *Cluster) sendAppendEntries(node *ClusterNode, entries []LogEntry) {
 	c.markNodeHealthy(node.ID)
 }
 
-// HTTP handlers
-
 func (c *Cluster) handleVoteRequest(w http.ResponseWriter, r *http.Request) {
 	var req VoteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -813,7 +580,6 @@ func (c *Cluster) handleVoteRequest(w http.ResponseWriter, r *http.Request) {
 		c.votedFor = ""
 	}
 
-	// Check if we can vote for this candidate
 	c.logMu.RLock()
 	logOK := req.LastLogTerm > c.lastLogTerm ||
 		(req.LastLogTerm == c.lastLogTerm && req.LastLogIndex >= c.lastLogIndex)
@@ -858,7 +624,6 @@ func (c *Cluster) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
 
 	c.leaderID = req.LeaderID
 
-	// Append entries logic
 	if len(req.Entries) > 0 {
 		c.logMu.Lock()
 		c.log = append(c.log, req.Entries...)
@@ -868,12 +633,11 @@ func (c *Cluster) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
 		}
 		c.logMu.Unlock()
 
-		// Apply entries
 		for _, entry := range req.Entries {
 			if entry.Type == LogEntryWrite {
 				var p Point
 				if err := json.Unmarshal(entry.Data, &p); err == nil {
-					_ = c.db.Write(p)
+					_ = c.pw.WritePoint(p)
 				}
 			}
 		}
@@ -890,7 +654,6 @@ func (c *Cluster) handleGossip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update known nodes
 	c.nodesMu.Lock()
 	for _, node := range gossip.Nodes {
 		if existing, ok := c.nodes[node.ID]; ok {
@@ -912,7 +675,6 @@ func (c *Cluster) handleGossip(w http.ResponseWriter, r *http.Request) {
 	}
 	c.nodesMu.Unlock()
 
-	// Respond with our known nodes
 	c.nodesMu.RLock()
 	nodes := make([]*ClusterNode, 0, len(c.nodes))
 	for _, n := range c.nodes {
@@ -930,14 +692,13 @@ func (c *Cluster) handleReplicate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply the entry
 	if entry.Type == LogEntryWrite {
 		var p Point
 		if err := json.Unmarshal(entry.Data, &p); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := c.db.Write(p); err != nil {
+		if err := c.pw.WritePoint(p); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -951,8 +712,6 @@ func (c *Cluster) handleReplicate(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
-
-// Gossip and failure detection
 
 func (c *Cluster) gossipLoop() {
 	defer c.wg.Done()
@@ -986,7 +745,6 @@ func (c *Cluster) sendGossip() {
 		return
 	}
 
-	// Pick random nodes to gossip with
 	numTargets := 3
 	if len(targets) < numTargets {
 		numTargets = len(targets)
@@ -1016,7 +774,6 @@ func (c *Cluster) sendGossip() {
 				return
 			}
 
-			// Merge received nodes
 			c.nodesMu.Lock()
 			for _, n := range respGossip.Nodes {
 				if _, ok := c.nodes[n.ID]; !ok {
@@ -1128,8 +885,6 @@ func (c *Cluster) markNodeUnhealthy(nodeID string) {
 	}
 }
 
-// Event notifications
-
 func (c *Cluster) AddListener(l ClusterEventListener) {
 	c.stateMu.Lock()
 	c.listeners = append(c.listeners, l)
@@ -1211,114 +966,4 @@ func (c *Cluster) Stats() ClusterStats {
 		LastLogIndex: lastIndex,
 		CommitIndex:  commitIndex,
 	}
-}
-
-// ClusterStats contains cluster statistics.
-type ClusterStats struct {
-	NodeID       string `json:"node_id"`
-	State        string `json:"state"`
-	Term         uint64 `json:"term"`
-	LeaderID     string `json:"leader_id"`
-	NodeCount    int    `json:"node_count"`
-	HealthyNodes int    `json:"healthy_nodes"`
-	LogLength    int    `json:"log_length"`
-	LastLogIndex uint64 `json:"last_log_index"`
-	CommitIndex  uint64 `json:"commit_index"`
-}
-
-// Message types
-
-// VoteRequest is a request for vote in leader election.
-type VoteRequest struct {
-	Term         uint64 `json:"term"`
-	CandidateID  string `json:"candidate_id"`
-	LastLogIndex uint64 `json:"last_log_index"`
-	LastLogTerm  uint64 `json:"last_log_term"`
-}
-
-// VoteResponse is a response to a vote request.
-type VoteResponse struct {
-	Term        uint64 `json:"term"`
-	VoteGranted bool   `json:"vote_granted"`
-}
-
-// AppendEntriesRequest is the heartbeat/replication message.
-type AppendEntriesRequest struct {
-	Term         uint64     `json:"term"`
-	LeaderID     string     `json:"leader_id"`
-	PrevLogIndex uint64     `json:"prev_log_index"`
-	PrevLogTerm  uint64     `json:"prev_log_term"`
-	Entries      []LogEntry `json:"entries"`
-	LeaderCommit uint64     `json:"leader_commit"`
-}
-
-// AppendEntriesResponse is the response to append entries.
-type AppendEntriesResponse struct {
-	Term    uint64 `json:"term"`
-	Success bool   `json:"success"`
-}
-
-// GossipMessage is used for cluster membership gossip.
-type GossipMessage struct {
-	Nodes []*ClusterNode `json:"nodes"`
-}
-
-// ClusteredDB wraps a DB with clustering capabilities.
-type ClusteredDB struct {
-	*DB
-	cluster *Cluster
-}
-
-// NewClusteredDB creates a clustering-enabled database wrapper.
-func NewClusteredDB(db *DB, config ClusterConfig) (*ClusteredDB, error) {
-	cluster, err := NewCluster(db, config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ClusteredDB{
-		DB:      db,
-		cluster: cluster,
-	}, nil
-}
-
-// Start starts the cluster.
-func (c *ClusteredDB) Start() error {
-	return c.cluster.Start()
-}
-
-// Stop stops the cluster.
-func (c *ClusteredDB) Stop() error {
-	return c.cluster.Stop()
-}
-
-// Write performs a replicated write.
-func (c *ClusteredDB) Write(p Point) error {
-	return c.cluster.Write(p)
-}
-
-// Cluster returns the underlying cluster.
-func (c *ClusteredDB) Cluster() *Cluster {
-	return c.cluster
-}
-
-// Helper to sort nodes by priority
-type nodesByPriority []*ClusterNode
-
-func (n nodesByPriority) Len() int           { return len(n) }
-func (n nodesByPriority) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
-func (n nodesByPriority) Less(i, j int) bool { return n[i].Term < n[j].Term }
-
-var _ sort.Interface = nodesByPriority{}
-
-// jsonReader creates an io.Reader from JSON-encoded data
-func jsonReader(data []byte) io.Reader {
-	return bytes.NewReader(data)
-}
-
-// writeJSONResponse writes a JSON response to the http.ResponseWriter
-func writeJSONResponse(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
 }
