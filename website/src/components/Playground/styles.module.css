@@ -168,3 +168,16 @@
   font-size: 0.8rem;
   color: var(--ifm-color-emphasis-600);
 }
+
+.chartContainer {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: var(--ifm-background-surface-color);
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.sparkline {
+  width: 100%;
+  height: 80px;
+}
