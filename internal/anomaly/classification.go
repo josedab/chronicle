@@ -1,4 +1,4 @@
-package chronicle
+package anomaly
 
 import (
 	"fmt"
@@ -507,7 +507,7 @@ func (c *AnomalyClassifier) detectTrendChange(context []float64, value float64) 
 
 	magnitudeChange := math.Abs(trend2-trend1) / (math.Abs(trend1) + 1e-10)
 	if magnitudeChange > 2.0 {
-		return sigmoid(magnitudeChange - 1.0) * 0.6
+		return sigmoid(magnitudeChange-1.0) * 0.6
 	}
 	return 0
 }
@@ -873,12 +873,4 @@ func (c *AnomalyClassifier) GetAnomalySummary() map[string]int {
 		summary[a.TypeName]++
 	}
 	return summary
-}
-
-// helper for Go < 1.21
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

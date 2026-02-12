@@ -1,4 +1,4 @@
-package chronicle
+package anomaly
 
 import (
 	"context"
@@ -103,7 +103,7 @@ func DefaultAnomalyConfig() AnomalyConfig {
 
 // AnomalyDetector provides AI-powered anomaly detection.
 type AnomalyDetector struct {
-	db     *DB
+	ds     DataSource
 	config AnomalyConfig
 
 	// Models
@@ -168,7 +168,7 @@ type ContributingFactor struct {
 }
 
 // NewAnomalyDetector creates a new AI-powered anomaly detector.
-func NewAnomalyDetector(db *DB, config AnomalyConfig) *AnomalyDetector {
+func NewAnomalyDetector(ds DataSource, config AnomalyConfig) *AnomalyDetector {
 	if config.Sensitivity <= 0 || config.Sensitivity > 1 {
 		config.Sensitivity = 0.95
 	}
@@ -185,7 +185,7 @@ func NewAnomalyDetector(db *DB, config AnomalyConfig) *AnomalyDetector {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ad := &AnomalyDetector{
-		db:              db,
+		ds:              ds,
 		config:          config,
 		isolationForest: NewIsolationForest(100, 256),
 		lstmModel:       NewLSTMModel(config.WindowSize, config.HiddenSize, config.NumLayers),
@@ -276,7 +276,7 @@ func (ad *AnomalyDetector) Train(data TimeSeriesData) error {
 
 func (ad *AnomalyDetector) retrain() {
 	// Get recent data from the database
-	if ad.db == nil {
+	if ad.ds == nil {
 		return
 	}
 
@@ -284,24 +284,20 @@ func (ad *AnomalyDetector) retrain() {
 	end := time.Now().UnixNano()
 	start := time.Now().Add(-24 * time.Hour).UnixNano()
 
-	metrics := ad.db.Metrics()
+	metrics := ad.ds.Metrics()
 	if len(metrics) == 0 {
 		return
 	}
 
 	// Train on the first metric (simplified)
-	result, err := ad.db.Execute(&Query{
-		Metric: metrics[0],
-		Start:  start,
-		End:    end,
-	})
-	if err != nil || len(result.Points) < ad.config.MinDataPoints {
+	points, err := ad.ds.QueryRange(metrics[0], start, end)
+	if err != nil || len(points) < ad.config.MinDataPoints {
 		return
 	}
 
-	values := make([]float64, len(result.Points))
-	timestamps := make([]int64, len(result.Points))
-	for i, p := range result.Points {
+	values := make([]float64, len(points))
+	timestamps := make([]int64, len(points))
+	for i, p := range points {
 		values[i] = p.Value
 		timestamps[i] = p.Timestamp
 	}
@@ -1207,16 +1203,18 @@ func percentile(sorted []float64, p float64) float64 {
 
 // AnomalyDetectionDB wraps a DB with anomaly detection capabilities.
 type AnomalyDetectionDB struct {
-	*DB
+	ds       DataSource
+	pw       PointWriter
 	detector *AnomalyDetector
 }
 
 // NewAnomalyDetectionDB creates a new anomaly detection enabled database.
-func NewAnomalyDetectionDB(db *DB, config AnomalyConfig) *AnomalyDetectionDB {
-	detector := NewAnomalyDetector(db, config)
+func NewAnomalyDetectionDB(ds DataSource, pw PointWriter, config AnomalyConfig) *AnomalyDetectionDB {
+	detector := NewAnomalyDetector(ds, config)
 
 	return &AnomalyDetectionDB{
-		DB:       db,
+		ds:       ds,
+		pw:       pw,
 		detector: detector,
 	}
 }
@@ -1237,9 +1235,9 @@ func (adb *AnomalyDetectionDB) Detector() *AnomalyDetector {
 }
 
 // WriteAndDetect writes a point and performs anomaly detection.
-func (adb *AnomalyDetectionDB) WriteAndDetect(p Point, context []float64) (*AnomalyResult, error) {
+func (adb *AnomalyDetectionDB) WriteAndDetect(p PointData, context []float64) (*AnomalyResult, error) {
 	// Write the point
-	if err := adb.DB.Write(p); err != nil {
+	if err := adb.pw.WritePoint(p); err != nil {
 		return nil, err
 	}
 
