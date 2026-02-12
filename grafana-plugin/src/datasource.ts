@@ -100,4 +100,28 @@ export class DataSource extends DataSourceApi<ChronicleQuery, ChronicleDataSourc
       queryText: 'SELECT mean(value) FROM metric_name GROUP BY time(1m)',
     };
   }
+
+  async getMetrics(): Promise<string[]> {
+    try {
+      const response = await this.getBackendSrv().get(`${this.url}/metrics`);
+      return response?.metrics || [];
+    } catch {
+      return [];
+    }
+  }
+
+  async getTagValues(metric: string, tagKey: string): Promise<string[]> {
+    try {
+      const response = await this.getBackendSrv().get(
+        `${this.url}/tag-values?metric=${encodeURIComponent(metric)}&key=${encodeURIComponent(tagKey)}`
+      );
+      return response?.values || [];
+    } catch {
+      return [];
+    }
+  }
+
+  private getBackendSrv() {
+    return (this as any).backendSrv || { get: fetch };
+  }
 }
