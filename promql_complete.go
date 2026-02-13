@@ -392,6 +392,9 @@ type PromQLHistogramBucket struct {
 
 // PromQLLabelReplace performs label_replace on a set of labels.
 func PromQLLabelReplace(labels map[string]string, dstLabel, replacement, srcLabel, regexStr string) (map[string]string, error) {
+	if labels == nil {
+		labels = map[string]string{}
+	}
 	result := make(map[string]string, len(labels))
 	for k, v := range labels {
 		result[k] = v
@@ -416,6 +419,9 @@ func PromQLLabelReplace(labels map[string]string, dstLabel, replacement, srcLabe
 
 // PromQLLabelJoin performs label_join, concatenating source label values.
 func PromQLLabelJoin(labels map[string]string, dstLabel, separator string, srcLabels ...string) map[string]string {
+	if labels == nil {
+		labels = map[string]string{}
+	}
 	result := make(map[string]string, len(labels)+1)
 	for k, v := range labels {
 		result[k] = v
