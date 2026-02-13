@@ -8,14 +8,17 @@ import (
 // setupAdminRoutes configures admin and operational endpoints
 func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	mux.HandleFunc("/health", wrap(func(w http.ResponseWriter, r *http.Request) {
+		status := "ok"
 		if db.features != nil {
 			if hc := db.features.HealthCheck(); hc != nil {
 				hc.Start()
-				writeJSON(w, hc.Check())
-				return
+				result := hc.Check()
+				if result.Overall == "unhealthy" || result.Overall == "degraded" {
+					status = result.Overall
+				}
 			}
 		}
-		writeJSON(w, map[string]string{"status": "ok"})
+		writeJSON(w, map[string]string{"status": status})
 	}))
 
 	mux.HandleFunc("/health/ready", wrap(func(w http.ResponseWriter, r *http.Request) {
