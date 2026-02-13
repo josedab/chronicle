@@ -1,5 +1,14 @@
 package chronicle
 
+// point.go defines the core data types: Point, Series, SeriesKey, and Result.
+//
+// Point is the fundamental unit of time-series data: a metric name, a float64
+// value, optional string tags, and a Unix nanosecond timestamp. All writes and
+// query results use Point.
+//
+// SeriesKey uniquely identifies a time series by its metric name and sorted
+// tag set. Two points with the same metric and tags belong to the same series.
+
 import (
 	"sort"
 	"strings"
