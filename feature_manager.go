@@ -58,6 +58,18 @@ type FeatureManager struct {
 	multiModelGraph    *MultiModelGraphStore
 	fleetManager       *SaaSFleetManager
 
+	// Next-gen v5 features
+	dataMesh             *DataMesh
+	foundationModel      *FoundationModel
+	dataContracts        *DataContractEngine
+	queryCache           *QueryCache
+	sqlPipelines         *SQLPipelineEngine
+	multiModelStore      *IntegratedMultiModelStore
+	adaptiveOptimizer    *AdaptiveOptimizer
+	complianceAutomation *ComplianceAutomation
+	schemaDesigner       *SchemaDesigner
+	mobileSDK            *MobileSDK
+
 	mu sync.RWMutex
 }
 
@@ -146,6 +158,18 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.etlManager = NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
 	fm.cloudSyncFabric = NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 
+	// Initialize next-gen v5 features
+	fm.dataMesh = NewDataMesh(db, DefaultDataMeshConfig())
+	fm.foundationModel = NewFoundationModel(db, DefaultFoundationModelConfig())
+	fm.dataContracts = NewDataContractEngine(db, DefaultDataContractConfig())
+	fm.queryCache = NewQueryCache(db, DefaultQueryCacheConfig())
+	fm.sqlPipelines = NewSQLPipelineEngine(db, DefaultSQLPipelineConfig())
+	fm.multiModelStore = NewIntegratedMultiModelStore(db, DefaultIntegratedMultiModelStoreConfig())
+	fm.adaptiveOptimizer = NewAdaptiveOptimizer(db, DefaultAdaptiveOptimizerConfig())
+	fm.complianceAutomation = NewComplianceAutomation(db, DefaultComplianceAutomationConfig())
+	fm.schemaDesigner = NewSchemaDesigner(db, DefaultSchemaDesignerConfig())
+	fm.mobileSDK = NewMobileSDK(db, DefaultMobileSDKConfig())
+
 	return fm, nil
 }
 
@@ -196,6 +220,12 @@ func (fm *FeatureManager) Stop() {
 	}
 	if fm.fleetManager != nil {
 		fm.fleetManager.Stop()
+	}
+	if fm.dataMesh != nil {
+		fm.dataMesh.Stop()
+	}
+	if fm.sqlPipelines != nil {
+		fm.sqlPipelines.Stop()
 	}
 }
 
@@ -477,6 +507,76 @@ func (fm *FeatureManager) CloudSyncFabric() *CloudSyncFabric {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.cloudSyncFabric
+}
+
+// DataMesh returns the data mesh federation engine.
+func (fm *FeatureManager) DataMesh() *DataMesh {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.dataMesh
+}
+
+// FoundationModel returns the time-series foundation model engine.
+func (fm *FeatureManager) FoundationModel() *FoundationModel {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.foundationModel
+}
+
+// DataContracts returns the data contracts engine.
+func (fm *FeatureManager) DataContracts() *DataContractEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.dataContracts
+}
+
+// QueryCache returns the query result cache.
+func (fm *FeatureManager) QueryCache() *QueryCache {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.queryCache
+}
+
+// SQLPipelines returns the SQL pipeline engine.
+func (fm *FeatureManager) SQLPipelines() *SQLPipelineEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.sqlPipelines
+}
+
+// MultiModelStore returns the multi-model store.
+func (fm *FeatureManager) MultiModelStore() *IntegratedMultiModelStore {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.multiModelStore
+}
+
+// AdaptiveOptimizer returns the adaptive query optimizer.
+func (fm *FeatureManager) AdaptiveOptimizer() *AdaptiveOptimizer {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.adaptiveOptimizer
+}
+
+// ComplianceAutomation returns the compliance automation suite.
+func (fm *FeatureManager) ComplianceAutomation() *ComplianceAutomation {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.complianceAutomation
+}
+
+// SchemaDesigner returns the visual schema designer.
+func (fm *FeatureManager) SchemaDesigner() *SchemaDesigner {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.schemaDesigner
+}
+
+// MobileSDK returns the mobile SDK framework.
+func (fm *FeatureManager) MobileSDK() *MobileSDK {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.mobileSDK
 }
 
 // ValidatePoint validates a point against registered schemas.
