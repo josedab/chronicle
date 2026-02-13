@@ -177,19 +177,19 @@ func (g *GrafanaBackend) Start() error {
 	mux := http.NewServeMux()
 
 	// Grafana datasource endpoints
-	mux.HandleFunc("/", g.handleRoot)
-	mux.HandleFunc("/health", g.handleHealth)
-	mux.HandleFunc("/query", g.handleQuery)
-	mux.HandleFunc("/metrics", g.handleMetrics)
-	mux.HandleFunc("/tag-keys", g.handleTagKeys)
-	mux.HandleFunc("/tag-values", g.handleTagValues)
-	mux.HandleFunc("/annotations", g.handleAnnotations)
-	mux.HandleFunc("/search", g.handleSearch)
-	mux.HandleFunc("/variable", g.handleVariable)
+	mux.HandleFunc("/api/v1/grafana/", g.handleRoot)
+	mux.HandleFunc("/api/v1/grafana/health", g.handleHealth)
+	mux.HandleFunc("/api/v1/grafana/query", g.handleQuery)
+	mux.HandleFunc("/api/v1/grafana/metrics", g.handleMetrics)
+	mux.HandleFunc("/api/v1/grafana/tag-keys", g.handleTagKeys)
+	mux.HandleFunc("/api/v1/grafana/tag-values", g.handleTagValues)
+	mux.HandleFunc("/api/v1/grafana/annotations", g.handleAnnotations)
+	mux.HandleFunc("/api/v1/grafana/search", g.handleSearch)
+	mux.HandleFunc("/api/v1/grafana/variable", g.handleVariable)
 
 	// Streaming endpoint
 	if g.config.EnableStreaming {
-		mux.HandleFunc("/stream", g.handleStream)
+		mux.HandleFunc("/api/v1/grafana/stream", g.handleStream)
 	}
 
 	// Alert management endpoints

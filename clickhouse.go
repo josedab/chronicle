@@ -839,10 +839,10 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig, 
 	server := NewClickHouseServer(db, config)
 
 	// Main query endpoint
-	mux.HandleFunc("/", wrap(server.Handler()))
+	mux.HandleFunc("/api/v1/clickhouse/", wrap(server.Handler()))
 
 	// ClickHouse-specific endpoints
-	mux.HandleFunc("/ping", wrap(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/clickhouse/ping", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		_, _ = w.Write([]byte("Ok.\n"))
 	}))
@@ -853,7 +853,7 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig, 
 	}))
 
 	// Query endpoint (explicit)
-	mux.HandleFunc("/query", wrap(server.Handler()))
+	mux.HandleFunc("/api/v1/clickhouse/query", wrap(server.Handler()))
 
 	// Play interface placeholder
 	mux.HandleFunc("/play", wrap(func(w http.ResponseWriter, r *http.Request) {

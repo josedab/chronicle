@@ -229,9 +229,9 @@ func (s *K8sSidecar) Stop() error {
 
 func (s *K8sSidecar) startHealthServer() error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/api/v1/sidecar/health", s.handleHealth)
 	mux.HandleFunc("/ready", s.handleReady)
-	mux.HandleFunc("/metrics", s.handleMetrics)
+	mux.HandleFunc("/api/v1/sidecar/metrics", s.handleMetrics)
 	mux.HandleFunc("/targets", s.handleTargets)
 	mux.HandleFunc("/stats", s.handleStats)
 
