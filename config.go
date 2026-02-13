@@ -10,6 +10,7 @@ package chronicle
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -175,48 +176,63 @@ type HTTPConfig struct {
 // normalize populates grouped config from legacy fields when needed.
 func (c *Config) normalize() {
 	if c.Storage.MaxMemory == 0 && c.MaxMemory != 0 {
+		log.Println("[WARN] chronicle: Config.MaxMemory is deprecated, use Config.Storage.MaxMemory instead")
 		c.Storage.MaxMemory = c.MaxMemory
 	}
 	if c.Storage.MaxStorageBytes == 0 && c.MaxStorageBytes != 0 {
+		log.Println("[WARN] chronicle: Config.MaxStorageBytes is deprecated, use Config.Storage.MaxStorageBytes instead")
 		c.Storage.MaxStorageBytes = c.MaxStorageBytes
 	}
 	if c.Storage.PartitionDuration == 0 && c.PartitionDuration != 0 {
+		log.Println("[WARN] chronicle: Config.PartitionDuration is deprecated, use Config.Storage.PartitionDuration instead")
 		c.Storage.PartitionDuration = c.PartitionDuration
 	}
 	if c.Storage.BufferSize == 0 && c.BufferSize != 0 {
+		log.Println("[WARN] chronicle: Config.BufferSize is deprecated, use Config.Storage.BufferSize instead")
 		c.Storage.BufferSize = c.BufferSize
 	}
 	if c.WAL.SyncInterval == 0 && c.SyncInterval != 0 {
+		log.Println("[WARN] chronicle: Config.SyncInterval is deprecated, use Config.WAL.SyncInterval instead")
 		c.WAL.SyncInterval = c.SyncInterval
 	}
 	if c.WAL.WALMaxSize == 0 && c.WALMaxSize != 0 {
+		log.Println("[WARN] chronicle: Config.WALMaxSize is deprecated, use Config.WAL.WALMaxSize instead")
 		c.WAL.WALMaxSize = c.WALMaxSize
 	}
 	if c.WAL.WALRetain == 0 && c.WALRetain != 0 {
+		log.Println("[WARN] chronicle: Config.WALRetain is deprecated, use Config.WAL.WALRetain instead")
 		c.WAL.WALRetain = c.WALRetain
 	}
 	if c.Retention.RetentionDuration == 0 && c.RetentionDuration != 0 {
+		log.Println("[WARN] chronicle: Config.RetentionDuration is deprecated, use Config.Retention.RetentionDuration instead")
 		c.Retention.RetentionDuration = c.RetentionDuration
 	}
 	if len(c.Retention.DownsampleRules) == 0 && len(c.DownsampleRules) > 0 {
+		log.Println("[WARN] chronicle: Config.DownsampleRules is deprecated, use Config.Retention.DownsampleRules instead")
 		c.Retention.DownsampleRules = c.DownsampleRules
 	}
 	if c.Retention.CompactionWorkers == 0 && c.CompactionWorkers != 0 {
+		log.Println("[WARN] chronicle: Config.CompactionWorkers is deprecated, use Config.Retention.CompactionWorkers instead")
 		c.Retention.CompactionWorkers = c.CompactionWorkers
 	}
 	if c.Retention.CompactionInterval == 0 && c.CompactionInterval != 0 {
+		log.Println("[WARN] chronicle: Config.CompactionInterval is deprecated, use Config.Retention.CompactionInterval instead")
 		c.Retention.CompactionInterval = c.CompactionInterval
 	}
 	if c.Query.QueryTimeout == 0 && c.QueryTimeout != 0 {
+		log.Println("[WARN] chronicle: Config.QueryTimeout is deprecated, use Config.Query.QueryTimeout instead")
 		c.Query.QueryTimeout = c.QueryTimeout
 	}
 	if !c.HTTP.HTTPEnabled && c.HTTPEnabled {
+		log.Println("[WARN] chronicle: Config.HTTPEnabled is deprecated, use Config.HTTP.HTTPEnabled instead")
 		c.HTTP.HTTPEnabled = c.HTTPEnabled
 	}
 	if c.HTTP.HTTPPort == 0 && c.HTTPPort != 0 {
+		log.Println("[WARN] chronicle: Config.HTTPPort is deprecated, use Config.HTTP.HTTPPort instead")
 		c.HTTP.HTTPPort = c.HTTPPort
 	}
 	if !c.HTTP.PrometheusRemoteWriteEnabled && c.PrometheusRemoteWriteEnabled {
+		log.Println("[WARN] chronicle: Config.PrometheusRemoteWriteEnabled is deprecated, use Config.HTTP.PrometheusRemoteWriteEnabled instead")
 		c.HTTP.PrometheusRemoteWriteEnabled = c.PrometheusRemoteWriteEnabled
 	}
 }
