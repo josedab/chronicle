@@ -44,6 +44,9 @@ type SeriesKey struct {
 
 // NewSeriesKey creates a SeriesKey from a metric name and tags.
 func NewSeriesKey(metric string, tags map[string]string) SeriesKey {
+	if tags == nil {
+		tags = map[string]string{}
+	}
 	return SeriesKey{Metric: metric, Tags: tags}
 }
 
