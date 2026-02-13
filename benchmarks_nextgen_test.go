@@ -336,3 +336,75 @@ func BenchmarkPatternLibrarySearch(b *testing.B) {
 		_ = lib.FindSimilarPatterns(data, 5)
 	}
 }
+
+// BenchmarkTagInvertedIndex_Lookup benchmarks tag lookup via inverted index.
+func BenchmarkTagInvertedIndex_Lookup(b *testing.B) {
+	path := b.TempDir() + "/bench.db"
+	db, err := Open(path, DefaultConfig(path))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer db.Close()
+
+	idx := NewTagInvertedIndex(db, DefaultTagIndexConfig())
+	for i := 0; i < 10000; i++ {
+		host := fmt.Sprintf("host-%d", i%100)
+		region := fmt.Sprintf("region-%d", i%10)
+		idx.Index(fmt.Sprintf("metric_%d", i), map[string]string{"host": host, "region": region})
+	}
+
+	b.ResetTimer()
+	b.Run("single_tag", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			idx.Lookup("host", "host-42")
+		}
+	})
+	b.Run("intersection", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			idx.LookupAnd(map[string]string{"host": "host-42", "region": "region-3"})
+		}
+	})
+}
+
+// BenchmarkTagInvertedIndex_Index benchmarks indexing speed.
+func BenchmarkTagInvertedIndex_Index(b *testing.B) {
+	path := b.TempDir() + "/bench.db"
+	db, err := Open(path, DefaultConfig(path))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer db.Close()
+
+	idx := NewTagInvertedIndex(db, DefaultTagIndexConfig())
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		idx.Index(fmt.Sprintf("m_%d", i), map[string]string{
+			"host":   fmt.Sprintf("h-%d", i%100),
+			"region": fmt.Sprintf("r-%d", i%10),
+		})
+	}
+}
+
+// BenchmarkPartitionScan_TagFilter benchmarks baseline partition scan for comparison.
+func BenchmarkPartitionScan_TagFilter(b *testing.B) {
+	path := b.TempDir() + "/bench.db"
+	db, err := Open(path, DefaultConfig(path))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer db.Close()
+
+	for i := 0; i < 1000; i++ {
+		db.Write(Point{
+			Metric: "bench_scan",
+			Value:  float64(i),
+			Tags:   map[string]string{"host": fmt.Sprintf("h-%d", i%100)},
+		})
+	}
+	db.Flush()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		db.Execute(&Query{Metric: "bench_scan", Tags: map[string]string{"host": "h-42"}})
+	}
+}

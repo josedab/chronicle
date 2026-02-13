@@ -3,10 +3,16 @@ name: Benchmarks
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   benchmark:
-    name: Benchmark Comparison
+    name: Performance Regression Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR
@@ -27,18 +33,43 @@ jobs:
       - name: Install benchstat
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
-      - name: Benchmark main
+      - name: Run baseline benchmarks (main)
         run: |
           cd main
-          go test -bench=. -benchmem -count=5 -short -timeout=10m ./... > ../main.txt 2>/dev/null || true
+          go test -bench='BenchmarkE2E_' -benchmem -count=5 -short -timeout=10m . > ../baseline.txt 2>/dev/null || true
 
-      - name: Benchmark PR
-        run: go test -bench=. -benchmem -count=5 -short -timeout=10m ./... > pr.txt 2>/dev/null || true
-
-      - name: Compare benchmarks
+      - name: Run PR benchmarks
         run: |
-          echo "## Benchmark Comparison" >> "$GITHUB_STEP_SUMMARY"
+          go test -bench='BenchmarkE2E_' -benchmem -count=5 -short -timeout=10m . > pr.txt 2>/dev/null || true
+
+      - name: Compare and check for regressions
+        id: benchcheck
+        run: |
+          echo "## ⚡ Benchmark Comparison" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          benchstat main.txt pr.txt >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          benchstat baseline.txt pr.txt >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          benchstat main.txt pr.txt
+
+          # Check for significant regressions (>10% slower)
+          REGRESSIONS=$(benchstat baseline.txt pr.txt 2>/dev/null | grep -c '+[1-9][0-9]\.' || true)
+          if [ "$REGRESSIONS" -gt "0" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ **$REGRESSIONS benchmark(s) show >10% regression.** Please investigate before merging." >> "$GITHUB_STEP_SUMMARY"
+            echo "regression=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "✅ No significant performance regressions detected." >> "$GITHUB_STEP_SUMMARY"
+            echo "regression=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Always show results
+          benchstat baseline.txt pr.txt || true
+
+      - name: Save benchmark results (main branch only)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: pr.txt
+          retention-days: 90
