@@ -849,10 +849,10 @@ func (qb *QueryBuilder) HTTPHandler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/query-builder/build", qb.handleBuild)
-	mux.HandleFunc("/api/query-builder/validate", qb.handleValidate)
+	mux.HandleFunc("/api/v1/query-builder/validate", qb.handleValidate)
 	mux.HandleFunc("/api/query-builder/saved", qb.handleSavedQueries)
 	mux.HandleFunc("/api/query-builder/templates", qb.handleTemplates)
-	mux.HandleFunc("/api/query-builder/autocomplete", qb.handleAutocomplete)
+	mux.HandleFunc("/api/v1/query-builder/autocomplete", qb.handleAutocomplete)
 	mux.HandleFunc("/api/query-builder/history", qb.handleHistory)
 
 	return mux

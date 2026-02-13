@@ -1,5 +1,15 @@
 package chronicle
 
+// query.go implements the query data path.
+//
+// Query Pipeline:
+//   Query → QueryMiddleware chain → Materialized View check
+//   → Partition lookup (B-tree) → Series filtering (Index)
+//   → Partition scan or Aggregation → Limit → Result
+//
+// All queries flow through Execute() or ExecuteContext(). When
+// QueryMiddleware is configured, it wraps the execution chain.
+
 import (
 	"context"
 	"time"
@@ -71,6 +81,14 @@ func (db *DB) Execute(q *Query) (*Result, error) {
 		ctx, cancel = context.WithTimeout(ctx, db.config.Query.QueryTimeout)
 		defer cancel()
 	}
+
+	// Route through query middleware pipeline if available
+	if db.features != nil {
+		if qm := db.features.QueryMiddleware(); qm != nil && qm.MiddlewareCount() > 0 {
+			return qm.Execute(q)
+		}
+	}
+
 	return db.ExecuteContext(ctx, q)
 }
 
