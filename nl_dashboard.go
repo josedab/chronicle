@@ -478,6 +478,22 @@ func (e *NLDashboardEngine) extractVariables(description string) []*VariableSpec
 }
 
 func (e *NLDashboardEngine) splitIntoPanels(description string) []string {
+	// First, split by bullet-point lines (e.g. "- item" or "* item")
+	bulletPattern := regexp.MustCompile(`(?m)^\s*[-*]\s+`)
+	if bulletPattern.MatchString(description) {
+		lines := strings.Split(description, "\n")
+		var bullets []string
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if len(trimmed) > 2 && (trimmed[0] == '-' || trimmed[0] == '*') {
+				bullets = append(bullets, strings.TrimSpace(trimmed[1:]))
+			}
+		}
+		if len(bullets) > 1 {
+			return bullets
+		}
+	}
+
 	// Split by common separators
 	separators := []string{
 		" and also ",

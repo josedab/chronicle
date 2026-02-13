@@ -339,6 +339,7 @@ func (pe *PolicyEngine) Evaluate(ctx *PolicyContext) *PolicyResult {
 				break
 			}
 			if policyResult.Action == PolicyActionMask {
+				result.Action = PolicyActionMask
 				result.MaskRules = append(result.MaskRules, policyResult.MaskRules...)
 			}
 			if policyResult.Action == PolicyActionFilter {

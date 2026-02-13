@@ -405,6 +405,7 @@ func TestMaskingPolicy(t *testing.T) {
 	pe.RegisterPolicy(&Policy{
 		ID:       "mask-sensitive",
 		Name:     "Mask Sensitive Data",
+		Enabled:  true,
 		Priority: 1,
 		Rules: []PolicyRule{
 			{Field: "resource", Operator: "contains", Value: "sensitive"},
