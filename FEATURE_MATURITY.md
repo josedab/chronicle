@@ -70,8 +70,32 @@ Chronicle is pre-1.0. This document provides an honest assessment of every major
 |---------|----------|-------|
 | CLI tool (13 commands) | ✅ Production | query, import, export, inspect, watch, completion |
 | Helm chart | ✅ Production | Deployment, service, configmap, health probes |
-| Dockerfile | ✅ Production | Multi-stage, distroless base |
+| Dockerfile | ✅ Production | Multi-stage, distroless base, multi-arch (amd64/arm64/armv7) |
 | Feature Registry | ✅ Production | Plugin-style feature management |
+
+## Recently Promoted to Beta (v0.9.0)
+
+| Feature | Maturity | Notes |
+|---------|----------|-------|
+| Point Validation Pipeline | ⚠️ Beta | NaN/Inf/bounds/cardinality checks wired into Write() |
+| Write Pipeline Hooks | ⚠️ Beta | Pre/post write hooks with reject/modify semantics |
+| Query Middleware | ⚠️ Beta | Composable middleware chain in Execute() |
+| Health Checks | ⚠️ Beta | /health/ready, /health/live for K8s probes |
+| Audit Logging | ⚠️ Beta | All operations logged with timestamps |
+| Result Cache | ⚠️ Beta | LRU cache with TTL and write invalidation |
+| Rate Controller | ⚠️ Beta | Token bucket per-metric and global |
+| Tag Inverted Index | ⚠️ Beta | Fast tag lookups via posting lists |
+| Query Cost Estimator | ⚠️ Beta | Pre-execution cost estimation |
+| Anomaly Detection v2 | ⚠️ Beta | STL decomposition with adaptive thresholds |
+| Schema Evolution | ⚠️ Beta | Auto-detect tag changes, versioned schemas |
+| Query Profiler | ⚠️ Beta | Per-query stage timing and recommendations |
+| Distributed Query | ⚠️ Beta | Scatter-gather with sort-preserving merge |
+| Continuous Aggregation | ⚠️ Beta | Incremental materialized aggregations |
+| Data Quality Monitor | ⚠️ Beta | Gap/duplicate/outlier/skew detection |
+| WAL Snapshots | ⚠️ Beta | Snapshot-based WAL compaction |
+| Incremental Backup | ⚠️ Beta | Changed-partition-only backups |
+| Prometheus Drop-in | ⚠️ Beta | Full /api/v1/query, /api/v1/query_range |
+| Embedded Cluster | ⚠️ Beta | Gossip-based node discovery |
 
 ## Non-Functional / Stubs
 

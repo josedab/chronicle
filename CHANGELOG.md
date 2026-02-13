@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-22
+
+### Added
+- **Write Pipeline Integration**: PointValidator, WriteHooks, and AuditLog wired into core Write() path
+- **Query Middleware Pipeline**: Composable middleware chain wired into core Execute() path
+- **Health Check System**: /health, /health/ready, /health/live endpoints for K8s probes
+- **19 features promoted to Beta**: including TagIndex, WritePipeline, PointValidator, AuditLog, ResultCache, WALSnapshot, IncrementalBackup, and more
+- **Feature Flags**: Runtime enable/disable of experimental features with 3 policies
+- **Self-Instrumentation**: 12 OTel-compatible self-monitoring metrics
+- **API Deprecation Lifecycle**: Structured deprecation with migration guides and removal timelines
+- **Data Masking**: Field-level masking rules (redact/hash/truncate) at query time
+- **Tenant Isolation**: Per-tenant memory budgets, query quotas, and storage limits
+- **Migration Tool**: Import from InfluxDB line protocol and CSV formats
+- **Chaos Recovery Testing**: 5 built-in chaos scenarios with automated recovery validation
+- **WAL Snapshots**: Snapshot-based WAL compaction for faster recovery
+- **Prophet-style Forecasting v2**: Seasonal decomposition with changepoint detection
+- **Wire Protocol Server**: TCP-based binary protocol for non-Go clients
+- **Embedded Prometheus Scraper**: Built-in /metrics endpoint scraping
+- **Query Plan Visualization**: Execution plan trees with DOT/text output
+- **Data Rehydration Pipeline**: Auto-fetch cold data from S3 with LRU cache
+- **Comprehensive Benchmark Suite**: 8 end-to-end benchmark functions with real measurements
+- **Property-Based Testing**: 6 QuickCheck-style tests for core correctness invariants
+- **Fuzzing Harness**: 4 fuzz targets for parser, InfluxDB protocol, point validation, WAL
+- **Contributor Welcome Bot**: Automated welcome for first-time contributors
+- **5 new Architecture Decision Records**: FeatureManager, Write Pipeline, API Tiers, Query Languages, Query Middleware
+- **9 new documentation pages**: benchmarks, demo, launch post, compliance, edge deployment, hardware benchmarks, bounty program, community setup, OpenAPI
+
+### Changed
+- Duplicate HTTP route registrations fixed (was causing panic on TestHTTPWriteJSON)
+- Grafana backend routes namespaced to /api/v1/grafana/*
+- ClickHouse routes namespaced to /api/v1/clickhouse/*
+- Health check engine routes moved to /api/v1/health/* (admin routes handle /health)
+- BENCHMARKS.md updated with real measured numbers
+- FEATURE_MATURITY.md updated with 19 promoted beta features
+- APIVersion bumped from "0.1.0" to "0.2.0"
+- Multi-arch Dockerfile (amd64/arm64/armv7)
+- Security audit CI workflow added
+- Build tags on 5 stub files (ebpf, zk_query, tinyml, deno_runtime, jupyter_kernel)
+- Dead binary removed from examples/core-only/
+
+### Fixed
+- Duplicate HTTP route panic: /api/v1/cluster/stats, /api/v1/audit/*, /api/v1/plugins, /health
+- QueryMiddleware infinite recursion (now calls ExecuteContext directly)
+- HealthCheck.IsLive() returns false before Start() (HTTP handlers now call Start)
+- .gitignore missing entries for edge-sync, core-only, iot-gateway binaries
+
 ## [Unreleased]
 
 ### Added
