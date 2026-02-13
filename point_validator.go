@@ -163,6 +163,9 @@ func (e *PointValidatorEngine) Validate(p Point) []PointValidationError {
 	}
 
 	e.mu.Lock()
+	if e.stats.ErrorsByType == nil {
+		e.stats.ErrorsByType = make(map[string]int64)
+	}
 	e.stats.TotalValidated++
 	if len(errors) > 0 {
 		e.stats.TotalRejected++
