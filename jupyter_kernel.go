@@ -1,3 +1,4 @@
+//go:build !nostubs
 package chronicle
 
 import (
