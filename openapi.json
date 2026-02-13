@@ -1,0 +1,702 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Chronicle TSDB",
+    "description": "Time-series database HTTP API",
+    "version": "1.0.0",
+    "license": "MIT",
+    "contact": {
+      "name": "Chronicle Contributors"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8086",
+      "description": "Chronicle server"
+    }
+  ],
+  "paths": {
+    "/api/v1/export": {
+      "post": {
+        "operationId": "exportData",
+        "summary": "Export data",
+        "description": "Export time-series data in various formats.",
+        "tags": [
+          "export"
+        ],
+        "requestBody": {
+          "description": "Export configuration",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "end": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "End timestamp"
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "json",
+                      "csv",
+                      "parquet"
+                    ]
+                  },
+                  "metric": {
+                    "type": "string",
+                    "description": "Metric name to export"
+                  },
+                  "start": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Start timestamp"
+                  }
+                },
+                "required": [
+                  "metric"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exported data"
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forecast": {
+      "get": {
+        "operationId": "getForecast",
+        "summary": "Get forecast",
+        "description": "Generate a time-series forecast for a metric.",
+        "tags": [
+          "forecast"
+        ],
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "description": "Metric name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "horizon",
+            "in": "query",
+            "description": "Forecast horizon (duration string)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "description": "Forecast method",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "holt_winters",
+                "linear",
+                "arima"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forecast result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Point"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/labels": {
+      "get": {
+        "operationId": "listLabels",
+        "summary": "List label names",
+        "description": "Return a list of all known label names.",
+        "tags": [
+          "promql"
+        ],
+        "responses": {
+          "200": {
+            "description": "Label names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/query": {
+      "get": {
+        "operationId": "promqlInstantQuery",
+        "summary": "PromQL instant query",
+        "description": "Evaluate a PromQL expression at a single point in time.",
+        "tags": [
+          "promql"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "description": "PromQL expression",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "time",
+            "in": "query",
+            "description": "Evaluation timestamp (Unix seconds)",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Query result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success",
+                        "error"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/query_range": {
+      "get": {
+        "operationId": "promqlRangeQuery",
+        "summary": "PromQL range query",
+        "description": "Evaluate a PromQL expression over a time range.",
+        "tags": [
+          "promql"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "description": "PromQL expression",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "description": "Start timestamp (Unix seconds)",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "description": "End timestamp (Unix seconds)",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "step",
+            "in": "query",
+            "description": "Query resolution step width (duration string)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Range query result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write": {
+      "post": {
+        "operationId": "prometheusRemoteWrite",
+        "summary": "Prometheus remote write",
+        "description": "Accept Prometheus remote write protocol data.",
+        "tags": [
+          "promql"
+        ],
+        "requestBody": {
+          "description": "Snappy-compressed protobuf remote write payload",
+          "required": true,
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Write accepted"
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "description": "Returns the health status of the Chronicle instance.",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/query": {
+      "post": {
+        "operationId": "executeQuery",
+        "summary": "Execute a query",
+        "description": "Execute a time-series query with optional aggregation.",
+        "tags": [
+          "query"
+        ],
+        "requestBody": {
+          "description": "Query parameters",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Query"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stream": {
+      "get": {
+        "operationId": "streamData",
+        "summary": "WebSocket streaming",
+        "description": "Establish a WebSocket connection for real-time data streaming.",
+        "tags": [
+          "streaming"
+        ],
+        "parameters": [
+          {
+            "name": "Upgrade",
+            "in": "header",
+            "description": "Must be 'websocket'",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching to WebSocket protocol"
+          },
+          "400": {
+            "description": "WebSocket upgrade required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/metrics": {
+      "post": {
+        "operationId": "otlpMetrics",
+        "summary": "OTLP metrics ingestion",
+        "description": "Receive metrics via OpenTelemetry Protocol.",
+        "tags": [
+          "otlp"
+        ],
+        "requestBody": {
+          "description": "OTLP metrics payload",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "OTLP JSON-encoded metrics"
+              }
+            },
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Metrics accepted"
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/write": {
+      "post": {
+        "operationId": "writePoints",
+        "summary": "Write data points",
+        "description": "Write time-series data using Influx line protocol or JSON.",
+        "tags": [
+          "write"
+        ],
+        "requestBody": {
+          "description": "Points to write",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "points": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Point"
+                    }
+                  }
+                },
+                "required": [
+                  "points"
+                ]
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "description": "Influx line protocol formatted data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Points written successfully"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "description": "Error response.",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "details": {
+            "type": "string",
+            "description": "Additional error details"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Point": {
+        "type": "object",
+        "description": "A single time-series data point.",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "description": "Metric name"
+          },
+          "tags": {
+            "type": "object",
+            "description": "Key-value tag pairs"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix timestamp in nanoseconds"
+          },
+          "value": {
+            "type": "number",
+            "format": "double",
+            "description": "Data point value"
+          }
+        },
+        "required": [
+          "metric",
+          "value",
+          "timestamp"
+        ]
+      },
+      "Query": {
+        "type": "object",
+        "description": "Query parameters for time-series data.",
+        "properties": {
+          "aggregation": {
+            "type": "string",
+            "description": "Aggregation function",
+            "enum": [
+              "count",
+              "sum",
+              "mean",
+              "min",
+              "max",
+              "stddev"
+            ]
+          },
+          "end": {
+            "type": "integer",
+            "format": "int64",
+            "description": "End timestamp"
+          },
+          "metric": {
+            "type": "string",
+            "description": "Metric name to query"
+          },
+          "query": {
+            "type": "string",
+            "description": "Query string (CQL expression)"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start timestamp"
+          },
+          "tags": {
+            "type": "object",
+            "description": "Tag filters"
+          },
+          "window": {
+            "type": "string",
+            "description": "Aggregation window (duration string)"
+          }
+        }
+      },
+      "QueryResult": {
+        "type": "object",
+        "description": "Result of a time-series query.",
+        "properties": {
+          "points": {
+            "type": "array",
+            "description": "Resulting data points",
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            }
+          }
+        }
+      }
+    }
+  }
+}
