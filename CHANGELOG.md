@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-beta] - 2026-02-24
+
+### Status
+- **Beta release** — API surface is stabilizing but breaking changes may still occur.
+- All previously-failing tests (TestHTTPHealth, TestK8sSidecar_HealthEndpoints, TestImportEngine/invalid_lines_skipped, FuzzPointValidation/seed#1) are now fixed.
+
+### Fixed
+- Nil map panic in PointValidatorEngine.Validate when ErrorsByType map is uninitialized
+- HTTP /health endpoint returning complex HealthCheckStatus instead of simple {"status": "ok"} response
+- K8s sidecar missing /health route (only had /api/v1/sidecar/health)
+- ImportEngine parseInfluxLine accepting lines without valid field key=value pairs
+- Nil-guard checks added to PromQLLabelReplace, PromQLLabelJoin, and NewSeriesKey
+
+### Changed
+- Legacy config fields now emit deprecation warnings via log.Println when used
+- db_test.go refactored to use table-driven t.Run subtests for better failure isolation
+
+### Added
+- `make test-failing` target for fast iteration on known failing tests
+- go:generate script for FeatureManager accessor methods (scripts/gen_feature_accessors.go)
+
 ## [0.2.0] - 2026-02-22
 
 ### Added
