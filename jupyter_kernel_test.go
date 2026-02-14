@@ -196,6 +196,8 @@ func TestMagicWrite(t *testing.T) {
 		t.Errorf("%%write should succeed, error: %+v", result.Error)
 	}
 
+	_ = db.Flush()
+
 	// Verify data was written
 	qResult, _ := db.Execute(&Query{Metric: "test_write"})
 	if len(qResult.Points) == 0 {
@@ -288,6 +290,7 @@ func TestMagicPlot(t *testing.T) {
 
 	db.Write(Point{Metric: "plotme", Timestamp: 1000, Value: 10.0})
 	db.Write(Point{Metric: "plotme", Timestamp: 2000, Value: 20.0})
+	_ = db.Flush()
 
 	kernel, _ := NewJupyterKernel(db, nil)
 	defer kernel.Close()

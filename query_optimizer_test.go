@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -484,9 +485,9 @@ func TestQOStats(t *testing.T) {
 	qo, _ := NewAdaptiveQueryOptimizer(db, nil)
 	defer qo.Close()
 
-	// Run some queries
+	// Run some queries with different metrics to avoid plan cache hits
 	for i := 0; i < 5; i++ {
-		qo.Optimize(&Query{Metric: "test"})
+		qo.Optimize(&Query{Metric: fmt.Sprintf("test_%d", i)})
 	}
 
 	stats := qo.Stats()

@@ -37,6 +37,7 @@ func TestCreateCommitment(t *testing.T) {
 			Timestamp: now.Add(-time.Duration(100-i) * time.Second).UnixNano(),
 		})
 	}
+	_ = db.Flush()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)
@@ -82,6 +83,7 @@ func TestGenerateMerkleProof(t *testing.T) {
 			Timestamp: now.Add(-time.Duration(50-i) * time.Second).UnixNano(),
 		})
 	}
+	_ = db.Flush()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)
@@ -132,6 +134,7 @@ func TestGenerateSumProof(t *testing.T) {
 			Timestamp: now.Add(-time.Duration(10-i) * time.Second).UnixNano(),
 		})
 	}
+	_ = db.Flush()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)
@@ -180,6 +183,7 @@ func TestGenerateCountProof(t *testing.T) {
 			Timestamp: now.Add(-time.Duration(25-i) * time.Second).UnixNano(),
 		})
 	}
+	_ = db.Flush()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)
@@ -223,6 +227,7 @@ func TestGenerateRangeProof(t *testing.T) {
 			Timestamp: now.Add(-time.Duration(len(values)-i) * time.Second).UnixNano(),
 		})
 	}
+	_ = db.Flush()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)

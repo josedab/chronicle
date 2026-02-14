@@ -192,7 +192,7 @@ func TestQueryOptimizer(t *testing.T) {
 }
 
 func TestNLAnalytics(t *testing.T) {
-	analytics := NLAnalytics{}
+	analytics := NewNLAnalytics()
 
 	// Just test that the struct exists
 	_ = analytics
