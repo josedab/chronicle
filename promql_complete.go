@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -148,6 +149,10 @@ func (p *PromQLCompleteParser) ParseComplete(expr string) (*PromQLQuery, error) 
 var extendedPromQLFunctions = []string{
 	"histogram_quantile", "label_replace", "label_join",
 	"absent_over_time", "absent",
+	"avg_over_time", "min_over_time", "max_over_time",
+	"sum_over_time", "count_over_time",
+	"stddev_over_time", "stdvar_over_time",
+	"quantile_over_time",
 	"ceil", "floor", "round", "abs",
 	"clamp_max", "clamp_min", "clamp",
 	"delta", "idelta", "increase", "irate", "deriv",
@@ -181,16 +186,76 @@ func (p *PromQLCompleteParser) parseExtendedFunction(expr, fnName string) (*Prom
 		return p.parseVector(inner)
 	case "scalar":
 		return p.parseScalar(inner)
-	case "rate", "irate", "increase":
+	case "rate":
 		query, err := p.ParseComplete(strings.TrimSpace(inner))
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", fnName, err)
+			return nil, fmt.Errorf("rate: %w", err)
 		}
+		query.Function = PromQLAggRate
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "irate":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("irate: %w", err)
+		}
+		query.Function = PromQLFuncIrate
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "increase":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("increase: %w", err)
+		}
+		query.Function = PromQLFuncIncrease
 		if query.Aggregation == nil {
 			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
 		}
 		return query, nil
 	case "delta", "idelta", "deriv":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", fnName, err)
+		}
+		switch fnName {
+		case "delta":
+			query.Function = PromQLFuncDelta
+		case "idelta":
+			query.Function = PromQLFuncIdelta
+		case "deriv":
+			query.Function = PromQLFuncDeriv
+		}
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "changes":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("changes: %w", err)
+		}
+		query.Function = PromQLFuncChanges
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "resets":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("resets: %w", err)
+		}
+		query.Function = PromQLFuncResets
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "avg_over_time", "min_over_time", "max_over_time",
+		"sum_over_time", "count_over_time",
+		"stddev_over_time", "stdvar_over_time":
 		query, err := p.ParseComplete(strings.TrimSpace(inner))
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", fnName, err)
@@ -390,6 +455,411 @@ type PromQLHistogramBucket struct {
 	Count      int64   `json:"count"`
 }
 
+// --- Range Function Engine ---
+
+// StalenessWindow is the default Prometheus staleness period (5 minutes).
+const StalenessWindow = 5 * time.Minute
+
+// PromQLSample represents a timestamped sample value.
+type PromQLSample struct {
+	Timestamp int64   // unix milliseconds
+	Value     float64
+}
+
+// PromQLRangeFunc identifies which range-vector function to apply.
+type PromQLRangeFunc int
+
+const (
+	RangeFuncRate PromQLRangeFunc = iota
+	RangeFuncIncrease
+	RangeFuncIrate
+	RangeFuncDelta
+	RangeFuncIdelta
+	RangeFuncDeriv
+	RangeFuncChanges
+	RangeFuncResets
+	RangeFuncAvgOverTime
+	RangeFuncMinOverTime
+	RangeFuncMaxOverTime
+	RangeFuncSumOverTime
+	RangeFuncCountOverTime
+	RangeFuncStddevOverTime
+	RangeFuncStdvarOverTime
+	RangeFuncQuantileOverTime
+)
+
+// EvalRangeFunction evaluates a range function over a window of samples.
+// Handles counter resets for rate/increase, NaN propagation, and staleness.
+func EvalRangeFunction(fn PromQLRangeFunc, samples []PromQLSample, rangeMs int64) float64 {
+	if len(samples) == 0 {
+		return math.NaN()
+	}
+
+	// Filter stale samples
+	samples = filterStaleSamples(samples)
+	if len(samples) == 0 {
+		return math.NaN()
+	}
+
+	// NaN propagation: if any sample is NaN, certain functions propagate it
+	for _, s := range samples {
+		if math.IsNaN(s.Value) {
+			switch fn {
+			case RangeFuncRate, RangeFuncIncrease, RangeFuncIrate, RangeFuncDelta, RangeFuncIdelta, RangeFuncDeriv:
+				return math.NaN()
+			case RangeFuncChanges, RangeFuncResets:
+				// changes/resets can skip NaN
+			default:
+				return math.NaN()
+			}
+		}
+	}
+
+	switch fn {
+	case RangeFuncRate:
+		return evalRate(samples, rangeMs, true)
+	case RangeFuncIncrease:
+		return evalRate(samples, rangeMs, false)
+	case RangeFuncIrate:
+		return evalIrate(samples, true)
+	case RangeFuncDelta:
+		return evalDelta(samples)
+	case RangeFuncIdelta:
+		return evalIrate(samples, false)
+	case RangeFuncDeriv:
+		return evalDeriv(samples)
+	case RangeFuncChanges:
+		return evalChanges(samples)
+	case RangeFuncResets:
+		return evalResets(samples)
+	case RangeFuncAvgOverTime:
+		return evalAvgOverTime(samples)
+	case RangeFuncMinOverTime:
+		return evalMinOverTime(samples)
+	case RangeFuncMaxOverTime:
+		return evalMaxOverTime(samples)
+	case RangeFuncSumOverTime:
+		return evalSumOverTime(samples)
+	case RangeFuncCountOverTime:
+		return float64(len(samples))
+	default:
+		return math.NaN()
+	}
+}
+
+// evalRate computes rate (per-second) or increase (total) over the sample window.
+// Handles counter resets by detecting decreases and compensating.
+func evalRate(samples []PromQLSample, rangeMs int64, perSecond bool) float64 {
+	if len(samples) < 2 {
+		return math.NaN()
+	}
+
+	var counterResetCompensation float64
+	prev := samples[0].Value
+	for _, s := range samples[1:] {
+		if s.Value < prev {
+			// Counter reset detected: add the previous value as compensation
+			counterResetCompensation += prev
+		}
+		prev = s.Value
+	}
+
+	totalIncrease := (samples[len(samples)-1].Value - samples[0].Value) + counterResetCompensation
+
+	if totalIncrease < 0 {
+		totalIncrease = 0
+	}
+
+	// Extrapolation: adjust for partial coverage of the range window
+	durationMs := float64(samples[len(samples)-1].Timestamp - samples[0].Timestamp)
+	if durationMs == 0 {
+		return math.NaN()
+	}
+
+	// Extrapolate to cover the full range
+	extrapolationFactor := float64(rangeMs) / durationMs
+	if extrapolationFactor > 1.1 {
+		extrapolationFactor = 1.1 // cap extrapolation
+	}
+	totalIncrease *= extrapolationFactor
+
+	if perSecond {
+		rangeSec := float64(rangeMs) / 1000.0
+		if rangeSec == 0 {
+			return math.NaN()
+		}
+		return totalIncrease / rangeSec
+	}
+	return totalIncrease
+}
+
+// evalIrate computes instantaneous rate from the last two samples.
+func evalIrate(samples []PromQLSample, perSecond bool) float64 {
+	if len(samples) < 2 {
+		return math.NaN()
+	}
+	last := samples[len(samples)-1]
+	prev := samples[len(samples)-2]
+
+	diff := last.Value - prev.Value
+	if diff < 0 {
+		diff = last.Value // counter reset
+	}
+
+	if perSecond {
+		dtSec := float64(last.Timestamp-prev.Timestamp) / 1000.0
+		if dtSec == 0 {
+			return math.NaN()
+		}
+		return diff / dtSec
+	}
+	return diff
+}
+
+// evalDelta computes the difference between last and first sample.
+func evalDelta(samples []PromQLSample) float64 {
+	if len(samples) < 2 {
+		return math.NaN()
+	}
+	return samples[len(samples)-1].Value - samples[0].Value
+}
+
+// evalDeriv uses least-squares linear regression to compute derivative.
+func evalDeriv(samples []PromQLSample) float64 {
+	if len(samples) < 2 {
+		return math.NaN()
+	}
+	n := float64(len(samples))
+	var sumX, sumY, sumXY, sumX2 float64
+	for _, s := range samples {
+		x := float64(s.Timestamp) / 1000.0
+		sumX += x
+		sumY += s.Value
+		sumXY += x * s.Value
+		sumX2 += x * x
+	}
+	denom := n*sumX2 - sumX*sumX
+	if denom == 0 {
+		return math.NaN()
+	}
+	return (n*sumXY - sumX*sumY) / denom
+}
+
+func evalChanges(samples []PromQLSample) float64 {
+	if len(samples) < 2 {
+		return 0
+	}
+	changes := 0.0
+	for i := 1; i < len(samples); i++ {
+		if !math.IsNaN(samples[i].Value) && !math.IsNaN(samples[i-1].Value) && samples[i].Value != samples[i-1].Value {
+			changes++
+		}
+	}
+	return changes
+}
+
+func evalResets(samples []PromQLSample) float64 {
+	if len(samples) < 2 {
+		return 0
+	}
+	resets := 0.0
+	for i := 1; i < len(samples); i++ {
+		if !math.IsNaN(samples[i].Value) && !math.IsNaN(samples[i-1].Value) && samples[i].Value < samples[i-1].Value {
+			resets++
+		}
+	}
+	return resets
+}
+
+func evalAvgOverTime(samples []PromQLSample) float64 {
+	sum := 0.0
+	count := 0
+	for _, s := range samples {
+		if !math.IsNaN(s.Value) {
+			sum += s.Value
+			count++
+		}
+	}
+	if count == 0 {
+		return math.NaN()
+	}
+	return sum / float64(count)
+}
+
+func evalMinOverTime(samples []PromQLSample) float64 {
+	min := math.Inf(1)
+	for _, s := range samples {
+		if !math.IsNaN(s.Value) && s.Value < min {
+			min = s.Value
+		}
+	}
+	if math.IsInf(min, 1) {
+		return math.NaN()
+	}
+	return min
+}
+
+func evalMaxOverTime(samples []PromQLSample) float64 {
+	max := math.Inf(-1)
+	for _, s := range samples {
+		if !math.IsNaN(s.Value) && s.Value > max {
+			max = s.Value
+		}
+	}
+	if math.IsInf(max, -1) {
+		return math.NaN()
+	}
+	return max
+}
+
+func evalSumOverTime(samples []PromQLSample) float64 {
+	sum := 0.0
+	for _, s := range samples {
+		if !math.IsNaN(s.Value) {
+			sum += s.Value
+		}
+	}
+	return sum
+}
+
+// filterStaleSamples removes samples that are older than StalenessWindow
+// relative to the newest sample in the window.
+func filterStaleSamples(samples []PromQLSample) []PromQLSample {
+	if len(samples) == 0 {
+		return nil
+	}
+	newest := samples[len(samples)-1].Timestamp
+	cutoff := newest - StalenessWindow.Milliseconds()
+	start := 0
+	for i, s := range samples {
+		if s.Timestamp >= cutoff {
+			start = i
+			break
+		}
+	}
+	return samples[start:]
+}
+
+// --- Recording Rules ---
+
+// PromQLRecordingRule defines a PromQL recording rule that periodically evaluates
+// an expression and writes the result as a new time series.
+type PromQLRecordingRule struct {
+	Name       string            `json:"name"`
+	Expression string            `json:"expression"`
+	Labels     map[string]string `json:"labels,omitempty"`
+	Interval   time.Duration     `json:"interval"`
+}
+
+// PromQLRecordingRuleEngine evaluates PromQL recording rules on a schedule.
+type PromQLRecordingRuleEngine struct {
+	db     *DB
+	rules  []PromQLRecordingRule
+	parser *PromQLCompleteParser
+	mu     sync.RWMutex
+	stopCh chan struct{}
+}
+
+// NewPromQLRecordingRuleEngine creates a new recording rule engine.
+func NewPromQLRecordingRuleEngine(db *DB) *PromQLRecordingRuleEngine {
+	return &PromQLRecordingRuleEngine{
+		db:     db,
+		parser: NewPromQLCompleteParser(),
+		stopCh: make(chan struct{}),
+	}
+}
+
+// AddRule registers a recording rule.
+func (e *PromQLRecordingRuleEngine) AddRule(rule PromQLRecordingRule) error {
+	if rule.Name == "" {
+		return errors.New("recording rule name is required")
+	}
+	if rule.Expression == "" {
+		return errors.New("recording rule expression is required")
+	}
+	if rule.Interval <= 0 {
+		rule.Interval = time.Minute
+	}
+
+	// Validate the expression parses
+	if _, err := e.parser.ParseComplete(rule.Expression); err != nil {
+		return fmt.Errorf("invalid recording rule expression: %w", err)
+	}
+
+	e.mu.Lock()
+	e.rules = append(e.rules, rule)
+	e.mu.Unlock()
+	return nil
+}
+
+// Rules returns a copy of all registered recording rules.
+func (e *PromQLRecordingRuleEngine) Rules() []PromQLRecordingRule {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	out := make([]PromQLRecordingRule, len(e.rules))
+	copy(out, e.rules)
+	return out
+}
+
+// EvaluateRule evaluates a single recording rule and writes the result.
+func (e *PromQLRecordingRuleEngine) EvaluateRule(rule PromQLRecordingRule) error {
+	now := time.Now()
+	pq, err := e.parser.ParseComplete(rule.Expression)
+	if err != nil {
+		return fmt.Errorf("parse recording rule %q: %w", rule.Name, err)
+	}
+
+	cq := pq.ToChronicleQuery(now.Add(-rule.Interval).UnixNano(), now.UnixNano())
+	result, err := e.db.Execute(cq)
+	if err != nil {
+		return fmt.Errorf("evaluate recording rule %q: %w", rule.Name, err)
+	}
+
+	// Write aggregated result as the new metric
+	if result != nil && len(result.Points) > 0 {
+		tags := make(map[string]string)
+		for k, v := range rule.Labels {
+			tags[k] = v
+		}
+		lastPoint := result.Points[len(result.Points)-1]
+		return e.db.Write(Point{
+			Metric:    rule.Name,
+			Value:     lastPoint.Value,
+			Tags:      tags,
+			Timestamp: now.UnixNano(),
+		})
+	}
+	return nil
+}
+
+// Start begins periodic evaluation of all recording rules.
+func (e *PromQLRecordingRuleEngine) Start() {
+	go func() {
+		ticker := time.NewTicker(time.Second * 15)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-e.stopCh:
+				return
+			case <-ticker.C:
+				e.mu.RLock()
+				rules := make([]PromQLRecordingRule, len(e.rules))
+				copy(rules, e.rules)
+				e.mu.RUnlock()
+
+				for _, rule := range rules {
+					_ = e.EvaluateRule(rule)
+				}
+			}
+		}
+	}()
+}
+
+// Stop halts the recording rule engine.
+func (e *PromQLRecordingRuleEngine) Stop() {
+	close(e.stopCh)
+}
+
 // PromQLLabelReplace performs label_replace on a set of labels.
 func PromQLLabelReplace(labels map[string]string, dstLabel, replacement, srcLabel, regexStr string) (map[string]string, error) {
 	if labels == nil {
@@ -499,8 +969,46 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 		{"func_vector", "vector(1)", "function"},
 		{"func_scalar", "scalar(http_requests_total)", "function"},
 
+		// Range functions
+		{"func_rate", "rate(http_requests_total[5m])", "range_function"},
+		{"func_irate", "irate(http_requests_total[5m])", "range_function"},
+		{"func_increase", "increase(http_requests_total[1h])", "range_function"},
+		{"func_delta", "delta(temperature[10m])", "range_function"},
+		{"func_idelta", "idelta(temperature[5m])", "range_function"},
+		{"func_deriv", "deriv(predictions_total[30m])", "range_function"},
+		{"func_changes", "changes(up[10m])", "range_function"},
+		{"func_resets", "resets(http_requests_total[1h])", "range_function"},
+
+		// Math functions
+		{"func_abs", "abs(temperature)", "function"},
+		{"func_ceil", "ceil(latency)", "function"},
+		{"func_floor", "floor(latency)", "function"},
+		{"func_round", "round(latency)", "function"},
+
+		// Binary operations
+		{"bin_add", "metric_a + metric_b", "binary"},
+		{"bin_sub", "metric_a - metric_b", "binary"},
+		{"bin_mul", "metric_a * metric_b", "binary"},
+		{"bin_div", "metric_a / metric_b", "binary"},
+		{"bin_mod", "metric_a % metric_b", "binary"},
+		{"bin_pow", "metric_a ^ metric_b", "binary"},
+		{"bin_gt", "metric_a > metric_b", "binary"},
+		{"bin_lt", "metric_a < metric_b", "binary"},
+		{"bin_gte", "metric_a >= metric_b", "binary"},
+		{"bin_lte", "metric_a <= metric_b", "binary"},
+		{"bin_eq", "metric_a == metric_b", "binary"},
+		{"bin_neq", "metric_a != metric_b", "binary"},
+		{"bin_and", "metric_a and metric_b", "binary"},
+		{"bin_or", "metric_a or metric_b", "binary"},
+		{"bin_unless", "metric_a unless metric_b", "binary"},
+
+		// Offset modifier
+		{"offset_positive", "http_requests_total offset 5m", "modifier"},
+		{"offset_negative", "http_requests_total offset -5m", "modifier"},
+
 		// Combined expressions
 		{"combined_rate_sum", `sum(rate(http_requests_total{status="200"}[5m])) by (method)`, "combined"},
+		{"combined_nested_rate", `increase(http_requests_total{code=~"2.."}[1h])`, "combined"},
 	}
 
 	for _, tc := range testCases {
