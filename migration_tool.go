@@ -255,6 +255,7 @@ func parseInfluxLine(line string) (Point, error) {
 	// Parse field value (take first field)
 	fields := strings.Split(parts[1], ",")
 	var value float64
+	fieldParsed := false
 	for _, field := range fields {
 		kv := strings.SplitN(field, "=", 2)
 		if len(kv) == 2 {
@@ -262,9 +263,13 @@ func parseInfluxLine(line string) (Point, error) {
 			var err error
 			value, err = strconv.ParseFloat(v, 64)
 			if err == nil {
+				fieldParsed = true
 				break
 			}
 		}
+	}
+	if !fieldParsed {
+		return Point{}, fmt.Errorf("no valid field in line: %q", line)
 	}
 
 	// Parse timestamp
