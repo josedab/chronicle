@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -910,5 +911,284 @@ func (osm *OfflineSyncManager) Stats() *OfflineSyncStats {
 		TotalConflicts: osm.totalConflicts,
 		PointsTracked:  tracked,
 		PeerCount:      len(osm.peers),
+	}
+}
+
+// --- PNCounter: positive-negative counter CRDT ---
+
+// PNCounter supports both increments and decrements across distributed nodes.
+// It uses two G-Counters internally: one for increments and one for decrements.
+type PNCounter struct {
+	positive *GCounter
+	negative *GCounter
+	mu       sync.RWMutex
+}
+
+// NewPNCounter creates a new positive-negative counter.
+func NewPNCounter(nodeID string) *PNCounter {
+	return &PNCounter{
+		positive: NewGCounter(nodeID),
+		negative: NewGCounter(nodeID),
+	}
+}
+
+// Increment adds to the counter.
+func (pn *PNCounter) Increment(nodeID string, delta int64) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	pn.positive.Increment(nodeID, delta)
+}
+
+// Decrement subtracts from the counter.
+func (pn *PNCounter) Decrement(nodeID string, delta int64) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	pn.negative.Increment(nodeID, delta)
+}
+
+// Value returns the current counter value (increments - decrements).
+func (pn *PNCounter) Value() int64 {
+	pn.mu.RLock()
+	defer pn.mu.RUnlock()
+	return pn.positive.Value() - pn.negative.Value()
+}
+
+// Merge merges another PNCounter into this one.
+func (pn *PNCounter) Merge(other *PNCounter) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	other.mu.RLock()
+	defer other.mu.RUnlock()
+	pn.positive.Merge(other.positive)
+	pn.negative.Merge(other.negative)
+}
+
+// --- Merkle Tree Anti-Entropy for Delta Sync ---
+
+// SyncMerkleNode is a node in a Merkle tree for efficient delta comparison.
+type SyncMerkleNode struct {
+	Hash     [32]byte          `json:"hash"`
+	Level    int               `json:"level"`
+	Min      int64             `json:"min"` // min timestamp
+	Max      int64             `json:"max"` // max timestamp
+	Children [2]*SyncMerkleNode `json:"children,omitempty"`
+	Count    int               `json:"count"`
+}
+
+// SyncMerkleTree enables bandwidth-efficient anti-entropy by comparing
+// data hashes at progressively finer granularity.
+type SyncMerkleTree struct {
+	root    *SyncMerkleNode
+	depth   int
+	nodeID  string
+	mu      sync.RWMutex
+}
+
+// NewSyncMerkleTree creates a new Merkle tree for sync comparison.
+func NewSyncMerkleTree(nodeID string, depth int) *SyncMerkleTree {
+	if depth < 1 {
+		depth = 8
+	}
+	return &SyncMerkleTree{
+		root: &SyncMerkleNode{
+			Level: 0,
+			Min:   0,
+			Max:   1<<62 - 1,
+		},
+		depth:  depth,
+		nodeID: nodeID,
+	}
+}
+
+// Insert adds a data point hash to the tree.
+func (t *SyncMerkleTree) Insert(timestamp int64, data []byte) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	h := sha256.Sum256(data)
+	t.insertNode(t.root, timestamp, h, 0)
+}
+
+func (t *SyncMerkleTree) insertNode(node *SyncMerkleNode, ts int64, h [32]byte, level int) {
+	// XOR the hash into this node
+	for i := range node.Hash {
+		node.Hash[i] ^= h[i]
+	}
+	node.Count++
+
+	if level >= t.depth {
+		return
+	}
+
+	mid := node.Min + (node.Max-node.Min)/2
+	if node.Children[0] == nil {
+		node.Children[0] = &SyncMerkleNode{Level: level + 1, Min: node.Min, Max: mid}
+		node.Children[1] = &SyncMerkleNode{Level: level + 1, Min: mid + 1, Max: node.Max}
+	}
+
+	if ts <= mid {
+		t.insertNode(node.Children[0], ts, h, level+1)
+	} else {
+		t.insertNode(node.Children[1], ts, h, level+1)
+	}
+}
+
+// RootHash returns the root hash for quick comparison.
+func (t *SyncMerkleTree) RootHash() [32]byte {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.root.Hash
+}
+
+// DiffTimeRanges compares two trees and returns time ranges that differ.
+func (t *SyncMerkleTree) DiffTimeRanges(other *SyncMerkleTree) []SyncTimeRange {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	other.mu.RLock()
+	defer other.mu.RUnlock()
+
+	var diffs []SyncTimeRange
+	t.diffNodes(t.root, other.root, &diffs)
+	return diffs
+}
+
+// SyncTimeRange represents a time range that needs synchronization.
+type SyncTimeRange struct {
+	Min   int64 `json:"min"`
+	Max   int64 `json:"max"`
+	Count int   `json:"count"` // approximate number of points
+}
+
+func (t *SyncMerkleTree) diffNodes(a, b *SyncMerkleNode, diffs *[]SyncTimeRange) {
+	if a == nil && b == nil {
+		return
+	}
+	if a == nil || b == nil || a.Hash != b.Hash {
+		min := int64(0)
+		max := int64(1<<62 - 1)
+		count := 0
+		if a != nil {
+			min, max, count = a.Min, a.Max, a.Count
+		} else if b != nil {
+			min, max, count = b.Min, b.Max, b.Count
+		}
+
+		if a == nil || b == nil || a.Children[0] == nil || b.Children[0] == nil {
+			*diffs = append(*diffs, SyncTimeRange{Min: min, Max: max, Count: count})
+			return
+		}
+
+		t.diffNodes(a.Children[0], b.Children[0], diffs)
+		t.diffNodes(a.Children[1], b.Children[1], diffs)
+	}
+}
+
+// --- Conflict Audit Logging ---
+
+// ConflictAuditEntry records a conflict resolution event for audit purposes.
+type ConflictAuditEntry struct {
+	ID            string            `json:"id"`
+	Metric        string            `json:"metric"`
+	LocalNodeID   string            `json:"local_node_id"`
+	RemoteNodeID  string            `json:"remote_node_id"`
+	Strategy      string            `json:"strategy"`
+	LocalValue    float64           `json:"local_value"`
+	RemoteValue   float64           `json:"remote_value"`
+	ResolvedValue float64           `json:"resolved_value"`
+	LocalTimestamp  int64           `json:"local_timestamp"`
+	RemoteTimestamp int64           `json:"remote_timestamp"`
+	ResolvedAt    time.Time         `json:"resolved_at"`
+	Tags          map[string]string `json:"tags,omitempty"`
+}
+
+// ConflictAuditLog maintains an append-only log of all conflict resolutions.
+type ConflictAuditLog struct {
+	entries  []ConflictAuditEntry
+	maxSize  int
+	mu       sync.RWMutex
+}
+
+// NewConflictAuditLog creates a new audit log with a max retention size.
+func NewConflictAuditLog(maxSize int) *ConflictAuditLog {
+	if maxSize <= 0 {
+		maxSize = 10000
+	}
+	return &ConflictAuditLog{
+		entries: make([]ConflictAuditEntry, 0, 100),
+		maxSize: maxSize,
+	}
+}
+
+// Record appends a conflict resolution event to the audit log.
+func (l *ConflictAuditLog) Record(entry ConflictAuditEntry) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if entry.ResolvedAt.IsZero() {
+		entry.ResolvedAt = time.Now()
+	}
+	if entry.ID == "" {
+		entry.ID = fmt.Sprintf("conflict-%d", time.Now().UnixNano())
+	}
+
+	if len(l.entries) >= l.maxSize {
+		// Evict oldest 10%
+		evict := l.maxSize / 10
+		if evict < 1 {
+			evict = 1
+		}
+		l.entries = l.entries[evict:]
+	}
+
+	l.entries = append(l.entries, entry)
+}
+
+// Entries returns all audit entries.
+func (l *ConflictAuditLog) Entries() []ConflictAuditEntry {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	result := make([]ConflictAuditEntry, len(l.entries))
+	copy(result, l.entries)
+	return result
+}
+
+// EntriesSince returns entries after the given timestamp.
+func (l *ConflictAuditLog) EntriesSince(since time.Time) []ConflictAuditEntry {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	var result []ConflictAuditEntry
+	for _, e := range l.entries {
+		if e.ResolvedAt.After(since) {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
+// Count returns the total number of recorded conflicts.
+func (l *ConflictAuditLog) Count() int {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return len(l.entries)
+}
+
+// Summary returns aggregate statistics about conflicts.
+func (l *ConflictAuditLog) Summary() map[string]interface{} {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	byStrategy := make(map[string]int)
+	byMetric := make(map[string]int)
+	for _, e := range l.entries {
+		byStrategy[e.Strategy]++
+		byMetric[e.Metric]++
+	}
+
+	return map[string]interface{}{
+		"total_conflicts":    len(l.entries),
+		"by_strategy":        byStrategy,
+		"by_metric":          byMetric,
+		"metrics_affected":   len(byMetric),
 	}
 }
