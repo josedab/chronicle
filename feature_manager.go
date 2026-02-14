@@ -9,8 +9,11 @@ package chronicle
 //   4. HTTP route registration in http_routes_nextgen.go
 //   5. API stability entry in api_stability.go
 //
-// To reduce this file's size, consider generating accessors with go:generate.
+// To add a new feature, add its definition to scripts/gen_feature_accessors.go
+// and run: go generate ./...
 // See docs/MODULE_SPLIT.md for the planned modularization.
+
+//go:generate go run scripts/gen_feature_accessors.go -out feature_manager_gen.go
 
 import (
 	"log"
