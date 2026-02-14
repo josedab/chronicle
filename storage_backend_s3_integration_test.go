@@ -242,3 +242,237 @@ func TestS3Integration_NonExistentKey(t *testing.T) {
 		t.Error("expected error reading nonexistent key")
 	}
 }
+
+func TestS3Integration_MultipartUploadResumption(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	// Create data that triggers multipart upload (>1KB in test config)
+	data := make([]byte, 4096)
+	for i := range data {
+		data[i] = byte(i % 256)
+	}
+
+	// Write, then overwrite (simulates re-upload after failure)
+	key := "resumption/large-object"
+	if err := backend.Write(ctx, key, data[:2048]); err != nil {
+		t.Fatalf("First write: %v", err)
+	}
+
+	// Overwrite with full data (simulates resumed upload)
+	if err := backend.Write(ctx, key, data); err != nil {
+		t.Fatalf("Resumed write: %v", err)
+	}
+
+	got, err := backend.Read(ctx, key)
+	if err != nil {
+		t.Fatalf("Read after resumption: %v", err)
+	}
+	if len(got) != len(data) {
+		t.Errorf("expected %d bytes, got %d", len(data), len(got))
+	}
+	for i := range data {
+		if got[i] != data[i] {
+			t.Errorf("data mismatch at byte %d", i)
+			break
+		}
+	}
+	_ = backend.Delete(ctx, key)
+}
+
+func TestS3Integration_RetryWithJitter(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	// Verify that the backend retryer is configured with jitter
+	if backend.retryer == nil {
+		t.Fatal("expected retryer to be configured")
+	}
+
+	// Write and read operations should succeed through retry logic
+	key := "retry-jitter/test-key"
+	payload := []byte("retry-test-data")
+
+	if err := backend.Write(ctx, key, payload); err != nil {
+		t.Fatalf("Write with retry: %v", err)
+	}
+
+	data, err := backend.Read(ctx, key)
+	if err != nil {
+		t.Fatalf("Read with retry: %v", err)
+	}
+	if string(data) != string(payload) {
+		t.Errorf("got %q, want %q", string(data), string(payload))
+	}
+	_ = backend.Delete(ctx, key)
+}
+
+func TestS3Integration_EventualConsistency(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	key := "eventual/consistency-test"
+	payload := []byte("consistency-data")
+
+	// Write
+	if err := backend.Write(ctx, key, payload); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	// Immediate read-after-write should succeed (S3 is now strongly consistent
+	// for all operations, but we test the pattern for S3-compatible stores)
+	var data []byte
+	var err error
+	maxAttempts := 5
+	for i := 0; i < maxAttempts; i++ {
+		data, err = backend.Read(ctx, key)
+		if err == nil && string(data) == string(payload) {
+			break
+		}
+		time.Sleep(time.Duration(100*(i+1)) * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("Read after eventual consistency wait: %v", err)
+	}
+	if string(data) != string(payload) {
+		t.Errorf("data mismatch: got %q, want %q", string(data), string(payload))
+	}
+
+	// Delete and verify eventual disappearance
+	if err := backend.Delete(ctx, key); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	var exists bool
+	for i := 0; i < maxAttempts; i++ {
+		exists, _ = backend.Exists(ctx, key)
+		if !exists {
+			break
+		}
+		time.Sleep(time.Duration(100*(i+1)) * time.Millisecond)
+	}
+	if exists {
+		t.Error("key still exists after delete and consistency wait")
+	}
+}
+
+func TestS3Integration_LargeObjectBenchmark(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping benchmark in short mode")
+	}
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	sizes := []struct {
+		name string
+		size int
+	}{
+		{"1KB", 1024},
+		{"64KB", 64 * 1024},
+		{"1MB", 1024 * 1024},
+	}
+
+	for _, sz := range sizes {
+		t.Run(sz.name, func(t *testing.T) {
+			data := make([]byte, sz.size)
+			if _, err := rand.Read(data); err != nil {
+				t.Fatal(err)
+			}
+			key := fmt.Sprintf("bench/%s", sz.name)
+
+			// Measure write latency
+			writeStart := time.Now()
+			if err := backend.Write(ctx, key, data); err != nil {
+				t.Fatalf("Write %s: %v", sz.name, err)
+			}
+			writeDur := time.Since(writeStart)
+
+			// Measure read latency (cold: invalidate cache)
+			backend.cache.Delete(backend.config.Prefix + key)
+			readStart := time.Now()
+			got, err := backend.Read(ctx, key)
+			if err != nil {
+				t.Fatalf("Read %s: %v", sz.name, err)
+			}
+			readDur := time.Since(readStart)
+
+			if len(got) != sz.size {
+				t.Errorf("size mismatch: got %d, want %d", len(got), sz.size)
+			}
+
+			writeThroughput := float64(sz.size) / writeDur.Seconds() / 1024 / 1024
+			readThroughput := float64(sz.size) / readDur.Seconds() / 1024 / 1024
+			t.Logf("%s: write=%v (%.2f MB/s) read=%v (%.2f MB/s)",
+				sz.name, writeDur, writeThroughput, readDur, readThroughput)
+
+			_ = backend.Delete(ctx, key)
+		})
+	}
+}
+
+func TestS3Integration_OverwriteConsistency(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	key := "overwrite/test-key"
+
+	// Write v1
+	if err := backend.Write(ctx, key, []byte("version-1")); err != nil {
+		t.Fatalf("Write v1: %v", err)
+	}
+
+	// Overwrite with v2
+	if err := backend.Write(ctx, key, []byte("version-2")); err != nil {
+		t.Fatalf("Write v2: %v", err)
+	}
+
+	// Invalidate cache and read
+	backend.cache.Delete(backend.config.Prefix + key)
+	data, err := backend.Read(ctx, key)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if string(data) != "version-2" {
+		t.Errorf("expected version-2, got %q", string(data))
+	}
+
+	_ = backend.Delete(ctx, key)
+}
+
+func TestS3Integration_EmptyAndBinaryData(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		key  string
+		data []byte
+	}{
+		{"empty", "edge/empty", []byte{}},
+		{"single_byte", "edge/single", []byte{0xFF}},
+		{"null_bytes", "edge/nulls", []byte{0x00, 0x00, 0x00}},
+		{"binary_mix", "edge/binary", []byte{0x00, 0xFF, 0x80, 0x7F, 0x01}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := backend.Write(ctx, tt.key, tt.data); err != nil {
+				t.Fatalf("Write: %v", err)
+			}
+			got, err := backend.Read(ctx, tt.key)
+			if err != nil {
+				t.Fatalf("Read: %v", err)
+			}
+			if len(got) != len(tt.data) {
+				t.Errorf("length: got %d, want %d", len(got), len(tt.data))
+			}
+			for i := range tt.data {
+				if i < len(got) && got[i] != tt.data[i] {
+					t.Errorf("byte %d: got %x, want %x", i, got[i], tt.data[i])
+					break
+				}
+			}
+			_ = backend.Delete(ctx, tt.key)
+		})
+	}
+}

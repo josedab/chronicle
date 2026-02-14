@@ -422,3 +422,198 @@ func (s *S3Backend) Exists(ctx context.Context, key string) (bool, error) {
 func (s *S3Backend) Close() error {
 	return nil
 }
+
+// --- Multipart Upload Resumption ---
+
+// MultipartUploadState tracks the state of an in-progress multipart upload.
+type MultipartUploadState struct {
+	UploadID       string                     `json:"upload_id"`
+	Key            string                     `json:"key"`
+	CompletedParts []s3types.CompletedPart     `json:"completed_parts"`
+	NextPartNumber int32                       `json:"next_part_number"`
+	TotalSize      int64                       `json:"total_size"`
+	StartedAt      time.Time                   `json:"started_at"`
+}
+
+// WriteMultipartResumable performs a multipart upload that can be resumed after failure.
+// It returns the upload state for tracking and potential resumption.
+func (s *S3Backend) WriteMultipartResumable(ctx context.Context, key string, data []byte, state *MultipartUploadState) (*MultipartUploadState, error) {
+	fullKey := s.config.Prefix + key
+
+	if state == nil {
+		// Start a new multipart upload
+		createResp, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+			Bucket: aws.String(s.config.Bucket),
+			Key:    aws.String(fullKey),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create multipart upload: %w", err)
+		}
+		state = &MultipartUploadState{
+			UploadID:       *createResp.UploadId,
+			Key:            fullKey,
+			NextPartNumber: 1,
+			TotalSize:      int64(len(data)),
+			StartedAt:      time.Now(),
+		}
+	}
+
+	partSize := s.config.MultipartPartSize
+	for partNum := state.NextPartNumber; int64((partNum-1))*partSize < int64(len(data)); partNum++ {
+		start := int64(partNum-1) * partSize
+		end := start + partSize
+		if end > int64(len(data)) {
+			end = int64(len(data))
+		}
+
+		var uploadResult *s3.UploadPartOutput
+		result := s.retryer.Do(ctx, func() error {
+			var err error
+			uploadResult, err = s.client.UploadPart(ctx, &s3.UploadPartInput{
+				Bucket:     aws.String(s.config.Bucket),
+				Key:        aws.String(fullKey),
+				UploadId:   aws.String(state.UploadID),
+				PartNumber: aws.Int32(partNum),
+				Body:       bytes.NewReader(data[start:end]),
+			})
+			return err
+		})
+		if result.LastErr != nil {
+			state.NextPartNumber = partNum
+			return state, fmt.Errorf("upload part %d: %w", partNum, result.LastErr)
+		}
+
+		state.CompletedParts = append(state.CompletedParts, s3types.CompletedPart{
+			ETag:       uploadResult.ETag,
+			PartNumber: aws.Int32(partNum),
+		})
+		state.NextPartNumber = partNum + 1
+	}
+
+	// Complete the upload
+	_, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(s.config.Bucket),
+		Key:      aws.String(fullKey),
+		UploadId: aws.String(state.UploadID),
+		MultipartUpload: &s3types.CompletedMultipartUpload{
+			Parts: state.CompletedParts,
+		},
+	})
+	if err != nil {
+		return state, fmt.Errorf("complete multipart upload: %w", err)
+	}
+
+	s.cache.Put(fullKey, data)
+	return state, nil
+}
+
+// AbortMultipartUpload aborts an in-progress multipart upload.
+func (s *S3Backend) AbortMultipartUpload(ctx context.Context, state *MultipartUploadState) error {
+	if state == nil || state.UploadID == "" {
+		return nil
+	}
+	_, err := s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(s.config.Bucket),
+		Key:      aws.String(state.Key),
+		UploadId: aws.String(state.UploadID),
+	})
+	return err
+}
+
+// --- Cost-Optimized Tiering Policies ---
+
+// S3StorageClass represents an S3 storage class for cost optimization.
+type S3StorageClass string
+
+const (
+	S3ClassStandard           S3StorageClass = "STANDARD"
+	S3ClassInfrequentAccess   S3StorageClass = "STANDARD_IA"
+	S3ClassOneZoneIA          S3StorageClass = "ONEZONE_IA"
+	S3ClassIntelligentTiering S3StorageClass = "INTELLIGENT_TIERING"
+	S3ClassGlacier            S3StorageClass = "GLACIER"
+	S3ClassGlacierInstant     S3StorageClass = "GLACIER_IR"
+	S3ClassDeepArchive        S3StorageClass = "DEEP_ARCHIVE"
+)
+
+// S3TieringPolicy defines when to transition objects between storage classes.
+type S3TieringPolicy struct {
+	Name             string         `json:"name"`
+	FromClass        S3StorageClass `json:"from_class"`
+	ToClass          S3StorageClass `json:"to_class"`
+	AfterDays        int            `json:"after_days"`
+	MinSizeBytes     int64          `json:"min_size_bytes"`
+	MaxSizeBytes     int64          `json:"max_size_bytes,omitempty"`
+	KeyPrefixPattern string         `json:"key_prefix_pattern,omitempty"`
+}
+
+// S3TieringConfig holds the tiering configuration.
+type S3TieringConfig struct {
+	Enabled  bool               `json:"enabled"`
+	Policies []S3TieringPolicy  `json:"policies"`
+}
+
+// DefaultS3TieringConfig returns cost-optimized tiering policies.
+func DefaultS3TieringConfig() S3TieringConfig {
+	return S3TieringConfig{
+		Enabled: true,
+		Policies: []S3TieringPolicy{
+			{
+				Name:         "hot-to-warm",
+				FromClass:    S3ClassStandard,
+				ToClass:      S3ClassInfrequentAccess,
+				AfterDays:    30,
+				MinSizeBytes: 128 * 1024, // 128KB minimum for IA
+			},
+			{
+				Name:         "warm-to-cold",
+				FromClass:    S3ClassInfrequentAccess,
+				ToClass:      S3ClassGlacierInstant,
+				AfterDays:    90,
+				MinSizeBytes: 128 * 1024,
+			},
+			{
+				Name:         "cold-to-archive",
+				FromClass:    S3ClassGlacierInstant,
+				ToClass:      S3ClassDeepArchive,
+				AfterDays:    365,
+				MinSizeBytes: 128 * 1024,
+			},
+		},
+	}
+}
+
+// ShouldTransition checks if an object should be transitioned based on its age
+// and the provided policy.
+func (p *S3TieringPolicy) ShouldTransition(objectAge time.Duration, objectSize int64) bool {
+	if objectAge < time.Duration(p.AfterDays)*24*time.Hour {
+		return false
+	}
+	if objectSize < p.MinSizeBytes {
+		return false
+	}
+	if p.MaxSizeBytes > 0 && objectSize > p.MaxSizeBytes {
+		return false
+	}
+	return true
+}
+
+// WriteWithStorageClass writes an object with a specific storage class.
+func (s *S3Backend) WriteWithStorageClass(ctx context.Context, key string, data []byte, class S3StorageClass) error {
+	fullKey := s.config.Prefix + key
+
+	result := s.retryer.Do(ctx, func() error {
+		_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+			Bucket:       aws.String(s.config.Bucket),
+			Key:          aws.String(fullKey),
+			Body:         bytes.NewReader(data),
+			StorageClass: s3types.StorageClass(class),
+		})
+		return err
+	})
+	if result.LastErr != nil {
+		return fmt.Errorf("write with storage class %s: %w", class, result.LastErr)
+	}
+
+	s.cache.Put(fullKey, data)
+	return nil
+}
