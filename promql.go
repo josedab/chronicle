@@ -27,6 +27,16 @@ type PromQLQuery struct {
 	RangeWindow time.Duration
 	Aggregation *PromQLAggregation
 	BinaryExpr  *PromQLBinaryExpr
+	Offset      time.Duration // offset modifier (can be negative)
+	AtTimestamp *int64        // @ modifier: pin evaluation to specific unix timestamp (ms)
+	Subquery    *PromQLSubquery
+	Function    PromQLAggOp // specific function applied (rate, increase, irate, etc.)
+}
+
+// PromQLSubquery represents a subquery like expr[range:step].
+type PromQLSubquery struct {
+	Range time.Duration
+	Step  time.Duration
 }
 
 // LabelMatcher defines a label matching operation.
@@ -201,18 +211,71 @@ func (p *PromQLParser) parseSelector(expr string) (*PromQLQuery, error) {
 		Labels: make(map[string]LabelMatcher),
 	}
 
-	// Check for range selector
+	// Parse @ modifier: metric @ timestamp
+	if atIdx := findAtModifier(expr); atIdx >= 0 {
+		tsStr := strings.TrimSpace(expr[atIdx+1:])
+		// Remove any trailing offset/range parts from the timestamp
+		tsEnd := strings.IndexAny(tsStr, " \t[")
+		if tsEnd > 0 {
+			rest := tsStr[tsEnd:]
+			tsStr = tsStr[:tsEnd]
+			expr = expr[:atIdx] + rest
+		} else {
+			expr = expr[:atIdx]
+		}
+		ts, err := strconv.ParseInt(strings.TrimSpace(tsStr), 10, 64)
+		if err == nil {
+			query.AtTimestamp = &ts
+		}
+	}
+
+	// Parse offset modifier
+	if offIdx := strings.Index(strings.ToLower(expr), " offset "); offIdx >= 0 {
+		offStr := strings.TrimSpace(expr[offIdx+8:])
+		negative := false
+		if strings.HasPrefix(offStr, "-") {
+			negative = true
+			offStr = strings.TrimSpace(offStr[1:])
+		}
+		dur, err := parseDuration(offStr)
+		if err == nil {
+			if negative {
+				dur = -dur
+			}
+			query.Offset = dur
+		}
+		expr = expr[:offIdx]
+	}
+
+	// Check for subquery: expr[range:step]
 	if idx := strings.Index(expr, "["); idx != -1 {
 		rangeEnd := strings.Index(expr[idx:], "]")
 		if rangeEnd == -1 {
 			return nil, errors.New("unclosed range bracket")
 		}
 		rangeStr := expr[idx+1 : idx+rangeEnd]
-		duration, err := parseDuration(rangeStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid duration: %w", err)
+		if colonIdx := strings.Index(rangeStr, ":"); colonIdx >= 0 {
+			rangePart := rangeStr[:colonIdx]
+			stepPart := rangeStr[colonIdx+1:]
+			rangeDur, err := parseDuration(rangePart)
+			if err != nil {
+				return nil, fmt.Errorf("invalid subquery range: %w", err)
+			}
+			var stepDur time.Duration
+			if stepPart != "" {
+				stepDur, err = parseDuration(stepPart)
+				if err != nil {
+					return nil, fmt.Errorf("invalid subquery step: %w", err)
+				}
+			}
+			query.Subquery = &PromQLSubquery{Range: rangeDur, Step: stepDur}
+		} else {
+			duration, err := parseDuration(rangeStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid duration: %w", err)
+			}
+			query.RangeWindow = duration
 		}
-		query.RangeWindow = duration
 		expr = expr[:idx]
 	}
 
@@ -236,6 +299,24 @@ func (p *PromQLParser) parseSelector(expr string) (*PromQLQuery, error) {
 	}
 
 	return query, nil
+}
+
+// findAtModifier finds the @ modifier outside of brackets/braces.
+func findAtModifier(expr string) int {
+	depth := 0
+	for i, ch := range expr {
+		switch ch {
+		case '(', '{', '[':
+			depth++
+		case ')', '}', ']':
+			depth--
+		case '@':
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 func (p *PromQLParser) parseLabels(labelsStr string, query *PromQLQuery) error {
