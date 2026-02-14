@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Chronicle! This document provides
 
 ### Prerequisites
 
-- Go 1.23 or later
+- Go 1.24 or later
 - Git
 
 ### Development Setup
@@ -20,6 +20,7 @@ Thank you for your interest in contributing to Chronicle! This document provides
 2. Install development dependencies:
    ```bash
    go mod download
+   make setup
    ```
 
 3. Verify the setup:
@@ -67,6 +68,21 @@ go vet ./...
 - Update documentation for API changes
 - Keep pull requests focused on a single change
 
+### Naming Conventions
+
+Chronicle uses consistent naming patterns for public APIs:
+
+| Pattern | Example | Purpose |
+|---------|---------|---------|
+| `DefaultXConfig()` | `DefaultAlertBuilderConfig()` | Returns config with sensible defaults |
+| `NewX(db, config)` | `NewAlertBuilder(db, config)` | Creates an engine/manager instance |
+| `XBuilder` | `ConfigBuilder`, `QueryBuilder` | Fluent builder for constructing X |
+| `NewXBuilder(...)` | `NewConfigBuilder(path)` | Creates a builder instance |
+| `WithY(...)` | `WithMaxMemory(bytes)` | Builder method (returns builder) |
+| `Build()` | `builder.Build()` | Finalizes builder, returns value + error |
+
+When adding new features, follow these patterns for consistency.
+
 ## Submitting Changes
 
 ### Pull Request Process
@@ -107,11 +123,13 @@ Before submitting, please ensure:
 
 - [ ] Code compiles without errors (`go build ./...`)
 - [ ] All tests pass (`go test ./...`)
+- [ ] `go vet` passes (`go vet ./...`)
 - [ ] Race detector passes (`go test -race ./...`)
 - [ ] Code is formatted (`gofmt -w .`)
-- [ ] Linter passes (`golangci-lint run ./...`)
 - [ ] Documentation is updated if needed
 - [ ] Commit messages follow conventions
+
+**Quick check**: Run `make check` to validate vet + fast tests in ~15 seconds.
 
 ## Reporting Issues
 
