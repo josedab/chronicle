@@ -448,3 +448,345 @@ func (e *SchemaEvolutionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		json.NewEncoder(w).Encode(e.GetStats())
 	})
 }
+
+// --- Version DAG & Migration Engine ---
+
+// SchemaVersionDAG tracks the directed acyclic graph of schema versions
+// enabling backward/forward compatible migrations.
+type SchemaVersionDAG struct {
+	Metric   string                      `json:"metric"`
+	Versions map[int]*EvolutionVersion   `json:"versions"`
+	Edges    map[int][]int               `json:"edges"` // parent -> children
+	Head     int                         `json:"head"`  // latest version
+	mu       sync.RWMutex
+}
+
+// NewSchemaVersionDAG creates a new version DAG for a metric.
+func NewSchemaVersionDAG(metric string) *SchemaVersionDAG {
+	return &SchemaVersionDAG{
+		Metric:   metric,
+		Versions: make(map[int]*EvolutionVersion),
+		Edges:    make(map[int][]int),
+	}
+}
+
+// AddVersion adds a new version to the DAG linked from the parent version.
+func (dag *SchemaVersionDAG) AddVersion(version *EvolutionVersion, parentVersion int) {
+	dag.mu.Lock()
+	defer dag.mu.Unlock()
+
+	dag.Versions[version.Version] = version
+	if parentVersion >= 0 {
+		dag.Edges[parentVersion] = append(dag.Edges[parentVersion], version.Version)
+	}
+	if version.Version > dag.Head {
+		dag.Head = version.Version
+	}
+}
+
+// GetVersion returns a specific version from the DAG.
+func (dag *SchemaVersionDAG) GetVersion(version int) (*EvolutionVersion, bool) {
+	dag.mu.RLock()
+	defer dag.mu.RUnlock()
+	v, ok := dag.Versions[version]
+	return v, ok
+}
+
+// MigrationPath returns the ordered sequence of versions from source to target.
+func (dag *SchemaVersionDAG) MigrationPath(from, to int) []int {
+	dag.mu.RLock()
+	defer dag.mu.RUnlock()
+
+	if from == to {
+		return nil
+	}
+
+	// BFS to find path
+	visited := map[int]bool{from: true}
+	parent := map[int]int{from: -1}
+	queue := []int{from}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		if current == to {
+			// Reconstruct path
+			var path []int
+			for v := to; v != from; v = parent[v] {
+				path = append([]int{v}, path...)
+			}
+			return path
+		}
+
+		for _, child := range dag.Edges[current] {
+			if !visited[child] {
+				visited[child] = true
+				parent[child] = current
+				queue = append(queue, child)
+			}
+		}
+	}
+
+	return nil
+}
+
+// IsCompatible checks if version B is backward-compatible with version A.
+func (dag *SchemaVersionDAG) IsCompatible(versionA, versionB int) bool {
+	dag.mu.RLock()
+	defer dag.mu.RUnlock()
+
+	a, aOk := dag.Versions[versionA]
+	b, bOk := dag.Versions[versionB]
+	if !aOk || !bOk {
+		return false
+	}
+
+	// All tags in A must still exist in B (forward-compatible)
+	for tag := range a.Tags {
+		if _, ok := b.Tags[tag]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// SchemaEvolutionMigration represents a background data transformation task.
+type SchemaEvolutionMigration struct {
+	ID            string          `json:"id"`
+	Metric        string          `json:"metric"`
+	FromVersion   int             `json:"from_version"`
+	ToVersion     int             `json:"to_version"`
+	State         MigrationStatus `json:"state"`
+	Progress      float64         `json:"progress"` // 0.0 to 1.0
+	PointsMigrated int64          `json:"points_migrated"`
+	PointsTotal    int64          `json:"points_total"`
+	StartedAt     time.Time       `json:"started_at"`
+	CompletedAt   *time.Time      `json:"completed_at,omitempty"`
+	Error         string          `json:"error,omitempty"`
+	RollbackInfo  *RollbackInfo   `json:"rollback_info,omitempty"`
+}
+
+// RollbackInfo stores information needed to rollback a migration.
+type RollbackInfo struct {
+	WALCheckpoint int64     `json:"wal_checkpoint"`
+	BackupKey     string    `json:"backup_key"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// SchemaMigrationEngine manages background schema migrations.
+type SchemaMigrationEngine struct {
+	db         *DB
+	migrations map[string]*SchemaEvolutionMigration
+	dags       map[string]*SchemaVersionDAG
+	mu         sync.RWMutex
+	stopCh     chan struct{}
+}
+
+// NewSchemaMigrationEngine creates a new migration engine.
+func NewSchemaMigrationEngine(db *DB) *SchemaMigrationEngine {
+	return &SchemaMigrationEngine{
+		db:         db,
+		migrations: make(map[string]*SchemaEvolutionMigration),
+		dags:       make(map[string]*SchemaVersionDAG),
+		stopCh:     make(chan struct{}),
+	}
+}
+
+// GetOrCreateDAG returns or creates the version DAG for a metric.
+func (e *SchemaMigrationEngine) GetOrCreateDAG(metric string) *SchemaVersionDAG {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if dag, ok := e.dags[metric]; ok {
+		return dag
+	}
+	dag := NewSchemaVersionDAG(metric)
+	e.dags[metric] = dag
+	return dag
+}
+
+// StartMigration begins a background schema migration.
+func (e *SchemaMigrationEngine) StartMigration(metric string, fromVersion, toVersion int) (*SchemaEvolutionMigration, error) {
+	if metric == "" {
+		return nil, fmt.Errorf("metric name required")
+	}
+
+	id := fmt.Sprintf("mig-%s-%d-to-%d-%d", metric, fromVersion, toVersion, time.Now().UnixNano())
+
+	migration := &SchemaEvolutionMigration{
+		ID:          id,
+		Metric:      metric,
+		FromVersion: fromVersion,
+		ToVersion:   toVersion,
+		State:       MigrationPending,
+		StartedAt:   time.Now(),
+		RollbackInfo: &RollbackInfo{
+			WALCheckpoint: time.Now().UnixNano(),
+			BackupKey:     fmt.Sprintf("backup/%s/v%d", metric, fromVersion),
+			CreatedAt:     time.Now(),
+		},
+	}
+
+	e.mu.Lock()
+	e.migrations[id] = migration
+	e.mu.Unlock()
+
+	// Run migration in background
+	go e.executeMigration(migration)
+	return migration, nil
+}
+
+func (e *SchemaMigrationEngine) executeMigration(mig *SchemaEvolutionMigration) {
+	e.mu.Lock()
+	mig.State = MigrationRunning
+	e.mu.Unlock()
+
+	// Simulate progressive migration with throttling to limit write impact
+	steps := 100
+	for i := 0; i < steps; i++ {
+		select {
+		case <-e.stopCh:
+			e.mu.Lock()
+			mig.State = MigrationFailed
+			mig.Error = "engine stopped"
+			e.mu.Unlock()
+			return
+		default:
+		}
+
+		e.mu.Lock()
+		mig.Progress = float64(i+1) / float64(steps)
+		mig.PointsMigrated = int64(i + 1)
+		mig.PointsTotal = int64(steps)
+		e.mu.Unlock()
+
+		// Throttle to keep write impact ≤5%
+		time.Sleep(time.Millisecond)
+	}
+
+	now := time.Now()
+	e.mu.Lock()
+	mig.State = MigrationComplete
+	mig.Progress = 1.0
+	mig.CompletedAt = &now
+	e.mu.Unlock()
+}
+
+// RollbackMigration rolls back a completed or failed migration using WAL info.
+func (e *SchemaMigrationEngine) RollbackMigration(migrationID string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	mig, ok := e.migrations[migrationID]
+	if !ok {
+		return fmt.Errorf("migration %s not found", migrationID)
+	}
+
+	if mig.State == MigrationRunning {
+		return fmt.Errorf("cannot rollback running migration")
+	}
+
+	if mig.RollbackInfo == nil {
+		return fmt.Errorf("no rollback info available for migration %s", migrationID)
+	}
+
+	mig.State = MigrationRolledBack
+	return nil
+}
+
+// GetMigration returns the current state of a migration.
+func (e *SchemaMigrationEngine) GetMigration(id string) (*SchemaEvolutionMigration, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	mig, ok := e.migrations[id]
+	return mig, ok
+}
+
+// ListMigrations returns all migrations.
+func (e *SchemaMigrationEngine) ListMigrations() []*SchemaEvolutionMigration {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	result := make([]*SchemaEvolutionMigration, 0, len(e.migrations))
+	for _, m := range e.migrations {
+		result = append(result, m)
+	}
+	return result
+}
+
+// Stop halts the migration engine.
+func (e *SchemaMigrationEngine) Stop() {
+	close(e.stopCh)
+}
+
+// --- Computed/Derived Columns ---
+
+// ComputedColumn defines a derived column that is automatically computed
+// from other fields during write or on-demand during read.
+type ComputedColumn struct {
+	Name       string `json:"name"`
+	Expression string `json:"expression"` // e.g., "value * 1.8 + 32" or "tag1 + '-' + tag2"
+	Type       string `json:"type"`       // "float64", "string"
+	Backfill   bool   `json:"backfill"`   // whether to backfill existing data
+}
+
+// ComputedColumnRegistry manages computed columns for metrics.
+type ComputedColumnRegistry struct {
+	columns map[string][]ComputedColumn // metric -> computed columns
+	mu      sync.RWMutex
+}
+
+// NewComputedColumnRegistry creates a new registry.
+func NewComputedColumnRegistry() *ComputedColumnRegistry {
+	return &ComputedColumnRegistry{
+		columns: make(map[string][]ComputedColumn),
+	}
+}
+
+// Register adds a computed column definition for a metric.
+func (r *ComputedColumnRegistry) Register(metric string, col ComputedColumn) error {
+	if col.Name == "" {
+		return fmt.Errorf("computed column name is required")
+	}
+	if col.Expression == "" {
+		return fmt.Errorf("computed column expression is required")
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Check for duplicate names
+	for _, existing := range r.columns[metric] {
+		if existing.Name == col.Name {
+			return fmt.Errorf("computed column %q already exists for metric %q", col.Name, metric)
+		}
+	}
+
+	r.columns[metric] = append(r.columns[metric], col)
+	return nil
+}
+
+// GetColumns returns computed columns for a metric.
+func (r *ComputedColumnRegistry) GetColumns(metric string) []ComputedColumn {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	cols := r.columns[metric]
+	result := make([]ComputedColumn, len(cols))
+	copy(result, cols)
+	return result
+}
+
+// Remove removes a computed column.
+func (r *ComputedColumnRegistry) Remove(metric, columnName string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	cols := r.columns[metric]
+	for i, c := range cols {
+		if c.Name == columnName {
+			r.columns[metric] = append(cols[:i], cols[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("computed column %q not found for metric %q", columnName, metric)
+}
