@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"sync"
@@ -214,4 +215,365 @@ func (e *RetentionOptimizerEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "recorded"})
 	})
+}
+
+// --- Query Frequency Heat Map ---
+
+// HeatMapCell represents a single cell in the query frequency heat map.
+type HeatMapCell struct {
+	Metric    string  `json:"metric"`
+	TimeStart int64   `json:"time_start"`
+	TimeEnd   int64   `json:"time_end"`
+	QueryFreq int64   `json:"query_frequency"`
+	HeatScore float64 `json:"heat_score"` // 0.0 (cold) to 1.0 (hot)
+}
+
+// QueryHeatMap tracks query frequency per metric/time-range for tiering decisions.
+type QueryHeatMap struct {
+	cells      map[string]map[int64]*HeatMapCell // metric -> time_bucket -> cell
+	bucketSize time.Duration
+	mu         sync.RWMutex
+}
+
+// NewQueryHeatMap creates a new heat map with the specified bucket size.
+func NewQueryHeatMap(bucketSize time.Duration) *QueryHeatMap {
+	if bucketSize <= 0 {
+		bucketSize = time.Hour
+	}
+	return &QueryHeatMap{
+		cells:      make(map[string]map[int64]*HeatMapCell),
+		bucketSize: bucketSize,
+	}
+}
+
+// RecordQuery records a query access for a metric in a time range.
+func (hm *QueryHeatMap) RecordQuery(metric string, startTime, endTime int64) {
+	hm.mu.Lock()
+	defer hm.mu.Unlock()
+
+	if hm.cells[metric] == nil {
+		hm.cells[metric] = make(map[int64]*HeatMapCell)
+	}
+
+	bucketNs := hm.bucketSize.Nanoseconds()
+	startBucket := (startTime / bucketNs) * bucketNs
+	endBucket := (endTime / bucketNs) * bucketNs
+
+	for bucket := startBucket; bucket <= endBucket; bucket += bucketNs {
+		cell, ok := hm.cells[metric][bucket]
+		if !ok {
+			cell = &HeatMapCell{
+				Metric:    metric,
+				TimeStart: bucket,
+				TimeEnd:   bucket + bucketNs,
+			}
+			hm.cells[metric][bucket] = cell
+		}
+		cell.QueryFreq++
+	}
+}
+
+// ComputeHeatScores normalizes heat scores across all cells.
+func (hm *QueryHeatMap) ComputeHeatScores() {
+	hm.mu.Lock()
+	defer hm.mu.Unlock()
+
+	var maxFreq int64
+	for _, buckets := range hm.cells {
+		for _, cell := range buckets {
+			if cell.QueryFreq > maxFreq {
+				maxFreq = cell.QueryFreq
+			}
+		}
+	}
+
+	if maxFreq == 0 {
+		return
+	}
+
+	for _, buckets := range hm.cells {
+		for _, cell := range buckets {
+			cell.HeatScore = float64(cell.QueryFreq) / float64(maxFreq)
+		}
+	}
+}
+
+// GetHotCells returns cells with heat score above the threshold.
+func (hm *QueryHeatMap) GetHotCells(threshold float64) []HeatMapCell {
+	hm.mu.RLock()
+	defer hm.mu.RUnlock()
+
+	var hot []HeatMapCell
+	for _, buckets := range hm.cells {
+		for _, cell := range buckets {
+			if cell.HeatScore >= threshold {
+				hot = append(hot, *cell)
+			}
+		}
+	}
+
+	sort.Slice(hot, func(i, j int) bool {
+		return hot[i].HeatScore > hot[j].HeatScore
+	})
+	return hot
+}
+
+// GetColdCells returns cells with heat score below the threshold.
+func (hm *QueryHeatMap) GetColdCells(threshold float64) []HeatMapCell {
+	hm.mu.RLock()
+	defer hm.mu.RUnlock()
+
+	var cold []HeatMapCell
+	for _, buckets := range hm.cells {
+		for _, cell := range buckets {
+			if cell.HeatScore < threshold {
+				cold = append(cold, *cell)
+			}
+		}
+	}
+	return cold
+}
+
+// --- Storage Cost Model ---
+
+// TierCostConfig defines the cost per GB-month for a storage tier.
+type TierCostConfig struct {
+	TierName        string  `json:"tier_name"`
+	CostPerGBMonth  float64 `json:"cost_per_gb_month"` // USD
+	ReadCostPer1K   float64 `json:"read_cost_per_1k"`  // USD per 1000 reads
+	WriteCostPer1K  float64 `json:"write_cost_per_1k"` // USD per 1000 writes
+	TransitionCost  float64 `json:"transition_cost"`    // USD per GB to transition
+	MinStorageDays  int     `json:"min_storage_days"`   // minimum before transition
+}
+
+// DefaultTierCosts returns cost configurations for standard tiers.
+func DefaultTierCosts() []TierCostConfig {
+	return []TierCostConfig{
+		{TierName: "hot", CostPerGBMonth: 0.023, ReadCostPer1K: 0.0004, WriteCostPer1K: 0.005},
+		{TierName: "warm", CostPerGBMonth: 0.0125, ReadCostPer1K: 0.001, WriteCostPer1K: 0.01, TransitionCost: 0.01, MinStorageDays: 30},
+		{TierName: "cold", CostPerGBMonth: 0.004, ReadCostPer1K: 0.01, WriteCostPer1K: 0.05, TransitionCost: 0.02, MinStorageDays: 90},
+		{TierName: "archive", CostPerGBMonth: 0.00099, ReadCostPer1K: 0.10, WriteCostPer1K: 0.0, TransitionCost: 0.05, MinStorageDays: 180},
+	}
+}
+
+// StorageCostOptimizer solves for optimal data placement across tiers.
+type StorageCostOptimizer struct {
+	tiers []TierCostConfig
+}
+
+// NewStorageCostOptimizer creates a cost optimizer with the given tier costs.
+func NewStorageCostOptimizer(tiers []TierCostConfig) *StorageCostOptimizer {
+	return &StorageCostOptimizer{tiers: tiers}
+}
+
+// TieringRecommendation is the optimizer's output for a specific metric/time-range.
+type TieringRecommendation struct {
+	Metric      string  `json:"metric"`
+	CurrentTier string  `json:"current_tier"`
+	OptimalTier string  `json:"optimal_tier"`
+	SizeGB      float64 `json:"size_gb"`
+	MonthlyCost float64 `json:"monthly_cost_current"`
+	OptimalCost float64 `json:"monthly_cost_optimal"`
+	Savings     float64 `json:"savings_pct"`
+}
+
+// Optimize determines the optimal tier for data based on access patterns and cost.
+func (o *StorageCostOptimizer) Optimize(metric string, sizeGB float64, readsPerMonth, writesPerMonth int64, ageDays int) TieringRecommendation {
+	rec := TieringRecommendation{
+		Metric: metric,
+		SizeGB: sizeGB,
+	}
+
+	bestCost := float64(1<<63 - 1)
+	var bestTier string
+
+	for _, tier := range o.tiers {
+		if ageDays < tier.MinStorageDays {
+			continue
+		}
+
+		// Total monthly cost = storage + reads + writes
+		storageCost := sizeGB * tier.CostPerGBMonth
+		readCost := float64(readsPerMonth) / 1000.0 * tier.ReadCostPer1K
+		writeCost := float64(writesPerMonth) / 1000.0 * tier.WriteCostPer1K
+		totalCost := storageCost + readCost + writeCost
+
+		if totalCost < bestCost {
+			bestCost = totalCost
+			bestTier = tier.TierName
+		}
+	}
+
+	// Current cost (assuming hot tier)
+	if len(o.tiers) > 0 {
+		rec.CurrentTier = o.tiers[0].TierName
+		rec.MonthlyCost = sizeGB * o.tiers[0].CostPerGBMonth
+	}
+	rec.OptimalTier = bestTier
+	rec.OptimalCost = bestCost
+	if rec.MonthlyCost > 0 {
+		rec.Savings = (rec.MonthlyCost - rec.OptimalCost) / rec.MonthlyCost * 100
+	}
+
+	return rec
+}
+
+// --- Autonomous Tiering Agent ---
+
+// LifecycleAgentConfig configures the autonomous lifecycle agent.
+type LifecycleAgentConfig struct {
+	Enabled     bool          `json:"enabled"`
+	DryRun      bool          `json:"dry_run"` // preview changes without applying
+	Interval    time.Duration `json:"interval"`
+	HotThreshold  float64     `json:"hot_threshold"`  // heat score above = hot
+	ColdThreshold float64     `json:"cold_threshold"` // heat score below = cold
+	TargetSavings float64     `json:"target_savings"` // target cost reduction pct
+}
+
+// DefaultLifecycleAgentConfig returns defaults targeting ≥30% savings.
+func DefaultLifecycleAgentConfig() LifecycleAgentConfig {
+	return LifecycleAgentConfig{
+		Enabled:       true,
+		DryRun:        true,
+		Interval:      time.Hour,
+		HotThreshold:  0.7,
+		ColdThreshold: 0.1,
+		TargetSavings: 30.0,
+	}
+}
+
+// LifecycleAction represents a tiering action to take.
+type LifecycleAction struct {
+	Metric    string    `json:"metric"`
+	Action    string    `json:"action"` // "tier_down", "tier_up", "compress", "delete"
+	FromTier  string    `json:"from_tier"`
+	ToTier    string    `json:"to_tier"`
+	SizeGB    float64   `json:"size_gb"`
+	Savings   float64   `json:"estimated_savings"`
+	Timestamp time.Time `json:"timestamp"`
+	DryRun    bool      `json:"dry_run"`
+}
+
+// LifecycleAgentResult holds the output of an agent evaluation cycle.
+type LifecycleAgentResult struct {
+	CycleID          string            `json:"cycle_id"`
+	Timestamp        time.Time         `json:"timestamp"`
+	Actions          []LifecycleAction `json:"actions"`
+	TotalSavings     float64           `json:"total_savings_pct"`
+	MetricsEvaluated int               `json:"metrics_evaluated"`
+	DryRun           bool              `json:"dry_run"`
+}
+
+// LifecycleAgent is an autonomous agent that predicts and applies optimal
+// retention, compression, and tiering policies.
+type LifecycleAgent struct {
+	config    LifecycleAgentConfig
+	heatMap   *QueryHeatMap
+	optimizer *StorageCostOptimizer
+	history   []LifecycleAgentResult
+	mu        sync.RWMutex
+	stopCh    chan struct{}
+}
+
+// NewLifecycleAgent creates a new autonomous lifecycle agent.
+func NewLifecycleAgent(config LifecycleAgentConfig) *LifecycleAgent {
+	return &LifecycleAgent{
+		config:    config,
+		heatMap:   NewQueryHeatMap(time.Hour),
+		optimizer: NewStorageCostOptimizer(DefaultTierCosts()),
+		stopCh:    make(chan struct{}),
+	}
+}
+
+// Evaluate runs one cycle of the lifecycle agent and returns recommendations.
+func (a *LifecycleAgent) Evaluate(metrics map[string]float64) *LifecycleAgentResult {
+	a.heatMap.ComputeHeatScores()
+
+	result := &LifecycleAgentResult{
+		CycleID:          fmt.Sprintf("cycle-%d", time.Now().UnixNano()),
+		Timestamp:        time.Now(),
+		MetricsEvaluated: len(metrics),
+		DryRun:           a.config.DryRun,
+	}
+
+	for metric, sizeGB := range metrics {
+		hot := a.heatMap.GetHotCells(a.config.HotThreshold)
+		cold := a.heatMap.GetColdCells(a.config.ColdThreshold)
+
+		isHot := false
+		for _, c := range hot {
+			if c.Metric == metric {
+				isHot = true
+				break
+			}
+		}
+		isCold := false
+		for _, c := range cold {
+			if c.Metric == metric {
+				isCold = true
+				break
+			}
+		}
+
+		if isCold {
+			rec := a.optimizer.Optimize(metric, sizeGB, 10, 0, 90)
+			if rec.Savings > 0 {
+				result.Actions = append(result.Actions, LifecycleAction{
+					Metric:    metric,
+					Action:    "tier_down",
+					FromTier:  "hot",
+					ToTier:    rec.OptimalTier,
+					SizeGB:    sizeGB,
+					Savings:   rec.Savings,
+					Timestamp: time.Now(),
+					DryRun:    a.config.DryRun,
+				})
+				result.TotalSavings += rec.Savings
+			}
+		} else if !isHot {
+			rec := a.optimizer.Optimize(metric, sizeGB, 100, 10, 30)
+			if rec.Savings > 10 {
+				result.Actions = append(result.Actions, LifecycleAction{
+					Metric:    metric,
+					Action:    "tier_down",
+					FromTier:  "hot",
+					ToTier:    rec.OptimalTier,
+					SizeGB:    sizeGB,
+					Savings:   rec.Savings,
+					Timestamp: time.Now(),
+					DryRun:    a.config.DryRun,
+				})
+				result.TotalSavings += rec.Savings
+			}
+		}
+	}
+
+	if len(metrics) > 0 {
+		result.TotalSavings /= float64(len(metrics))
+	}
+
+	a.mu.Lock()
+	a.history = append(a.history, *result)
+	a.mu.Unlock()
+
+	return result
+}
+
+// History returns past evaluation results.
+func (a *LifecycleAgent) History() []LifecycleAgentResult {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	out := make([]LifecycleAgentResult, len(a.history))
+	copy(out, a.history)
+	return out
+}
+
+// RecordQuery records a query for heat map tracking.
+func (a *LifecycleAgent) RecordQuery(metric string, startTime, endTime int64) {
+	a.heatMap.RecordQuery(metric, startTime, endTime)
+}
+
+// Stop halts the lifecycle agent.
+func (a *LifecycleAgent) Stop() {
+	close(a.stopCh)
 }
