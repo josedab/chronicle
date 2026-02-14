@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench benchmark check quickcheck cover cover-report vet setup install-hooks preflight release-check tag check-interface check-api-stability wasm help
+.PHONY: all build test test-short test-fast test-failing test-integration test-ci lint fmt clean bench benchmark check quickcheck cover cover-report vet setup install-hooks preflight release-check tag check-interface check-api-stability wasm help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -32,6 +32,10 @@ test-short: ## Run short tests only (fast iteration)
 
 test-fast: ## Run only internal package tests (fastest feedback)
 	$(GO) test ./internal/...
+
+test-failing: ## Run only previously-failing tests for fast iteration
+	$(GO) test -v -count=1 -run "TestHTTPHealth$$|TestK8sSidecar_HealthEndpoints|TestImportEngine/invalid_lines_skipped" .
+	$(GO) test -v -count=1 -run "FuzzPointValidation/seed" .
 
 test-integration: ## Run all tests including integration
 	$(GO) test $(GOFLAGS) -tags integration ./...
