@@ -136,3 +136,19 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
+
+  fuzz:
+    name: Fuzz Seed Corpus
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Run fuzz tests (seed corpus only)
+        run: go test -fuzz=. -fuzztime=10s ./...
