@@ -29,6 +29,12 @@ Thank you for your interest in contributing to Chronicle! This document provides
    go test ./...
    ```
 
+4. Install the pre-commit hook (recommended):
+   ```bash
+   make install-hooks
+   ```
+   This runs `go vet` and fast tests (~15s) before each commit.
+
 ## Development Workflow
 
 ### Running Tests
