@@ -3,7 +3,9 @@ package chronicle
 // adaptive_compression.go implements V1 of the adaptive compression engine.
 // V2 (adaptive_compression_v2.go) adds per-column codec profiling and selection.
 // V3 (adaptive_compression_v3.go) adds multi-armed bandit online codec selection.
-// New callers should prefer the V3 API (BanditCompressor) for best results.
+//
+// Deprecated: New callers should prefer the V3 API (BanditCompressor) for best results.
+// This file will be removed in a future major version.
 
 import (
 	"bytes"
@@ -972,13 +974,17 @@ func compressDictionary(data []byte) ([]byte, error) {
 		}
 	}
 
+	// Build index-ordered dictionary for deterministic output
+	ordered := make([]byte, len(dict))
+	for b, idx := range dict {
+		ordered[idx] = b
+	}
+
 	var buf bytes.Buffer
 	// Write dictionary size
 	buf.WriteByte(byte(len(dict)))
-	// Write dictionary
-	for b := range dict {
-		buf.WriteByte(b)
-	}
+	// Write dictionary in index order
+	buf.Write(ordered)
 	// Write data using dictionary indices
 	for _, b := range data {
 		buf.WriteByte(byte(dict[b]))
