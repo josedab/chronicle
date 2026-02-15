@@ -360,6 +360,7 @@ func (fs *FeatureStore) WriteFeature(ctx context.Context, fv *FeatureValue) erro
 	}
 
 	// Add metadata as tags
+	p.ensureTags()
 	for k, v := range fv.Metadata {
 		p.Tags["meta_"+k] = v
 	}

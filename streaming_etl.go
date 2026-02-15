@@ -455,9 +455,7 @@ type etlRouteStage struct{ fn ETLRouteFunc }
 func (s *etlRouteStage) Name() string { return "route" }
 func (s *etlRouteStage) Process(_ context.Context, pt *Point) ([]*Point, error) {
 	key := s.fn(pt)
-	if pt.Tags == nil {
-		pt.Tags = make(map[string]string)
-	}
+	pt.ensureTags()
 	pt.Tags["_route"] = key
 	return []*Point{pt}, nil
 }

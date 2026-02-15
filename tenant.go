@@ -149,9 +149,7 @@ func (t *Tenant) Query(sql string) (*Result, error) {
 
 // tagPoint adds tenant tag to a point.
 func (t *Tenant) tagPoint(p Point) Point {
-	if p.Tags == nil {
-		p.Tags = make(map[string]string)
-	}
+	p.ensureTags()
 	p.Tags[TenantTagKey] = t.name
 	return p
 }

@@ -424,6 +424,7 @@ func (s *K8sSidecar) parsePrometheusMetrics(data string, extraLabels map[string]
 		}
 
 		// Add extra labels
+		point.ensureTags()
 		for k, v := range extraLabels {
 			point.Tags[k] = v
 		}
@@ -506,6 +507,7 @@ func (s *K8sSidecar) addMetadataTags(points []Point) {
 	}
 
 	for i := range points {
+		points[i].ensureTags()
 		if s.config.AddNamespace && s.podInfo.Namespace != "" {
 			points[i].Tags["namespace"] = s.podInfo.Namespace
 		}

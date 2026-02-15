@@ -274,9 +274,7 @@ func (e *MetricsSDKEngine) Flush() int {
 			Tags:      ev.Tags,
 			Timestamp: ev.Timestamp,
 		}
-		if p.Tags == nil {
-			p.Tags = make(map[string]string)
-		}
+		p.ensureTags()
 		p.Tags["_event_type"] = ev.EventType
 		if ev.SessionID != "" {
 			p.Tags["_session_id"] = ev.SessionID

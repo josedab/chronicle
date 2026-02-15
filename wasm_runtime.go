@@ -485,9 +485,7 @@ func (m *MemoryHostABI) SetTag(pointIndex int, key, value string) error {
 	if pointIndex < 0 || pointIndex >= len(m.points) {
 		return fmt.Errorf("index out of range")
 	}
-	if m.points[pointIndex].Tags == nil {
-		m.points[pointIndex].Tags = make(map[string]string)
-	}
+	m.points[pointIndex].ensureTags()
 	m.points[pointIndex].Tags[key] = value
 	return nil
 }

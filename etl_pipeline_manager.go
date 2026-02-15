@@ -829,9 +829,7 @@ func (s *PipelineSpec) BuildPipeline(db *DB) (*ETLPipeline, error) {
 			value := t.Config["value"]
 			if key != "" {
 				pipeline.Transform(func(p *Point) (*Point, error) {
-					if p.Tags == nil {
-						p.Tags = make(map[string]string)
-					}
+					p.ensureTags()
 					p.Tags[key] = value
 					return p, nil
 				})
