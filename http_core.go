@@ -181,15 +181,13 @@ func rateLimitMiddleware(rl *rateLimiter, next http.HandlerFunc) http.HandlerFun
 // authenticator handles API key authentication
 type authenticator struct {
 	enabled      bool
-	apiKeys      map[string]bool
-	readOnlyKeys map[string]bool
+	apiKeys      []string
+	readOnlyKeys []string
 	excludePaths map[string]bool
 }
 
 func newAuthenticator(cfg *AuthConfig) *authenticator {
 	a := &authenticator{
-		apiKeys:      make(map[string]bool),
-		readOnlyKeys: make(map[string]bool),
 		excludePaths: make(map[string]bool),
 	}
 
@@ -199,19 +197,28 @@ func newAuthenticator(cfg *AuthConfig) *authenticator {
 	}
 
 	a.enabled = true
-	for _, key := range cfg.APIKeys {
-		a.apiKeys[key] = true
-	}
-	for _, key := range cfg.ReadOnlyKeys {
-		a.readOnlyKeys[key] = true
-	}
+	a.apiKeys = append(a.apiKeys, cfg.APIKeys...)
+	a.readOnlyKeys = append(a.readOnlyKeys, cfg.ReadOnlyKeys...)
 	for _, path := range cfg.ExcludePaths {
 		a.excludePaths[path] = true
 	}
-	// Always allow health endpoint without auth
+	// Always allow health endpoints without auth
 	a.excludePaths["/health"] = true
+	a.excludePaths["/health/ready"] = true
+	a.excludePaths["/health/live"] = true
 
 	return a
+}
+
+// matchKey returns true if candidate matches any key in keys using
+// constant-time comparison (bcrypt or subtle).
+func (a *authenticator) matchKey(keys []string, candidate string) bool {
+	for _, stored := range keys {
+		if CompareAPIKey(stored, candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 // extractAPIKey extracts the API key from the request
@@ -268,13 +275,13 @@ func authMiddleware(auth *authenticator, next http.HandlerFunc) http.HandlerFunc
 		}
 
 		// Check if it's a full-access key
-		if auth.apiKeys[apiKey] {
+		if auth.matchKey(auth.apiKeys, apiKey) {
 			next(w, r)
 			return
 		}
 
 		// Check if it's a read-only key
-		if auth.readOnlyKeys[apiKey] {
+		if auth.matchKey(auth.readOnlyKeys, apiKey) {
 			if isWriteOperation(r) {
 				http.Error(w, "read-only API key cannot perform write operations", http.StatusForbidden)
 				return

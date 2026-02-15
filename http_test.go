@@ -732,14 +732,17 @@ func TestAuthenticator_Enabled(t *testing.T) {
 	if !auth.enabled {
 		t.Error("authenticator should be enabled")
 	}
-	if !auth.apiKeys["key1"] || !auth.apiKeys["key2"] {
+	if !auth.matchKey(auth.apiKeys, "key1") || !auth.matchKey(auth.apiKeys, "key2") {
 		t.Error("API keys should be registered")
 	}
-	if !auth.readOnlyKeys["readonly1"] {
+	if !auth.matchKey(auth.readOnlyKeys, "readonly1") {
 		t.Error("read-only keys should be registered")
 	}
 	if !auth.excludePaths["/custom-health"] || !auth.excludePaths["/health"] {
 		t.Error("exclude paths should be registered")
+	}
+	if !auth.excludePaths["/health/ready"] || !auth.excludePaths["/health/live"] {
+		t.Error("health probe paths should be excluded")
 	}
 }
 
