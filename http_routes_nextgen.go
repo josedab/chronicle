@@ -66,8 +66,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.QueryPlanner() != nil {
 		qp := db.features.QueryPlanner()
 		mux.HandleFunc("/api/v1/planner/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(qp.GetPlannerStats())
+			writeJSON(w, qp.GetPlannerStats())
 		}))
 	}
 
@@ -75,12 +74,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.ConnectorHub() != nil {
 		hub := db.features.ConnectorHub()
 		mux.HandleFunc("/api/v1/connectors", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(hub.ListConnectors())
+			writeJSON(w, hub.ListConnectors())
 		}))
 		mux.HandleFunc("/api/v1/connectors/drivers", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(hub.ListDrivers())
+			writeJSON(w, hub.ListDrivers())
 		}))
 	}
 
@@ -88,8 +85,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.AnomalyCorrelation() != nil {
 		ac := db.features.AnomalyCorrelation()
 		mux.HandleFunc("/api/v1/incidents", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(ac.ListIncidents())
+			writeJSON(w, ac.ListIncidents())
 		}))
 	}
 
@@ -110,12 +106,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 					limit = 100
 				}
 			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(ap.ListAnomalies(metric, since, limit))
+			writeJSON(w, ap.ListAnomalies(metric, since, limit))
 		}))
 		mux.HandleFunc("/api/v1/anomalies/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(ap.Stats())
+			writeJSON(w, ap.Stats())
 		}))
 		mux.HandleFunc("/api/v1/anomalies/baseline/", wrap(func(w http.ResponseWriter, r *http.Request) {
 			metric := r.URL.Path[len("/api/v1/anomalies/baseline/"):]
@@ -128,8 +122,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				http.Error(w, "no baseline for metric", http.StatusNotFound)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{
+			writeJSON(w, map[string]any{
 				"metric":       metric,
 				"mean":         b.mean,
 				"stddev":       b.stddev,
@@ -146,8 +139,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.NotebookEngine() != nil {
 		nb := db.features.NotebookEngine()
 		mux.HandleFunc("/api/v1/notebooks", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(nb.ListNotebooks())
+			writeJSON(w, nb.ListNotebooks())
 		}))
 	}
 
@@ -169,12 +161,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(plan)
+			writeJSON(w, plan)
 		}))
 		mux.HandleFunc("/api/v1/compile/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(compiler.Stats())
+			writeJSON(w, compiler.Stats())
 		}))
 	}
 
@@ -196,12 +186,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
+			writeJSON(w, resp)
 		}))
 		mux.HandleFunc("/api/v1/rag/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(rag.Stats())
+			writeJSON(w, rag.Stats())
 		}))
 	}
 
@@ -209,8 +197,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.PluginRegistry() != nil {
 		registry := db.features.PluginRegistry()
 		mux.HandleFunc("/api/v1/plugins", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(registry.List())
+			writeJSON(w, registry.List())
 		}))
 	}
 
@@ -218,8 +205,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.MaterializedViewsV2() != nil {
 		mvV2 := db.features.MaterializedViewsV2()
 		mux.HandleFunc("/api/v2/views", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(mvV2.ListViews())
+			writeJSON(w, mvV2.ListViews())
 		}))
 	}
 
@@ -227,12 +213,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.FleetManager() != nil {
 		fleet := db.features.FleetManager()
 		mux.HandleFunc("/api/v1/fleet/agents", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(fleet.ListAgents(""))
+			writeJSON(w, fleet.ListAgents(""))
 		}))
 		mux.HandleFunc("/api/v1/fleet/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(fleet.Stats())
+			writeJSON(w, fleet.Stats())
 		}))
 	}
 
@@ -250,12 +234,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.SmartRetention() != nil {
 		sr := db.features.SmartRetention()
 		mux.HandleFunc("/api/v1/retention/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(sr.Stats())
+			writeJSON(w, sr.Stats())
 		}))
 		mux.HandleFunc("/api/v1/retention/profiles", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(sr.ListProfiles())
+			writeJSON(w, sr.ListProfiles())
 		}))
 		mux.HandleFunc("/api/v1/retention/evaluate", wrap(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
@@ -263,8 +245,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				return
 			}
 			recs := sr.Evaluate()
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(recs)
+			writeJSON(w, recs)
 		}))
 	}
 
@@ -277,12 +258,10 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				return
 			}
 			results := hs.RunAll()
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(results)
+			writeJSON(w, results)
 		}))
 		mux.HandleFunc("/api/v1/hardening/summary", wrap(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(hs.Summary())
+			writeJSON(w, hs.Summary())
 		}))
 	}
 
@@ -399,8 +378,7 @@ func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	writeJSON(w, result)
 }
 
 func handleCQLValidate(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
@@ -414,12 +392,10 @@ func handleCQLValidate(engine *CQLEngine, w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := engine.Validate(string(body)); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"valid": false, "error": err.Error()})
+		writeJSON(w, map[string]any{"valid": false, "error": err.Error()})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"valid": true})
+	writeJSON(w, map[string]any{"valid": true})
 }
 
 func handleCQLExplain(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
@@ -437,16 +413,14 @@ func handleCQLExplain(engine *CQLEngine, w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	writeJSON(w, result)
 }
 
 func handleMaterializedViews(engine *MaterializedViewEngine, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		views := engine.ListViews()
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(views)
+		writeJSON(w, views)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
