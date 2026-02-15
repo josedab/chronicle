@@ -34,7 +34,10 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test
+      - name: Test (short - fast feedback)
+        run: go test -short -count=1 ./...
+
+      - name: Test (full)
         run: go test -v ./...
 
       - name: Test with race detector

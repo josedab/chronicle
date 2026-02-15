@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-integration lint fmt clean bench check cover cover-report vet setup help
+.PHONY: all build test test-short test-fast test-integration test-ci lint fmt clean bench check cover cover-report vet setup help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -19,6 +19,10 @@ test-fast: ## Run only internal package tests (fastest feedback)
 
 test-integration: ## Run all tests including integration
 	$(GO) test $(GOFLAGS) -tags integration ./...
+
+test-ci: ## Run the same checks as CI (vet + all tests + race)
+	$(GO) vet ./...
+	$(GO) test $(GOFLAGS) -short ./...
 
 test-cover: ## Run tests with coverage report (HTML)
 	$(GO) test -coverprofile=coverage.out -covermode=atomic ./...
