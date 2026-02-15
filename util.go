@@ -98,6 +98,19 @@ func ValidatePoint(p *Point) error {
 	return nil
 }
 
+// sanitizeIdentifier strips characters not in [a-zA-Z0-9_.] to prevent SQL injection
+// when identifiers are interpolated into query strings.
+func sanitizeIdentifier(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func joinStrings(parts []string, sep string) string {
 	return strings.Join(parts, sep)
 }
