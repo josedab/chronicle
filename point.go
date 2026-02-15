@@ -42,6 +42,14 @@ type SeriesKey struct {
 	Tags   map[string]string
 }
 
+// ensureTags initialises the Tags map if it is nil, preventing panics on
+// map writes when a Point is constructed without tags.
+func (p *Point) ensureTags() {
+	if p.Tags == nil {
+		p.Tags = make(map[string]string)
+	}
+}
+
 // NewSeriesKey creates a SeriesKey from a metric name and tags.
 func NewSeriesKey(metric string, tags map[string]string) SeriesKey {
 	if tags == nil {
