@@ -13,6 +13,11 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
+// Differential privacy noise and secure aggregation use simplified math
+// that is NOT cryptographically rigorous. A production implementation
+// would require a vetted differential privacy library.
+//
 // PrivacyFederationConfig configures privacy-preserving federation.
 type PrivacyFederationConfig struct {
 	// Enabled enables privacy federation
