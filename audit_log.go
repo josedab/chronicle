@@ -170,12 +170,28 @@ func (e *AuditLogEngine) GetStats() AuditLogStats {
 // RegisterHTTPHandlers registers HTTP endpoints.
 func (e *AuditLogEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/audit/log/entries", func(w http.ResponseWriter, r *http.Request) {
-		action := r.URL.Query().Get("action")
+		action := sanitizeAuditAction(r.URL.Query().Get("action"))
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(e.Query(action, 100))
+		if err := json.NewEncoder(w).Encode(e.Query(action, 100)); err != nil {
+			http.Error(w, "encoding response", http.StatusInternalServerError)
+		}
 	})
 	mux.HandleFunc("/api/v1/audit/log/stats", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(e.GetStats())
+		if err := json.NewEncoder(w).Encode(e.GetStats()); err != nil {
+			http.Error(w, "encoding response", http.StatusInternalServerError)
+		}
 	})
+}
+
+// sanitizeAuditAction validates and sanitizes the action query parameter to
+// prevent log injection. Only known action values and empty string (meaning
+// "all") are accepted; anything else is mapped to empty string.
+func sanitizeAuditAction(action string) string {
+	switch action {
+	case "", "write", "query", "config_change", "backup", "schema_change":
+		return action
+	default:
+		return ""
+	}
 }
