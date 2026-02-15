@@ -74,6 +74,21 @@ func main() {
 }
 ```
 
+**Expected output:** The program runs silently on success. To see results, replace `_ = result` with a print statement:
+
+```go
+for _, p := range result.Points {
+    fmt.Printf("%s  value=%.2f  tags=%v\n",
+        time.Unix(0, p.Timestamp).Format(time.RFC3339), p.Value, p.Tags)
+}
+```
+
+Sample output:
+
+```
+2025-02-24T22:50:00Z  value=22.50  tags=map[room:living]
+```
+
 ## Core API
 
 These are the essential types and functions for most use cases:
