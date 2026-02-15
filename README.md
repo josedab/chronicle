@@ -94,7 +94,10 @@ For the full API surface, see the [Go reference](https://pkg.go.dev/github.com/c
 
 ## Features
 
-### Core Storage
+> Stability tiers: ✅ Stable — ⚠️ Beta — 🧪 Experimental.
+> See [API Maturity](#api-maturity) for definitions.
+
+### Core Storage ✅
 - **Single-file storage** with append-only partitions
 - **Gorilla float compression** and delta timestamp encoding
 - **Dictionary tag compression** and per-column encoding selection
@@ -102,38 +105,38 @@ For the full API surface, see the [Go reference](https://pkg.go.dev/github.com/c
 - **Pluggable storage backends** (file, memory, S3, tiered)
 
 ### Query & Analytics
-- **SQL-like query parser** (limited subset)
-- **PromQL subset support** for Prometheus compatibility
-- **GraphQL API** with interactive playground
-- **Time-series forecasting** (Holt-Winters, exponential smoothing, anomaly detection)
-- **Recording rules** for pre-computed queries
-- **Native histograms** with exponential bucketing
-- **Retention policies** - time-based and size-based limits
-- **Downsampling** background workers
-- **Continuous queries** (materialized views)
-- **Query assistant** - natural language to SQL/PromQL
+- ✅ **SQL-like query parser** (limited subset)
+- ⚠️ **PromQL subset support** for Prometheus compatibility
+- ⚠️ **GraphQL API** with interactive playground
+- ⚠️ **Time-series forecasting** (Holt-Winters, exponential smoothing, anomaly detection)
+- ⚠️ **Recording rules** for pre-computed queries
+- ✅ **Native histograms** with exponential bucketing
+- ✅ **Retention policies** — time-based and size-based limits
+- ✅ **Downsampling** background workers
+- ⚠️ **Continuous queries** (materialized views)
+- 🧪 **Query assistant** — natural language to SQL/PromQL
 
 ### Integrations
-- **HTTP API** with Influx line protocol, Prometheus remote write
-- **OpenTelemetry receiver** for OTLP metric ingestion
-- **Grafana data source plugin** for visualization
-- **WebAssembly compilation** for browser/edge runtime
-- **Admin UI dashboard** for monitoring and exploration
-- **Query federation** across multiple instances
-- **Data export** to CSV, JSON, Parquet formats
+- ⚠️ **HTTP API** with Influx line protocol, Prometheus remote write
+- ⚠️ **OpenTelemetry receiver** for OTLP metric ingestion
+- ⚠️ **Grafana data source plugin** for visualization
+- 🧪 **WebAssembly compilation** for browser/edge runtime
+- 🧪 **Admin UI dashboard** for monitoring and exploration
+- ⚠️ **Query federation** across multiple instances
+- ⚠️ **Data export** to CSV, JSON, Parquet formats
 
 ### Enterprise Features
-- **Encryption at rest** with AES-256-GCM
-- **Schema registry** for metric validation
-- **Multi-tenancy** with namespace isolation
-- **Alerting engine** with webhook notifications
-- **Streaming API** for real-time subscriptions
-- **Exemplar support** for trace correlation
-- **Cardinality management** with limits and alerts
-- **Delta/incremental backups** with retention
-- **Outbound replication** to a central endpoint
-- **Vector embeddings** for ML/semantic search
-- **Continuous profiling** with metric correlation
+- ✅ **Encryption at rest** with AES-256-GCM
+- ⚠️ **Schema registry** for metric validation
+- ⚠️ **Multi-tenancy** with namespace isolation
+- ⚠️ **Alerting engine** with webhook notifications
+- ⚠️ **Streaming API** for real-time subscriptions
+- ⚠️ **Exemplar support** for trace correlation
+- ⚠️ **Cardinality management** with limits and alerts
+- ⚠️ **Delta/incremental backups** with retention
+- ⚠️ **Outbound replication** to a central endpoint
+- 🧪 **Vector embeddings** for ML/semantic search
+- 🧪 **Continuous profiling** with metric correlation
 
 ## Architecture
 
@@ -252,6 +255,7 @@ chronicle/
 │   ├── BENCHMARKS.md      # Performance benchmarks
 │   └── adr/               # Architecture Decision Records
 ├── examples/              # Example applications
+│   ├── core-only/         # Minimal write and query (start here)
 │   ├── simple/            # Basic write and query
 │   ├── http-server/       # Full HTTP API server
 │   ├── iot-collector/     # IoT sensor data collection
@@ -270,6 +274,7 @@ contain implementation details that should not be imported directly.
 ## Documentation
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — 10-minute tutorial from install to query
+- **[Core API Reference](docs/CORE_API.md)** — The 10 functions you need for 90% of use cases
 - [API Documentation](https://pkg.go.dev/github.com/chronicle-db/chronicle)
 - [HTTP API Reference](docs/API.md)
 - [Features Guide](docs/FEATURES.md)
@@ -281,24 +286,42 @@ contain implementation details that should not be imported directly.
 
 ## Development
 
+### Testing
+
+Choose the right test speed for your workflow:
+
+| Command | Time | What it runs | When to use |
+|---------|------|-------------|-------------|
+| `make check` | ~15s | `go vet` + internal tests | Pre-commit validation ⚡ |
+| `make test-fast` | ~5s | Internal packages only | TDD fast iteration ⚡ |
+| `make test-short` | ~30s | All tests, short mode | Before pushing |
+| `make test` | ~45s | All tests + race detector | CI-level confidence |
+| `make test-cover` | ~60s | All tests + HTML coverage | Coverage review |
+
+```bash
+# Run a single test
+go test -run TestMyFeature -count=1 -v
+
+# Run benchmarks
+make bench
+```
+
+See [docs/TESTING.md](docs/TESTING.md) for writing tests, test helpers, and debugging tips.
+
+### Other Commands
+
 ```bash
 # Install development tools
 make setup
 
-# Run all checks
+# Run all checks (lint + test + build)
 make all
-
-# Run tests with race detector
-make test
-
-# Run short tests only (fast iteration)
-make test-short
-
-# Run benchmarks
-make bench
 
 # Run linters
 make lint
+
+# Format code
+make fmt
 
 # See all commands
 make help
