@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# scripts/pre-commit — Git pre-commit hook for Chronicle
+#
+# Runs quick validation (go vet + fast tests) before each commit.
+# Install with:
+#   cp scripts/pre-commit .git/hooks/pre-commit
+#   # or
+#   ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+#
+set -euo pipefail
+
+echo "Running pre-commit checks..."
+
+# Run go vet
+echo "  go vet..."
+go vet ./... 2>&1 | while IFS= read -r line; do echo "    $line"; done
+
+# Run fast tests (internal packages only, ~5s)
+echo "  tests (internal)..."
+go test ./internal/... 2>&1 | tail -1
+
+echo "Pre-commit checks passed ✓"
