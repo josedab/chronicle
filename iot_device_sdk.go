@@ -234,6 +234,9 @@ type IoTDeviceSDKStats struct {
 }
 
 // IoTDeviceSDK provides a complete IoT device management ecosystem.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type IoTDeviceSDK struct {
 	db             *DB
 	config         IoTDeviceSDKConfig

@@ -241,6 +241,9 @@ type CrossCloudTieringStats struct {
 // ---------------------------------------------------------------------------
 
 // CrossCloudTieringEngine orchestrates cross-cloud hybrid tiering.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type CrossCloudTieringEngine struct {
 	db         *DB
 	config     CrossCloudTieringConfig

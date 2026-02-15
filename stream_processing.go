@@ -160,6 +160,9 @@ type StreamProcessingStats struct {
 }
 
 // StreamProcessingEngine is the main stream processing engine.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type StreamProcessingEngine struct {
 	db          *DB
 	config      StreamProcessingConfig

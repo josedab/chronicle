@@ -72,6 +72,9 @@ type SLOStatus struct {
 }
 
 // SLOTracker monitors service-level objectives across signals.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type SLOTracker struct {
 	mu   sync.RWMutex
 	slos map[string]*sloState

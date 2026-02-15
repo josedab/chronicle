@@ -1,3 +1,11 @@
+// Bridge: cluster_bridge.go
+//
+// This file bridges internal/cluster/ into the public chronicle package.
+// It re-exports types via type aliases so that callers use the top-level
+// chronicle API while implementation stays private.
+//
+// Pattern: internal/cluster/ (implementation) → cluster_bridge.go (public API)
+
 package chronicle
 
 import (

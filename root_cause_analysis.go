@@ -148,6 +148,9 @@ type RCAStats struct {
 }
 
 // RootCauseAnalysisEngine provides ML-powered root cause analysis for metric anomalies.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type RootCauseAnalysisEngine struct {
 	db            *DB
 	config        RootCauseAnalysisConfig

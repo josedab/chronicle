@@ -1,3 +1,12 @@
+// Bridge: admin_ui_bridge.go
+//
+// This file bridges internal/adminui/ into the public chronicle package.
+// It re-exports types and provides adapter constructors so that callers
+// use the top-level chronicle API while implementation stays private.
+//
+// Pattern: internal/adminui/ (implementation) → admin_ui_bridge.go (public API)
+// Related test files: admin_ui_*_test.go
+
 package chronicle
 
 import "github.com/chronicle-db/chronicle/internal/adminui"

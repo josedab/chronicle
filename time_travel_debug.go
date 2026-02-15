@@ -170,6 +170,9 @@ type TimeTravelDebugStats struct {
 }
 
 // TimeTravelDebugEngine provides debugging-focused time-travel capabilities.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type TimeTravelDebugEngine struct {
 	db        *DB
 	config    TimeTravelDebugConfig

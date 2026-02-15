@@ -131,6 +131,9 @@ type FleetStats struct {
 }
 
 // FleetManager is the control plane for managing distributed Chronicle edge nodes.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type FleetManager struct {
 	config FleetConfig
 

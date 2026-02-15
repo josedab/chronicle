@@ -137,6 +137,9 @@ type LoadedAlert struct {
 }
 
 // DeclarativeAlertingEngine manages declarative alert definitions.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type DeclarativeAlertingEngine struct {
 	db          *DB
 	config      DeclarativeAlertingConfig

@@ -10,6 +10,9 @@ import (
 )
 
 // PipelineDSL represents a declarative Chronicle pipeline configuration.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type PipelineDSL struct {
 	Version  string            `yaml:"version"`
 	Name     string            `yaml:"name"`

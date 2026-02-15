@@ -1,3 +1,12 @@
+// Bridge: anomaly_bridge.go
+//
+// This file bridges internal/anomaly/ into the public chronicle package.
+// It re-exports types via type aliases so that callers use the top-level
+// chronicle API while implementation stays private.
+//
+// Pattern: internal/anomaly/ (implementation) → anomaly_bridge.go (public API)
+// Related files: anomaly_correlation.go, anomaly_explainability.go, anomaly_pipeline.go
+
 package chronicle
 
 import (

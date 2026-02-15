@@ -1,3 +1,11 @@
+// Bridge: cql_bridge.go
+//
+// This file bridges internal/cql/ into the public chronicle package.
+// It re-exports types and wraps the CQL engine so that callers use the
+// top-level chronicle API while the query language implementation stays private.
+//
+// Pattern: internal/cql/ (implementation) → cql_bridge.go (public API)
+
 package chronicle
 
 import (

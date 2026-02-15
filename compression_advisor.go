@@ -117,6 +117,9 @@ type CompressionAdvisorStats struct {
 
 // CompressionAdvisor provides ML-driven per-metric codec recommendation with
 // auto-tuning and benchmarking.
+//
+// 🧪 EXPERIMENTAL: This API may change or be removed without notice.
+// See api_stability.go for stability classifications.
 type CompressionAdvisor struct {
 	db              *DB
 	config          CompressionAdvisorConfig

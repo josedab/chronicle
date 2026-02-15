@@ -109,6 +109,9 @@ type CDCStats struct {
 }
 
 // CDCEngine provides change data capture with fan-out to subscribers.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type CDCEngine struct {
 	config CDCConfig
 

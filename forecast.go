@@ -55,6 +55,9 @@ func DefaultForecastConfig() ForecastConfig {
 }
 
 // Forecaster provides time-series forecasting and anomaly detection.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type Forecaster struct {
 	config ForecastConfig
 }

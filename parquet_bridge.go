@@ -1,3 +1,11 @@
+// Bridge: parquet_bridge.go
+//
+// This file bridges the Parquet lakehouse functionality into the public
+// chronicle package. It provides ParquetBridge for external Parquet table
+// management and archiving operations.
+//
+// Pattern: Parquet subsystem (implementation) → parquet_bridge.go (public API)
+
 package chronicle
 
 import (
@@ -83,6 +91,9 @@ type ParquetColumn struct {
 }
 
 // ParquetBridge manages external Parquet tables and archiving.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type ParquetBridge struct {
 	config ParquetBridgeConfig
 	db     *DB

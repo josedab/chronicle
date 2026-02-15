@@ -132,6 +132,9 @@ type InternalMetricSample struct {
 }
 
 // AutoscaleEngine monitors internal metrics, forecasts workload, and adjusts parameters.
+//
+// 🔬 BETA: API may evolve between minor versions with migration guidance.
+// See api_stability.go for stability classifications.
 type AutoscaleEngine struct {
 	db     *DB
 	config AutoscaleConfig
