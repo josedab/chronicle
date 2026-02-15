@@ -152,3 +152,22 @@ func BetaAPI() []APISymbol {
 		{Name: "Forecaster", Kind: "type", Stability: StabilityBeta, Since: "0.1.0"},
 	}
 }
+
+// ExperimentalAPI returns the list of all experimental API symbols.
+func ExperimentalAPI() []APISymbol {
+	return []APISymbol{
+		{Name: "StreamProcessingEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "TimeTravelDebugEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "AutoShardingEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "RootCauseAnalysisEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "CrossCloudTieringEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "DeclarativeAlertingEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "MetricsCatalog", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "CompressionAdvisor", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "TSDiffMergeEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "CompliancePacksEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.2.0"},
+		{Name: "BlockchainAuditTrail", Kind: "type", Stability: StabilityExperimental, Since: "0.3.0"},
+		{Name: "ChronicleStudio", Kind: "type", Stability: StabilityExperimental, Since: "0.3.0"},
+		{Name: "IoTDeviceSDK", Kind: "type", Stability: StabilityExperimental, Since: "0.3.0"},
+	}
+}

@@ -313,3 +313,107 @@ func (db *DB) MobileSDK() *MobileSDK {
 	}
 	return db.features.MobileSDK()
 }
+
+// StreamProcessing returns the stream processing engine.
+func (db *DB) StreamProcessing() *StreamProcessingEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.StreamProcessing()
+}
+
+// TimeTravelDebug returns the time-travel debug engine.
+func (db *DB) TimeTravelDebug() *TimeTravelDebugEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.TimeTravelDebug()
+}
+
+// AutoSharding returns the auto-sharding engine.
+func (db *DB) AutoSharding() *AutoShardingEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.AutoSharding()
+}
+
+// RootCauseAnalysis returns the root cause analysis engine.
+func (db *DB) RootCauseAnalysis() *RootCauseAnalysisEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.RootCauseAnalysis()
+}
+
+// CrossCloudTiering returns the cross-cloud tiering engine.
+func (db *DB) CrossCloudTiering() *CrossCloudTieringEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.CrossCloudTiering()
+}
+
+// DeclarativeAlerting returns the declarative alerting engine.
+func (db *DB) DeclarativeAlerting() *DeclarativeAlertingEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.DeclarativeAlerting()
+}
+
+// MetricsCatalog returns the metrics catalog.
+func (db *DB) MetricsCatalog() *MetricsCatalog {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.MetricsCatalog()
+}
+
+// CompressionAdvisor returns the compression advisor.
+func (db *DB) CompressionAdvisor() *CompressionAdvisor {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.CompressionAdvisor()
+}
+
+// TSDiffMerge returns the time-series diff and merge engine.
+func (db *DB) TSDiffMerge() *TSDiffMergeEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.TSDiffMerge()
+}
+
+// CompliancePacks returns the compliance packs engine.
+func (db *DB) CompliancePacks() *CompliancePacksEngine {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.CompliancePacks()
+}
+
+// BlockchainAudit returns the blockchain audit trail.
+func (db *DB) BlockchainAudit() *BlockchainAuditTrail {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.BlockchainAudit()
+}
+
+// ChronicleStudio returns the Chronicle Studio IDE engine.
+func (db *DB) ChronicleStudio() *ChronicleStudio {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.ChronicleStudio()
+}
+
+// IoTDeviceSDK returns the IoT device SDK manager.
+func (db *DB) IoTDeviceSDK() *IoTDeviceSDK {
+	if db.features == nil {
+		return nil
+	}
+	return db.features.IoTDeviceSDK()
+}
