@@ -52,6 +52,8 @@ Chronicle is pre-1.0. This document provides an honest assessment of every major
 | Grafana datasource plugin | ✅ Production | Backend with streaming, annotations, templates |
 | WebSocket streaming | ✅ Production | Real-time subscriptions with ping/pong |
 | CDC (Change Data Capture) | ✅ Production | Filtered change streams |
+| C/FFI Bindings | ⚠️ Beta | Open/close, write, query, metrics management. `delete_metric` and `compact` not yet implemented. |
+| Edge Mesh | ⚠️ Beta | Gossip protocol, consistent hash ring, scatter-gather queries, peer health checks |
 
 ## Enterprise Features
 
