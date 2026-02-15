@@ -583,7 +583,7 @@ func (e *NLQueryEngine) handleAggregation(matches []string, ctx *ConversationCon
 		timeRange = ctx.CurrentTimeRange
 	}
 
-	query := fmt.Sprintf("SELECT %s(value) FROM %s WHERE time > now() - %s", fn, metric, timeRange)
+	query := fmt.Sprintf("SELECT %s(value) FROM %s WHERE time > now() - %s", fn, sanitizeIdentifier(metric), timeRange)
 
 	return &NLQueryResponse{
 		Intent:      "aggregation",
@@ -609,7 +609,7 @@ func (e *NLQueryEngine) handleTimeRange(matches []string, ctx *ConversationConte
 		metric = ctx.CurrentMetric
 	}
 
-	query := fmt.Sprintf("SELECT * FROM %s WHERE time > now() - %s", metric, timeRange)
+	query := fmt.Sprintf("SELECT * FROM %s WHERE time > now() - %s", sanitizeIdentifier(metric), timeRange)
 
 	return &NLQueryResponse{
 		Intent:      "time_range",
@@ -635,7 +635,7 @@ func (e *NLQueryEngine) handleComparison(matches []string, ctx *ConversationCont
 
 	// Generate a comparison query
 	query := fmt.Sprintf(`SELECT mean(value) as "%s", mean(value) as "%s" FROM %s, %s WHERE time > now() - %s GROUP BY time(5m)`,
-		metric1, metric2, metric1, metric2, timeRange)
+		sanitizeIdentifier(metric1), sanitizeIdentifier(metric2), sanitizeIdentifier(metric1), sanitizeIdentifier(metric2), timeRange)
 
 	return &NLQueryResponse{
 		Intent:      "comparison",
@@ -670,7 +670,7 @@ func (e *NLQueryEngine) handleCreateAlert(matches []string, ctx *ConversationCon
 
 	return &NLQueryResponse{
 		Intent:      "create_alert",
-		Query:       fmt.Sprintf("CREATE ALERT ON %s WHEN value %s %s", metric, operator, threshold),
+		Query:       fmt.Sprintf("CREATE ALERT ON %s WHEN value %s %s", sanitizeIdentifier(metric), operator, threshold),
 		QueryType:   "action",
 		Explanation: fmt.Sprintf("Creating alert: notify when %s %s %s", metric, operator, threshold),
 		Confidence:  0.9,
@@ -706,7 +706,7 @@ func (e *NLQueryEngine) handleTopN(matches []string, ctx *ConversationContext) *
 	}
 
 	query := fmt.Sprintf("SELECT mean(value) FROM %s WHERE time > now() - 1h GROUP BY %s ORDER BY mean DESC LIMIT %s",
-		metric, groupBy, n)
+		sanitizeIdentifier(metric), sanitizeIdentifier(groupBy), n)
 
 	return &NLQueryResponse{
 		Intent:      "top_n",
@@ -739,7 +739,7 @@ func (e *NLQueryEngine) handleAnomaly(matches []string, ctx *ConversationContext
 	}
 
 	// This would integrate with the anomaly detection engine
-	query := fmt.Sprintf("SELECT * FROM %s WHERE time > now() - 24h AND anomaly = true", metric)
+	query := fmt.Sprintf("SELECT * FROM %s WHERE time > now() - 24h AND anomaly = true", sanitizeIdentifier(metric))
 
 	return &NLQueryResponse{
 		Intent:      "anomaly",
@@ -789,7 +789,7 @@ func (e *NLQueryEngine) handleContextReference(matches []string, ctx *Conversati
 		timeRange = ctx.CurrentTimeRange
 	}
 
-	query := fmt.Sprintf("SELECT * FROM %s WHERE time > now() - %s", ctx.CurrentMetric, timeRange)
+	query := fmt.Sprintf("SELECT * FROM %s WHERE time > now() - %s", sanitizeIdentifier(ctx.CurrentMetric), timeRange)
 
 	return &NLQueryResponse{
 		Intent:      "context_reference",

@@ -171,7 +171,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		unit := matches[4]
 		duration := parseNLDuration(amount, unit)
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT mean(value) FROM %s WHERE time > now() - %s GROUP BY time(5m)", metric, duration),
+			Query:       fmt.Sprintf("SELECT mean(value) FROM %s WHERE time > now() - %s GROUP BY time(5m)", sanitizeIdentifier(metric), duration),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Calculates the average of %s over the last %s%s", metric, amount, unit),
 			Confidence:  0.9,
@@ -192,7 +192,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		unit := matches[4]
 		duration := parseNLDuration(amount, unit)
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT %s(value) FROM %s WHERE time > now() - %s", fn, metric, duration),
+			Query:       fmt.Sprintf("SELECT %s(value) FROM %s WHERE time > now() - %s", fn, sanitizeIdentifier(metric), duration),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Finds the %s value of %s over the last %s%s", fn, metric, amount, unit),
 			Confidence:  0.9,
@@ -207,7 +207,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		op := matches[3]
 		threshold := matches[4]
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT count(value) FROM %s WHERE value %s %s", metric, op, threshold),
+			Query:       fmt.Sprintf("SELECT count(value) FROM %s WHERE value %s %s", sanitizeIdentifier(metric), op, threshold),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Counts %s points where value %s %s", metric, op, threshold),
 			Confidence:  0.85,
@@ -221,7 +221,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		tag := matches[2]
 		value := matches[3]
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT * FROM %s WHERE %s = '%s'", metric, tag, value),
+			Query:       fmt.Sprintf("SELECT * FROM %s WHERE %s = '%s'", sanitizeIdentifier(metric), sanitizeIdentifier(tag), value),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Retrieves %s values where %s is %s", metric, tag, value),
 			Confidence:  0.85,
@@ -232,7 +232,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 	if matched := regexp.MustCompile(`rate\s+(?:of\s+)?(\w+)`).FindStringSubmatch(input); matched != nil {
 		metric := matched[1]
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("rate(%s[5m])", metric),
+			Query:       fmt.Sprintf("rate(%s[5m])", sanitizeIdentifier(metric)),
 			QueryType:   "promql",
 			Explanation: fmt.Sprintf("Calculates the per-second rate of change of %s", metric),
 			Confidence:  0.9,
@@ -246,7 +246,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		metric := matches[2]
 		groupBy := matches[3]
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT mean(value) FROM %s GROUP BY %s ORDER BY mean DESC LIMIT %s", metric, groupBy, limit),
+			Query:       fmt.Sprintf("SELECT mean(value) FROM %s GROUP BY %s ORDER BY mean DESC LIMIT %s", sanitizeIdentifier(metric), sanitizeIdentifier(groupBy), limit),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Shows top %s %s values grouped by %s", limit, metric, groupBy),
 			Confidence:  0.85,
@@ -258,7 +258,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 	if matches := simplePattern.FindStringSubmatch(input); matches != nil {
 		metric := matches[1]
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT * FROM %s LIMIT 100", metric),
+			Query:       fmt.Sprintf("SELECT * FROM %s LIMIT 100", sanitizeIdentifier(metric)),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Retrieves recent values from %s", metric),
 			Confidence:  0.8,
