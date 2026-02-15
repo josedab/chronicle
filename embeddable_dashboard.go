@@ -349,3 +349,310 @@ setInterval(function(){location.reload()}, {{.RefreshInterval}}*1000);
 </script>
 </body>
 </html>`))
+
+// --- Declarative Dashboard Configuration ---
+
+// DeclarativeDashboard allows defining dashboards through JSON/YAML configuration
+// that can be version-controlled and applied programmatically.
+type DeclarativeDashboard struct {
+	APIVersion string                    `json:"api_version"`
+	Kind       string                    `json:"kind"`
+	Metadata   DeclarativeDashboardMeta  `json:"metadata"`
+	Spec       DeclarativeDashboardSpec  `json:"spec"`
+}
+
+// DeclarativeDashboardMeta holds dashboard metadata.
+type DeclarativeDashboardMeta struct {
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// DeclarativeDashboardSpec is the dashboard specification.
+type DeclarativeDashboardSpec struct {
+	Title           string                `json:"title"`
+	Description     string                `json:"description,omitempty"`
+	RefreshInterval string                `json:"refresh_interval,omitempty"`
+	TimeRange       string                `json:"time_range,omitempty"`
+	Theme           DashboardTheme        `json:"theme"`
+	Variables       []DashboardVariable   `json:"variables,omitempty"`
+	Rows            []DashboardRow        `json:"rows"`
+	DataSources     []DashboardDataSource `json:"data_sources,omitempty"`
+}
+
+// DashboardTheme defines the visual theme.
+type DashboardTheme struct {
+	Mode       string            `json:"mode"` // "light" or "dark"
+	Colors     map[string]string `json:"colors,omitempty"`
+	FontFamily string            `json:"font_family,omitempty"`
+}
+
+// DashboardVariable defines a template variable for dynamic dashboards.
+type DashboardVariable struct {
+	Name    string   `json:"name"`
+	Label   string   `json:"label"`
+	Type    string   `json:"type"` // "query", "custom", "interval"
+	Query   string   `json:"query,omitempty"`
+	Options []string `json:"options,omitempty"`
+	Default string   `json:"default,omitempty"`
+}
+
+// DashboardRow is a row of panels in the dashboard grid.
+type DashboardRow struct {
+	Title     string           `json:"title,omitempty"`
+	Collapsed bool             `json:"collapsed,omitempty"`
+	Height    string           `json:"height,omitempty"`
+	Panels    []DashboardPanel `json:"panels"`
+}
+
+// DashboardDataSource defines where panel data comes from.
+type DashboardDataSource struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"` // "chronicle", "prometheus", "graphql"
+	URL      string `json:"url"`
+	Default  bool   `json:"default,omitempty"`
+}
+
+// ApplyDeclarative creates or updates a dashboard from a declarative configuration.
+func (d *EmbeddableDashboard) ApplyDeclarative(decl *DeclarativeDashboard) error {
+	if decl == nil {
+		return fmt.Errorf("nil declarative dashboard")
+	}
+	if decl.Metadata.Name == "" {
+		return fmt.Errorf("dashboard name is required")
+	}
+
+	layout := d.CreateLayout(
+		decl.Metadata.Name,
+		decl.Spec.Title,
+		decl.Spec.Description,
+	)
+
+	if decl.Spec.Theme.Mode != "" {
+		layout.Theme = decl.Spec.Theme.Mode
+	}
+
+	for _, row := range decl.Spec.Rows {
+		for _, panel := range row.Panels {
+			if err := d.AddPanel(decl.Metadata.Name, panel); err != nil {
+				return fmt.Errorf("add panel %s: %w", panel.ID, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// ExportDeclarative exports a dashboard layout as a declarative configuration.
+func (d *EmbeddableDashboard) ExportDeclarative(layoutID string) (*DeclarativeDashboard, error) {
+	layout, err := d.GetLayout(layoutID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeclarativeDashboard{
+		APIVersion: "chronicle.dev/v1",
+		Kind:       "Dashboard",
+		Metadata: DeclarativeDashboardMeta{
+			Name: layoutID,
+		},
+		Spec: DeclarativeDashboardSpec{
+			Title:       layout.Title,
+			Description: layout.Description,
+			Theme:       DashboardTheme{Mode: layout.Theme},
+			Rows: []DashboardRow{
+				{Panels: layout.Panels},
+			},
+		},
+	}, nil
+}
+
+// --- WebSocket Data Binding ---
+
+// DashboardWSMessage represents a WebSocket message for real-time data updates.
+type DashboardWSMessage struct {
+	Type      string      `json:"type"` // "data", "config", "error"
+	PanelID   string      `json:"panel_id,omitempty"`
+	Metric    string      `json:"metric,omitempty"`
+	Timestamp int64       `json:"timestamp"`
+	Payload   interface{} `json:"payload"`
+}
+
+// DashboardWSSubscription tracks a client's panel subscriptions.
+type DashboardWSSubscription struct {
+	PanelID  string        `json:"panel_id"`
+	Metric   string        `json:"metric"`
+	Interval time.Duration `json:"interval"`
+}
+
+// DashboardDataBinding manages REST/WebSocket data bindings for panels.
+type DashboardDataBinding struct {
+	db            *DB
+	subscriptions map[string][]DashboardWSSubscription
+	mu            sync.RWMutex
+}
+
+// NewDashboardDataBinding creates a new data binding manager.
+func NewDashboardDataBinding(db *DB) *DashboardDataBinding {
+	return &DashboardDataBinding{
+		db:            db,
+		subscriptions: make(map[string][]DashboardWSSubscription),
+	}
+}
+
+// Subscribe registers a client subscription for a panel's data.
+func (b *DashboardDataBinding) Subscribe(clientID string, sub DashboardWSSubscription) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.subscriptions[clientID] = append(b.subscriptions[clientID], sub)
+}
+
+// Unsubscribe removes all subscriptions for a client.
+func (b *DashboardDataBinding) Unsubscribe(clientID string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.subscriptions, clientID)
+}
+
+// GetPanelData fetches the current data for a panel's metric.
+func (b *DashboardDataBinding) GetPanelData(panel DashboardPanel, timeRange time.Duration) ([]Point, error) {
+	now := time.Now()
+	q := &Query{
+		Metric: panel.Metric,
+		Tags:   panel.Tags,
+		Start:  now.Add(-timeRange).UnixNano(),
+		End:    now.UnixNano(),
+	}
+
+	result, err := b.db.Execute(q)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+
+	points := make([]Point, len(result.Points))
+	for i, rp := range result.Points {
+		points[i] = Point{
+			Metric:    panel.Metric,
+			Value:     rp.Value,
+			Timestamp: rp.Timestamp,
+		}
+	}
+	return points, nil
+}
+
+// --- Web Component Wrapper ---
+
+// WebComponentConfig configures the Web Component output for framework-agnostic embedding.
+type WebComponentConfig struct {
+	TagName    string `json:"tag_name"`    // e.g., "chronicle-chart"
+	ShadowDOM  bool   `json:"shadow_dom"`
+	Attributes []string `json:"attributes"` // observed attributes
+}
+
+// GenerateWebComponentJS generates a JavaScript Web Component wrapper
+// that can be used in any framework (React, Vue, Angular, plain HTML).
+func GenerateWebComponentJS(config WebComponentConfig) string {
+	if config.TagName == "" {
+		config.TagName = "chronicle-dashboard"
+	}
+
+	return fmt.Sprintf(`
+class %sElement extends HTMLElement {
+  static get observedAttributes() {
+    return ['src', 'metric', 'time-range', 'refresh', 'theme'];
+  }
+
+  constructor() {
+    super();
+    this._shadow = this.attachShadow({ mode: 'open' });
+    this._data = [];
+    this._interval = null;
+  }
+
+  connectedCallback() {
+    this.render();
+    const refresh = parseInt(this.getAttribute('refresh') || '10000');
+    this._interval = setInterval(() => this.fetchData(), refresh);
+    this.fetchData();
+  }
+
+  disconnectedCallback() {
+    if (this._interval) clearInterval(this._interval);
+  }
+
+  attributeChangedCallback(name, oldVal, newVal) {
+    if (oldVal !== newVal) this.fetchData();
+  }
+
+  async fetchData() {
+    const src = this.getAttribute('src') || '/api/v1/query';
+    const metric = this.getAttribute('metric');
+    if (!metric) return;
+
+    try {
+      const resp = await fetch(src, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metric: metric })
+      });
+      this._data = await resp.json();
+      this.render();
+    } catch (e) {
+      console.error('%s: fetch error', e);
+    }
+  }
+
+  render() {
+    const theme = this.getAttribute('theme') || 'light';
+    const bg = theme === 'dark' ? '#1a1a2e' : '#ffffff';
+    const fg = theme === 'dark' ? '#ffffff' : '#333333';
+
+    this._shadow.innerHTML = ` + "`" + `
+      <style>
+        :host { display: block; font-family: system-ui, sans-serif; }
+        .container { background: ${bg}; color: ${fg}; border-radius: 8px;
+                     padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .title { font-size: 14px; opacity: 0.7; margin-bottom: 8px; }
+        .value { font-size: 28px; font-weight: 700; }
+        .chart { height: 80px; display: flex; align-items: flex-end; gap: 2px; margin-top: 8px; }
+        .bar { flex: 1; background: #4361ee; border-radius: 2px 2px 0 0; min-height: 2px; }
+      </style>
+      <div class="container">
+        <div class="title">${this.getAttribute('metric') || 'No metric'}</div>
+        <div class="value">${this._data.length ? this._data[this._data.length-1]?.value?.toFixed(2) || '--' : '--'}</div>
+        <div class="chart">
+          ${(this._data.slice(-20) || []).map(d =>
+            '<div class="bar" style="height:' + Math.max(5, (d.value/Math.max(...this._data.map(x=>x.value||1))*100)) + '%%"></div>'
+          ).join('')}
+        </div>
+      </div>
+    ` + "`" + `;
+  }
+}
+
+customElements.define('%s', %sElement);
+`, toClassName(config.TagName), config.TagName, config.TagName, toClassName(config.TagName))
+}
+
+func toClassName(tagName string) string {
+	result := ""
+	upper := true
+	for _, ch := range tagName {
+		if ch == '-' {
+			upper = true
+			continue
+		}
+		if upper {
+			if ch >= 'a' && ch <= 'z' {
+				ch -= 32
+			}
+			upper = false
+		}
+		result += string(ch)
+	}
+	return result
+}
