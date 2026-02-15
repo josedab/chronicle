@@ -8,10 +8,14 @@ package chronicle
 // normalized to their nested equivalents during validation.
 
 import (
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Config defines database configuration.
@@ -298,6 +302,27 @@ type AuthConfig struct {
 
 	// ExcludePaths are paths that don't require authentication (e.g., /health).
 	ExcludePaths []string
+}
+
+// HashAPIKey returns a bcrypt hash of the given plaintext API key.
+func HashAPIKey(plaintext string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(plaintext), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hashing API key: %w", err)
+	}
+	return string(hash), nil
+}
+
+// CompareAPIKey performs a constant-time comparison of a candidate API key
+// against a stored key. If storedKey looks like a bcrypt hash (starts with
+// "$2") it uses bcrypt comparison; otherwise it falls back to
+// crypto/subtle.ConstantTimeCompare for backward compatibility with
+// plaintext keys.
+func CompareAPIKey(storedKey, candidate string) bool {
+	if strings.HasPrefix(storedKey, "$2") {
+		return bcrypt.CompareHashAndPassword([]byte(storedKey), []byte(candidate)) == nil
+	}
+	return subtle.ConstantTimeCompare([]byte(storedKey), []byte(candidate)) == 1
 }
 
 // DefaultConfig returns a configuration with sensible defaults.
