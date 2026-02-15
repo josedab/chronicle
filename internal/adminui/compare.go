@@ -42,7 +42,7 @@ func (ui *AdminUI) handleAPICompare(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		q, err := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", metric))
+		q, err := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", sanitizeIdentifier(metric)))
 		if err != nil {
 			results[metric] = map[string]any{
 				"error": err.Error(),

@@ -33,7 +33,7 @@ func (ui *AdminUI) handleAPIMetricDetails(w http.ResponseWriter, r *http.Request
 	}
 
 	// Try to get sample data to determine tags
-	q, _ := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", metric))
+	q, _ := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", sanitizeIdentifier(metric)))
 	result, _ := ui.db.Execute(q)
 
 	details := map[string]any{
@@ -69,7 +69,7 @@ func (ui *AdminUI) handleAPIDataPreview(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Build query with time range
-	queryStr := fmt.Sprintf("SELECT mean(value) FROM %s", metric)
+	queryStr := fmt.Sprintf("SELECT mean(value) FROM %s", sanitizeIdentifier(metric))
 
 	q, err := ui.db.ParseQuery(queryStr)
 	if err != nil {

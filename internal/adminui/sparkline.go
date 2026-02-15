@@ -26,7 +26,7 @@ func (ui *AdminUI) handleAPISparkline(w http.ResponseWriter, r *http.Request) {
 	end := time.Now()
 	start := end.Add(-1 * time.Hour)
 
-	q, err := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", metric))
+	q, err := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", sanitizeIdentifier(metric)))
 	if err != nil {
 		writeJSON(w, map[string]any{
 			"metric": metric,
