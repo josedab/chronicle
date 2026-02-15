@@ -15,6 +15,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // ZKQueryConfig configures the zero-knowledge query validation system.
 type ZKQueryConfig struct {
 	// Enabled turns on ZK validation

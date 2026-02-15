@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // TinyMLEngine provides embedded machine learning inference for time-series data.
 // It supports on-device anomaly detection, forecasting, and pattern recognition
 // without requiring external ML infrastructure.

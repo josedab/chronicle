@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // WASMPluginConfig configures a single WASM plugin instance.
 type WASMPluginConfig struct {
 	Name          string

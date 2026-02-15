@@ -3,7 +3,9 @@ package chronicle
 // materialized_views.go implements V1 of materialized views with basic refresh modes.
 // V2 (materialized_views_v2.go) adds windowed views, incremental maintenance,
 // dependency tracking, and cost-based refresh optimization.
-// New callers should prefer the V2 API (ViewManagerV2) for production use.
+//
+// Deprecated: New callers should prefer the V2 API (ViewManagerV2) for production use.
+// This file will be removed in a future major version.
 
 import (
 	"context"

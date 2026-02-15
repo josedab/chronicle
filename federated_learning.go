@@ -16,6 +16,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // FederatedLearningConfig configures the federated learning system.
 type FederatedLearningConfig struct {
 	// Enabled turns on federated learning

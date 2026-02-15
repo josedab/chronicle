@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // AutoMLConfig configures the Auto-ML forecasting engine.
 type AutoMLConfig struct {
 	// EnableAutoSelection enables automatic model selection based on data characteristics

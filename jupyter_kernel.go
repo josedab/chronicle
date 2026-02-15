@@ -17,6 +17,7 @@ import (
 // JupyterKernel implements a Jupyter kernel for Chronicle
 // Enables interactive data exploration and visualization in Jupyter notebooks
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // JupyterKernelConfig configures the Jupyter kernel
 type JupyterKernelConfig struct {
 	// Kernel name

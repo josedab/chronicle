@@ -1,5 +1,8 @@
 package chronicle
 
+// adaptive_compression_v3.go implements the current (recommended) adaptive compression
+// engine using multi-armed bandit online codec selection. See BanditCompressor.
+
 import (
 	"fmt"
 	"math"

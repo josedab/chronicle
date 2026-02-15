@@ -1,5 +1,10 @@
 package chronicle
 
+// adaptive_compression_v2.go adds per-column codec profiling and selection.
+//
+// Deprecated: New callers should prefer the V3 API in adaptive_compression_v3.go
+// (BanditCompressor) for best results. This file will be removed in a future major version.
+
 import (
 	"math"
 	"sort"

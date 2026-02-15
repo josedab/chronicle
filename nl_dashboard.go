@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // NLDashboardConfig configures the natural language dashboard generator.
 type NLDashboardConfig struct {
 	// Enabled turns on NL dashboard generation

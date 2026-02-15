@@ -1,5 +1,9 @@
 package chronicle
 
+// materialized_views_v2.go implements the current (recommended) materialized view
+// engine with windowed views, incremental maintenance, dependency tracking,
+// and cost-based refresh optimization. See ViewManagerV2.
+
 import (
 	"context"
 	"errors"

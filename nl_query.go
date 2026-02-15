@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// EXPERIMENTAL: This API is unstable and may change without notice.
 // NLQueryConfig configures the enhanced natural language query interface.
 type NLQueryConfig struct {
 	// Provider is the LLM provider.
