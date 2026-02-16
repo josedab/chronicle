@@ -1,4 +1,7 @@
-# Pre-commit hooks for Chronicle
+# Pre-commit hooks for Chronicle (OPTIONAL alternative)
+#
+# The canonical hook setup is: make install-hooks
+# This file is for teams that prefer the Python pre-commit framework.
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 

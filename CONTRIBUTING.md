@@ -34,7 +34,12 @@ Thank you for your interest in contributing to Chronicle! This document provides
    ```bash
    make install-hooks
    ```
-   This runs `go vet` and fast tests (~15s) before each commit.
+   This installs two hooks:
+   - **pre-commit**: runs `go vet` and fast tests (~15s) before each commit
+   - **commit-msg**: enforces [Conventional Commits](https://www.conventionalcommits.org/) format
+
+   > **Alternative**: If your team uses the Python `pre-commit` framework, you can use
+   > `.pre-commit-config.yaml` instead: `pip install pre-commit && pre-commit install`.
 
 ## Development Workflow
 

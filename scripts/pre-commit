@@ -2,10 +2,10 @@
 # scripts/pre-commit — Git pre-commit hook for Chronicle
 #
 # Runs quick validation (go vet + fast tests) before each commit.
+# Also validates conventional commit messages when run as commit-msg hook.
+#
 # Install with:
-#   cp scripts/pre-commit .git/hooks/pre-commit
-#   # or
-#   ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+#   make install-hooks
 #
 set -euo pipefail
 
