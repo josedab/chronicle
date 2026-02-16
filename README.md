@@ -14,7 +14,11 @@ Chronicle is an embedded time-series database for Go designed for constrained an
 go get github.com/chronicle-db/chronicle
 ```
 
-**Requirements:** Go 1.24 or later
+**Requirements:** Go 1.24 or later — Chronicle uses recent Go features (range-over-func, enhanced generics). If Go 1.24 is not yet packaged for your OS, install from [go.dev/dl](https://go.dev/dl/) or use `go install golang.org/dl/go1.24@latest`.
+
+## Getting Started
+
+New to Chronicle? Start with the **[Getting Started Guide](docs/GETTING_STARTED.md)** for a 10-minute walkthrough.
 
 ## Quick Start
 
@@ -69,6 +73,25 @@ func main() {
 }
 ```
 
+## Core API
+
+These are the essential types and functions for most use cases:
+
+| Symbol | Purpose |
+|--------|---------|
+| `Open(path, config)` | Create or open a database |
+| `DB.Write(point)` | Write a single point |
+| `DB.WriteBatch(points)` | Write multiple points |
+| `DB.Execute(query)` | Run a query and get results |
+| `DB.Close()` | Close the database |
+| `Point` | A metric name, float64 value, nanosecond timestamp, and tags |
+| `Query` | Metric, time range, tag filters, aggregation |
+| `Config` / `DefaultConfig()` | Database configuration with sensible defaults |
+| `ConfigBuilder` | Fluent API: `NewConfigBuilder(path).WithRetention(...).Build()` |
+| `Result` | Query output containing matched `Points` |
+
+For the full API surface, see the [Go reference](https://pkg.go.dev/github.com/chronicle-db/chronicle) or [`api_stability.go`](api_stability.go).
+
 ## Features
 
 ### Core Storage
@@ -111,6 +134,41 @@ func main() {
 - **Outbound replication** to a central endpoint
 - **Vector embeddings** for ML/semantic search
 - **Continuous profiling** with metric correlation
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  API Layer                                                   │
+│  /write  /query  /api/v1/query  /v1/metrics  /stream         │
+├──────────────────────────────────────────────────────────────┤
+│  Core Engine                                                 │
+│  Write Buffer → Schema Validation → Stream Hub               │
+│  Query Engine (SQL + PromQL) → Alert Manager                 │
+├──────────────────────────────────────────────────────────────┤
+│  Partition Manager                                           │
+│  [Partition 0: t0-t1] [Partition 1: t1-t2] ... [Active]     │
+├──────────────────────────────────────────────────────────────┤
+│  Storage Backend (pluggable)                                 │
+│  FileBackend │ MemoryBackend │ S3Backend │ TieredBackend     │
+├──────────────────────────────────────────────────────────────┤
+│  Background: WAL Recovery │ Retention │ Downsampling │ Compaction │
+└──────────────────────────────────────────────────────────────┘
+```
+
+For a detailed walkthrough, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## API Maturity
+
+Chronicle is pre-1.0. Not all features have the same stability level.
+
+| Tier | Meaning | Examples |
+|------|---------|----------|
+| **Stable** | Covered by semver. Safe for production. | `DB`, `Point`, `Query`, `Open()`, `Write()`, `Execute()`, `Config` |
+| **Beta** | May change between minor versions. | PromQL, HTTP API, Grafana plugin, replication |
+| **Experimental** | May change or be removed without notice. | Jupyter kernel, WASM runtime, TinyML, ZK proofs |
+
+See [`api_stability.go`](api_stability.go) for the full classification of every exported symbol.
 
 ## Configuration
 
@@ -211,6 +269,7 @@ contain implementation details that should not be imported directly.
 
 ## Documentation
 
+- **[Getting Started](docs/GETTING_STARTED.md)** — 10-minute tutorial from install to query
 - [API Documentation](https://pkg.go.dev/github.com/chronicle-db/chronicle)
 - [HTTP API Reference](docs/API.md)
 - [Features Guide](docs/FEATURES.md)
