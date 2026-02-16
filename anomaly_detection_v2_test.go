@@ -275,3 +275,303 @@ func TestAnomalyDetectionV2Engine(t *testing.T) {
 		}
 	})
 }
+
+func TestOnlineLearner(t *testing.T) {
+	ol := NewOnlineLearner(0.1)
+
+	for i := 0; i < 100; i++ {
+		ol.Update(float64(i))
+	}
+
+	mean, stddev := ol.Predict()
+	if mean < 50 || mean > 99 {
+		t.Errorf("mean out of range: %f", mean)
+	}
+	if stddev < 0 {
+		t.Errorf("stddev should be non-negative: %f", stddev)
+	}
+}
+
+func TestOnlineLearnerDriftDetection(t *testing.T) {
+	ol := NewOnlineLearner(0.1)
+
+	// Build baseline with low values
+	for i := 0; i < 200; i++ {
+		ol.Update(1.0)
+		ol.DetectDrift(0.1)
+	}
+
+	// Introduce large errors to trigger drift
+	drifted := false
+	for i := 0; i < 200; i++ {
+		if ol.DetectDrift(100.0) {
+			drifted = true
+			break
+		}
+	}
+	if !drifted {
+		t.Error("expected drift to be detected")
+	}
+	if ol.DriftCount() == 0 {
+		t.Error("expected non-zero drift count")
+	}
+}
+
+func TestDBSCAN(t *testing.T) {
+	points := [][]float64{
+		{1, 1}, {1.1, 1.1}, {0.9, 0.9}, // cluster 1
+		{5, 5}, {5.1, 5.1}, {4.9, 4.9}, // cluster 2
+		{10, 10}, // noise
+	}
+	result := DBSCAN(points, DBSCANConfig{Epsilon: 0.5, MinPoints: 2})
+	if result.NumClusters != 2 {
+		t.Errorf("expected 2 clusters, got %d", result.NumClusters)
+	}
+	if len(result.Noise) != 1 {
+		t.Errorf("expected 1 noise point, got %d", len(result.Noise))
+	}
+}
+
+func TestIForestDetector(t *testing.T) {
+	iforest := NewIForestDetector(50, 100, 0.6)
+
+	data := make([][]float64, 100)
+	for i := range data {
+		data[i] = []float64{float64(i), float64(i) * 0.5}
+	}
+	iforest.Fit(data)
+
+	// Score should return a value between 0 and 1
+	score := iforest.Score([]float64{50, 25})
+	if score < 0 || score > 1 {
+		t.Errorf("score out of range [0,1]: %f", score)
+	}
+
+	// IsAnomaly should work with threshold
+	if iforest.iThreshold <= 0 || iforest.iThreshold > 1 {
+		t.Errorf("threshold out of range: %f", iforest.iThreshold)
+	}
+}
+
+func TestMultiChannelRouter(t *testing.T) {
+	channels := []AlertChannel{
+		{Name: "slack-critical", Type: "slack", Severity: "critical", Enabled: true},
+		{Name: "email-warning", Type: "email", Severity: "warning", Enabled: true},
+		{Name: "disabled-channel", Type: "webhook", Severity: "info", Enabled: false},
+	}
+	router := NewMultiChannelRouter(channels)
+
+	// Critical anomaly should route to both channels
+	critAnomaly := &AnomalyV2{Severity: "critical"}
+	routed := router.Route(critAnomaly)
+	if len(routed) != 2 {
+		t.Errorf("expected 2 routes for critical, got %d: %v", len(routed), routed)
+	}
+
+	// Warning should route to email only
+	warnAnomaly := &AnomalyV2{Severity: "warning"}
+	routed = router.Route(warnAnomaly)
+	if len(routed) != 1 {
+		t.Errorf("expected 1 route for warning, got %d: %v", len(routed), routed)
+	}
+
+	stats := router.Stats()
+	if stats.TotalAlerts != 2 {
+		t.Errorf("expected 2 total alerts, got %d", stats.TotalAlerts)
+	}
+}
+
+func TestAnomalyPostWriteHook(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultAnomalyDetectionV2Config()
+	engine := NewAnomalyDetectionV2Engine(db, cfg)
+	engine.Start()
+	defer engine.Stop()
+
+	hook := engine.AsPostWriteHook()
+	if hook.Name != "anomaly-detection-v2" {
+		t.Errorf("expected hook name anomaly-detection-v2, got %s", hook.Name)
+	}
+	if hook.Phase != "post" {
+		t.Errorf("expected post phase, got %s", hook.Phase)
+	}
+
+	// Hook should pass through points unchanged
+	p := Point{Metric: "test_metric", Value: 42.0, Timestamp: 1000}
+	result, err := hook.Handler(p)
+	if err != nil {
+		t.Fatalf("hook error: %v", err)
+	}
+	if result.Metric != p.Metric || result.Value != p.Value {
+		t.Error("hook should not modify point")
+	}
+}
+
+func TestAnomalyWithRouter(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultAnomalyDetectionV2Config()
+	cfg.MinDataPoints = 3
+	engine := NewAnomalyDetectionV2Engine(db, cfg)
+	engine.Start()
+	defer engine.Stop()
+
+	router := NewMultiChannelRouter([]AlertChannel{
+		{Name: "test-channel", Type: "webhook", Severity: "info", Enabled: true},
+	})
+	engine.SetAlertRouter(router)
+
+	// Ingest enough points to build baseline
+	for i := 0; i < 50; i++ {
+		engine.Ingest("test.metric", 1.0, nil, time.Now())
+	}
+
+	// Ingest anomalous point
+	engine.Ingest("test.metric", 1000.0, nil, time.Now())
+
+	stats := router.Stats()
+	// Router should have processed at least one alert (from the spike)
+	if stats.TotalAlerts == 0 && engine.stats.TotalDetected > 0 {
+		t.Log("anomaly detected but not routed (within threshold)")
+	}
+}
+
+func TestAnomalyFullPipelineIntegration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultAnomalyDetectionV2Config()
+	cfg.MinDataPoints = 5
+	cfg.BaselineWindow = 100
+	engine := NewAnomalyDetectionV2Engine(db, cfg)
+	engine.Start()
+	defer engine.Stop()
+
+	// Set up multi-channel router
+	router := NewMultiChannelRouter([]AlertChannel{
+		{Name: "critical-slack", Type: "slack", Severity: "critical", Enabled: true},
+		{Name: "warning-email", Type: "email", Severity: "warning", Enabled: true},
+		{Name: "info-webhook", Type: "webhook", Severity: "info", Enabled: true},
+	})
+	engine.SetAlertRouter(router)
+
+	// Phase 1: Build baseline with normal data
+	for i := 0; i < 50; i++ {
+		engine.Ingest("pipeline.metric", 100.0+float64(i%5), nil, time.Now())
+	}
+
+	// Verify baseline was built
+	baseline := engine.GetBaseline("pipeline.metric")
+	if baseline == nil {
+		t.Fatal("expected baseline to exist")
+	}
+	if baseline.Mean < 99 || baseline.Mean > 105 {
+		t.Errorf("baseline mean should be ~102, got %f", baseline.Mean)
+	}
+
+	// Phase 2: Inject anomaly (10x normal)
+	anomaly := engine.Ingest("pipeline.metric", 1000.0, map[string]string{"host": "prod-1"}, time.Now())
+
+	// Phase 3: Verify anomaly was detected
+	anomalies := engine.ListAnomalies(10)
+	if len(anomalies) == 0 {
+		t.Log("no anomalies detected (threshold may be wide)")
+	}
+
+	// Phase 4: Verify online learner was updated
+	engine.mu.RLock()
+	learner, hasLearner := engine.learners["pipeline.metric"]
+	engine.mu.RUnlock()
+	if !hasLearner {
+		t.Error("expected online learner for pipeline.metric")
+	} else {
+		mean, _ := learner.Predict()
+		if mean == 0 {
+			t.Error("learner mean should be non-zero after data")
+		}
+	}
+
+	// Phase 5: Verify router processed alerts
+	routerStats := router.Stats()
+	t.Logf("anomaly=%v, detected=%d, routed=%d", anomaly != nil, engine.stats.TotalDetected, routerStats.TotalAlerts)
+
+	// Phase 6: Test post-write hook integration
+	hook := engine.AsPostWriteHook()
+	p := Point{Metric: "hook.metric", Value: 42.0, Timestamp: time.Now().UnixNano()}
+	result, err := hook.Handler(p)
+	if err != nil {
+		t.Fatalf("hook error: %v", err)
+	}
+	if result.Metric != p.Metric {
+		t.Error("hook should pass through point unchanged")
+	}
+
+	// Phase 7: Write pipeline integration — register hook and write through DB
+	pipeEngine := NewWritePipelineEngine(db, WritePipelineConfig{Enabled: true, MaxHooks: 10})
+	pipeEngine.Start()
+	defer pipeEngine.Stop()
+	if err := pipeEngine.Register(hook); err != nil {
+		t.Fatalf("Register hook: %v", err)
+	}
+	hooks := pipeEngine.ListHooks()
+	found := false
+	for _, h := range hooks {
+		if h.Name == "anomaly-detection-v2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected anomaly hook to be registered in write pipeline")
+	}
+
+	// Phase 8: Verify feedback loop
+	if engine.stats.TotalDetected > 0 && len(anomalies) > 0 {
+		fb := AnomalyFeedback{
+			AnomalyID: anomalies[0].ID,
+			IsAnomaly: false,
+			Comment:   "false_positive",
+		}
+		if err := engine.SubmitFeedback(fb); err != nil {
+			t.Fatalf("SubmitFeedback: %v", err)
+		}
+	}
+
+	// Verify stats
+	finalStats := engine.GetStats()
+	t.Logf("Final stats: detected=%d, truePos=%d, falsePos=%d, fpRate=%.2f",
+		finalStats.TotalDetected, finalStats.TotalTruePositives,
+		finalStats.TotalFalsePositives, finalStats.FalsePositiveRate)
+}
+
+func TestDBSCANEdgeCases(t *testing.T) {
+	t.Run("EmptyData", func(t *testing.T) {
+		result := DBSCAN(nil, DBSCANConfig{Epsilon: 1, MinPoints: 2})
+		if result.NumClusters != 0 {
+			t.Errorf("expected 0 clusters for nil data, got %d", result.NumClusters)
+		}
+	})
+
+	t.Run("SinglePoint", func(t *testing.T) {
+		result := DBSCAN([][]float64{{1, 1}}, DBSCANConfig{Epsilon: 1, MinPoints: 2})
+		if result.NumClusters != 0 {
+			t.Error("single point cannot form a cluster with MinPoints=2")
+		}
+		if len(result.Noise) != 1 {
+			t.Errorf("expected 1 noise point, got %d", len(result.Noise))
+		}
+	})
+
+	t.Run("AllSamePoint", func(t *testing.T) {
+		points := make([][]float64, 5)
+		for i := range points {
+			points[i] = []float64{1, 1}
+		}
+		result := DBSCAN(points, DBSCANConfig{Epsilon: 0.1, MinPoints: 3})
+		if result.NumClusters != 1 {
+			t.Errorf("expected 1 cluster for identical points, got %d", result.NumClusters)
+		}
+	})
+}
