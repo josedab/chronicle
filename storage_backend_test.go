@@ -351,3 +351,71 @@ func TestLRUCacheNoTTL(t *testing.T) {
 		t.Error("expected 'c' to still be cached")
 	}
 }
+
+func TestS3TieringPolicyUnit(t *testing.T) {
+	cfg := DefaultS3TieringConfig()
+	if !cfg.Enabled {
+		t.Error("default tiering should be enabled")
+	}
+	if len(cfg.Policies) < 3 {
+		t.Fatalf("expected at least 3 default policies, got %d", len(cfg.Policies))
+	}
+
+	// Test hot-to-warm policy (30 days)
+	hotToWarm := cfg.Policies[0]
+	if hotToWarm.AfterDays != 30 {
+		t.Errorf("hot-to-warm: expected 30 days, got %d", hotToWarm.AfterDays)
+	}
+	if hotToWarm.ShouldTransition(10*24*time.Hour, 256*1024) {
+		t.Error("should NOT transition at 10 days")
+	}
+	if !hotToWarm.ShouldTransition(31*24*time.Hour, 256*1024) {
+		t.Error("should transition at 31 days")
+	}
+	if hotToWarm.ShouldTransition(31*24*time.Hour, 64) {
+		t.Error("should NOT transition below MinSizeBytes")
+	}
+
+	// Test warm-to-cold policy (90 days)
+	warmToCold := cfg.Policies[1]
+	if warmToCold.AfterDays != 90 {
+		t.Errorf("warm-to-cold: expected 90 days, got %d", warmToCold.AfterDays)
+	}
+	if !warmToCold.ShouldTransition(91*24*time.Hour, 1024*1024) {
+		t.Error("should transition at 91 days")
+	}
+
+	// Test cold-to-archive (365 days)
+	coldToArchive := cfg.Policies[2]
+	if coldToArchive.AfterDays != 365 {
+		t.Errorf("cold-to-archive: expected 365 days, got %d", coldToArchive.AfterDays)
+	}
+
+	// Policies should be in ascending order
+	for i := 1; i < len(cfg.Policies); i++ {
+		if cfg.Policies[i].AfterDays <= cfg.Policies[i-1].AfterDays {
+			t.Errorf("policies not sorted by AfterDays: %d <= %d",
+				cfg.Policies[i].AfterDays, cfg.Policies[i-1].AfterDays)
+		}
+	}
+}
+
+func TestLRUCacheEvictionWithTTL(t *testing.T) {
+	cache := NewLRUCacheWithTTL(2, 50*time.Millisecond)
+
+	cache.Put("a", []byte("val-a"))
+	cache.Put("b", []byte("val-b"))
+
+	_, ok := cache.Get("a")
+	if !ok {
+		t.Error("expected 'a' to be cached")
+	}
+
+	time.Sleep(60 * time.Millisecond)
+
+	// After TTL, entries should expire
+	_, ok = cache.Get("a")
+	if ok {
+		t.Error("expected 'a' to expire after TTL")
+	}
+}

@@ -476,3 +476,139 @@ func TestS3Integration_EmptyAndBinaryData(t *testing.T) {
 		})
 	}
 }
+
+func TestS3Integration_MultipartResumableUpload(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	// Create data large enough for multipart (>1KB with test config)
+	data := make([]byte, 3072)
+	for i := range data {
+		data[i] = byte(i % 256)
+	}
+
+	key := "resumable/test-upload"
+
+	// Start the upload (fresh state)
+	state, err := backend.WriteMultipartResumable(ctx, key, data, nil)
+	if err != nil {
+		t.Fatalf("WriteMultipartResumable: %v", err)
+	}
+	if state == nil {
+		t.Fatal("expected non-nil upload state")
+	}
+	if state.UploadID == "" {
+		t.Error("expected non-empty upload ID")
+	}
+
+	// Verify data is readable
+	got, err := backend.Read(ctx, key)
+	if err != nil {
+		t.Fatalf("Read after resumable upload: %v", err)
+	}
+	if len(got) != len(data) {
+		t.Errorf("size mismatch: got %d, want %d", len(got), len(data))
+	}
+
+	_ = backend.Delete(ctx, key)
+}
+
+func TestS3Integration_PrefixIsolation(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	// Write keys under different prefixes within our test prefix
+	_ = backend.Write(ctx, "isolation/a/key1", []byte("a1"))
+	_ = backend.Write(ctx, "isolation/a/key2", []byte("a2"))
+	_ = backend.Write(ctx, "isolation/b/key1", []byte("b1"))
+
+	// List under prefix "a" should only show 2 keys
+	keysA, err := backend.List(ctx, "isolation/a/")
+	if err != nil {
+		t.Fatalf("List prefix a: %v", err)
+	}
+	if len(keysA) != 2 {
+		t.Errorf("expected 2 keys under a/, got %d", len(keysA))
+	}
+
+	// List under prefix "b" should only show 1 key
+	keysB, err := backend.List(ctx, "isolation/b/")
+	if err != nil {
+		t.Fatalf("List prefix b: %v", err)
+	}
+	if len(keysB) != 1 {
+		t.Errorf("expected 1 key under b/, got %d", len(keysB))
+	}
+
+	// Cleanup
+	for _, k := range []string{"isolation/a/key1", "isolation/a/key2", "isolation/b/key1"} {
+		_ = backend.Delete(ctx, k)
+	}
+}
+
+func TestS3Integration_ReadAfterWriteConsistency(t *testing.T) {
+	backend := skipIfNoS3(t)
+	ctx := context.Background()
+
+	// Test rapid write-read cycles to verify consistency
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("raw-consistency/key%d", i)
+		value := fmt.Sprintf("value-%d-%d", i, time.Now().UnixNano())
+
+		if err := backend.Write(ctx, key, []byte(value)); err != nil {
+			t.Fatalf("iteration %d write: %v", i, err)
+		}
+
+		// Invalidate cache to force S3 read
+		backend.cache.Delete(backend.config.Prefix + key)
+
+		data, err := backend.Read(ctx, key)
+		if err != nil {
+			t.Fatalf("iteration %d read: %v", i, err)
+		}
+		if string(data) != value {
+			t.Errorf("iteration %d: got %q, want %q", i, string(data), value)
+		}
+
+		_ = backend.Delete(ctx, key)
+	}
+}
+
+func TestS3Integration_TieringPolicyConfig(t *testing.T) {
+	// Test that S3TieringPolicy configuration is correct
+	cfg := s3TestConfig(t)
+	if cfg.MaxRetries != 3 {
+		t.Errorf("expected MaxRetries=3, got %d", cfg.MaxRetries)
+	}
+	if cfg.MultipartThreshold != 1024 {
+		t.Errorf("expected MultipartThreshold=1024, got %d", cfg.MultipartThreshold)
+	}
+	if cfg.UsePathStyle != true {
+		t.Error("expected UsePathStyle=true for MinIO")
+	}
+
+	// Verify tiering policies are well-defined
+	tieringCfg := DefaultS3TieringConfig()
+	if len(tieringCfg.Policies) == 0 {
+		t.Error("expected at least one policy in default tiering config")
+	}
+	// Verify policies are ordered by age
+	for i := 1; i < len(tieringCfg.Policies); i++ {
+		if tieringCfg.Policies[i].AfterDays <= tieringCfg.Policies[i-1].AfterDays {
+			t.Errorf("policies not ordered: %d <= %d at index %d",
+				tieringCfg.Policies[i].AfterDays, tieringCfg.Policies[i-1].AfterDays, i)
+		}
+	}
+
+	// Test ShouldTransition logic
+	policy := tieringCfg.Policies[0] // hot-to-warm at 30 days
+	if policy.ShouldTransition(10*24*time.Hour, 256*1024) {
+		t.Error("should not transition before AfterDays")
+	}
+	if !policy.ShouldTransition(31*24*time.Hour, 256*1024) {
+		t.Error("should transition after AfterDays with sufficient size")
+	}
+	if policy.ShouldTransition(31*24*time.Hour, 64) {
+		t.Error("should not transition below MinSizeBytes")
+	}
+}
