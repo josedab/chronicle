@@ -333,6 +333,8 @@ make bench
 
 See [docs/TESTING.md](docs/TESTING.md) for writing tests, test helpers, and debugging tips.
 
+For the complete development workflow (debugging, profiling, benchmarking, and more), see **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
+
 ### Other Commands
 
 ```bash
