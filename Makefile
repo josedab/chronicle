@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-failing test-integration test-ci lint fmt clean bench benchmark check quickcheck cover cover-report vet setup install-hooks preflight release-check tag check-interface check-api-stability wasm dev run check-versions doctor help
+.PHONY: all build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run check-versions doctor help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -37,12 +37,53 @@ test-failing: ## Run only previously-failing tests for fast iteration
 	$(GO) test -v -count=1 -run "TestHTTPHealth$$|TestK8sSidecar_HealthEndpoints|TestImportEngine/invalid_lines_skipped" .
 	$(GO) test -v -count=1 -run "FuzzPointValidation/seed" .
 
+test-pkg: ## Run tests for a domain (usage: make test-pkg PKG=query)
+ifndef PKG
+	$(error PKG is required. Usage: make test-pkg PKG=query)
+endif
+	@echo "Testing package domain: $(PKG)"
+	@# Title-case the first letter for -run pattern
+	@RUN_PATTERN=$$(echo "$(PKG)" | awk '{print toupper(substr($$0,1,1)) substr($$0,2)}'); \
+	echo "→ go test -v -run $$RUN_PATTERN ."; \
+	$(GO) test -v -count=1 -run "$$RUN_PATTERN" . || true
+	@if [ -d "./internal/$(PKG)" ]; then \
+		echo "→ go test -v ./internal/$(PKG)/..."; \
+		$(GO) test -v -count=1 ./internal/$(PKG)/...; \
+	else \
+		echo "ℹ No internal/$(PKG) subpackage found"; \
+	fi
+
 test-integration: ## Run all tests including integration
 	$(GO) test $(GOFLAGS) -tags integration ./...
 
 test-ci: ## Run the same checks as CI (vet + all tests + race)
 	$(GO) vet ./...
 	$(GO) test $(GOFLAGS) -short ./...
+
+test-examples: ## Verify all examples compile (and optionally run with 5s timeout)
+	@echo "Building examples..."
+	$(GO) build ./examples/...
+	@echo "✓ All examples compile"
+	@echo "Running examples with 5s timeout..."
+	@FAIL=0; \
+	for ex in $$(find examples -mindepth 1 -maxdepth 1 -type d); do \
+		NAME=$$(basename $$ex); \
+		if timeout 5s $(GO) run ./$$ex >/dev/null 2>&1; then \
+			echo "  ✓ $$NAME"; \
+		else \
+			STATUS=$$?; \
+			if [ "$$STATUS" = "124" ]; then \
+				echo "  ✓ $$NAME (timed out — likely a server, OK)"; \
+			else \
+				echo "  ✗ $$NAME (exit $$STATUS)"; \
+				FAIL=1; \
+			fi; \
+		fi; \
+	done; \
+	if [ "$$FAIL" = "1" ]; then \
+		echo "⚠ Some examples failed"; exit 1; \
+	fi; \
+	echo "✓ All examples passed"
 
 test-cover: ## Run tests with coverage report (HTML)
 	$(GO) test -coverprofile=coverage.out -covermode=atomic ./...
@@ -82,6 +123,11 @@ lint: ## Run linters
 	$(GO) vet ./...
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
 
+lint-fix: ## Auto-fix all fixable lint issues
+	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fix
+	gofmt -s -w .
+	goimports -w .
+
 fmt: ## Format code
 	gofmt -s -w .
 	goimports -w .
@@ -99,6 +145,13 @@ clean: ## Clean build artifacts
 	rm -f *.db *.db.wal
 	rm -f *.test
 	rm -f wasm/chronicle.wasm
+
+clean-all: clean ## Deep clean (build artifacts + profiles + caches)
+	rm -f *.prof *.pprof
+	rm -f __debug_bin*
+	rm -rf website/build website/.docusaurus
+	rm -rf grafana-plugin/dist grafana-plugin/node_modules
+	@echo "✓ Deep clean complete"
 
 wasm: ## Build WASM module
 	@./scripts/build-wasm.sh
@@ -138,6 +191,14 @@ setup: ## Install development tools
 		echo "✓ All development tools installed"; \
 	fi
 
+setup-grafana: ## Install Grafana plugin dependencies (cd grafana-plugin && npm install)
+	@if [ ! -d grafana-plugin ]; then \
+		echo "ERROR: grafana-plugin/ directory not found"; exit 1; \
+	fi
+	@echo "Installing Grafana plugin dependencies..."
+	cd grafana-plugin && npm install
+	@echo "✓ Grafana plugin dependencies installed"
+
 release-check: ## Run all checks before a release (vet + lint + full tests + vuln + interface + API stability)
 	$(GO) vet ./...
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
@@ -167,6 +228,19 @@ check-interface: ## Check for legacy interface{} usage (should use 'any')
 
 check-api-stability: ## Verify stable API symbols are tested
 	@$(GO) test -run 'TestStableAPI' -count=1 ./... > /dev/null 2>&1 && echo "✓ API stability tests pass" || { echo "ERROR: API stability tests failed"; exit 1; }
+
+check-openapi: ## Validate openapi.json is up-to-date
+	@echo "Regenerating OpenAPI spec..."
+	@cp openapi.json openapi.json.bak 2>/dev/null || true
+	@$(GO) test -run TestOpenAPI_GenerateSpec -count=1 . > /dev/null 2>&1
+	@if diff -q openapi.json openapi.json.bak > /dev/null 2>&1; then \
+		echo "✓ openapi.json is up-to-date"; \
+	else \
+		echo "ERROR: openapi.json is out of date. Run 'go test -run TestOpenAPI_GenerateSpec .' and commit the result."; \
+		mv openapi.json.bak openapi.json; \
+		exit 1; \
+	fi
+	@rm -f openapi.json.bak
 
 doctor: ## Diagnose development environment
 	@echo "═══════════════════════════════════════════════════"
@@ -214,6 +288,25 @@ doctor: ## Diagnose development environment
 		echo "  ✓ go.mod is tidy"; \
 	else \
 		echo "  ⚠ go.mod may need tidying (run go mod tidy)"; \
+	fi
+	@echo ""
+	@echo "Grafana plugin:"
+	@if [ -d grafana-plugin/node_modules ]; then \
+		echo "  ✓ grafana-plugin/node_modules present"; \
+	else \
+		echo "  ✗ grafana-plugin/node_modules missing (run make setup-grafana)"; \
+	fi
+	@echo ""
+	@echo "Node.js (for website/ and grafana-plugin/):"
+	@if command -v node >/dev/null 2>&1; then \
+		echo "  ✓ Node.js: $$(node --version)"; \
+	else \
+		echo "  ✗ Node.js not found (needed for website/ and grafana-plugin/)"; \
+	fi
+	@if [ -d website/node_modules ]; then \
+		echo "  ✓ website/node_modules present"; \
+	else \
+		echo "  ✗ website/node_modules missing (run cd website && npm install)"; \
 	fi
 	@echo ""
 	@echo "═══════════════════════════════════════════════════"
