@@ -1,6 +1,9 @@
 package raft
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"log"
+)
 
 func (rn *RaftNode) applyLoop() {
 	defer rn.wg.Done()
@@ -13,7 +16,9 @@ func (rn *RaftNode) applyLoop() {
 			if entry.Type == RaftLogCommand {
 				var cmd RaftCommand
 				if err := json.Unmarshal(entry.Data, &cmd); err == nil {
-					_ = rn.applyCommand(cmd)
+					if err := rn.applyCommand(cmd); err != nil {
+						log.Printf("[ERROR] raft: failed to apply command (op=%s): %v", cmd.Op, err)
+					}
 				}
 			}
 		}
