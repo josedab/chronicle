@@ -2,8 +2,11 @@ package chronicle
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"net"
 	"net/http"
 	"sync"
@@ -21,6 +24,7 @@ type GRPCIngestionConfig struct {
 	EnableReflection bool
 	TLSCertFile     string
 	TLSKeyFile      string
+	EnableProtobuf  bool // enable native protobuf wire format
 }
 
 // DefaultGRPCIngestionConfig returns sensible defaults.
@@ -33,7 +37,314 @@ func DefaultGRPCIngestionConfig() GRPCIngestionConfig {
 		WriteTimeout:    10 * time.Second,
 		QueryTimeout:    30 * time.Second,
 		EnableReflection: true,
+		EnableProtobuf:  true,
 	}
+}
+
+// --- Protobuf wire format encoder/decoder ---
+// Implements protobuf binary encoding without external proto dependencies.
+
+// protoWireType represents protobuf wire types.
+type protoWireType int
+
+const (
+	protoWireVarint  protoWireType = 0
+	protoWire64Bit   protoWireType = 1
+	protoWireBytes   protoWireType = 2
+	protoWire32Bit   protoWireType = 5
+)
+
+// protoField represents a decoded protobuf field.
+type protoField struct {
+	Number   int
+	WireType protoWireType
+	Varint   uint64
+	Fixed64  uint64
+	Fixed32  uint32
+	Bytes    []byte
+}
+
+// protoDecoder decodes protobuf wire format bytes.
+type protoDecoder struct {
+	buf []byte
+	pos int
+}
+
+func newProtoDecoder(data []byte) *protoDecoder {
+	return &protoDecoder{buf: data}
+}
+
+func (d *protoDecoder) hasMore() bool {
+	return d.pos < len(d.buf)
+}
+
+func (d *protoDecoder) readVarint() (uint64, error) {
+	var val uint64
+	var shift uint
+	for d.pos < len(d.buf) {
+		b := d.buf[d.pos]
+		d.pos++
+		val |= uint64(b&0x7F) << shift
+		if b < 0x80 {
+			return val, nil
+		}
+		shift += 7
+		if shift >= 64 {
+			return 0, fmt.Errorf("varint overflow")
+		}
+	}
+	return 0, io.ErrUnexpectedEOF
+}
+
+func (d *protoDecoder) readFixed64() (uint64, error) {
+	if d.pos+8 > len(d.buf) {
+		return 0, io.ErrUnexpectedEOF
+	}
+	val := binary.LittleEndian.Uint64(d.buf[d.pos : d.pos+8])
+	d.pos += 8
+	return val, nil
+}
+
+func (d *protoDecoder) readFixed32() (uint32, error) {
+	if d.pos+4 > len(d.buf) {
+		return 0, io.ErrUnexpectedEOF
+	}
+	val := binary.LittleEndian.Uint32(d.buf[d.pos : d.pos+4])
+	d.pos += 4
+	return val, nil
+}
+
+func (d *protoDecoder) readBytes() ([]byte, error) {
+	length, err := d.readVarint()
+	if err != nil {
+		return nil, err
+	}
+	if d.pos+int(length) > len(d.buf) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	data := d.buf[d.pos : d.pos+int(length)]
+	d.pos += int(length)
+	return data, nil
+}
+
+func (d *protoDecoder) readField() (*protoField, error) {
+	tag, err := d.readVarint()
+	if err != nil {
+		return nil, err
+	}
+	field := &protoField{
+		Number:   int(tag >> 3),
+		WireType: protoWireType(tag & 0x7),
+	}
+	switch field.WireType {
+	case protoWireVarint:
+		field.Varint, err = d.readVarint()
+	case protoWire64Bit:
+		field.Fixed64, err = d.readFixed64()
+	case protoWireBytes:
+		field.Bytes, err = d.readBytes()
+	case protoWire32Bit:
+		field.Fixed32, err = d.readFixed32()
+	default:
+		return nil, fmt.Errorf("unknown wire type: %d", field.WireType)
+	}
+	return field, err
+}
+
+// protoEncoder encodes protobuf wire format bytes.
+type protoEncoder struct {
+	buf []byte
+}
+
+func newProtoEncoder() *protoEncoder {
+	return &protoEncoder{}
+}
+
+func (e *protoEncoder) writeVarint(fieldNum int, val uint64) {
+	tag := uint64(fieldNum<<3) | uint64(protoWireVarint)
+	e.appendVarint(tag)
+	e.appendVarint(val)
+}
+
+func (e *protoEncoder) writeFixed64(fieldNum int, val uint64) {
+	tag := uint64(fieldNum<<3) | uint64(protoWire64Bit)
+	e.appendVarint(tag)
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, val)
+	e.buf = append(e.buf, b...)
+}
+
+func (e *protoEncoder) writeDouble(fieldNum int, val float64) {
+	e.writeFixed64(fieldNum, math.Float64bits(val))
+}
+
+func (e *protoEncoder) writeBytes(fieldNum int, data []byte) {
+	tag := uint64(fieldNum<<3) | uint64(protoWireBytes)
+	e.appendVarint(tag)
+	e.appendVarint(uint64(len(data)))
+	e.buf = append(e.buf, data...)
+}
+
+func (e *protoEncoder) writeString(fieldNum int, val string) {
+	e.writeBytes(fieldNum, []byte(val))
+}
+
+func (e *protoEncoder) appendVarint(val uint64) {
+	for val >= 0x80 {
+		e.buf = append(e.buf, byte(val)|0x80)
+		val >>= 7
+	}
+	e.buf = append(e.buf, byte(val))
+}
+
+func (e *protoEncoder) Bytes() []byte {
+	return e.buf
+}
+
+// DecodeWriteRequest decodes a protobuf-encoded WriteRequest.
+// Proto schema: WriteRequest { repeated TimeSeries time_series = 1; }
+// TimeSeries { repeated Label labels = 1; repeated Sample samples = 2; }
+// Label { string name = 1; string value = 2; }
+// Sample { double value = 1; int64 timestamp = 2; }
+func DecodeWriteRequest(data []byte) (*WriteRequest, error) {
+	dec := newProtoDecoder(data)
+	req := &WriteRequest{}
+
+	for dec.hasMore() {
+		field, err := dec.readField()
+		if err != nil {
+			return nil, fmt.Errorf("decode write request: %w", err)
+		}
+		if field.Number == 1 && field.WireType == protoWireBytes {
+			ts, err := decodeTimeSeries(field.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			req.TimeSeries = append(req.TimeSeries, *ts)
+		}
+	}
+	return req, nil
+}
+
+func decodeTimeSeries(data []byte) (*ProtoTimeSeries, error) {
+	dec := newProtoDecoder(data)
+	ts := &ProtoTimeSeries{}
+
+	for dec.hasMore() {
+		field, err := dec.readField()
+		if err != nil {
+			return nil, fmt.Errorf("decode time series: %w", err)
+		}
+		switch field.Number {
+		case 1: // labels
+			if field.WireType == protoWireBytes {
+				label, err := decodeLabel(field.Bytes)
+				if err != nil {
+					return nil, err
+				}
+				ts.Labels = append(ts.Labels, *label)
+			}
+		case 2: // samples
+			if field.WireType == protoWireBytes {
+				sample, err := decodeSample(field.Bytes)
+				if err != nil {
+					return nil, err
+				}
+				ts.Samples = append(ts.Samples, *sample)
+			}
+		}
+	}
+	return ts, nil
+}
+
+func decodeLabel(data []byte) (*ProtoLabel, error) {
+	dec := newProtoDecoder(data)
+	label := &ProtoLabel{}
+	for dec.hasMore() {
+		field, err := dec.readField()
+		if err != nil {
+			return nil, err
+		}
+		switch field.Number {
+		case 1:
+			label.Name = string(field.Bytes)
+		case 2:
+			label.Value = string(field.Bytes)
+		}
+	}
+	return label, nil
+}
+
+func decodeSample(data []byte) (*ProtoSample, error) {
+	dec := newProtoDecoder(data)
+	sample := &ProtoSample{}
+	for dec.hasMore() {
+		field, err := dec.readField()
+		if err != nil {
+			return nil, err
+		}
+		switch field.Number {
+		case 1: // double value
+			if field.WireType == protoWire64Bit {
+				sample.Value = math.Float64frombits(field.Fixed64)
+			}
+		case 2: // int64 timestamp
+			if field.WireType == protoWireVarint {
+				sample.Timestamp = int64(field.Varint)
+			}
+		}
+	}
+	return sample, nil
+}
+
+// EncodeWriteRequest encodes a WriteRequest to protobuf wire format.
+func EncodeWriteRequest(req *WriteRequest) []byte {
+	enc := newProtoEncoder()
+	for _, ts := range req.TimeSeries {
+		tsEnc := newProtoEncoder()
+		for _, l := range ts.Labels {
+			lEnc := newProtoEncoder()
+			lEnc.writeString(1, l.Name)
+			lEnc.writeString(2, l.Value)
+			tsEnc.writeBytes(1, lEnc.Bytes())
+		}
+		for _, s := range ts.Samples {
+			sEnc := newProtoEncoder()
+			sEnc.writeDouble(1, s.Value)
+			sEnc.writeVarint(2, uint64(s.Timestamp))
+			tsEnc.writeBytes(2, sEnc.Bytes())
+		}
+		enc.writeBytes(1, tsEnc.Bytes())
+	}
+	return enc.Bytes()
+}
+
+// gRPC frame format: 1 byte compressed flag + 4 byte big-endian length + payload
+func encodeGRPCFrame(data []byte, compressed bool) []byte {
+	frame := make([]byte, 5+len(data))
+	if compressed {
+		frame[0] = 1
+	}
+	binary.BigEndian.PutUint32(frame[1:5], uint32(len(data)))
+	copy(frame[5:], data)
+	return frame
+}
+
+func decodeGRPCFrame(r io.Reader) ([]byte, bool, error) {
+	header := make([]byte, 5)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return nil, false, err
+	}
+	compressed := header[0] == 1
+	length := binary.BigEndian.Uint32(header[1:5])
+	if length > 16*1024*1024 {
+		return nil, false, fmt.Errorf("grpc frame too large: %d bytes", length)
+	}
+	payload := make([]byte, length)
+	if _, err := io.ReadFull(r, payload); err != nil {
+		return nil, false, err
+	}
+	return payload, compressed, nil
 }
 
 // WriteRequest represents a protobuf-style write request.
@@ -407,36 +718,46 @@ func (g *GRPCIngestionEngine) handleConnection(conn net.Conn) {
 			return
 		}
 
-		var envelope struct {
-			Method string          `json:"method"`
-			Body   json.RawMessage `json:"body"`
-		}
-		if err := json.Unmarshal(buf[:n], &envelope); err != nil {
-			continue
-		}
-
+		data := buf[:n]
 		ctx := context.Background()
 		var resp interface{}
 		var handleErr error
 
-		switch envelope.Method {
-		case "Write":
-			var req WriteRequest
-			if err := json.Unmarshal(envelope.Body, &req); err != nil {
-				handleErr = err
-			} else {
-				handleErr = g.HandleWrite(ctx, &req)
+		// Detect protobuf vs JSON: protobuf frames start with 0x00 or 0x01 byte
+		if g.config.EnableProtobuf && n >= 5 && (data[0] == 0x00 || data[0] == 0x01) {
+			handleErr = g.handleProtobufFrame(ctx, data)
+			if handleErr == nil {
 				resp = map[string]string{"status": "ok"}
 			}
-		case "Query":
-			var req QueryRequest
-			if err := json.Unmarshal(envelope.Body, &req); err != nil {
-				handleErr = err
-			} else {
-				resp, handleErr = g.HandleQuery(ctx, &req)
+		} else {
+			// JSON envelope handling
+			var envelope struct {
+				Method string          `json:"method"`
+				Body   json.RawMessage `json:"body"`
 			}
-		default:
-			handleErr = fmt.Errorf("unknown method: %s", envelope.Method)
+			if err := json.Unmarshal(data, &envelope); err != nil {
+				continue
+			}
+
+			switch envelope.Method {
+			case "Write":
+				var req WriteRequest
+				if err := json.Unmarshal(envelope.Body, &req); err != nil {
+					handleErr = err
+				} else {
+					handleErr = g.HandleWrite(ctx, &req)
+					resp = map[string]string{"status": "ok"}
+				}
+			case "Query":
+				var req QueryRequest
+				if err := json.Unmarshal(envelope.Body, &req); err != nil {
+					handleErr = err
+				} else {
+					resp, handleErr = g.HandleQuery(ctx, &req)
+				}
+			default:
+				handleErr = fmt.Errorf("unknown method: %s", envelope.Method)
+			}
 		}
 
 		var respBytes []byte
@@ -447,6 +768,26 @@ func (g *GRPCIngestionEngine) handleConnection(conn net.Conn) {
 		}
 		conn.Write(respBytes)
 	}
+}
+
+// handleProtobufFrame decodes a gRPC-framed protobuf write request.
+func (g *GRPCIngestionEngine) handleProtobufFrame(ctx context.Context, data []byte) error {
+	if len(data) < 5 {
+		return fmt.Errorf("invalid grpc frame: too short")
+	}
+	// Parse gRPC frame header
+	// compressed := data[0] == 1
+	length := binary.BigEndian.Uint32(data[1:5])
+	if int(length)+5 > len(data) {
+		return fmt.Errorf("incomplete grpc frame")
+	}
+	payload := data[5 : 5+length]
+
+	req, err := DecodeWriteRequest(payload)
+	if err != nil {
+		return fmt.Errorf("decode protobuf: %w", err)
+	}
+	return g.HandleWrite(ctx, req)
 }
 
 // RegisterHTTPHandlers registers HTTP endpoints for the gRPC ingestion engine.
