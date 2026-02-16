@@ -117,19 +117,26 @@ func (s *PGServer) handleSession(sess *PGSession) {
 		case PGMsgTerminate:
 			return
 		case PGMsgParse:
-			// Extended query: respond with ParseComplete
-			sess.writeMessage('1', nil)
+			if err := sess.handleParse(payload); err != nil {
+				s.queryErrors.Add(1)
+				sess.writeError("42601", err.Error())
+			}
 			sess.flush()
 		case PGMsgBind:
-			sess.writeMessage('2', nil)
+			if err := sess.handleBind(payload); err != nil {
+				s.queryErrors.Add(1)
+				sess.writeError("42601", err.Error())
+			}
 			sess.flush()
 		case PGMsgDescribe:
-			sess.writeMessage(PGMsgNoData, nil)
+			sess.handleDescribe(payload)
 			sess.flush()
 		case PGMsgExecute:
-			// Simplified: send CommandComplete + ReadyForQuery
-			sess.writeCommandComplete("SELECT 0")
-			sess.writeReadyForQuery()
+			s.totalQueries.Add(1)
+			if err := sess.handleExecute(payload); err != nil {
+				s.queryErrors.Add(1)
+				sess.writeError("42601", err.Error())
+			}
 			sess.flush()
 		case PGMsgSync:
 			sess.writeReadyForQuery()

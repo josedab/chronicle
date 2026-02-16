@@ -175,6 +175,10 @@ type PGSession struct {
 	cancel   context.CancelFunc
 	mu       sync.Mutex
 	writeErr error // tracks protocol write errors
+
+	// Extended query protocol state
+	preparedStmts map[string]*preparedStmt
+	portals       map[string]*portalEntry
 }
 
 func newPGSession(server *PGServer, conn net.Conn) *PGSession {

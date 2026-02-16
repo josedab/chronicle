@@ -257,3 +257,137 @@ func splitTrimmed(s, sep string) []string {
 	}
 	return result
 }
+
+// --- Extended Query Protocol ---
+
+// preparedStmt holds a parsed statement for the extended query protocol.
+type preparedStmt struct {
+	name   string
+	query  string
+	params int // number of parameters
+}
+
+// portalEntry holds a bound portal (statement + parameters).
+type portalEntry struct {
+	name   string
+	stmt   *preparedStmt
+	params []string
+}
+
+// handleParse processes a Parse message (extended query protocol).
+// Format: stmtName\0 query\0 int16(numParamTypes) int32[](paramOIDs)
+func (sess *PGSession) handleParse(payload []byte) error {
+	parts := strings.SplitN(string(payload), "\x00", 3)
+	if len(parts) < 2 {
+		return fmt.Errorf("malformed Parse message")
+	}
+
+	stmtName := parts[0]
+	query := parts[1]
+
+	sess.mu.Lock()
+	if sess.preparedStmts == nil {
+		sess.preparedStmts = make(map[string]*preparedStmt)
+	}
+	sess.preparedStmts[stmtName] = &preparedStmt{
+		name:  stmtName,
+		query: query,
+	}
+	sess.mu.Unlock()
+
+	// Send ParseComplete ('1')
+	sess.writeMessage('1', nil)
+	return nil
+}
+
+// handleBind processes a Bind message (extended query protocol).
+// Binds parameters to a prepared statement, creating a portal.
+func (sess *PGSession) handleBind(payload []byte) error {
+	parts := strings.SplitN(string(payload), "\x00", 3)
+	if len(parts) < 2 {
+		return fmt.Errorf("malformed Bind message")
+	}
+
+	portalName := parts[0]
+	stmtName := parts[1]
+
+	sess.mu.Lock()
+	stmt, ok := sess.preparedStmts[stmtName]
+	if !ok {
+		sess.mu.Unlock()
+		return fmt.Errorf("prepared statement %q not found", stmtName)
+	}
+	if sess.portals == nil {
+		sess.portals = make(map[string]*portalEntry)
+	}
+	sess.portals[portalName] = &portalEntry{
+		name: portalName,
+		stmt: stmt,
+	}
+	sess.mu.Unlock()
+
+	// Send BindComplete ('2')
+	sess.writeMessage('2', nil)
+	return nil
+}
+
+// handleDescribe processes a Describe message.
+func (sess *PGSession) handleDescribe(payload []byte) {
+	if len(payload) < 2 {
+		sess.writeMessage(PGMsgNoData, nil)
+		return
+	}
+
+	descType := payload[0] // 'S' for statement, 'P' for portal
+	name := strings.TrimRight(string(payload[1:]), "\x00")
+
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
+
+	switch descType {
+	case 'S':
+		if stmt, ok := sess.preparedStmts[name]; ok && stmt.query != "" {
+			// Describe the statement's result columns
+			translator := &PGQueryTranslator{db: sess.server.db}
+			result, err := translator.Execute(stmt.query)
+			if err != nil {
+				sess.writeMessage(PGMsgNoData, nil)
+				return
+			}
+			sess.writeRowDescription(result.Columns)
+			return
+		}
+	case 'P':
+		if portal, ok := sess.portals[name]; ok && portal.stmt != nil {
+			translator := &PGQueryTranslator{db: sess.server.db}
+			result, err := translator.Execute(portal.stmt.query)
+			if err != nil {
+				sess.writeMessage(PGMsgNoData, nil)
+				return
+			}
+			sess.writeRowDescription(result.Columns)
+			return
+		}
+	}
+	sess.writeMessage(PGMsgNoData, nil)
+}
+
+// handleExecute processes an Execute message.
+func (sess *PGSession) handleExecute(payload []byte) error {
+	portalName := strings.TrimRight(string(payload), "\x00")
+	// Remove trailing max-rows bytes
+	if idx := strings.IndexByte(portalName, 0); idx >= 0 {
+		portalName = portalName[:idx]
+	}
+
+	sess.mu.Lock()
+	portal, ok := sess.portals[portalName]
+	sess.mu.Unlock()
+
+	if !ok || portal.stmt == nil {
+		sess.writeCommandComplete("SELECT 0")
+		return nil
+	}
+
+	return sess.executeStatement(portal.stmt.query)
+}

@@ -287,14 +287,59 @@ func (sess *PGSession) handleShow(stmt string) error {
 	return nil
 }
 
-func (sess *PGSession) handleCatalogQuery(_ string) error {
-	// Return empty result for catalog queries (psql compatibility)
+func (sess *PGSession) handleCatalogQuery(query string) error {
+	upper := strings.ToUpper(query)
+
+	// pg_type catalog - return common type mappings
+	if strings.Contains(upper, "PG_TYPE") {
+		return sess.handlePgTypeCatalog()
+	}
+	// pg_namespace - return public schema
+	if strings.Contains(upper, "PG_NAMESPACE") {
+		cols := []PGColumn{
+			{Name: "oid", TypeOID: PGTypeInt4, TypeLen: 4, TypeMod: -1},
+			{Name: "nspname", TypeOID: PGTypeText, TypeLen: -1, TypeMod: -1},
+		}
+		sess.writeRowDescription(cols)
+		sess.writeDataRow([]string{"2200", "public"})
+		sess.writeCommandComplete("SELECT 1")
+		return nil
+	}
+	// Default: empty result for other catalog queries
 	cols := []PGColumn{
 		{Name: "oid", TypeOID: PGTypeInt4, TypeLen: 4, TypeMod: -1},
 		{Name: "name", TypeOID: PGTypeText, TypeLen: -1, TypeMod: -1},
 	}
 	sess.writeRowDescription(cols)
 	sess.writeCommandComplete("SELECT 0")
+	return nil
+}
+
+func (sess *PGSession) handlePgTypeCatalog() error {
+	cols := []PGColumn{
+		{Name: "oid", TypeOID: PGTypeInt4, TypeLen: 4, TypeMod: -1},
+		{Name: "typname", TypeOID: PGTypeText, TypeLen: -1, TypeMod: -1},
+		{Name: "typlen", TypeOID: PGTypeInt4, TypeLen: 4, TypeMod: -1},
+		{Name: "typtype", TypeOID: PGTypeText, TypeLen: -1, TypeMod: -1},
+	}
+	sess.writeRowDescription(cols)
+
+	types := []struct {
+		oid, name, length, typtype string
+	}{
+		{"16", "bool", "1", "b"},
+		{"20", "int8", "8", "b"},
+		{"23", "int4", "4", "b"},
+		{"25", "text", "-1", "b"},
+		{"701", "float8", "8", "b"},
+		{"1043", "varchar", "-1", "b"},
+		{"1114", "timestamp", "8", "b"},
+		{"1184", "timestamptz", "8", "b"},
+	}
+	for _, t := range types {
+		sess.writeDataRow([]string{t.oid, t.name, t.length, t.typtype})
+	}
+	sess.writeCommandComplete(fmt.Sprintf("SELECT %d", len(types)))
 	return nil
 }
 

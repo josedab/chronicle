@@ -247,3 +247,164 @@ func TestExtractTimestamp(t *testing.T) {
 		t.Error("expected 0 for no timestamp")
 	}
 }
+
+func TestPGQueryTranslator_ExtendedProtocol(t *testing.T) {
+	db := &mockPGDB{
+		metrics: []string{"cpu_usage", "mem_free"},
+		points: []Point{
+			{Metric: "cpu_usage", Value: 85.5, Timestamp: 1000000000000},
+			{Metric: "cpu_usage", Value: 90.2, Timestamp: 2000000000000},
+		},
+	}
+
+	t.Run("ParseBindExecute", func(t *testing.T) {
+		server, _ := NewPGServer(db, DefaultPGWireConfig())
+		sess := newPGSession(server, nil)
+
+		err := sess.handleParse([]byte("stmt1\x00SELECT * FROM cpu_usage\x00"))
+		if err != nil {
+			t.Fatalf("handleParse: %v", err)
+		}
+		if sess.preparedStmts == nil || sess.preparedStmts["stmt1"] == nil {
+			t.Fatal("expected prepared statement")
+		}
+		if sess.preparedStmts["stmt1"].query != "SELECT * FROM cpu_usage" {
+			t.Errorf("unexpected query: %s", sess.preparedStmts["stmt1"].query)
+		}
+
+		err = sess.handleBind([]byte("portal1\x00stmt1\x00"))
+		if err != nil {
+			t.Fatalf("handleBind: %v", err)
+		}
+		if sess.portals == nil || sess.portals["portal1"] == nil {
+			t.Fatal("expected portal")
+		}
+	})
+
+	t.Run("BindUnknownStatement", func(t *testing.T) {
+		server, _ := NewPGServer(db, DefaultPGWireConfig())
+		sess := newPGSession(server, nil)
+		err := sess.handleBind([]byte("portal\x00nonexistent\x00"))
+		if err == nil {
+			t.Error("expected error binding to nonexistent statement")
+		}
+	})
+}
+
+func TestPGCatalogInsert(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"test_metric"}}
+	translator := &PGQueryTranslator{db: db}
+
+	_, err := translator.Execute("INSERT INTO test_metric (value, timestamp) VALUES (42.5, 1000)")
+	if err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if len(db.written) != 1 {
+		t.Fatalf("expected 1 written, got %d", len(db.written))
+	}
+	if db.written[0].Value != 42.5 {
+		t.Errorf("expected 42.5, got %f", db.written[0].Value)
+	}
+}
+
+func TestFormatValueCases(t *testing.T) {
+	if formatValue(42.5) != "42.5" {
+		t.Error("float format")
+	}
+	if formatValue(int64(100)) != "100" {
+		t.Error("int format")
+	}
+	if formatValue(nil) != "" {
+		t.Error("nil format")
+	}
+	if formatValue(math.NaN()) != "NaN" {
+		t.Error("NaN format")
+	}
+	if formatValue(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)) != "2024-01-15 10:30:00" {
+		t.Error("time format")
+	}
+}
+
+func TestPGWireTypeCatalog(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"test_metric"}}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	// executeStatement routes pg_catalog queries to handleCatalogQuery
+	err := sess.executeStatement("SELECT * FROM pg_catalog.pg_type")
+	if err != nil {
+		t.Fatalf("pg_type query: %v", err)
+	}
+	// Verify that the session writer has content (the response was written)
+	sess.mu.Lock()
+	written := sess.writer.Len()
+	sess.mu.Unlock()
+	if written == 0 {
+		t.Error("expected pg_type response to be written")
+	}
+}
+
+func TestPGWireNamespaceCatalog(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"test_metric"}}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	err := sess.executeStatement("SELECT * FROM pg_namespace")
+	if err != nil {
+		t.Fatalf("pg_namespace query: %v", err)
+	}
+	sess.mu.Lock()
+	written := sess.writer.Len()
+	sess.mu.Unlock()
+	if written == 0 {
+		t.Error("expected pg_namespace response")
+	}
+}
+
+func TestPGWireTransactionHandling(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"test_metric"}}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	// BEGIN should switch to transaction state
+	if err := sess.executeStatement("BEGIN"); err != nil {
+		t.Fatalf("BEGIN: %v", err)
+	}
+	if sess.txState != PGTxInTx {
+		t.Errorf("expected txState=%c after BEGIN, got %c", PGTxInTx, sess.txState)
+	}
+
+	// COMMIT should return to idle
+	if err := sess.executeStatement("COMMIT"); err != nil {
+		t.Fatalf("COMMIT: %v", err)
+	}
+	if sess.txState != PGTxIdle {
+		t.Errorf("expected txState=%c after COMMIT, got %c", PGTxIdle, sess.txState)
+	}
+
+	// ROLLBACK
+	sess.executeStatement("BEGIN")
+	sess.executeStatement("ROLLBACK")
+	if sess.txState != PGTxIdle {
+		t.Errorf("expected txState=%c after ROLLBACK, got %c", PGTxIdle, sess.txState)
+	}
+}
+
+func TestPGWireShowCommands(t *testing.T) {
+	db := &mockPGDB{}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	tests := []string{
+		"SHOW server_version",
+		"SHOW server_encoding",
+		"SHOW timezone",
+		"SHOW datestyle",
+		"SHOW search_path",
+	}
+	for _, stmt := range tests {
+		if err := sess.executeStatement(stmt); err != nil {
+			t.Errorf("SHOW %s: %v", stmt, err)
+		}
+	}
+}
