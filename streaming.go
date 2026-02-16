@@ -236,7 +236,9 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 						Type:  "subscribed",
 						SubID: sub.ID,
 					})
-					_ = conn.WriteMessage(websocket.TextMessage, resp)
+					if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
+						return
+					}
 
 					// Start forwarding points for this subscription
 					go h.forwardPoints(ctx, conn, sub)
@@ -253,7 +255,9 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 						Type:  "unsubscribed",
 						SubID: cmd.SubID,
 					})
-					_ = conn.WriteMessage(websocket.TextMessage, resp)
+					if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
+						return
+					}
 
 				default:
 					h.sendError(conn, "unknown command: "+cmd.Type)
@@ -301,7 +305,9 @@ func (h *StreamHub) sendError(conn *websocket.Conn, msg string) {
 		Type:  "error",
 		Error: msg,
 	})
-	_ = conn.WriteMessage(websocket.TextMessage, resp)
+	if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
+		_ = conn.Close()
+	}
 }
 
 // StreamingDB wraps a DB with streaming capabilities.
