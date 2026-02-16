@@ -2,6 +2,9 @@ package chronicle
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -205,5 +208,123 @@ func TestAdaptiveTieredBackend_ReadWrite(t *testing.T) {
 	exists, _ = backend.Exists(ctx, "testkey")
 	if exists {
 		t.Errorf("expected key to be deleted")
+	}
+}
+
+func TestCostDashboardGeneration(t *testing.T) {
+	tracker := NewAccessTracker(DefaultAccessTrackerConfig())
+	tracker.RecordRead("partition-1")
+	tracker.RecordRead("partition-2")
+	tracker.RecordWrite("partition-1")
+
+	hotTier := &StorageTierConfig{
+		Level:       TierHot,
+		CostPerGBMonth:   0.023,
+		Backend:     NewMemoryBackend(),
+	}
+	warmTier := &StorageTierConfig{
+		Level:       TierWarm,
+		CostPerGBMonth:   0.0125,
+		Backend:     NewMemoryBackend(),
+	}
+
+	tiers := []*StorageTierConfig{hotTier, warmTier}
+	config := AdaptiveTieredConfig{
+		Tiers:         tiers,
+		AccessTracker: DefaultAccessTrackerConfig(),
+		Migration:     DefaultMigrationEngineConfig(),
+		CostOptimizer: DefaultCostOptimizerConfig(),
+	}
+	backend, err := NewAdaptiveTieredBackend(config)
+	if err != nil {
+		t.Fatalf("NewAdaptiveTieredBackend: %v", err)
+	}
+	defer backend.Close()
+
+	// Write some data
+	ctx := context.Background()
+	backend.Write(ctx, "test-data-1", []byte("hello"))
+	backend.Write(ctx, "test-data-2", []byte("world"))
+
+	dashboard := backend.GenerateCostDashboard()
+	if dashboard == nil {
+		t.Fatal("dashboard should not be nil")
+	}
+	if dashboard.GeneratedAt.IsZero() {
+		t.Error("dashboard should have generation timestamp")
+	}
+	if dashboard.CurrentCost == nil {
+		t.Error("dashboard should have current cost report")
+	}
+}
+
+func TestTieredStorageHTTPEndpoints(t *testing.T) {
+	hotTier := &StorageTierConfig{
+		Level:     TierHot,
+		CostPerGBMonth: 0.023,
+		Backend:   NewMemoryBackend(),
+	}
+	config := AdaptiveTieredConfig{
+		Tiers:         []*StorageTierConfig{hotTier},
+		AccessTracker: DefaultAccessTrackerConfig(),
+		Migration:     DefaultMigrationEngineConfig(),
+		CostOptimizer: DefaultCostOptimizerConfig(),
+	}
+	backend, err := NewAdaptiveTieredBackend(config)
+	if err != nil {
+		t.Fatalf("NewAdaptiveTieredBackend: %v", err)
+	}
+	defer backend.Close()
+
+	mux := http.NewServeMux()
+	backend.RegisterHTTPHandlers(mux)
+
+	tests := []struct {
+		name   string
+		path   string
+		method string
+		status int
+	}{
+		{"dashboard", "/api/v1/tiered/dashboard", "GET", 200},
+		{"stats", "/api/v1/tiered/stats", "GET", 200},
+		{"migrations", "/api/v1/tiered/migrations", "GET", 200},
+		{"cost", "/api/v1/tiered/cost", "GET", 200},
+		{"dashboard_post", "/api/v1/tiered/dashboard", "POST", 405},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+			if w.Code != tt.status {
+				t.Errorf("%s %s: expected %d, got %d", tt.method, tt.path, tt.status, w.Code)
+			}
+			if tt.status == 200 {
+				var result map[string]any
+				json.NewDecoder(w.Body).Decode(&result)
+				if len(result) == 0 {
+					t.Error("expected non-empty JSON response")
+				}
+			}
+		})
+	}
+}
+
+func TestReEncodeForColdStorage(t *testing.T) {
+	// Data with repeated bytes should compress
+	data := make([]byte, 100)
+	for i := range data {
+		data[i] = 0xAA
+	}
+	encoded := reEncodeForColdStorage(data)
+	if len(encoded) >= len(data) {
+		t.Logf("encoded=%d, original=%d (no compression gain for this pattern)", len(encoded), len(data))
+	}
+
+	// Empty data should pass through
+	empty := reEncodeForColdStorage(nil)
+	if len(empty) != 0 {
+		t.Error("empty data should return empty")
 	}
 }

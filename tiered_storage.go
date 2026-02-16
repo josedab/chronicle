@@ -2,8 +2,10 @@ package chronicle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -231,6 +233,7 @@ type MigrationEngineConfig struct {
 	MigrationCooldown       time.Duration
 	MaxConcurrentMigrations int
 	DryRun                  bool
+	EnableReEncoding        bool // re-encode data on tier transition for better compression
 }
 
 // DefaultMigrationEngineConfig returns sensible defaults for migration.
@@ -240,6 +243,7 @@ func DefaultMigrationEngineConfig() MigrationEngineConfig {
 		MigrationCooldown:       10 * time.Minute,
 		MaxConcurrentMigrations: 2,
 		DryRun:                  false,
+		EnableReEncoding:        true,
 	}
 }
 
@@ -412,6 +416,11 @@ func (e *MigrationEngine) ExecuteMigration(plan *MigrationPlan) (*MigrationResul
 		result.Error = fmt.Sprintf("read failed: %v", err)
 		result.CompletedAt = time.Now()
 		return result, fmt.Errorf("migration read failed: %w", err)
+	}
+
+	// Apply re-encoding on tier transition for better compression on cold tiers
+	if e.config.EnableReEncoding && plan.TargetTier >= TierCold {
+		data = reEncodeForColdStorage(data)
 	}
 
 	if err := dst.Backend.Write(ctx, plan.PartitionKey, data); err != nil {
@@ -873,4 +882,145 @@ func (b *AdaptiveTieredBackend) Stats() *TieredStorageStats {
 	pending := b.migration.PlanMigrations()
 	stats.MigrationsPending = len(pending)
 	return stats
+}
+
+// CostDashboard generates a comprehensive cost dashboard report.
+type CostDashboard struct {
+	CurrentCost     *CostReport                `json:"current_cost"`
+	Projections     []*CostProjection          `json:"projections"`
+	Recommendations []*OptimizationRecommendation `json:"recommendations"`
+	TierDistribution map[string]int             `json:"tier_distribution"`
+	MigrationSummary MigrationDashboardSummary  `json:"migration_summary"`
+	GeneratedAt     time.Time                   `json:"generated_at"`
+}
+
+// MigrationDashboardSummary summarizes migration activity.
+type MigrationDashboardSummary struct {
+	Completed    int           `json:"completed"`
+	Pending      int           `json:"pending"`
+	TotalMoved   int64         `json:"total_bytes_moved"`
+	AvgDuration  time.Duration `json:"avg_duration"`
+	FailureRate  float64       `json:"failure_rate"`
+}
+
+// GenerateCostDashboard creates a full cost dashboard from the tiered backend.
+func (b *AdaptiveTieredBackend) GenerateCostDashboard() *CostDashboard {
+	dashboard := &CostDashboard{
+		CurrentCost:      b.cost.CalculateCurrentCost(),
+		Recommendations:  b.cost.RecommendOptimizations(),
+		TierDistribution: make(map[string]int),
+		GeneratedAt:      time.Now(),
+	}
+
+	// Generate 3, 6, 12 month projections
+	for _, months := range []int{3, 6, 12} {
+		proj := b.cost.ProjectCost(months * 30)
+		dashboard.Projections = append(dashboard.Projections, proj)
+	}
+
+	// Tier distribution
+	ctx := context.Background()
+	for _, t := range b.tiers {
+		keys, err := t.Backend.List(ctx, "")
+		if err == nil {
+			dashboard.TierDistribution[t.Level.String()] = len(keys)
+		}
+	}
+
+	// Migration summary
+	history := b.migration.GetMigrationHistory()
+	dashboard.MigrationSummary.Completed = len(history)
+	dashboard.MigrationSummary.Pending = len(b.migration.PlanMigrations())
+
+	var totalMoved int64
+	var totalDuration time.Duration
+	failures := 0
+	for _, r := range history {
+		totalMoved += r.BytesMoved
+		totalDuration += r.Duration
+		if !r.Success {
+			failures++
+		}
+	}
+	dashboard.MigrationSummary.TotalMoved = totalMoved
+	if len(history) > 0 {
+		dashboard.MigrationSummary.AvgDuration = totalDuration / time.Duration(len(history))
+		dashboard.MigrationSummary.FailureRate = float64(failures) / float64(len(history))
+	}
+
+	return dashboard
+}
+
+// reEncodeForColdStorage applies compression-optimized encoding for cold/archive tiers.
+// Cold data is rarely read, so we optimize for storage size over access speed.
+func reEncodeForColdStorage(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
+
+	// Apply simple run-length encoding for repeated byte sequences
+	var encoded []byte
+	i := 0
+	for i < len(data) {
+		b := data[i]
+		count := 1
+		for i+count < len(data) && data[i+count] == b && count < 255 {
+			count++
+		}
+		if count >= 3 {
+			// RLE escape: 0xFF, count, byte
+			encoded = append(encoded, 0xFE, byte(count), b)
+		} else {
+			for j := 0; j < count; j++ {
+				encoded = append(encoded, b)
+			}
+		}
+		i += count
+	}
+
+	// Only use encoded version if it's actually smaller
+	if len(encoded) < len(data) {
+		return encoded
+	}
+	return data
+}
+
+// RegisterHTTPHandlers registers HTTP endpoints for the tiered storage dashboard.
+func (b *AdaptiveTieredBackend) RegisterHTTPHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/tiered/dashboard", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		dashboard := b.GenerateCostDashboard()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(dashboard)
+	})
+	mux.HandleFunc("/api/v1/tiered/stats", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(b.Stats())
+	})
+	mux.HandleFunc("/api/v1/tiered/migrations", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"pending":   b.migration.PlanMigrations(),
+			"completed": b.migration.GetMigrationHistory(),
+		})
+	})
+	mux.HandleFunc("/api/v1/tiered/cost", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(b.cost.CalculateCurrentCost())
+	})
 }
