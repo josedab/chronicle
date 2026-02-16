@@ -106,6 +106,19 @@ jobs:
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
+    services:
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "mc ready local || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -116,8 +129,18 @@ jobs:
           go-version: '1.24'
           cache: true
 
+      - name: Create MinIO test bucket
+        run: |
+          curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+          chmod +x /usr/local/bin/mc
+          mc alias set local http://localhost:9000 minioadmin minioadmin
+          mc mb local/chronicle-test
+
       - name: Run integration tests
-        run: go test -tags integration -count=1 ./...
+        env:
+          S3_TEST_ENDPOINT: http://localhost:9000
+          S3_TEST_BUCKET: chronicle-test
+        run: go test -tags integration -count=1 -timeout 300s ./...
 
   vuln:
     name: Vulnerability Check
