@@ -162,3 +162,22 @@ Chronicle has a flat package structure with ~300 root-level files. See [CODE_MAP
 - [PACKAGES.md](PACKAGES.md) — Package restructuring plan
 - [CODE_MAP.md](CODE_MAP.md) — Domain-grouped file navigation guide
 - [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) — Plugin development guide
+
+## CI Pipeline
+
+The following GitHub Actions workflows run automatically. Use the "Local equivalent" column to reproduce CI checks on your machine.
+
+| Workflow | Trigger | What it does | Local equivalent |
+|---|---|---|---|
+| **CI** (`ci.yml`) | Push / PR to `main` | Tests (3 OS × Go 1.24), lint, benchmarks, integration (MinIO), vuln check, fuzz | `make test-ci` / `make lint` |
+| **Benchmarks** (`benchmarks.yml`) | Push / PR to `main` | Comparative benchmark (count=5), benchstat regression check (>10%) | `make benchmark` |
+| **Performance Regression** (`perf-regression.yml`) | PR to `main` | Benchmark diff vs base branch, posts PR comment | `make benchmark` |
+| **CodeQL** (`codeql.yml`) | Push / PR to `main`, weekly | Static analysis (Go) via GitHub CodeQL | — |
+| **Security Audit** (`security-audit.yml`) | Push / PR to `main`, weekly | `govulncheck`, `staticcheck`, `go vet` | `make vuln` / `make vet` |
+| **Dependency Review** (`dependency-review.yml`) | PR to `main` | Flags high-severity dependency changes | — |
+| **OpenSSF Scorecard** (`scorecard.yml`) | Push to `main`, weekly | Supply-chain security scoring | — |
+| **Deploy Documentation** (`docs.yml`) | Push to `main` (docs/website paths) | Build & deploy Docusaurus site to GitHub Pages | `cd website && npm run build` |
+| **Release** (`release.yml`) | Push tag `v*` | GoReleaser build, SBOM (SPDX), Sigstore signing, SLSA provenance | `make release-check` |
+| **Docker Multi-Arch** (`docker-multiarch.yml`) | Push tag `v*`, manual | Multi-arch Docker image (amd64/arm64/arm/v7) to GHCR | — |
+| **Release Please** (`release-please.yml`) | Push to `main` | Auto-generate release PR with changelog | — |
+| **Welcome** (`welcome.yml`) | Issue / PR opened | Greet new contributors with links | — |
