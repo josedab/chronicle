@@ -164,7 +164,10 @@ func (ec *EmbeddedCluster) Start() error {
 	go ec.heartbeatLoop(ctx)
 
 	// If no peers, become leader
-	if len(ec.peers) == 0 {
+	ec.mu.RLock()
+	noPeers := len(ec.peers) == 0
+	ec.mu.RUnlock()
+	if noPeers {
 		ec.isLeader.Store(true)
 	}
 
