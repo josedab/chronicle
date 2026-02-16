@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -35,13 +36,17 @@ func (s *PGServer) Stop() error {
 	close(s.shutdown)
 
 	if s.listener != nil {
-		_ = s.listener.Close()
+		if err := s.listener.Close(); err != nil {
+			log.Printf("[WARN] pgwire: failed to close listener: %v", err)
+		}
 	}
 
 	s.sessions.Range(func(key, val any) bool {
 		if sess, ok := val.(*PGSession); ok {
 			sess.cancel()
-			_ = sess.conn.Close()
+			if err := sess.conn.Close(); err != nil {
+				log.Printf("[WARN] pgwire: failed to close session conn: %v", err)
+			}
 		}
 		return true
 	})
@@ -59,7 +64,9 @@ func (s *PGServer) acceptLoop() {
 		}
 
 		if s.activeConns.Load() >= int64(s.config.MaxConnections) {
-			_ = conn.Close()
+			if err := conn.Close(); err != nil {
+				log.Printf("[WARN] pgwire: failed to close rejected conn: %v", err)
+			}
 			continue
 		}
 
@@ -75,7 +82,9 @@ func (s *PGServer) acceptLoop() {
 
 func (s *PGServer) handleSession(sess *PGSession) {
 	defer func() {
-		_ = sess.conn.Close()
+		if err := sess.conn.Close(); err != nil {
+			log.Printf("[WARN] pgwire: failed to close session conn: %v", err)
+		}
 		sess.cancel()
 		s.sessions.Delete(sess.id)
 		s.activeConns.Add(-1)

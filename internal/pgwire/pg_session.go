@@ -44,7 +44,10 @@ func (sess *PGSession) writeMessage(msgType byte, data []byte) {
 
 	sess.writer.WriteByte(msgType)
 	length := int32(4 + len(data))
-	_ = binary.Write(sess.writer, binary.BigEndian, length)
+	if err := binary.Write(sess.writer, binary.BigEndian, length); err != nil {
+		sess.writeErr = err
+		return
+	}
 	if len(data) > 0 {
 		sess.writer.Write(data)
 	}

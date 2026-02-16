@@ -174,6 +174,7 @@ type PGSession struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	mu       sync.Mutex
+	writeErr error // tracks protocol write errors
 }
 
 func newPGSession(server *PGServer, conn net.Conn) *PGSession {
