@@ -23,6 +23,7 @@ type FeatureManager struct {
 	offlineSync       *OfflineSyncManager
 
 	// Next-gen v2 features
+	anomalyPipeline    *AnomalyPipeline
 	anomalyCorrelation *AnomalyCorrelationEngine
 	cloudRelay         *CloudRelay
 	playground         *Playground
@@ -33,6 +34,16 @@ type FeatureManager struct {
 	saasControlPlane   *SaaSControlPlane
 	gitopsEngine       *GitOpsEngine
 	federatedML        *FederatedMLTrainer
+
+	// Next-gen v4 features
+	hardeningSuite   *HardeningSuite
+	otelDistro       *OTelDistro
+	embeddedCluster  *EmbeddedCluster
+	smartRetention   *SmartRetentionEngine
+	dashboard        *EmbeddableDashboard
+	lspEnhanced      *LSPEnhancedServer
+	etlManager       *ETLPipelineManager
+	cloudSyncFabric  *CloudSyncFabric
 
 	// Next-gen v3 features
 	edgeMesh           *EdgeMesh
@@ -101,6 +112,7 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.offlineSync = NewOfflineSyncManager(DefaultOfflineSyncConfig())
 
 	// Initialize next-gen v2 features
+	fm.anomalyPipeline = NewAnomalyPipeline(db, DefaultAnomalyPipelineConfig())
 	fm.anomalyCorrelation = NewAnomalyCorrelationEngine(db, DefaultAnomalyCorrelationConfig())
 	fm.cloudRelay = NewCloudRelay(db, DefaultCloudRelayConfig())
 	fm.playground = NewPlayground(db, DefaultPlaygroundConfig())
@@ -123,6 +135,16 @@ func NewFeatureManager(db *DB, cfg FeatureManagerConfig) (*FeatureManager, error
 	fm.adaptiveV3 = NewAdaptiveCompressorV3(DefaultAdaptiveCompressionV3Config())
 	fm.multiModelGraph = NewMultiModelGraphStore(db)
 	fm.fleetManager = NewSaaSFleetManager(DefaultSaaSFleetConfig())
+
+	// Initialize next-gen v4 features
+	fm.hardeningSuite = NewHardeningSuite(db, DefaultHardeningConfig())
+	fm.otelDistro = NewOTelDistro(db, DefaultOTelDistroConfig())
+	fm.embeddedCluster = NewEmbeddedCluster(db, DefaultEmbeddedClusterConfig())
+	fm.smartRetention = NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
+	fm.dashboard = NewEmbeddableDashboard(db, DefaultDashboardConfig())
+	fm.lspEnhanced = NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
+	fm.etlManager = NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
+	fm.cloudSyncFabric = NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 
 	return fm, nil
 }
@@ -245,6 +267,13 @@ func (fm *FeatureManager) OfflineSync() *OfflineSyncManager {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.offlineSync
+}
+
+// AnomalyPipeline returns the streaming anomaly detection pipeline.
+func (fm *FeatureManager) AnomalyPipeline() *AnomalyPipeline {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.anomalyPipeline
 }
 
 // AnomalyCorrelation returns the anomaly correlation engine.
@@ -392,6 +421,62 @@ func (fm *FeatureManager) FleetManager() *SaaSFleetManager {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return fm.fleetManager
+}
+
+// HardeningSuite returns the production hardening suite.
+func (fm *FeatureManager) HardeningSuite() *HardeningSuite {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.hardeningSuite
+}
+
+// OTelDistro returns the OpenTelemetry distribution.
+func (fm *FeatureManager) OTelDistro() *OTelDistro {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.otelDistro
+}
+
+// EmbeddedCluster returns the embedded cluster manager.
+func (fm *FeatureManager) EmbeddedCluster() *EmbeddedCluster {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.embeddedCluster
+}
+
+// SmartRetention returns the smart retention engine.
+func (fm *FeatureManager) SmartRetention() *SmartRetentionEngine {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.smartRetention
+}
+
+// Dashboard returns the embeddable dashboard.
+func (fm *FeatureManager) Dashboard() *EmbeddableDashboard {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.dashboard
+}
+
+// LSPEnhanced returns the enhanced LSP server.
+func (fm *FeatureManager) LSPEnhanced() *LSPEnhancedServer {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.lspEnhanced
+}
+
+// ETLManager returns the ETL pipeline manager.
+func (fm *FeatureManager) ETLManager() *ETLPipelineManager {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.etlManager
+}
+
+// CloudSyncFabric returns the multi-cloud sync fabric.
+func (fm *FeatureManager) CloudSyncFabric() *CloudSyncFabric {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return fm.cloudSyncFabric
 }
 
 // ValidatePoint validates a point against registered schemas.
