@@ -3,6 +3,7 @@ package chronicle
 import (
 	"math"
 	"testing"
+	"time"
 )
 
 func TestPromQLCompleteParser(t *testing.T) {
@@ -242,4 +243,119 @@ func TestPromQLNotRegexMatcherConversion(t *testing.T) {
 	if cq.TagFilters[0].Op != TagOpNotRegex {
 		t.Errorf("expected TagOpNotRegex, got %v", cq.TagFilters[0].Op)
 	}
+}
+
+func TestPromQLEvaluatorEndToEnd(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Write real time-series data
+	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 20; i++ {
+		ts := baseTime.Add(time.Duration(i) * time.Second).UnixNano()
+		_ = db.Write(Point{Metric: "http_requests_total", Value: float64(i * 10), Timestamp: ts, Tags: map[string]string{"method": "GET", "status": "200"}})
+		_ = db.Write(Point{Metric: "http_requests_total", Value: float64(i * 5), Timestamp: ts, Tags: map[string]string{"method": "POST", "status": "200"}})
+		_ = db.Write(Point{Metric: "temperature", Value: 20.0 + float64(i)*0.5, Timestamp: ts, Tags: map[string]string{"sensor": "a"}})
+	}
+	db.Flush()
+
+	eval := NewPromQLEvaluator(db)
+	start := baseTime.UnixNano()
+	end := baseTime.Add(20 * time.Second).UnixNano()
+
+	t.Run("SimpleMetric", func(t *testing.T) {
+		result, err := eval.Evaluate("http_requests_total", start, end)
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		if len(result.Series) == 0 {
+			t.Fatal("expected non-empty result")
+		}
+	})
+
+	t.Run("AbsentReturnsEmptyWhenPresent", func(t *testing.T) {
+		result, err := eval.Evaluate("absent(http_requests_total)", start, end)
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		if result.Scalar != nil {
+			t.Error("absent should return empty when series exist")
+		}
+	})
+
+	t.Run("AbsentReturns1WhenMissing", func(t *testing.T) {
+		result, err := eval.Evaluate("absent(nonexistent_metric)", start, end)
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		if result.Scalar == nil || *result.Scalar != 1.0 {
+			t.Errorf("absent(nonexistent) should return scalar 1, got %v", result.Scalar)
+		}
+	})
+
+	t.Run("GroupReturns1PerGroup", func(t *testing.T) {
+		result, err := eval.Evaluate("group(http_requests_total)", start, end)
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		for _, s := range result.Series {
+			if s.Value != 1.0 {
+				t.Errorf("group should return 1, got %f", s.Value)
+			}
+		}
+	})
+
+	t.Run("StdvarComputes", func(t *testing.T) {
+		result, err := eval.Evaluate("stdvar(temperature)", start, end)
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		if len(result.Series) == 0 {
+			t.Fatal("expected stdvar result")
+		}
+		if result.Series[0].Value <= 0 {
+			t.Errorf("stdvar should be positive for varied data, got %f", result.Series[0].Value)
+		}
+	})
+
+	t.Run("RangeFunctionEvaluation", func(t *testing.T) {
+		// Test that rate/increase functions parse and evaluate
+		samples := []PromQLSample{
+			{Timestamp: 1000, Value: 100},
+			{Timestamp: 2000, Value: 200},
+			{Timestamp: 3000, Value: 350},
+		}
+		rate := EvalRangeFunction(RangeFuncRate, samples, 3000)
+		if math.IsNaN(rate) || rate <= 0 {
+			t.Errorf("rate should be positive, got %f", rate)
+		}
+
+		increase := EvalRangeFunction(RangeFuncIncrease, samples, 3000)
+		if math.IsNaN(increase) || increase <= 0 {
+			t.Errorf("increase should be positive, got %f", increase)
+		}
+	})
+
+	t.Run("QuantileOverTime", func(t *testing.T) {
+		samples := []PromQLSample{
+			{Timestamp: 1000, Value: 1}, {Timestamp: 2000, Value: 2},
+			{Timestamp: 3000, Value: 3}, {Timestamp: 4000, Value: 4},
+			{Timestamp: 5000, Value: 5},
+		}
+		median := EvalRangeFunctionWithParam(RangeFuncQuantileOverTime, samples, 5000, 0.5)
+		if math.Abs(median-3.0) > 0.01 {
+			t.Errorf("p50 should be ~3, got %f", median)
+		}
+	})
+
+	t.Run("CompliancePassRate", func(t *testing.T) {
+		suite := NewPromQLComplianceSuite()
+		passRate := suite.PassRate()
+		suite.RunAll()
+		passRate = suite.PassRate()
+		if passRate < 0.90 {
+			t.Errorf("compliance pass rate %.2f%% < 90%%", passRate*100)
+		}
+		t.Logf("PromQL compliance: %.1f%% (%d tests)", passRate*100, len(suite.RunAll()))
+	})
 }

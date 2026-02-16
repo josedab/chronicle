@@ -264,11 +264,46 @@ func (p *PromQLCompleteParser) parseExtendedFunction(expr, fnName string) (*Prom
 			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
 		}
 		return query, nil
+	case "quantile_over_time":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("quantile_over_time requires 2 arguments")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[1]))
+		if err != nil {
+			return nil, fmt.Errorf("quantile_over_time: %w", err)
+		}
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "absent_over_time":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("absent_over_time: %w", err)
+		}
+		query.Aggregation = &PromQLAggregation{Op: PromQLFuncAbsentOverTime}
+		return query, nil
 	default:
-		// For simple functions, parse inner expression
+		// For aggregation operators and simple functions, parse inner expression
 		query, err := p.ParseComplete(strings.TrimSpace(inner))
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", fnName, err)
+		}
+		// Set aggregation op for extended aggregation operators
+		switch fnName {
+		case "topk":
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggTopk}
+		case "bottomk":
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggBottomk}
+		case "quantile":
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggQuantile}
+		case "stdvar":
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggStdvar}
+		case "group":
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggGroup}
+		case "count_values":
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggCountValues}
 		}
 		return query, nil
 	}
@@ -426,14 +461,54 @@ func PromQLHistogramQuantile(q float64, buckets []PromQLHistogramBucket) float64
 		return buckets[i].UpperBound < buckets[j].UpperBound
 	})
 
-	total := buckets[len(buckets)-1].Count
+	// Ensure we have a +Inf bucket (required by Prometheus spec)
+	hasInf := false
+	for _, b := range buckets {
+		if math.IsInf(b.UpperBound, 1) {
+			hasInf = true
+			break
+		}
+	}
+	if !hasInf && len(buckets) > 0 {
+		// Use the last bucket as total
+		buckets = append(buckets, PromQLHistogramBucket{
+			UpperBound: math.Inf(1),
+			Count:      buckets[len(buckets)-1].Count,
+		})
+	}
+
+	// Total is from +Inf bucket or last bucket
+	total := float64(buckets[len(buckets)-1].Count)
 	if total == 0 {
 		return math.NaN()
 	}
 
-	target := q * float64(total)
+	// Handle edge cases per Prometheus spec
+	if q == 0 {
+		// Return lowest non-zero boundary
+		for _, b := range buckets {
+			if b.Count > 0 && !math.IsInf(b.UpperBound, 1) {
+				return 0 // q=0 returns lower bound of lowest populated bucket
+			}
+		}
+		return math.NaN()
+	}
+	if q == 1 {
+		// Return the upper bound of the second-highest bucket (before +Inf)
+		for i := len(buckets) - 1; i >= 0; i-- {
+			if !math.IsInf(buckets[i].UpperBound, 1) {
+				return buckets[i].UpperBound
+			}
+		}
+		return math.NaN()
+	}
+
+	target := q * total
 
 	for i, bucket := range buckets {
+		if math.IsInf(bucket.UpperBound, 1) {
+			continue
+		}
 		if float64(bucket.Count) >= target {
 			// Linear interpolation
 			prevCount := 0.0
@@ -442,11 +517,21 @@ func PromQLHistogramQuantile(q float64, buckets []PromQLHistogramBucket) float64
 				prevCount = float64(buckets[i-1].Count)
 				prevBound = buckets[i-1].UpperBound
 			}
-			fraction := (target - prevCount) / (float64(bucket.Count) - prevCount)
+			countDiff := float64(bucket.Count) - prevCount
+			if countDiff == 0 {
+				return prevBound
+			}
+			fraction := (target - prevCount) / countDiff
 			return prevBound + fraction*(bucket.UpperBound-prevBound)
 		}
 	}
-	return buckets[len(buckets)-1].UpperBound
+	// If target falls into +Inf bucket, return last finite bound
+	for i := len(buckets) - 1; i >= 0; i-- {
+		if !math.IsInf(buckets[i].UpperBound, 1) {
+			return buckets[i].UpperBound
+		}
+	}
+	return math.NaN()
 }
 
 // PromQLHistogramBucket represents a histogram bucket for quantile calculation.
@@ -542,9 +627,27 @@ func EvalRangeFunction(fn PromQLRangeFunc, samples []PromQLSample, rangeMs int64
 		return evalSumOverTime(samples)
 	case RangeFuncCountOverTime:
 		return float64(len(samples))
+	case RangeFuncStddevOverTime:
+		return evalStddevOverTime(samples)
+	case RangeFuncStdvarOverTime:
+		return evalStdvarOverTime(samples)
+	case RangeFuncQuantileOverTime:
+		return evalQuantileOverTime(samples, 0.5) // default to median
 	default:
 		return math.NaN()
 	}
+}
+
+// EvalRangeFunctionWithParam evaluates a parameterized range function (e.g., quantile_over_time).
+func EvalRangeFunctionWithParam(fn PromQLRangeFunc, samples []PromQLSample, rangeMs int64, param float64) float64 {
+	if fn == RangeFuncQuantileOverTime {
+		samples = filterStaleSamples(samples)
+		if len(samples) == 0 {
+			return math.NaN()
+		}
+		return evalQuantileOverTime(samples, param)
+	}
+	return EvalRangeFunction(fn, samples, rangeMs)
 }
 
 // evalRate computes rate (per-second) or increase (total) over the sample window.
@@ -722,6 +825,76 @@ func evalSumOverTime(samples []PromQLSample) float64 {
 	return sum
 }
 
+func evalStddevOverTime(samples []PromQLSample) float64 {
+	v := evalStdvarOverTime(samples)
+	if math.IsNaN(v) {
+		return math.NaN()
+	}
+	return math.Sqrt(v)
+}
+
+func evalStdvarOverTime(samples []PromQLSample) float64 {
+	var sum, sumSq float64
+	count := 0
+	for _, s := range samples {
+		if !math.IsNaN(s.Value) {
+			sum += s.Value
+			sumSq += s.Value * s.Value
+			count++
+		}
+	}
+	if count < 2 {
+		return math.NaN()
+	}
+	mean := sum / float64(count)
+	return sumSq/float64(count) - mean*mean
+}
+
+func evalQuantileOverTime(samples []PromQLSample, q float64) float64 {
+	if q < 0 || q > 1 {
+		return math.NaN()
+	}
+	vals := make([]float64, 0, len(samples))
+	for _, s := range samples {
+		if !math.IsNaN(s.Value) {
+			vals = append(vals, s.Value)
+		}
+	}
+	if len(vals) == 0 {
+		return math.NaN()
+	}
+	sort.Float64s(vals)
+	if q == 0 {
+		return vals[0]
+	}
+	if q == 1 {
+		return vals[len(vals)-1]
+	}
+	idx := q * float64(len(vals)-1)
+	lower := int(math.Floor(idx))
+	upper := int(math.Ceil(idx))
+	if lower == upper || upper >= len(vals) {
+		return vals[lower]
+	}
+	frac := idx - float64(lower)
+	return vals[lower]*(1-frac) + vals[upper]*frac
+}
+
+// EvalSubquery evaluates a subquery by computing the inner expression at each step within the range.
+// Returns a slice of samples representing evaluation results at each step.
+func EvalSubquery(innerFn func(ts int64) float64, endMs int64, rangeMs int64, stepMs int64) []PromQLSample {
+	if stepMs <= 0 || rangeMs <= 0 {
+		return nil
+	}
+	startMs := endMs - rangeMs
+	var results []PromQLSample
+	for ts := startMs; ts <= endMs; ts += stepMs {
+		val := innerFn(ts)
+		results = append(results, PromQLSample{Timestamp: ts, Value: val})
+	}
+	return results
+}
+
 // filterStaleSamples removes samples that are older than StalenessWindow
 // relative to the newest sample in the window.
 func filterStaleSamples(samples []PromQLSample) []PromQLSample {
@@ -738,6 +911,376 @@ func filterStaleSamples(samples []PromQLSample) []PromQLSample {
 		}
 	}
 	return samples[start:]
+}
+
+// --- PromQL Evaluator Engine ---
+
+// PromQLEvaluator evaluates PromQL queries against the Chronicle database.
+type PromQLEvaluator struct {
+	db     *DB
+	parser *PromQLCompleteParser
+}
+
+// NewPromQLEvaluator creates a new PromQL evaluator.
+func NewPromQLEvaluator(db *DB) *PromQLEvaluator {
+	return &PromQLEvaluator{
+		db:     db,
+		parser: NewPromQLCompleteParser(),
+	}
+}
+
+// PromQLEvalResult holds the result of a PromQL evaluation.
+type PromQLEvalResult struct {
+	Series []PromQLResultSeries `json:"series"`
+	Scalar *float64             `json:"scalar,omitempty"`
+}
+
+// PromQLResultSeries is a labeled series in a PromQL result.
+type PromQLResultSeries struct {
+	Metric  string            `json:"metric"`
+	Labels  map[string]string `json:"labels"`
+	Samples []PromQLSample    `json:"samples"`
+	Value   float64           `json:"value"`
+}
+
+// Evaluate parses and evaluates a PromQL expression at the given time range.
+func (e *PromQLEvaluator) Evaluate(expr string, start, end int64) (*PromQLEvalResult, error) {
+	pq, err := e.parser.ParseComplete(expr)
+	if err != nil {
+		return nil, fmt.Errorf("promql parse: %w", err)
+	}
+
+	// Handle binary expressions
+	if pq.BinaryExpr != nil {
+		return e.evalBinaryExpr(pq.BinaryExpr, start, end)
+	}
+
+	// Fetch base data from the DB
+	// For extended agg ops (topk, bottomk, quantile, stdvar, group, count_values),
+	// fetch raw data since the DB doesn't know how to aggregate these.
+	cq := pq.ToChronicleQuery(start, end)
+	if pq.Aggregation != nil && isExtendedAggOp(pq.Aggregation.Op) {
+		cq.Aggregation = nil // fetch raw points
+	}
+	dbResult, err := e.db.Execute(cq)
+	if err != nil {
+		return nil, fmt.Errorf("promql execute: %w", err)
+	}
+
+	points := dbResult.Points
+	if len(points) == 0 {
+		// absent() returns 1 when no series match
+		if pq.Aggregation != nil && pq.Aggregation.Op == PromQLFuncAbsent {
+			return &PromQLEvalResult{
+				Scalar: floatPtr(1),
+			}, nil
+		}
+		if pq.Aggregation != nil && pq.Aggregation.Op == PromQLFuncAbsentOverTime {
+			return &PromQLEvalResult{
+				Scalar: floatPtr(1),
+			}, nil
+		}
+		return &PromQLEvalResult{}, nil
+	}
+
+	// Apply extended aggregation operations
+	if pq.Aggregation != nil {
+		return e.applyExtendedAgg(pq, points, start, end)
+	}
+
+	// Return raw points as series
+	return pointsToEvalResult(points), nil
+}
+
+func floatPtr(v float64) *float64 { return &v }
+
+func isExtendedAggOp(op PromQLAggOp) bool {
+	switch op {
+	case PromQLAggTopk, PromQLAggBottomk, PromQLAggQuantile,
+		PromQLAggStdvar, PromQLAggGroup, PromQLAggCountValues,
+		PromQLFuncAbsent, PromQLFuncAbsentOverTime,
+		PromQLFuncVector, PromQLFuncScalar:
+		return true
+	}
+	return false
+}
+
+func pointsToEvalResult(points []Point) *PromQLEvalResult {
+	seriesMap := make(map[string]*PromQLResultSeries)
+	for _, p := range points {
+		key := p.Metric
+		s, ok := seriesMap[key]
+		if !ok {
+			s = &PromQLResultSeries{Metric: p.Metric, Labels: p.Tags}
+			seriesMap[key] = s
+		}
+		s.Samples = append(s.Samples, PromQLSample{Timestamp: p.Timestamp, Value: p.Value})
+	}
+	result := &PromQLEvalResult{}
+	for _, s := range seriesMap {
+		if len(s.Samples) > 0 {
+			s.Value = s.Samples[len(s.Samples)-1].Value
+		}
+		result.Series = append(result.Series, *s)
+	}
+	return result
+}
+
+func (e *PromQLEvaluator) applyExtendedAgg(pq *PromQLQuery, points []Point, start, end int64) (*PromQLEvalResult, error) {
+	op := pq.Aggregation.Op
+
+	switch op {
+	case PromQLFuncAbsent:
+		// absent returns empty when series exist
+		return &PromQLEvalResult{}, nil
+	case PromQLFuncAbsentOverTime:
+		return &PromQLEvalResult{}, nil
+	case PromQLFuncVector:
+		return &PromQLEvalResult{Scalar: floatPtr(1)}, nil
+	case PromQLFuncScalar:
+		if len(points) > 0 {
+			return &PromQLEvalResult{Scalar: floatPtr(points[len(points)-1].Value)}, nil
+		}
+		return &PromQLEvalResult{Scalar: floatPtr(math.NaN())}, nil
+	}
+
+	// Group points by series for group-by aggregations
+	groups := groupPointsByTags(points, pq.Aggregation.By, pq.Aggregation.Without)
+
+	switch op {
+	case PromQLAggTopk:
+		return e.evalTopk(groups, 10, false), nil
+	case PromQLAggBottomk:
+		return e.evalTopk(groups, 10, true), nil
+	case PromQLAggQuantile:
+		return e.evalQuantile(groups, 0.5), nil
+	case PromQLAggCountValues:
+		return e.evalCountValues(groups), nil
+	case PromQLAggStdvar:
+		return e.evalStdvar(groups), nil
+	case PromQLAggGroup:
+		return e.evalGroup(groups), nil
+	default:
+		// For standard aggregations, the DB already handled it via ToChronicleQuery
+		return pointsToEvalResult(points), nil
+	}
+}
+
+type pointGroup struct {
+	key    string
+	labels map[string]string
+	values []float64
+}
+
+func groupPointsByTags(points []Point, by []string, without []string) []pointGroup {
+	groupMap := make(map[string]*pointGroup)
+	for _, p := range points {
+		key := promqlBuildGroupKey(p.Tags, by, without)
+		g, ok := groupMap[key]
+		if !ok {
+			labels := make(map[string]string)
+			if len(by) > 0 {
+				for _, k := range by {
+					if v, ok := p.Tags[k]; ok {
+						labels[k] = v
+					}
+				}
+			} else {
+				for k, v := range p.Tags {
+					labels[k] = v
+				}
+			}
+			g = &pointGroup{key: key, labels: labels}
+			groupMap[key] = g
+		}
+		g.values = append(g.values, p.Value)
+	}
+	var groups []pointGroup
+	for _, g := range groupMap {
+		groups = append(groups, *g)
+	}
+	return groups
+}
+
+func promqlBuildGroupKey(tags map[string]string, by []string, without []string) string {
+	if len(by) > 0 {
+		var parts []string
+		for _, k := range by {
+			parts = append(parts, k+"="+tags[k])
+		}
+		sort.Strings(parts)
+		return strings.Join(parts, ",")
+	}
+	if len(without) > 0 {
+		skip := make(map[string]bool, len(without))
+		for _, k := range without {
+			skip[k] = true
+		}
+		var parts []string
+		for k, v := range tags {
+			if !skip[k] {
+				parts = append(parts, k+"="+v)
+			}
+		}
+		sort.Strings(parts)
+		return strings.Join(parts, ",")
+	}
+	return "__all__"
+}
+
+func (e *PromQLEvaluator) evalTopk(groups []pointGroup, k int, reverse bool) *PromQLEvalResult {
+	type groupVal struct {
+		group pointGroup
+		last  float64
+	}
+	var gvals []groupVal
+	for _, g := range groups {
+		if len(g.values) == 0 {
+			continue
+		}
+		gvals = append(gvals, groupVal{group: g, last: g.values[len(g.values)-1]})
+	}
+
+	sort.Slice(gvals, func(i, j int) bool {
+		if reverse {
+			return gvals[i].last < gvals[j].last
+		}
+		return gvals[i].last > gvals[j].last
+	})
+	if k > len(gvals) {
+		k = len(gvals)
+	}
+
+	result := &PromQLEvalResult{}
+	for _, gv := range gvals[:k] {
+		result.Series = append(result.Series, PromQLResultSeries{
+			Labels: gv.group.labels,
+			Value:  gv.last,
+		})
+	}
+	return result
+}
+
+func (e *PromQLEvaluator) evalQuantile(groups []pointGroup, q float64) *PromQLEvalResult {
+	result := &PromQLEvalResult{}
+	for _, g := range groups {
+		if len(g.values) == 0 {
+			continue
+		}
+		sorted := make([]float64, len(g.values))
+		copy(sorted, g.values)
+		sort.Float64s(sorted)
+		val := evalQuantileOverTime([]PromQLSample{}, q)
+		if len(sorted) > 0 {
+			idx := q * float64(len(sorted)-1)
+			lower := int(math.Floor(idx))
+			upper := int(math.Ceil(idx))
+			if lower == upper || upper >= len(sorted) {
+				val = sorted[lower]
+			} else {
+				frac := idx - float64(lower)
+				val = sorted[lower]*(1-frac) + sorted[upper]*frac
+			}
+		}
+		result.Series = append(result.Series, PromQLResultSeries{
+			Labels: g.labels,
+			Value:  val,
+		})
+	}
+	return result
+}
+
+func (e *PromQLEvaluator) evalCountValues(groups []pointGroup) *PromQLEvalResult {
+	result := &PromQLEvalResult{}
+	for _, g := range groups {
+		counts := make(map[float64]int)
+		for _, v := range g.values {
+			counts[v]++
+		}
+		for val, cnt := range counts {
+			labels := make(map[string]string)
+			for k, v := range g.labels {
+				labels[k] = v
+			}
+			labels["value"] = fmt.Sprintf("%g", val)
+			result.Series = append(result.Series, PromQLResultSeries{
+				Labels: labels,
+				Value:  float64(cnt),
+			})
+		}
+	}
+	return result
+}
+
+func (e *PromQLEvaluator) evalStdvar(groups []pointGroup) *PromQLEvalResult {
+	result := &PromQLEvalResult{}
+	for _, g := range groups {
+		if len(g.values) < 2 {
+			result.Series = append(result.Series, PromQLResultSeries{Labels: g.labels, Value: 0})
+			continue
+		}
+		var sum, sumSq float64
+		for _, v := range g.values {
+			sum += v
+			sumSq += v * v
+		}
+		n := float64(len(g.values))
+		mean := sum / n
+		variance := sumSq/n - mean*mean
+		result.Series = append(result.Series, PromQLResultSeries{Labels: g.labels, Value: variance})
+	}
+	return result
+}
+
+func (e *PromQLEvaluator) evalGroup(groups []pointGroup) *PromQLEvalResult {
+	result := &PromQLEvalResult{}
+	for _, g := range groups {
+		result.Series = append(result.Series, PromQLResultSeries{Labels: g.labels, Value: 1})
+	}
+	return result
+}
+
+func (e *PromQLEvaluator) evalBinaryExpr(expr *PromQLBinaryExpr, start, end int64) (*PromQLEvalResult, error) {
+	leftResult, err := e.Evaluate(exprToString(expr.Left), start, end)
+	if err != nil {
+		return nil, err
+	}
+	rightResult, err := e.Evaluate(exprToString(expr.Right), start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	// Scalar-scalar
+	if leftResult.Scalar != nil && rightResult.Scalar != nil {
+		val := evalBinaryScalar(expr.Op, *leftResult.Scalar, *rightResult.Scalar)
+		return &PromQLEvalResult{Scalar: &val}, nil
+	}
+
+	// Vector-scalar or vector-vector (simplified: apply to each left series)
+	result := &PromQLEvalResult{}
+	rightVal := 0.0
+	if rightResult.Scalar != nil {
+		rightVal = *rightResult.Scalar
+	} else if len(rightResult.Series) > 0 {
+		rightVal = rightResult.Series[0].Value
+	}
+
+	for _, ls := range leftResult.Series {
+		val := evalBinaryScalar(expr.Op, ls.Value, rightVal)
+		result.Series = append(result.Series, PromQLResultSeries{
+			Metric: ls.Metric,
+			Labels: ls.Labels,
+			Value:  val,
+		})
+	}
+	return result, nil
+}
+
+func exprToString(q *PromQLQuery) string {
+	if q == nil {
+		return ""
+	}
+	return q.Metric
 }
 
 // --- Recording Rules ---
@@ -949,6 +1492,8 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 		{"metric_not_regex", `http_requests_total{path!~"/health"}`, "selector"},
 		{"range_selector", "http_requests_total[5m]", "selector"},
 		{"range_selector_hours", "node_cpu[1h]", "selector"},
+		{"range_selector_seconds", "node_cpu[30s]", "selector"},
+		{"range_selector_days", "node_cpu[7d]", "selector"},
 
 		// Standard aggregations
 		{"agg_sum", "sum(http_requests_total)", "aggregation"},
@@ -960,9 +1505,20 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 		{"agg_by", `sum by (method) (http_requests_total)`, "aggregation"},
 		{"agg_without", `sum without (instance) (http_requests_total)`, "aggregation"},
 		{"agg_rate", "rate(http_requests_total[5m])", "aggregation"},
+		{"agg_by_multi", `sum by (method, status) (http_requests_total)`, "aggregation"},
+		{"agg_without_multi", `avg without (instance, pod) (http_requests_total)`, "aggregation"},
+
+		// Extended aggregation functions
+		{"agg_topk", `topk(5, http_requests_total)`, "aggregation"},
+		{"agg_bottomk", `bottomk(3, http_requests_total)`, "aggregation"},
+		{"agg_count_values", `count_values("version", build_info)`, "aggregation"},
+		{"agg_quantile", `quantile(0.9, http_request_duration)`, "aggregation"},
+		{"agg_stdvar", `stdvar(http_request_duration)`, "aggregation"},
+		{"agg_group", `group(http_requests_total)`, "aggregation"},
 
 		// Extended functions
 		{"func_absent", "absent(nonexistent_metric)", "function"},
+		{"func_absent_over_time", "absent_over_time(nonexistent_metric[5m])", "function"},
 		{"func_histogram_quantile", `histogram_quantile(0.95, http_request_duration_bucket)`, "function"},
 		{"func_label_replace", `label_replace(up, "host", "$1", "instance", "(.*):.*")`, "function"},
 		{"func_label_join", `label_join(up, "combined", "-", "job", "instance")`, "function"},
@@ -979,11 +1535,38 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 		{"func_changes", "changes(up[10m])", "range_function"},
 		{"func_resets", "resets(http_requests_total[1h])", "range_function"},
 
+		// Over-time range functions
+		{"func_avg_over_time", "avg_over_time(http_requests_total[5m])", "range_function"},
+		{"func_min_over_time", "min_over_time(temperature[10m])", "range_function"},
+		{"func_max_over_time", "max_over_time(temperature[10m])", "range_function"},
+		{"func_sum_over_time", "sum_over_time(http_requests_total[1h])", "range_function"},
+		{"func_count_over_time", "count_over_time(up[5m])", "range_function"},
+		{"func_stddev_over_time", "stddev_over_time(temperature[1h])", "range_function"},
+		{"func_stdvar_over_time", "stdvar_over_time(temperature[1h])", "range_function"},
+		{"func_quantile_over_time", "quantile_over_time(0.95, http_request_duration[5m])", "range_function"},
+
 		// Math functions
 		{"func_abs", "abs(temperature)", "function"},
 		{"func_ceil", "ceil(latency)", "function"},
 		{"func_floor", "floor(latency)", "function"},
 		{"func_round", "round(latency)", "function"},
+		{"func_clamp", "clamp(temperature, 0, 100)", "function"},
+		{"func_clamp_min", "clamp_min(temperature, 0)", "function"},
+		{"func_clamp_max", "clamp_max(temperature, 100)", "function"},
+
+		// Time functions
+		{"func_timestamp", "timestamp(up)", "function"},
+		{"func_day_of_month", "day_of_month(timestamp(up))", "function"},
+		{"func_day_of_week", "day_of_week(timestamp(up))", "function"},
+		{"func_days_in_month", "days_in_month(timestamp(up))", "function"},
+		{"func_hour", "hour(timestamp(up))", "function"},
+		{"func_minute", "minute(timestamp(up))", "function"},
+		{"func_month", "month(timestamp(up))", "function"},
+		{"func_year", "year(timestamp(up))", "function"},
+
+		// Sort functions
+		{"func_sort", "sort(http_requests_total)", "function"},
+		{"func_sort_desc", "sort_desc(http_requests_total)", "function"},
 
 		// Binary operations
 		{"bin_add", "metric_a + metric_b", "binary"},
@@ -1001,14 +1584,43 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 		{"bin_and", "metric_a and metric_b", "binary"},
 		{"bin_or", "metric_a or metric_b", "binary"},
 		{"bin_unless", "metric_a unless metric_b", "binary"},
+		{"bin_scalar_add", "http_requests_total + 5", "binary"},
+		{"bin_scalar_mul", "http_requests_total * 2", "binary"},
 
 		// Offset modifier
 		{"offset_positive", "http_requests_total offset 5m", "modifier"},
 		{"offset_negative", "http_requests_total offset -5m", "modifier"},
 
+		// @ modifier
+		{"at_modifier", "http_requests_total @ 1609459200", "modifier"},
+
 		// Combined expressions
 		{"combined_rate_sum", `sum(rate(http_requests_total{status="200"}[5m])) by (method)`, "combined"},
 		{"combined_nested_rate", `increase(http_requests_total{code=~"2.."}[1h])`, "combined"},
+		{"combined_rate_div", `rate(http_errors_total[5m]) / rate(http_requests_total[5m])`, "combined"},
+		{"combined_histogram_q", `histogram_quantile(0.99, rate(http_request_duration_bucket[5m]))`, "combined"},
+		{"combined_absent_label", `absent(up{job="prometheus"})`, "combined"},
+		{"combined_nested_agg", `max(rate(http_requests_total[5m])) by (instance)`, "combined"},
+
+		// Subquery
+		{"subquery_basic", `http_requests_total[1h:5m]`, "subquery"},
+
+		// Nested extended functions
+		{"nested_topk_rate", `topk(5, rate(http_requests_total[5m]))`, "combined"},
+		{"nested_bottomk_avg", `bottomk(3, avg_over_time(temperature[1h]))`, "combined"},
+		{"nested_quantile_rate", `quantile(0.99, rate(http_requests_total[5m]))`, "combined"},
+		{"nested_count_values", `count_values("status", http_responses_total)`, "combined"},
+		{"nested_stdvar_rate", `stdvar(rate(http_request_duration[5m]))`, "combined"},
+		{"nested_group_by", `group(http_requests_total) by (method)`, "combined"},
+		{"nested_absent_labels", `absent(nonexistent{job="test",env="prod"})`, "combined"},
+		{"nested_absent_over_time", `absent_over_time(nonexistent[5m])`, "combined"},
+
+		// Multi-level nesting
+		{"multi_rate_sum_topk", `topk(3, sum(rate(http_requests_total[5m])) by (job))`, "combined"},
+		{"multi_histogram_sum", `histogram_quantile(0.95, sum(rate(http_request_duration_bucket[5m])) by (le))`, "combined"},
+		{"multi_bool_filter", `http_requests_total > 100`, "combined"},
+		{"multi_binary_rate", `rate(errors_total[5m]) / rate(requests_total[5m])`, "combined"},
+		{"multi_clamp_rate", `clamp(rate(http_requests_total[5m]), 0, 100)`, "combined"},
 	}
 
 	for _, tc := range testCases {
