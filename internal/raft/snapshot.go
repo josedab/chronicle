@@ -60,11 +60,22 @@ func (rn *RaftNode) maybeSnapshot() {
 }
 
 func (rn *RaftNode) createSnapshot(lastIndex uint64) (*RaftSnapshot, error) {
+	// Capture committed log entries' data for the snapshot
+	rn.stateMu.RLock()
+	entries := rn.log.GetRange(0, lastIndex)
+	rn.stateMu.RUnlock()
+
+	var data []byte
+	for _, e := range entries {
+		if len(e.Data) > 0 {
+			data = append(data, e.Data...)
+		}
+	}
 
 	return &RaftSnapshot{
 		LastIndex: lastIndex,
 		LastTerm:  rn.log.TermAt(lastIndex),
-		Data:      []byte{},
+		Data:      data,
 	}, nil
 }
 
