@@ -207,7 +207,7 @@ func (db *DB) Close() error {
 
 	db.stopContinuousQueries()
 
-	_ = db.Flush()
+	flushErr := db.Flush()
 
 	db.mu.Lock()
 	if err := persistIndex(db.file, db.index); err != nil {
@@ -238,5 +238,8 @@ func (db *DB) Close() error {
 		return err
 	}
 
-	return db.wal.Close()
+	if err := db.wal.Close(); err != nil {
+		return err
+	}
+	return flushErr
 }
