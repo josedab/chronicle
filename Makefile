@@ -1,4 +1,4 @@
-.PHONY: all build test test-short test-fast test-failing test-integration test-ci lint fmt clean bench benchmark check quickcheck cover cover-report vet setup install-hooks preflight release-check tag check-interface check-api-stability wasm help
+.PHONY: all build test test-short test-fast test-failing test-integration test-ci lint fmt clean bench benchmark check quickcheck cover cover-report vet setup install-hooks preflight release-check tag check-interface check-api-stability wasm dev run check-versions doctor help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -48,9 +48,16 @@ test-cover: ## Run tests with coverage report (HTML)
 	$(GO) test -coverprofile=coverage.out -covermode=atomic ./...
 	$(GO) tool cover -html=coverage.out -o coverage.html
 
-cover: ## Print coverage summary to terminal
+cover: ## Print coverage summary to terminal (warns if below 70%)
 	$(GO) test -coverprofile=coverage.out -short ./...
 	$(GO) tool cover -func=coverage.out | tail -1
+	@COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print substr($$3, 1, length($$3)-1)}'); \
+	THRESHOLD=70; \
+	echo "Coverage: $${COVERAGE}% (threshold: $${THRESHOLD}%)"; \
+	PASS=$$(echo "$$COVERAGE >= $$THRESHOLD" | bc -l 2>/dev/null || awk "BEGIN{print ($$COVERAGE >= $$THRESHOLD)}"); \
+	if [ "$$PASS" != "1" ]; then \
+		echo "⚠ WARNING: Coverage $${COVERAGE}% is below $${THRESHOLD}% threshold (CI will fail)"; \
+	fi
 	@rm -f coverage.out
 
 cover-report: ## Per-package coverage report (use -html for HTML output)
@@ -65,9 +72,11 @@ quickcheck: ## Full pre-push validation (vet + all short tests)
 	$(GO) vet ./...
 	$(GO) test -short -count=1 ./...
 
-install-hooks: ## Install git pre-commit hook
+install-hooks: ## Install git pre-commit and commit-msg hooks
 	ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+	ln -sf ../../scripts/commit-msg .git/hooks/commit-msg
 	@echo "Pre-commit hook installed ✓"
+	@echo "Commit-msg hook installed (conventional commits enforced) ✓"
 
 lint: ## Run linters
 	$(GO) vet ./...
@@ -94,6 +103,14 @@ clean: ## Clean build artifacts
 wasm: ## Build WASM module
 	@./scripts/build-wasm.sh
 
+dev: preflight ## Run development HTTP server (quick-start)
+	@echo "Starting Chronicle dev server..."
+	@echo "  API: http://localhost:8080"
+	@echo "  Press Ctrl+C to stop"
+	$(GO) run ./examples/http-server
+
+run: dev ## Alias for make dev
+
 vuln: ## Check for vulnerabilities
 	govulncheck ./...
 
@@ -102,6 +119,24 @@ setup: ## Install development tools
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
 	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
 	$(GO) install golang.org/x/perf/cmd/benchstat@latest
+	@echo ""
+	@echo "Verifying tool installation..."
+	@FAIL=0; \
+	for tool in golangci-lint goimports govulncheck benchstat; do \
+		if command -v $$tool >/dev/null 2>&1; then \
+			echo "  ✓ $$tool found"; \
+		else \
+			echo "  ⚠ WARN: $$tool not on PATH (check GOBIN/GOPATH)"; \
+			FAIL=1; \
+		fi; \
+	done; \
+	if [ "$$FAIL" = "1" ]; then \
+		echo ""; \
+		echo "Some tools not found on PATH. Ensure \$$(go env GOPATH)/bin is in your PATH:"; \
+		echo "  export PATH=\"\$$(go env GOPATH)/bin:\$$PATH\""; \
+	else \
+		echo "✓ All development tools installed"; \
+	fi
 
 release-check: ## Run all checks before a release (vet + lint + full tests + vuln + interface + API stability)
 	$(GO) vet ./...
@@ -132,6 +167,88 @@ check-interface: ## Check for legacy interface{} usage (should use 'any')
 
 check-api-stability: ## Verify stable API symbols are tested
 	@$(GO) test -run 'TestStableAPI' -count=1 ./... > /dev/null 2>&1 && echo "✓ API stability tests pass" || { echo "ERROR: API stability tests failed"; exit 1; }
+
+doctor: ## Diagnose development environment
+	@echo "═══════════════════════════════════════════════════"
+	@echo "  Chronicle Doctor"
+	@echo "═══════════════════════════════════════════════════"
+	@echo ""
+	@echo "System:"
+	@echo "  OS:         $$(uname -s) $$(uname -m)"
+	@echo "  Shell:      $$SHELL"
+	@echo "  Disk free:  $$(df -h . 2>/dev/null | tail -1 | awk '{print $$4}' || echo 'unknown')"
+	@echo ""
+	@echo "Go:"
+	@if command -v $(GO) >/dev/null 2>&1; then \
+		echo "  Version:    $$($(GO) version)"; \
+		echo "  GOPATH:     $$($(GO) env GOPATH)"; \
+		echo "  GOBIN:      $$($(GO) env GOBIN || echo '(default)')"; \
+	else \
+		echo "  ✗ Go not found"; \
+	fi
+	@echo ""
+	@echo "Tools:"
+	@for tool in golangci-lint goimports govulncheck benchstat; do \
+		if command -v $$tool >/dev/null 2>&1; then \
+			VER=$$($$tool --version 2>/dev/null | head -1 || echo 'installed'); \
+			echo "  ✓ $$tool: $$VER"; \
+		else \
+			echo "  ✗ $$tool: not found (run make setup)"; \
+		fi; \
+	done
+	@echo ""
+	@echo "Git hooks:"
+	@if [ -f .git/hooks/pre-commit ]; then \
+		echo "  ✓ pre-commit hook installed"; \
+	else \
+		echo "  ✗ pre-commit hook missing (run make install-hooks)"; \
+	fi
+	@if [ -f .git/hooks/commit-msg ]; then \
+		echo "  ✓ commit-msg hook installed"; \
+	else \
+		echo "  ✗ commit-msg hook missing (run make install-hooks)"; \
+	fi
+	@echo ""
+	@echo "Module status:"
+	@if $(GO) mod tidy -diff >/dev/null 2>&1; then \
+		echo "  ✓ go.mod is tidy"; \
+	else \
+		echo "  ⚠ go.mod may need tidying (run go mod tidy)"; \
+	fi
+	@echo ""
+	@echo "═══════════════════════════════════════════════════"
+	@echo "Copy the above output when reporting issues."
+	@echo "═══════════════════════════════════════════════════"
+
+check-versions: ## Check for Go version drift across config files
+	@echo "Checking Go version consistency..."
+	@echo "Source of truth: .mise.toml"
+	@MISE_VER=$$(grep '^go' .mise.toml | head -1 | grep -oE '[0-9]+\.[0-9]+'); \
+	DRIFT=0; \
+	echo "  .mise.toml:          Go $$MISE_VER"; \
+	GO_MOD_VER=$$(grep '^go ' go.mod | grep -oE '[0-9]+\.[0-9]+'); \
+	echo "  go.mod:              Go $$GO_MOD_VER"; \
+	[ "$$MISE_VER" = "$$GO_MOD_VER" ] || { echo "    ⚠ DRIFT: go.mod ($$GO_MOD_VER) != .mise.toml ($$MISE_VER)"; DRIFT=1; }; \
+	MAKE_VER=$$(grep 'MIN_GO_VERSION' Makefile | head -1 | grep -oE '[0-9]+\.[0-9]+'); \
+	echo "  Makefile:            Go $$MAKE_VER"; \
+	[ "$$MISE_VER" = "$$MAKE_VER" ] || { echo "    ⚠ DRIFT: Makefile ($$MAKE_VER) != .mise.toml ($$MISE_VER)"; DRIFT=1; }; \
+	if [ -f .devcontainer/devcontainer.json ]; then \
+		DC_VER=$$(grep -oE 'go:[0-9]+\.[0-9]+' .devcontainer/devcontainer.json | grep -oE '[0-9]+\.[0-9]+'); \
+		echo "  devcontainer.json:   Go $$DC_VER"; \
+		[ "$$MISE_VER" = "$$DC_VER" ] || { echo "    ⚠ DRIFT: devcontainer.json ($$DC_VER) != .mise.toml ($$MISE_VER)"; DRIFT=1; }; \
+	fi; \
+	for wf in .github/workflows/*.yml; do \
+		WF_VERS=$$(grep -oE "go-version: '?[0-9]+\.[0-9]+" "$$wf" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | sort -u); \
+		for v in $$WF_VERS; do \
+			[ "$$MISE_VER" = "$$v" ] || { echo "    ⚠ DRIFT: $$wf ($$v) != .mise.toml ($$MISE_VER)"; DRIFT=1; }; \
+		done; \
+	done; \
+	if [ "$$DRIFT" = "0" ]; then \
+		echo "✓ All Go version references are consistent ($$MISE_VER)"; \
+	else \
+		echo ""; \
+		echo "⚠ Version drift detected. .mise.toml is the source of truth."; \
+	fi
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
