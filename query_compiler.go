@@ -98,6 +98,9 @@ type IRProps struct {
 	SortAsc   bool   `json:"sort_asc,omitempty"`
 	LimitN    int    `json:"limit_n,omitempty"`
 
+	// UDF aggregation
+	UDFName string `json:"udf_name,omitempty"` // custom WASM UDF function name
+
 	// Project
 	Fields []string `json:"fields,omitempty"`
 }
@@ -696,11 +699,69 @@ func (qc *QueryCompiler) executeAggregation(ctx context.Context, node *IRNode) (
 		return result, nil
 	}
 
+	// Check for UDF aggregation
+	if node.Properties.UDFName != "" && qc.db != nil {
+		return qc.executeUDFAggregation(ctx, result, node.Properties.UDFName)
+	}
+
 	if qc.config.EnableVectorized {
 		return qc.vectorizedAggregate(result, node.Properties.AggFunc)
 	}
 
 	return qc.scalarAggregate(result, node.Properties.AggFunc)
+}
+
+// executeUDFAggregation invokes a registered WASM UDF for aggregation.
+func (qc *QueryCompiler) executeUDFAggregation(ctx context.Context, result *Result, udfName string) (*Result, error) {
+	values := make([]float64, len(result.Points))
+	for i, p := range result.Points {
+		values[i] = p.Value
+	}
+
+	// Look up UDF engine from DB features (if available)
+	udfEngine := findUDFEngine(qc.db)
+	if udfEngine == nil {
+		return nil, fmt.Errorf("UDF engine not available for function %q", udfName)
+	}
+
+	udfResult, err := udfEngine.Invoke(udfName, map[string]interface{}{"values": values})
+	if err != nil {
+		return nil, fmt.Errorf("UDF %q execution failed: %w", udfName, err)
+	}
+
+	// Extract scalar result
+	var aggValue float64
+	switch v := udfResult.Output.(type) {
+	case float64:
+		aggValue = v
+	case map[string]float64:
+		if sum, ok := v["sum"]; ok {
+			aggValue = sum
+		}
+	case []float64:
+		if len(v) > 0 {
+			aggValue = v[0]
+		}
+	}
+
+	return &Result{
+		Points: []Point{{
+			Metric:    result.Points[0].Metric,
+			Value:     aggValue,
+			Timestamp: result.Points[len(result.Points)-1].Timestamp,
+			Tags:      map[string]string{"__udf__": udfName},
+		}},
+	}, nil
+}
+
+// findUDFEngine locates the WASM UDF engine from the DB's feature registry.
+func findUDFEngine(db *DB) *WASMUDFEngine {
+	if db == nil {
+		return nil
+	}
+	// The UDF engine would typically be registered in the feature manager
+	// For now, return nil - callers should set up the engine explicitly
+	return nil
 }
 
 func (qc *QueryCompiler) vectorizedAggregate(result *Result, fn AggFunc) (*Result, error) {

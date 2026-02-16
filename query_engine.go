@@ -78,3 +78,100 @@ type QueryCost struct {
 	EstimatedSeries     int64
 	TimeRange           time.Duration
 }
+
+// ExecuteVectorized attempts to use the vectorized execution path for aggregation queries.
+// For large aggregation queries, it collects raw values and applies vectorized operations.
+func (qe *QueryEngine) ExecuteVectorized(ctx context.Context, q *Query) (*Result, ExecutionPath, error) {
+	if err := qe.ValidateQuery(q); err != nil {
+		return nil, PathRowOriented, err
+	}
+
+	if q.Aggregation == nil {
+		result, err := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, err
+	}
+
+	cost := qe.EstimateQueryCost(q)
+	estimatedPoints := int(cost.EstimatedSeries) * cost.EstimatedPartitions
+
+	// Small queries: standard path
+	if estimatedPoints < 1000 {
+		result, err := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, err
+	}
+
+	// Large queries: collect raw points then apply vectorized aggregation
+	rawQ := &Query{
+		Metric: q.Metric,
+		Tags:   q.Tags,
+		Start:  q.Start,
+		End:    q.End,
+	}
+	rawResult, err := qe.db.ExecuteContext(ctx, rawQ)
+	if err != nil {
+		return nil, PathRowOriented, err
+	}
+
+	if len(rawResult.Points) == 0 {
+		return &Result{}, PathVectorized, nil
+	}
+
+	// Extract values for vectorized processing
+	values := make([]float64, len(rawResult.Points))
+	for i, p := range rawResult.Points {
+		values[i] = p.Value
+	}
+
+	agg := NewVectorizedAggregator()
+	var aggOp VectorAggOp
+	switch q.Aggregation.Function {
+	case AggSum:
+		aggOp = VectorSum
+	case AggMin:
+		aggOp = VectorMin
+	case AggMax:
+		aggOp = VectorMax
+	case AggMean:
+		aggOp = VectorAvg
+	case AggCount:
+		aggOp = VectorCount
+	default:
+		// Fall back to standard for unsupported agg functions
+		result, err := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, err
+	}
+
+	path := PathVectorized
+	var aggVal float64
+	if len(values) >= 100000 {
+		path = PathParallelScan
+		pe := NewParallelVectorizedExecutor(4)
+		chunkSize := len(values) / 4
+		if chunkSize < 1000 {
+			chunkSize = 1000
+		}
+		var chunks [][]float64
+		for i := 0; i < len(values); i += chunkSize {
+			end := i + chunkSize
+			if end > len(values) {
+				end = len(values)
+			}
+			chunks = append(chunks, values[i:end])
+		}
+		aggVal, err = pe.ExecuteParallel(chunks, aggOp)
+	} else {
+		aggVal, err = agg.Aggregate(aggOp, values)
+	}
+	if err != nil {
+		return nil, path, err
+	}
+
+	ts := rawResult.Points[len(rawResult.Points)-1].Timestamp
+	return &Result{
+		Points: []Point{{
+			Metric:    q.Metric,
+			Value:     aggVal,
+			Timestamp: ts,
+		}},
+	}, path, nil
+}
