@@ -238,3 +238,133 @@ func TestDefaultWASMPermissions(t *testing.T) {
 		t.Error("expected CanFilter")
 	}
 }
+
+func TestWASMInterpreter_ValidModule(t *testing.T) {
+	interp := NewWASMInterpreter(1024 * 1024)
+
+	// Valid WASM magic number + version 1
+	validWASM := []byte{
+		0x00, 0x61, 0x73, 0x6D, // magic: \0asm
+		0x01, 0x00, 0x00, 0x00, // version: 1
+	}
+	if err := interp.Load(validWASM); err != nil {
+		t.Fatalf("Load valid WASM: %v", err)
+	}
+}
+
+func TestWASMInterpreter_InvalidMagic(t *testing.T) {
+	interp := NewWASMInterpreter(1024 * 1024)
+	invalidWASM := []byte{0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00}
+	err := interp.Load(invalidWASM)
+	if err == nil {
+		t.Error("expected error for invalid magic")
+	}
+}
+
+func TestWASMInterpreter_TooSmall(t *testing.T) {
+	interp := NewWASMInterpreter(1024)
+	err := interp.Load([]byte{0x00, 0x61})
+	if err == nil {
+		t.Error("expected error for too-small module")
+	}
+}
+
+func TestWASMInterpreter_ExecuteNotLoaded(t *testing.T) {
+	interp := NewWASMInterpreter(1024)
+	_, err := interp.Execute(context.Background(), "test", []float64{1.0})
+	if err == nil {
+		t.Error("expected error executing without load")
+	}
+}
+
+func TestWASMInterpreter_ExecuteIdentity(t *testing.T) {
+	interp := NewWASMInterpreter(1024 * 1024)
+	validWASM := []byte{
+		0x00, 0x61, 0x73, 0x6D,
+		0x01, 0x00, 0x00, 0x00,
+	}
+	if err := interp.Load(validWASM); err != nil {
+		t.Fatal(err)
+	}
+
+	// No exported function named "test", should return identity
+	result, err := interp.Execute(context.Background(), "test", []float64{1.0, 2.0, 3.0})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(result) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(result))
+	}
+	if result[0] != 1.0 || result[1] != 2.0 || result[2] != 3.0 {
+		t.Errorf("expected identity, got %v", result)
+	}
+}
+
+func TestWASMInterpreter_BytecodeExecution(t *testing.T) {
+	interp := NewWASMInterpreter(1024 * 1024)
+
+	// Minimal WASM with export section and code section
+	// Export: function "add" at index 0
+	// Code: f64.add instruction
+	wasm := buildTestWASMWithF64Add()
+	if err := interp.Load(wasm); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	result, err := interp.Execute(context.Background(), "add", []float64{3.0, 4.0})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	// With f64.add (0xA0), 3.0 + 4.0 = 7.0
+	found7 := false
+	for _, v := range result {
+		if v == 7.0 {
+			found7 = true
+			break
+		}
+	}
+	if !found7 {
+		t.Errorf("expected 7.0 in result, got %v", result)
+	}
+}
+
+func buildTestWASMWithF64Add() []byte {
+	// Minimal WASM module:
+	// Header + Export section (exports "add") + Code section (f64.add)
+	var wasm []byte
+	// Magic + version
+	wasm = append(wasm, 0x00, 0x61, 0x73, 0x6D)
+	wasm = append(wasm, 0x01, 0x00, 0x00, 0x00)
+
+	// Section 7 (Export): export "add" as function 0
+	exportName := []byte("add")
+	exportSection := []byte{
+		0x01,                  // 1 export
+		byte(len(exportName)), // name length
+	}
+	exportSection = append(exportSection, exportName...)
+	exportSection = append(exportSection, 0x00) // export type: function
+	exportSection = append(exportSection, 0x00) // function index 0
+
+	wasm = append(wasm, 0x07)                       // section ID
+	wasm = append(wasm, byte(len(exportSection)))    // section size
+	wasm = append(wasm, exportSection...)
+
+	// Section 10 (Code): 1 function with f64.add bytecode
+	codeBody := []byte{
+		0x00, // no locals
+		0xA0, // f64.add
+		0x0B, // end
+	}
+	codeSection := []byte{
+		0x01,                  // 1 function
+		byte(len(codeBody)),   // body size
+	}
+	codeSection = append(codeSection, codeBody...)
+
+	wasm = append(wasm, 0x0A)                      // section ID
+	wasm = append(wasm, byte(len(codeSection)))     // section size
+	wasm = append(wasm, codeSection...)
+
+	return wasm
+}

@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -63,6 +64,7 @@ type UDFDefinition struct {
 	InputSchema  []UDFParam       `json:"input_schema"`
 	OutputSchema []UDFParam       `json:"output_schema"`
 	WASMBytes   []byte            `json:"-"`
+	EntryFunc   string            `json:"entry_func,omitempty"` // WASM entry function name
 	Source      string            `json:"source,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
 	CreatedAt   time.Time         `json:"created_at"`
@@ -263,11 +265,20 @@ func (e *WASMUDFEngine) Invoke(name string, args map[string]interface{}) (*UDFEx
 
 // execute runs the UDF logic.
 func (e *WASMUDFEngine) execute(def *UDFDefinition, args map[string]interface{}) (interface{}, error) {
-	// Check execution timeout
+	// Enforce execution timeout
+	ctx := context.Background()
 	if e.config.MaxExecutionTime > 0 {
-		// In a full implementation, this would enforce a timeout on WASM execution
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, e.config.MaxExecutionTime)
+		defer cancel()
 	}
 
+	// Check if there's a compiled WASM module to execute
+	if def.WASMBytes != nil && len(def.WASMBytes) > 0 {
+		return e.executeWASMModule(ctx, def, args)
+	}
+
+	// Fall back to built-in execution
 	switch def.Type {
 	case UDFTypeMap:
 		return e.executeMap(def, args)
@@ -284,6 +295,27 @@ func (e *WASMUDFEngine) execute(def *UDFDefinition, args map[string]interface{})
 	default:
 		return nil, fmt.Errorf("unsupported UDF type: %s", def.Type)
 	}
+}
+
+// executeWASMModule runs a compiled WASM module via the built-in interpreter.
+func (e *WASMUDFEngine) executeWASMModule(ctx context.Context, def *UDFDefinition, args map[string]interface{}) (interface{}, error) {
+	interp := NewWASMInterpreter(int(e.config.MaxMemoryBytes))
+	if err := interp.Load(def.WASMBytes); err != nil {
+		return nil, fmt.Errorf("wasm load: %w", err)
+	}
+
+	// Prepare input: marshal float values to WASM memory
+	var inputValues []float64
+	if vals, ok := args["values"].([]float64); ok {
+		inputValues = vals
+	}
+
+	// Execute the entry function
+	result, err := interp.Execute(ctx, def.EntryFunc, inputValues)
+	if err != nil {
+		return nil, fmt.Errorf("wasm exec: %w", err)
+	}
+	return result, nil
 }
 
 func (e *WASMUDFEngine) executeMap(def *UDFDefinition, args map[string]interface{}) (interface{}, error) {
