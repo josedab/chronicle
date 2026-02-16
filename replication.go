@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -31,13 +32,14 @@ type ReplicationConfig struct {
 }
 
 type replicator struct {
-	cfg     *ReplicationConfig
-	queue   chan Point
-	stop    chan struct{}
-	client  HTTPDoer
-	allow   map[string]struct{}
-	retryer *Retryer
-	cb      *CircuitBreaker
+	cfg      *ReplicationConfig
+	queue    chan Point
+	stop     chan struct{}
+	stopOnce sync.Once
+	client   HTTPDoer
+	allow    map[string]struct{}
+	retryer  *Retryer
+	cb       *CircuitBreaker
 }
 
 func newReplicator(cfg *ReplicationConfig) *replicator {
@@ -94,7 +96,9 @@ func (r *replicator) Start() {
 }
 
 func (r *replicator) Stop() {
-	close(r.stop)
+	r.stopOnce.Do(func() {
+		close(r.stop)
+	})
 }
 
 func (r *replicator) Enqueue(points []Point) {
@@ -106,6 +110,8 @@ func (r *replicator) Enqueue(points []Point) {
 		}
 		select {
 		case r.queue <- p:
+		case <-r.stop:
+			return
 		default:
 		}
 	}
@@ -159,11 +165,15 @@ func (r *replicator) flush(points []Point) {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err := gz.Write(payload); err != nil {
-		_ = gz.Close()
+		if closeErr := gz.Close(); closeErr != nil {
+			slog.Warn("replication: gzip close error after write failure", "err", closeErr)
+		}
 		slog.Error("replication compress error", "err", err)
 		return
 	}
-	_ = gz.Close()
+	if err := gz.Close(); err != nil {
+		slog.Warn("replication: gzip close error", "err", err)
+	}
 
 	compressedPayload := buf.Bytes()
 
@@ -210,7 +220,11 @@ func (r *replicator) send(payload []byte) error {
 	if err != nil {
 		return fmt.Errorf("send request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Warn("replication: failed to close response body", "err", err)
+		}
+	}()
 
 	if resp.StatusCode >= 500 {
 		return fmt.Errorf("server error: status %d", resp.StatusCode)
