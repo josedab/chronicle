@@ -82,10 +82,12 @@ func (w *WAL) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if err := w.writer.Flush(); err != nil {
+		slog.Error("WAL close: flush failed", "err", err)
 		_ = w.file.Close()
 		return err
 	}
 	if err := w.file.Sync(); err != nil {
+		slog.Error("WAL close: sync failed", "err", err)
 		_ = w.file.Close()
 		return err
 	}
@@ -215,7 +217,9 @@ func (w *WAL) rotateIfNeeded() error {
 	w.writer = bufio.NewWriter(file)
 
 	if w.retain > 0 {
-		_ = w.cleanupRotations()
+		if err := w.cleanupRotations(); err != nil {
+			slog.Warn("WAL: failed to cleanup old rotations", "err", err)
+		}
 	}
 	return nil
 }
@@ -231,7 +235,9 @@ func (w *WAL) cleanupRotations() error {
 	sort.Strings(files)
 	excess := len(files) - w.retain
 	for i := 0; i < excess; i++ {
-		_ = os.Remove(files[i])
+		if err := os.Remove(files[i]); err != nil {
+			slog.Warn("WAL: failed to remove old segment", "file", files[i], "err", err)
+		}
 	}
 	return nil
 }
@@ -280,7 +286,9 @@ func (w *WAL) Position() int64 {
 	defer w.mu.Unlock()
 
 	// Flush to get accurate position
-	_ = w.writer.Flush()
+	if err := w.writer.Flush(); err != nil {
+		slog.Warn("WAL: flush failed in Position", "err", err)
+	}
 
 	info, err := w.file.Stat()
 	if err != nil {
@@ -299,7 +307,9 @@ func (w *WAL) ReadRange(start, end int64) ([]byte, error) {
 	}
 
 	// Flush pending writes
-	_ = w.writer.Flush()
+	if err := w.writer.Flush(); err != nil {
+		slog.Warn("WAL: flush failed in ReadRange", "err", err)
+	}
 
 	// Read the range
 	size := end - start
