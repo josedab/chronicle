@@ -251,3 +251,143 @@ func ExampleDB_Execute_tagFilterRegex() {
 	fmt.Printf("Matched: %d\n", len(result.Points))
 	// Output: Matched: 2
 }
+
+func ExampleSchemaRegistry() {
+	reg := chronicle.NewSchemaRegistry(true)
+
+	// Register a schema for CPU metrics
+	err := reg.Register(chronicle.MetricSchema{
+		Name:        "cpu",
+		Description: "CPU usage metrics",
+		Tags: []chronicle.TagSchema{
+			{Name: "host", Required: true},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// Validate a point against the schema
+	err = reg.Validate(chronicle.Point{
+		Metric: "cpu",
+		Tags:   map[string]string{"host": "server1"},
+		Value:  45.2,
+	})
+	fmt.Printf("Valid point: %v\n", err == nil)
+
+	// List registered schemas
+	schemas := reg.List()
+	fmt.Printf("Schemas: %d\n", len(schemas))
+	// Output:
+	// Valid point: true
+	// Schemas: 1
+}
+
+func ExampleAlertBuilder() {
+	dir, _ := os.MkdirTemp("", "chronicle-alert-*")
+	defer os.RemoveAll(dir)
+	dbPath := filepath.Join(dir, "alert.db")
+
+	db, _ := chronicle.Open(dbPath, chronicle.DefaultConfig(dbPath))
+	defer db.Close()
+
+	ab := chronicle.NewAlertBuilder(db, chronicle.DefaultAlertBuilderConfig())
+
+	// Create an alert rule for high CPU
+	err := ab.CreateRule(&chronicle.BuilderRule{
+		ID:       "high-cpu",
+		Name:     "High CPU Alert",
+		Enabled:  true,
+		Severity: chronicle.AlertSeverityWarning,
+		Conditions: []chronicle.BuilderCondition{
+			{
+				ID:       "cpu-check",
+				Type:     chronicle.ConditionTypeThreshold,
+				Metric:   "cpu",
+				Operator: chronicle.OperatorGT,
+				Value:    80.0,
+			},
+		},
+		Logic:        chronicle.ConditionLogicAND,
+		EvalInterval: time.Minute,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	rules := ab.ListRules()
+	fmt.Printf("Rules: %d\n", len(rules))
+	fmt.Printf("Rule: %s (severity=%s)\n", rules[0].Name, rules[0].Severity)
+	// Output:
+	// Rules: 1
+	// Rule: High CPU Alert (severity=warning)
+}
+
+func ExampleStreamHub() {
+	dir, _ := os.MkdirTemp("", "chronicle-stream-*")
+	defer os.RemoveAll(dir)
+	dbPath := filepath.Join(dir, "stream.db")
+
+	db, _ := chronicle.Open(dbPath, chronicle.DefaultConfig(dbPath))
+	defer db.Close()
+
+	hub := chronicle.NewStreamHub(db, chronicle.DefaultStreamConfig())
+
+	// Subscribe to CPU metrics
+	sub := hub.Subscribe("cpu", map[string]string{"host": "server1"})
+	defer sub.Close()
+
+	// Publish a point
+	hub.Publish(chronicle.Point{
+		Metric:    "cpu",
+		Tags:      map[string]string{"host": "server1"},
+		Value:     55.0,
+		Timestamp: time.Now().UnixNano(),
+	})
+
+	// Read from subscription channel
+	select {
+	case p := <-sub.C():
+		fmt.Printf("Received: %s = %.1f\n", p.Metric, p.Value)
+	case <-time.After(time.Second):
+		fmt.Println("Timeout")
+	}
+
+	fmt.Printf("Active subscriptions: %d\n", hub.Count())
+	// Output:
+	// Received: cpu = 55.0
+	// Active subscriptions: 1
+}
+
+func ExampleQueryBuilder() {
+	dir, _ := os.MkdirTemp("", "chronicle-qb-*")
+	defer os.RemoveAll(dir)
+	dbPath := filepath.Join(dir, "qb.db")
+
+	db, _ := chronicle.Open(dbPath, chronicle.DefaultConfig(dbPath))
+	defer db.Close()
+
+	qb := chronicle.NewQueryBuilder(db, chronicle.DefaultQueryBuilderConfig())
+
+	// Build a SQL query from a visual query definition
+	sql, err := qb.BuildSQL(&chronicle.VisualQuery{
+		Source: chronicle.QuerySource{Type: "metric", Name: "cpu"},
+		Select: []chronicle.SelectItem{
+			{Field: "value", Aggregation: "avg", Alias: "avg_cpu"},
+		},
+		Filters: []chronicle.QueryFilter{
+			{Field: "host", Operator: "=", Value: "server1"},
+		},
+		GroupBy: []string{"host"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(sql)
+	// Output:
+	// SELECT AVG(value) AS avg_cpu
+	// FROM cpu
+	// WHERE host = 'server1'
+	// GROUP BY host
+}
