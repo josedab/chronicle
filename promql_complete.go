@@ -54,6 +54,8 @@ const (
 	PromQLFuncYear
 	PromQLFuncChanges
 	PromQLFuncResets
+	PromQLFuncPredictLinear
+	PromQLFuncLastOverTime
 )
 
 // PromQLBinaryOp represents a binary operation between two expressions.
@@ -152,7 +154,8 @@ var extendedPromQLFunctions = []string{
 	"avg_over_time", "min_over_time", "max_over_time",
 	"sum_over_time", "count_over_time",
 	"stddev_over_time", "stdvar_over_time",
-	"quantile_over_time",
+	"quantile_over_time", "last_over_time",
+	"predict_linear",
 	"ceil", "floor", "round", "abs",
 	"clamp_max", "clamp_min", "clamp",
 	"delta", "idelta", "increase", "irate", "deriv",
@@ -283,6 +286,30 @@ func (p *PromQLCompleteParser) parseExtendedFunction(expr, fnName string) (*Prom
 			return nil, fmt.Errorf("absent_over_time: %w", err)
 		}
 		query.Aggregation = &PromQLAggregation{Op: PromQLFuncAbsentOverTime}
+		return query, nil
+	case "predict_linear":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("predict_linear requires 2 arguments")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[0]))
+		if err != nil {
+			return nil, fmt.Errorf("predict_linear: %w", err)
+		}
+		query.Function = PromQLFuncPredictLinear
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "last_over_time":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("last_over_time: %w", err)
+		}
+		query.Function = PromQLFuncLastOverTime
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
 		return query, nil
 	default:
 		// For aggregation operators and simple functions, parse inner expression
@@ -571,6 +598,8 @@ const (
 	RangeFuncStddevOverTime
 	RangeFuncStdvarOverTime
 	RangeFuncQuantileOverTime
+	RangeFuncPredictLinear
+	RangeFuncLastOverTime
 )
 
 // EvalRangeFunction evaluates a range function over a window of samples.
@@ -633,6 +662,10 @@ func EvalRangeFunction(fn PromQLRangeFunc, samples []PromQLSample, rangeMs int64
 		return evalStdvarOverTime(samples)
 	case RangeFuncQuantileOverTime:
 		return evalQuantileOverTime(samples, 0.5) // default to median
+	case RangeFuncPredictLinear:
+		return evalPredictLinear(samples, rangeMs)
+	case RangeFuncLastOverTime:
+		return evalLastOverTime(samples)
 	default:
 		return math.NaN()
 	}
@@ -652,6 +685,7 @@ func EvalRangeFunctionWithParam(fn PromQLRangeFunc, samples []PromQLSample, rang
 
 // evalRate computes rate (per-second) or increase (total) over the sample window.
 // Handles counter resets by detecting decreases and compensating.
+// Uses Prometheus-compatible extrapolation accounting for sample boundaries.
 func evalRate(samples []PromQLSample, rangeMs int64, perSecond bool) float64 {
 	if len(samples) < 2 {
 		return math.NaN()
@@ -673,21 +707,31 @@ func evalRate(samples []PromQLSample, rangeMs int64, perSecond bool) float64 {
 		totalIncrease = 0
 	}
 
-	// Extrapolation: adjust for partial coverage of the range window
-	durationMs := float64(samples[len(samples)-1].Timestamp - samples[0].Timestamp)
-	if durationMs == 0 {
+	// Prometheus-compatible extrapolation: account for partial coverage
+	// of the requested range window relative to the actual sample span.
+	sampleSpanMs := float64(samples[len(samples)-1].Timestamp - samples[0].Timestamp)
+	if sampleSpanMs == 0 {
 		return math.NaN()
 	}
 
-	// Extrapolate to cover the full range
-	extrapolationFactor := float64(rangeMs) / durationMs
-	if extrapolationFactor > 1.1 {
-		extrapolationFactor = 1.1 // cap extrapolation
+	// Estimate the average interval between samples
+	avgIntervalMs := sampleSpanMs / float64(len(samples)-1)
+
+	// Extend the sample span by half an interval on each side to estimate
+	// where the "true" first and last samples would be
+	extrapolateToMs := sampleSpanMs + avgIntervalMs
+
+	// Cap extrapolation: don't extrapolate beyond 110% of the range
+	requestedMs := float64(rangeMs)
+	if extrapolateToMs > requestedMs*1.1 {
+		extrapolateToMs = requestedMs * 1.1
 	}
+
+	extrapolationFactor := extrapolateToMs / sampleSpanMs
 	totalIncrease *= extrapolationFactor
 
 	if perSecond {
-		rangeSec := float64(rangeMs) / 1000.0
+		rangeSec := extrapolateToMs / 1000.0
 		if rangeSec == 0 {
 			return math.NaN()
 		}
@@ -893,6 +937,28 @@ func EvalSubquery(innerFn func(ts int64) float64, endMs int64, rangeMs int64, st
 		results = append(results, PromQLSample{Timestamp: ts, Value: val})
 	}
 	return results
+}
+
+// evalPredictLinear uses linear regression to predict the value at rangeMs into the future.
+func evalPredictLinear(samples []PromQLSample, rangeMs int64) float64 {
+	if len(samples) < 2 {
+		return math.NaN()
+	}
+	slope := evalDeriv(samples)
+	if math.IsNaN(slope) {
+		return math.NaN()
+	}
+	lastVal := samples[len(samples)-1].Value
+	predSec := float64(rangeMs) / 1000.0
+	return lastVal + slope*predSec
+}
+
+// evalLastOverTime returns the most recent sample value.
+func evalLastOverTime(samples []PromQLSample) float64 {
+	if len(samples) == 0 {
+		return math.NaN()
+	}
+	return samples[len(samples)-1].Value
 }
 
 // filterStaleSamples removes samples that are older than StalenessWindow
@@ -1256,24 +1322,135 @@ func (e *PromQLEvaluator) evalBinaryExpr(expr *PromQLBinaryExpr, start, end int6
 		return &PromQLEvalResult{Scalar: &val}, nil
 	}
 
-	// Vector-scalar or vector-vector (simplified: apply to each left series)
-	result := &PromQLEvalResult{}
-	rightVal := 0.0
-	if rightResult.Scalar != nil {
-		rightVal = *rightResult.Scalar
-	} else if len(rightResult.Series) > 0 {
-		rightVal = rightResult.Series[0].Value
+	// Handle set operations (and, or, unless) with label matching
+	switch expr.Op {
+	case PromQLBinAnd:
+		return e.evalSetAnd(leftResult, rightResult), nil
+	case PromQLBinOr:
+		return e.evalSetOr(leftResult, rightResult), nil
+	case PromQLBinUnless:
+		return e.evalSetUnless(leftResult, rightResult), nil
 	}
 
+	// Vector-scalar: apply scalar to each left series
+	if rightResult.Scalar != nil {
+		result := &PromQLEvalResult{}
+		for _, ls := range leftResult.Series {
+			val := evalBinaryScalar(expr.Op, ls.Value, *rightResult.Scalar)
+			if !math.IsNaN(val) || !isComparisonOp(expr.Op) {
+				result.Series = append(result.Series, PromQLResultSeries{
+					Metric: ls.Metric, Labels: ls.Labels, Value: val,
+				})
+			}
+		}
+		return result, nil
+	}
+	if leftResult.Scalar != nil {
+		result := &PromQLEvalResult{}
+		for _, rs := range rightResult.Series {
+			val := evalBinaryScalar(expr.Op, *leftResult.Scalar, rs.Value)
+			if !math.IsNaN(val) || !isComparisonOp(expr.Op) {
+				result.Series = append(result.Series, PromQLResultSeries{
+					Metric: rs.Metric, Labels: rs.Labels, Value: val,
+				})
+			}
+		}
+		return result, nil
+	}
+
+	// Vector-vector: match on labels
+	rightByLabels := make(map[string]PromQLResultSeries)
+	for _, rs := range rightResult.Series {
+		key := seriesLabelKey(rs.Labels)
+		rightByLabels[key] = rs
+	}
+
+	result := &PromQLEvalResult{}
 	for _, ls := range leftResult.Series {
-		val := evalBinaryScalar(expr.Op, ls.Value, rightVal)
-		result.Series = append(result.Series, PromQLResultSeries{
-			Metric: ls.Metric,
-			Labels: ls.Labels,
-			Value:  val,
-		})
+		key := seriesLabelKey(ls.Labels)
+		if rs, ok := rightByLabels[key]; ok {
+			val := evalBinaryScalar(expr.Op, ls.Value, rs.Value)
+			if !math.IsNaN(val) || !isComparisonOp(expr.Op) {
+				result.Series = append(result.Series, PromQLResultSeries{
+					Metric: ls.Metric, Labels: ls.Labels, Value: val,
+				})
+			}
+		} else if !isComparisonOp(expr.Op) {
+			// For arithmetic ops with no match, use 0 as right side
+			val := evalBinaryScalar(expr.Op, ls.Value, 0)
+			result.Series = append(result.Series, PromQLResultSeries{
+				Metric: ls.Metric, Labels: ls.Labels, Value: val,
+			})
+		}
 	}
 	return result, nil
+}
+
+func isComparisonOp(op PromQLBinaryOp) bool {
+	switch op {
+	case PromQLBinEqual, PromQLBinNotEqual, PromQLBinGreaterThan,
+		PromQLBinLessThan, PromQLBinGreaterOrEqual, PromQLBinLessOrEqual:
+		return true
+	}
+	return false
+}
+
+func seriesLabelKey(labels map[string]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(labels))
+	for k, v := range labels {
+		parts = append(parts, k+"="+v)
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, ",")
+}
+
+// evalSetAnd returns series present in both left and right (intersection by labels).
+func (e *PromQLEvaluator) evalSetAnd(left, right *PromQLEvalResult) *PromQLEvalResult {
+	rightKeys := make(map[string]bool)
+	for _, rs := range right.Series {
+		rightKeys[seriesLabelKey(rs.Labels)] = true
+	}
+	result := &PromQLEvalResult{}
+	for _, ls := range left.Series {
+		if rightKeys[seriesLabelKey(ls.Labels)] {
+			result.Series = append(result.Series, ls)
+		}
+	}
+	return result
+}
+
+// evalSetOr returns all series from left, plus series from right not in left (union).
+func (e *PromQLEvaluator) evalSetOr(left, right *PromQLEvalResult) *PromQLEvalResult {
+	result := &PromQLEvalResult{}
+	leftKeys := make(map[string]bool)
+	for _, ls := range left.Series {
+		result.Series = append(result.Series, ls)
+		leftKeys[seriesLabelKey(ls.Labels)] = true
+	}
+	for _, rs := range right.Series {
+		if !leftKeys[seriesLabelKey(rs.Labels)] {
+			result.Series = append(result.Series, rs)
+		}
+	}
+	return result
+}
+
+// evalSetUnless returns series from left not present in right (difference).
+func (e *PromQLEvaluator) evalSetUnless(left, right *PromQLEvalResult) *PromQLEvalResult {
+	rightKeys := make(map[string]bool)
+	for _, rs := range right.Series {
+		rightKeys[seriesLabelKey(rs.Labels)] = true
+	}
+	result := &PromQLEvalResult{}
+	for _, ls := range left.Series {
+		if !rightKeys[seriesLabelKey(ls.Labels)] {
+			result.Series = append(result.Series, ls)
+		}
+	}
+	return result
 }
 
 func exprToString(q *PromQLQuery) string {
@@ -1604,6 +1781,10 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 
 		// Subquery
 		{"subquery_basic", `http_requests_total[1h:5m]`, "subquery"},
+
+		// Predict linear and last_over_time
+		{"func_predict_linear", `predict_linear(http_requests_total[5m], 3600)`, "range_function"},
+		{"func_last_over_time", `last_over_time(temperature[10m])`, "range_function"},
 
 		// Nested extended functions
 		{"nested_topk_rate", `topk(5, rate(http_requests_total[5m]))`, "combined"},
