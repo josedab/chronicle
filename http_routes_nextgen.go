@@ -400,6 +400,56 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	if db.features != nil && db.features.IoTDeviceSDK() != nil {
 		db.features.IoTDeviceSDK().RegisterHTTPHandlers(mux)
 	}
+
+	// Multi-Region Replication
+	if db.features != nil && db.features.MultiRegionReplication() != nil {
+		db.features.MultiRegionReplication().RegisterHTTPHandlers(mux)
+	}
+
+	// Universal SDK Generator
+	if db.features != nil && db.features.UniversalSDK() != nil {
+		db.features.UniversalSDK().RegisterHTTPHandlers(mux)
+	}
+
+	// Studio Enhanced IDE
+	if db.features != nil && db.features.StudioEnhanced() != nil {
+		db.features.StudioEnhanced().RegisterHTTPHandlers(mux)
+	}
+
+	// Schema Inference
+	if db.features != nil && db.features.SchemaInference() != nil {
+		db.features.SchemaInference().RegisterHTTPHandlers(mux)
+	}
+
+	// Cloud SaaS
+	if db.features != nil && db.features.CloudSaaS() != nil {
+		db.features.CloudSaaS().RegisterHTTPHandlers(mux)
+	}
+
+	// Stream DSL V2
+	if db.features != nil && db.features.StreamDSLV2() != nil {
+		db.features.StreamDSLV2().RegisterHTTPHandlers(mux)
+	}
+
+	// Anomaly Explainability
+	if db.features != nil && db.features.AnomalyExplainability() != nil {
+		db.features.AnomalyExplainability().RegisterHTTPHandlers(mux)
+	}
+
+	// Hardware-Accelerated Query Engine
+	if db.features != nil && db.features.HWAcceleratedQuery() != nil {
+		db.features.HWAcceleratedQuery().RegisterHTTPHandlers(mux)
+	}
+
+	// Plugin Marketplace
+	if db.features != nil && db.features.Marketplace() != nil {
+		db.features.Marketplace().RegisterHTTPHandlers(mux)
+	}
+
+	// Regulatory Compliance
+	if db.features != nil && db.features.RegulatoryCompliance() != nil {
+		db.features.RegulatoryCompliance().RegisterHTTPHandlers(mux)
+	}
 }
 
 func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {

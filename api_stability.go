@@ -169,5 +169,15 @@ func ExperimentalAPI() []APISymbol {
 		{Name: "BlockchainAuditTrail", Kind: "type", Stability: StabilityExperimental, Since: "0.3.0"},
 		{Name: "ChronicleStudio", Kind: "type", Stability: StabilityExperimental, Since: "0.3.0"},
 		{Name: "IoTDeviceSDK", Kind: "type", Stability: StabilityExperimental, Since: "0.3.0"},
+		{Name: "MultiRegionReplicationEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "UniversalSDKEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "StudioEnhancedEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "SchemaInferenceEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "CloudSaaSEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "StreamDSLV2Engine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "AnomalyExplainabilityEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "HWAcceleratedQueryEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "MarketplaceEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
+		{Name: "RegulatoryComplianceEngine", Kind: "type", Stability: StabilityExperimental, Since: "0.4.0"},
 	}
 }
