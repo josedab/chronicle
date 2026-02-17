@@ -141,7 +141,11 @@ func (rl *rateLimiter) allow(ip string) bool {
 // originates from a loopback address, which is the common case when running
 // behind a local reverse proxy (nginx, HAProxy, etc.).
 func getClientIP(r *http.Request) string {
-	remoteIP, _, _ := net.SplitHostPort(r.RemoteAddr)
+	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil || remoteIP == "" {
+		// SplitHostPort failed (e.g., missing port); use RemoteAddr directly
+		remoteIP = r.RemoteAddr
+	}
 
 	// Only trust proxy headers from loopback addresses.
 	trusted := remoteIP == "127.0.0.1" || remoteIP == "::1"
