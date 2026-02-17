@@ -343,7 +343,11 @@ func (p *ParquetBackend) encodeParquet(points []Point) ([]byte, *ParquetFileMeta
 		for _, pt := range groupPoints {
 			var tagsBytes []byte
 			if len(pt.Tags) > 0 {
-				tagsBytes, _ = json.Marshal(pt.Tags)
+				var err error
+				tagsBytes, err = json.Marshal(pt.Tags)
+				if err != nil {
+					tagsBytes = []byte("{}")
+				}
 			}
 			binary.Write(&buf, binary.LittleEndian, int32(len(tagsBytes)))
 			buf.Write(tagsBytes)
