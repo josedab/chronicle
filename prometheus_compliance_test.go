@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"bytes"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -102,4 +103,146 @@ func TestPrometheusCompliance_HealthEndpoint(t *testing.T) {
 			t.Errorf("expected 200, got %d", w.Code)
 		}
 	})
+}
+
+// TestPrometheusCompliance_PromQLComplianceSuite verifies ≥90% pass rate.
+func TestPrometheusCompliance_PromQLComplianceSuite(t *testing.T) {
+	suite := NewPromQLComplianceSuite()
+	results := suite.RunAll()
+
+	passed := 0
+	for _, r := range results {
+		if r.Passed {
+			passed++
+		}
+	}
+
+	total := len(results)
+	rate := float64(passed) / float64(total)
+	t.Logf("PromQL compliance: %d/%d (%.1f%%)", passed, total, rate*100)
+
+	if rate < 0.90 {
+		for _, r := range results {
+			if !r.Passed {
+				t.Logf("  FAIL: %s - %s (err: %s)", r.Category, r.Name, r.Error)
+			}
+		}
+		t.Errorf("compliance pass rate %.1f%% is below 90%% target", rate*100)
+	}
+}
+
+// TestPrometheusCompliance_RangeFunction verifies range function evaluation.
+func TestPrometheusCompliance_RangeFunction(t *testing.T) {
+	tests := []struct {
+		name     string
+		fn       PromQLRangeFunc
+		samples  []PromQLSample
+		rangeMs  int64
+		wantNaN  bool
+		wantMin  float64
+		wantMax  float64
+	}{
+		{
+			name: "rate with counter reset",
+			fn:   RangeFuncRate,
+			samples: []PromQLSample{
+				{Timestamp: 0, Value: 10},
+				{Timestamp: 1000, Value: 20},
+				{Timestamp: 2000, Value: 5}, // reset
+				{Timestamp: 3000, Value: 15},
+			},
+			rangeMs: 3000,
+			wantMin: 0,
+			wantMax: 100,
+		},
+		{
+			name:    "rate with single sample returns NaN",
+			fn:      RangeFuncRate,
+			samples: []PromQLSample{{Timestamp: 0, Value: 10}},
+			rangeMs: 1000,
+			wantNaN: true,
+		},
+		{
+			name: "increase without per-second",
+			fn:   RangeFuncIncrease,
+			samples: []PromQLSample{
+				{Timestamp: 0, Value: 100},
+				{Timestamp: 60000, Value: 200},
+			},
+			rangeMs: 60000,
+			wantMin: 90,
+			wantMax: 120,
+		},
+		{
+			name: "irate uses last two samples",
+			fn:   RangeFuncIrate,
+			samples: []PromQLSample{
+				{Timestamp: 0, Value: 0},
+				{Timestamp: 1000, Value: 100},
+				{Timestamp: 2000, Value: 300},
+			},
+			rangeMs: 2000,
+			wantMin: 199,
+			wantMax: 201,
+		},
+		{
+			name: "changes counts value changes",
+			fn:   RangeFuncChanges,
+			samples: []PromQLSample{
+				{Timestamp: 0, Value: 1},
+				{Timestamp: 1000, Value: 1},
+				{Timestamp: 2000, Value: 2},
+				{Timestamp: 3000, Value: 2},
+				{Timestamp: 4000, Value: 3},
+			},
+			rangeMs: 4000,
+			wantMin: 2,
+			wantMax: 2,
+		},
+		{
+			name: "resets counts counter resets",
+			fn:   RangeFuncResets,
+			samples: []PromQLSample{
+				{Timestamp: 0, Value: 10},
+				{Timestamp: 1000, Value: 20},
+				{Timestamp: 2000, Value: 5},
+				{Timestamp: 3000, Value: 15},
+				{Timestamp: 4000, Value: 3},
+			},
+			rangeMs: 4000,
+			wantMin: 2,
+			wantMax: 2,
+		},
+		{
+			name: "predict_linear extrapolates",
+			fn:   RangeFuncPredictLinear,
+			samples: []PromQLSample{
+				{Timestamp: 0, Value: 0},
+				{Timestamp: 1000, Value: 10},
+				{Timestamp: 2000, Value: 20},
+			},
+			rangeMs: 1000,
+			wantMin: 25,
+			wantMax: 35,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := EvalRangeFunction(tc.fn, tc.samples, tc.rangeMs)
+			if tc.wantNaN {
+				if !math.IsNaN(got) {
+					t.Errorf("expected NaN, got %f", got)
+				}
+				return
+			}
+			if math.IsNaN(got) {
+				t.Errorf("unexpected NaN")
+				return
+			}
+			if got < tc.wantMin || got > tc.wantMax {
+				t.Errorf("got %f, want between %f and %f", got, tc.wantMin, tc.wantMax)
+			}
+		})
+	}
 }
