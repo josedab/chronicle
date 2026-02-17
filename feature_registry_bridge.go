@@ -1,5 +1,7 @@
 package chronicle
 
+import "log"
+
 // registeredCQLEngine wraps CQLEngine to implement the Feature interface.
 type registeredCQLEngine struct {
 	engine *CQLEngine
@@ -85,9 +87,15 @@ func RegisterCoreFeatures(db *DB) {
 	}
 
 	// These access FeatureManager lazily — the features init on first access
-	_ = db.registry.Register(&registeredCQLEngine{engine: db.features.CQLEngine()})
-	_ = db.registry.Register(&registeredObservability{suite: db.features.Observability()})
-	_ = db.registry.Register(&registeredAnomalyPipeline{pipeline: db.features.AnomalyPipeline()})
-	_ = db.registry.Register(&registeredQueryPlanner{planner: db.features.QueryPlanner()})
-	_ = db.registry.Register(&registeredDashboard{dashboard: db.features.Dashboard()})
+	for _, f := range []Feature{
+		&registeredCQLEngine{engine: db.features.CQLEngine()},
+		&registeredObservability{suite: db.features.Observability()},
+		&registeredAnomalyPipeline{pipeline: db.features.AnomalyPipeline()},
+		&registeredQueryPlanner{planner: db.features.QueryPlanner()},
+		&registeredDashboard{dashboard: db.features.Dashboard()},
+	} {
+		if err := db.registry.Register(f); err != nil {
+			log.Printf("[WARN] chronicle: failed to register feature %s: %v", f.Name(), err)
+		}
+	}
 }
