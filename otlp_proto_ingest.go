@@ -328,6 +328,7 @@ type OTLPBatchIngestResult struct {
 	MetricsAccepted int           `json:"metrics_accepted"`
 	MetricsRejected int           `json:"metrics_rejected"`
 	PointsWritten   int           `json:"points_written"`
+	WriteErrors     int           `json:"write_errors,omitempty"`
 	ExemplarsLinked int           `json:"exemplars_linked"`
 	Duration        time.Duration `json:"duration"`
 }
@@ -361,6 +362,16 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 
 	result := &OTLPBatchIngestResult{}
 
+	// writePoint wraps db.Write and tracks errors on the result.
+	writePoint := func(p Point) {
+		if e.db == nil {
+			return
+		}
+		if err := e.db.Write(p); err != nil {
+			result.WriteErrors++
+		}
+	}
+
 	// Map resource attributes to tags
 	baseTags := otlpKeyValuesToMap(batch.Resource.Attributes)
 	for k, v := range baseTags {
@@ -392,12 +403,10 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 		case OTLPMetricGauge, OTLPMetricSum:
 			for _, dp := range metric.DataPoints {
 				tags := mergeTagMaps(metricTags, dp.Labels)
-				if e.db != nil {
-					_ = e.db.Write(Point{
-						Metric: metric.Name, Value: dp.Value,
-						Timestamp: dp.Timestamp, Tags: tags,
-					})
-				}
+				writePoint(Point{
+					Metric: metric.Name, Value: dp.Value,
+					Timestamp: dp.Timestamp, Tags: tags,
+				})
 				result.PointsWritten++
 			}
 
@@ -408,24 +417,22 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 			}
 			for _, h := range metric.Histograms {
 				tags := mergeTagMaps(metricTags, h.Labels)
-				if e.db != nil {
-					_ = e.db.Write(Point{
-						Metric: metric.Name + "_sum", Value: h.Sum,
-						Timestamp: h.Timestamp, Tags: tags,
+				writePoint(Point{
+					Metric: metric.Name + "_sum", Value: h.Sum,
+					Timestamp: h.Timestamp, Tags: tags,
+				})
+				writePoint(Point{
+					Metric: metric.Name + "_count", Value: float64(h.Count),
+					Timestamp: h.Timestamp, Tags: tags,
+				})
+				for _, b := range h.Buckets {
+					btags := mergeTagMaps(tags, map[string]string{
+						"le": fmt.Sprintf("%g", b.UpperBound),
 					})
-					_ = e.db.Write(Point{
-						Metric: metric.Name + "_count", Value: float64(h.Count),
-						Timestamp: h.Timestamp, Tags: tags,
+					writePoint(Point{
+						Metric: metric.Name + "_bucket", Value: float64(b.Count),
+						Timestamp: h.Timestamp, Tags: btags,
 					})
-					for _, b := range h.Buckets {
-						btags := mergeTagMaps(tags, map[string]string{
-							"le": fmt.Sprintf("%g", b.UpperBound),
-						})
-						_ = e.db.Write(Point{
-							Metric: metric.Name + "_bucket", Value: float64(b.Count),
-							Timestamp: h.Timestamp, Tags: btags,
-						})
-					}
 				}
 				result.PointsWritten += 2 + len(h.Buckets)
 				e.stats.HistogramsProcessed++
@@ -438,24 +445,22 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 			}
 			for _, s := range metric.Summaries {
 				tags := mergeTagMaps(metricTags, s.Labels)
-				if e.db != nil {
-					_ = e.db.Write(Point{
-						Metric: metric.Name + "_sum", Value: s.Sum,
-						Timestamp: s.Timestamp, Tags: tags,
+				writePoint(Point{
+					Metric: metric.Name + "_sum", Value: s.Sum,
+					Timestamp: s.Timestamp, Tags: tags,
+				})
+				writePoint(Point{
+					Metric: metric.Name + "_count", Value: float64(s.Count),
+					Timestamp: s.Timestamp, Tags: tags,
+				})
+				for _, q := range s.Quantiles {
+					qtags := mergeTagMaps(tags, map[string]string{
+						"quantile": fmt.Sprintf("%g", q.Quantile),
 					})
-					_ = e.db.Write(Point{
-						Metric: metric.Name + "_count", Value: float64(s.Count),
-						Timestamp: s.Timestamp, Tags: tags,
+					writePoint(Point{
+						Metric: metric.Name, Value: q.Value,
+						Timestamp: s.Timestamp, Tags: qtags,
 					})
-					for _, q := range s.Quantiles {
-						qtags := mergeTagMaps(tags, map[string]string{
-							"quantile": fmt.Sprintf("%g", q.Quantile),
-						})
-						_ = e.db.Write(Point{
-							Metric: metric.Name, Value: q.Value,
-							Timestamp: s.Timestamp, Tags: qtags,
-						})
-					}
 				}
 				result.PointsWritten += 2 + len(s.Quantiles)
 				e.stats.SummariesProcessed++
@@ -468,16 +473,14 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 			}
 			for _, eh := range metric.ExponentialHistograms {
 				tags := mergeTagMaps(metricTags, eh.Labels)
-				if e.db != nil {
-					_ = e.db.Write(Point{
-						Metric: metric.Name + "_sum", Value: eh.Sum,
-						Timestamp: eh.Timestamp, Tags: tags,
-					})
-					_ = e.db.Write(Point{
-						Metric: metric.Name + "_count", Value: float64(eh.Count),
-						Timestamp: eh.Timestamp, Tags: tags,
-					})
-				}
+				writePoint(Point{
+					Metric: metric.Name + "_sum", Value: eh.Sum,
+					Timestamp: eh.Timestamp, Tags: tags,
+				})
+				writePoint(Point{
+					Metric: metric.Name + "_count", Value: float64(eh.Count),
+					Timestamp: eh.Timestamp, Tags: tags,
+				})
 				result.PointsWritten += 2
 				e.stats.HistogramsProcessed++
 			}
@@ -487,21 +490,19 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 		for _, ex := range metric.Exemplars {
 			if ex.TraceID != "" && ex.SpanID != "" {
 				result.ExemplarsLinked++
-				if e.db != nil {
-					exTags := mergeTagMaps(metricTags, map[string]string{
-						"__exemplar_trace_id__": ex.TraceID,
-						"__exemplar_span_id__":  ex.SpanID,
-					})
-					for k, v := range ex.FilteredAttrs {
-						exTags["exemplar."+k] = v
-					}
-					_ = e.db.Write(Point{
-						Metric:    metric.Name + "__exemplar",
-						Value:     ex.Value,
-						Timestamp: ex.Timestamp,
-						Tags:      exTags,
-					})
+				exTags := mergeTagMaps(metricTags, map[string]string{
+					"__exemplar_trace_id__": ex.TraceID,
+					"__exemplar_span_id__":  ex.SpanID,
+				})
+				for k, v := range ex.FilteredAttrs {
+					exTags["exemplar."+k] = v
 				}
+				writePoint(Point{
+					Metric:    metric.Name + "__exemplar",
+					Value:     ex.Value,
+					Timestamp: ex.Timestamp,
+					Tags:      exTags,
+				})
 			}
 		}
 
@@ -510,6 +511,9 @@ func (e *OTLPProtoEngine) IngestBatch(batch *OTLPMetricBatch) (*OTLPBatchIngestR
 	}
 
 	result.Duration = time.Since(start)
+	if result.WriteErrors > 0 {
+		return result, fmt.Errorf("partial success: %d write errors out of %d points", result.WriteErrors, result.PointsWritten)
+	}
 	return result, nil
 }
 
