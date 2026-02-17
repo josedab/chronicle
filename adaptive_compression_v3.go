@@ -379,3 +379,186 @@ func codecTypeName(ct CodecType) string {
 	}
 	return fmt.Sprintf("codec_%d", ct)
 }
+
+// --- Pluggable Codec Registry ---
+
+// CodecEncoder is the interface for pluggable compression codecs.
+type CodecEncoder interface {
+	Encode(data []byte) ([]byte, error)
+	Decode(data []byte) ([]byte, error)
+	Name() string
+	CodecType() CodecType
+}
+
+// CodecRegistry manages a set of pluggable compression codecs.
+type CodecRegistry struct {
+	mu     sync.RWMutex
+	codecs map[CodecType]CodecEncoder
+}
+
+// NewCodecRegistry creates a new codec registry with default codecs.
+func NewCodecRegistry() *CodecRegistry {
+	return &CodecRegistry{
+		codecs: make(map[CodecType]CodecEncoder),
+	}
+}
+
+// Register adds a codec to the registry.
+func (r *CodecRegistry) Register(codec CodecEncoder) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.codecs[codec.CodecType()] = codec
+}
+
+// Get returns a codec by type, or nil if not registered.
+func (r *CodecRegistry) Get(ct CodecType) CodecEncoder {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.codecs[ct]
+}
+
+// Available returns all registered codec types.
+func (r *CodecRegistry) Available() []CodecType {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	types := make([]CodecType, 0, len(r.codecs))
+	for ct := range r.codecs {
+		types = append(types, ct)
+	}
+	return types
+}
+
+// --- Partition Codec Header ---
+
+// PartitionCodecHeader stores per-column codec selections in a partition header.
+type PartitionCodecHeader struct {
+	Version     uint8                  `json:"version"`
+	ColumnCodecs map[string]CodecType  `json:"column_codecs"`
+	ProfiledAt  time.Time             `json:"profiled_at"`
+	PointCount  int                   `json:"point_count"`
+}
+
+// NewPartitionCodecHeader creates a new header with default codecs.
+func NewPartitionCodecHeader() *PartitionCodecHeader {
+	return &PartitionCodecHeader{
+		Version:      1,
+		ColumnCodecs: make(map[string]CodecType),
+		ProfiledAt:   time.Now(),
+	}
+}
+
+// SetCodec sets the codec for a specific column.
+func (h *PartitionCodecHeader) SetCodec(column string, codec CodecType) {
+	h.ColumnCodecs[column] = codec
+}
+
+// GetCodec returns the codec for a column, defaulting to CodecSnappy.
+func (h *PartitionCodecHeader) GetCodec(column string) CodecType {
+	if ct, ok := h.ColumnCodecs[column]; ok {
+		return ct
+	}
+	return CodecSnappy
+}
+
+// --- Auto-Profiling Pipeline ---
+
+// AutoProfiler automatically profiles incoming data and selects optimal codecs.
+type AutoProfiler struct {
+	compressor   *AdaptiveCompressorV3
+	sampleSize   int
+	mu           sync.Mutex
+	buffers      map[string][]float64
+	headers      map[string]*PartitionCodecHeader
+}
+
+// NewAutoProfiler creates a new auto-profiling pipeline.
+func NewAutoProfiler(compressor *AdaptiveCompressorV3, sampleSize int) *AutoProfiler {
+	if sampleSize <= 0 {
+		sampleSize = 1000
+	}
+	return &AutoProfiler{
+		compressor: compressor,
+		sampleSize: sampleSize,
+		buffers:    make(map[string][]float64),
+		headers:    make(map[string]*PartitionCodecHeader),
+	}
+}
+
+// IngestSample records a value for profiling and auto-selects codec when enough data exists.
+func (ap *AutoProfiler) IngestSample(column string, value float64) {
+	ap.mu.Lock()
+	defer ap.mu.Unlock()
+
+	ap.buffers[column] = append(ap.buffers[column], value)
+
+	if len(ap.buffers[column]) >= ap.sampleSize {
+		ap.profileAndSelect(column)
+	}
+}
+
+func (ap *AutoProfiler) profileAndSelect(column string) {
+	values := ap.buffers[column]
+	profile := ProfileValues(column, values)
+
+	ap.compressor.UpdateProfile(column, profile)
+
+	// Select codec based on profile characteristics
+	var selectedCodec CodecType
+	switch profile.Type {
+	case ColumnTypeMonotonic:
+		selectedCodec = CodecDeltaDelta
+	case ColumnTypeLowCardinality:
+		selectedCodec = CodecDictionary
+	case ColumnTypeConstant:
+		selectedCodec = CodecRLE
+	case ColumnTypeSparse:
+		selectedCodec = CodecRLE
+	case ColumnTypeGaussian:
+		selectedCodec = CodecGorilla
+	default:
+		selectedCodec = ap.compressor.SelectCodec(column)
+	}
+
+	header, ok := ap.headers[column]
+	if !ok {
+		header = NewPartitionCodecHeader()
+		ap.headers[column] = header
+	}
+	header.SetCodec(column, selectedCodec)
+	header.PointCount += len(values)
+	header.ProfiledAt = time.Now()
+
+	// Record the result for bandit learning
+	ap.compressor.RecordResult(column, selectedCodec, profile.RepetitionScore, 1.0)
+
+	// Clear buffer
+	ap.buffers[column] = nil
+}
+
+// GetHeader returns the codec header for a column.
+func (ap *AutoProfiler) GetHeader(column string) *PartitionCodecHeader {
+	ap.mu.Lock()
+	defer ap.mu.Unlock()
+	if h, ok := ap.headers[column]; ok {
+		return h
+	}
+	return NewPartitionCodecHeader()
+}
+
+// ProfileAll profiles all buffered columns immediately.
+func (ap *AutoProfiler) ProfileAll() map[string]*PartitionCodecHeader {
+	ap.mu.Lock()
+	defer ap.mu.Unlock()
+
+	for column := range ap.buffers {
+		if len(ap.buffers[column]) > 0 {
+			ap.profileAndSelect(column)
+		}
+	}
+
+	result := make(map[string]*PartitionCodecHeader, len(ap.headers))
+	for k, v := range ap.headers {
+		result[k] = v
+	}
+	return result
+}
