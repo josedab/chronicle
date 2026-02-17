@@ -9,8 +9,6 @@
 package chronicle
 
 import (
-	"time"
-
 	cq "github.com/chronicle-db/chronicle/internal/continuousquery"
 )
 
@@ -181,11 +179,9 @@ func NewContinuousQueryEngine(db *DB, hub *StreamHub, config ContinuousQueryConf
 	return cq.NewContinuousQueryEngine(pw, bus, config)
 }
 
-// Ensure DefaultContinuousQueryConfig stays in sync with the internal package
-// by verifying the default values at init time.
-func init() {
-	cfg := DefaultContinuousQueryConfig()
-	if cfg.DefaultWindow != time.Minute {
-		panic("DefaultContinuousQueryConfig mismatch")
-	}
-}
+// Compile-time interface compliance checks for bridge adapters.
+var (
+	_ cq.PointWriter        = (*dbPointWriter)(nil)
+	_ cq.StreamBus          = (*streamHubBus)(nil)
+	_ cq.StreamSubscription = (*streamSubAdapter)(nil)
+)
