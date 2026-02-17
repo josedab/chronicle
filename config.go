@@ -423,6 +423,22 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("Auth.APIKeys must not be empty when Auth is enabled"))
 	}
 
+	// Warn about plaintext (non-bcrypt) API keys
+	if c.Auth != nil && c.Auth.Enabled {
+		for _, key := range c.Auth.APIKeys {
+			if !strings.HasPrefix(key, "$2") {
+				log.Println("[WARN] chronicle: plaintext API key detected. Use chronicle.HashAPIKey() to generate bcrypt-hashed keys for improved security.")
+				break
+			}
+		}
+		for _, key := range c.Auth.ReadOnlyKeys {
+			if !strings.HasPrefix(key, "$2") {
+				log.Println("[WARN] chronicle: plaintext read-only API key detected. Use chronicle.HashAPIKey() to generate bcrypt-hashed keys for improved security.")
+				break
+			}
+		}
+	}
+
 	// Cross-field validation
 	if c.Retention.RetentionDuration > 0 && c.Storage.PartitionDuration > 0 &&
 		c.Retention.RetentionDuration < c.Storage.PartitionDuration {
