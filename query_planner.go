@@ -351,7 +351,10 @@ func (qp *QueryPlanner) RefreshStats() {
 
 // GetStats returns the current query statistics.
 func (qp *QueryPlanner) GetStats() *QueryStats {
-	return qp.queryStats.Load().(*QueryStats)
+	if v, ok := qp.queryStats.Load().(*QueryStats); ok {
+		return v
+	}
+	return &QueryStats{}
 }
 
 // GetPlannerStats returns planner usage statistics.

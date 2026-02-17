@@ -173,7 +173,10 @@ func (r *CloudRelay) Stats() RelaySyncStats {
 
 // Status returns the current relay node status.
 func (r *CloudRelay) Status() RelayNodeStatus {
-	return r.status.Load().(RelayNodeStatus)
+	if v, ok := r.status.Load().(RelayNodeStatus); ok {
+		return v
+	}
+	return RelayNodeOffline
 }
 
 func (r *CloudRelay) flushLoop() {
