@@ -303,50 +303,63 @@ func writeSimpleParquet(path string, points []Point) error {
 	}
 	defer f.Close()
 
+	write := func(data []byte) {
+		if err != nil {
+			return
+		}
+		_, err = f.Write(data)
+	}
+	writeString := func(s string) {
+		if err != nil {
+			return
+		}
+		_, err = io.WriteString(f, s)
+	}
+
 	// Parquet magic number
-	f.Write([]byte("PAR1"))
+	write([]byte("PAR1"))
 
 	// Write points as binary rows (simplified format)
 	buf := make([]byte, 8)
 	for _, p := range points {
 		// Write metric length + metric
 		binary.LittleEndian.PutUint32(buf[:4], uint32(len(p.Metric)))
-		f.Write(buf[:4])
-		io.WriteString(f, p.Metric)
+		write(buf[:4])
+		writeString(p.Metric)
 
 		// Write value as float64
 		binary.LittleEndian.PutUint64(buf, math.Float64bits(p.Value))
-		f.Write(buf)
+		write(buf)
 
 		// Write timestamp
 		binary.LittleEndian.PutUint64(buf, uint64(p.Timestamp))
-		f.Write(buf)
+		write(buf)
 
 		// Write tags count + tags
 		binary.LittleEndian.PutUint32(buf[:4], uint32(len(p.Tags)))
-		f.Write(buf[:4])
+		write(buf[:4])
 		for k, v := range p.Tags {
 			binary.LittleEndian.PutUint32(buf[:4], uint32(len(k)))
-			f.Write(buf[:4])
-			io.WriteString(f, k)
+			write(buf[:4])
+			writeString(k)
 			binary.LittleEndian.PutUint32(buf[:4], uint32(len(v)))
-			f.Write(buf[:4])
-			io.WriteString(f, v)
+			write(buf[:4])
+			writeString(v)
 		}
 	}
 
 	// Row count as footer
 	binary.LittleEndian.PutUint64(buf, uint64(len(points)))
-	f.Write(buf)
+	write(buf)
 
 	// Footer length (8 bytes for row count)
 	binary.LittleEndian.PutUint32(buf[:4], 8)
-	f.Write(buf[:4])
+	write(buf[:4])
 
 	// Parquet magic (footer)
-	f.Write([]byte("PAR1"))
+	write([]byte("PAR1"))
 
-	return nil
+	return err
 }
 
 // ReadParquetRowCount reads the row count from a simplified Parquet file.
