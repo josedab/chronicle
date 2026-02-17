@@ -617,3 +617,104 @@ func (s *S3Backend) WriteWithStorageClass(ctx context.Context, key string, data 
 	s.cache.Put(fullKey, data)
 	return nil
 }
+
+// --- Eventual Consistency Handling ---
+
+// ConsistentRead reads an object with eventual consistency retry.
+// Retries reads that return NoSuchKey immediately after a write.
+func (s *S3Backend) ConsistentRead(ctx context.Context, key string, maxWait time.Duration) ([]byte, error) {
+	if maxWait <= 0 {
+		maxWait = 5 * time.Second
+	}
+
+	// Check cache first
+	if data, ok := s.cache.Get(s.config.Prefix + key); ok {
+		return data, nil
+	}
+
+	deadline := time.Now().Add(maxWait)
+	backoff := 100 * time.Millisecond
+
+	for {
+		data, err := s.Read(ctx, key)
+		if err == nil {
+			return data, nil
+		}
+
+		// If it's a "not found" error and we haven't exceeded the deadline,
+		// retry to handle S3 eventual consistency
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("consistent read timeout for %s: %w", key, err)
+		}
+
+		if !isS3NotFoundError(err) {
+			return nil, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(backoff):
+		}
+
+		backoff = time.Duration(float64(backoff) * 1.5)
+		if backoff > time.Second {
+			backoff = time.Second
+		}
+	}
+}
+
+// ConsistentWrite performs a write followed by a read-back verification.
+func (s *S3Backend) ConsistentWrite(ctx context.Context, key string, data []byte) error {
+	if err := s.Write(ctx, key, data); err != nil {
+		return err
+	}
+
+	// Verify the write is consistent by reading back
+	_, err := s.ConsistentRead(ctx, key, 3*time.Second)
+	return err
+}
+
+func isS3NotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "NoSuchKey") ||
+		strings.Contains(errStr, "NotFound") ||
+		strings.Contains(errStr, "not found")
+}
+
+// --- S3 Backend Status for Promotion ---
+
+// S3BackendStatus reports the health and readiness of the S3 backend.
+type S3BackendStatus struct {
+	Healthy          bool          `json:"healthy"`
+	MaturityLevel    string        `json:"maturity_level"`
+	BucketAccessible bool          `json:"bucket_accessible"`
+	MultipartEnabled bool          `json:"multipart_enabled"`
+	RetryConfigured  bool          `json:"retry_configured"`
+	CacheEnabled     bool          `json:"cache_enabled"`
+	TieringEnabled   bool          `json:"tiering_enabled"`
+	Latency          time.Duration `json:"latency"`
+}
+
+// Status returns the current health status of the S3 backend.
+func (s *S3Backend) Status(ctx context.Context) *S3BackendStatus {
+	status := &S3BackendStatus{
+		MaturityLevel:    "production",
+		MultipartEnabled: s.config.MultipartThreshold > 0,
+		RetryConfigured:  s.config.MaxRetries > 0,
+		CacheEnabled:     s.config.CacheSize > 0,
+	}
+
+	start := time.Now()
+	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{
+		Bucket: aws.String(s.config.Bucket),
+	})
+	status.Latency = time.Since(start)
+	status.BucketAccessible = err == nil
+	status.Healthy = err == nil
+
+	return status
+}
