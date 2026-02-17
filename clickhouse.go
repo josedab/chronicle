@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -724,7 +725,9 @@ func (s *ClickHouseServer) writeTabSeparated(w http.ResponseWriter, rows [][]any
 		}
 		buf.WriteByte('\n')
 	}
-	_, _ = w.Write(buf.Bytes())
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		log.Printf("[WARN] chronicle: clickhouse writeTabSeparated: %v", err)
+	}
 }
 
 func (s *ClickHouseServer) writeJSON(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
@@ -770,8 +773,14 @@ func (s *ClickHouseServer) writeJSONEachRow(w http.ResponseWriter, rows [][]any,
 			}
 		}
 		data, _ := json.Marshal(rowMap)
-		_, _ = w.Write(data)
-		_, _ = w.Write([]byte("\n"))
+		if _, err := w.Write(data); err != nil {
+			log.Printf("[WARN] chronicle: clickhouse writeJSONEachRow: %v", err)
+			return
+		}
+		if _, err := w.Write([]byte("\n")); err != nil {
+			log.Printf("[WARN] chronicle: clickhouse writeJSONEachRow: %v", err)
+			return
+		}
 	}
 }
 
@@ -820,14 +829,18 @@ func (s *ClickHouseServer) writeCSV(w http.ResponseWriter, rows [][]any, columns
 		}
 		buf.WriteByte('\n')
 	}
-	_, _ = w.Write(buf.Bytes())
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		log.Printf("[WARN] chronicle: clickhouse writeCSV: %v", err)
+	}
 }
 
 func (s *ClickHouseServer) writeError(w http.ResponseWriter, err error, status int) {
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Exception-Code", "62")
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(fmt.Sprintf("Code: 62. DB::Exception: %s", err.Error())))
+	if _, werr := w.Write([]byte(fmt.Sprintf("Code: 62. DB::Exception: %s", err.Error()))); werr != nil {
+		log.Printf("[WARN] chronicle: clickhouse writeError: %v", werr)
+	}
 }
 
 // setupClickHouseRoutes configures ClickHouse-compatible endpoints.
@@ -844,12 +857,16 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig, 
 	// ClickHouse-specific endpoints
 	mux.HandleFunc("/api/v1/clickhouse/ping", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		_, _ = w.Write([]byte("Ok.\n"))
+		if _, err := w.Write([]byte("Ok.\n")); err != nil {
+			log.Printf("[WARN] chronicle: clickhouse ping write: %v", err)
+		}
 	}))
 
 	mux.HandleFunc("/replicas_status", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		_, _ = w.Write([]byte("Ok.\n"))
+		if _, err := w.Write([]byte("Ok.\n")); err != nil {
+			log.Printf("[WARN] chronicle: clickhouse replicas_status write: %v", err)
+		}
 	}))
 
 	// Query endpoint (explicit)
@@ -858,7 +875,7 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig, 
 	// Play interface placeholder
 	mux.HandleFunc("/play", wrap(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		_, _ = w.Write([]byte(`<!DOCTYPE html>
+		if _, err := w.Write([]byte(`<!DOCTYPE html>
 <html>
 <head><title>Chronicle ClickHouse Interface</title></head>
 <body>
@@ -866,6 +883,8 @@ func setupClickHouseRoutes(mux *http.ServeMux, db *DB, config ClickHouseConfig, 
 <p>This endpoint provides ClickHouse HTTP protocol compatibility.</p>
 <p>Use any ClickHouse client to connect.</p>
 </body>
-</html>`))
+</html>`)); err != nil {
+			log.Printf("[WARN] chronicle: clickhouse play write: %v", err)
+		}
 	}))
 }
