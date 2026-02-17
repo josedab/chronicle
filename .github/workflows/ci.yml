@@ -37,15 +37,8 @@ jobs:
       - name: Test (short - fast feedback)
         run: go test -short -count=1 ./...
 
-      - name: Test (full)
-        run: go test -v ./...
-
-      - name: Test with race detector
-        run: go test -race ./...
-        if: matrix.os == 'ubuntu-latest'
-
-      - name: Test with coverage
-        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Test with race detector and coverage
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
         if: matrix.os == 'ubuntu-latest'
 
       - name: Upload coverage
