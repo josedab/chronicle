@@ -5,25 +5,28 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
 
 // ContinuousAggConfig configures the continuous aggregation engine.
 type ContinuousAggConfig struct {
-	Enabled       bool
+	Enabled        bool
 	MaxAggregations int
-	CheckInterval time.Duration
-	RetainWindows int
+	CheckInterval  time.Duration
+	RetainWindows  int
+	GracePeriod    time.Duration // Grace period for late data arrival
 }
 
 // DefaultContinuousAggConfig returns sensible defaults.
 func DefaultContinuousAggConfig() ContinuousAggConfig {
 	return ContinuousAggConfig{
-		Enabled:       true,
+		Enabled:        true,
 		MaxAggregations: 100,
-		CheckInterval: 10 * time.Second,
-		RetainWindows: 1000,
+		CheckInterval:  10 * time.Second,
+		RetainWindows:  1000,
+		GracePeriod:    time.Minute,
 	}
 }
 
@@ -351,6 +354,196 @@ func (e *ContinuousAggEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(e.GetStats())
 	})
+	mux.HandleFunc("/api/v1/continuous-agg/delete", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
+		var req struct{ Name string `json:"name"` }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := e.Delete(req.Name); err != nil { http.Error(w, err.Error(), http.StatusNotFound); return }
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+	})
+	mux.HandleFunc("/api/v1/continuous-agg/alter", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
+		var req ContinuousAggAlterRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := e.Alter(req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "altered"})
+	})
+	mux.HandleFunc("/api/v1/continuous-agg/sql", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
+		var req struct{ SQL string `json:"sql"` }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		result, err := e.ExecuteSQL(req.SQL)
+		if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+}
+
+// --- SQL Management API ---
+
+// ContinuousAggAlterRequest describes an ALTER operation on a continuous aggregation.
+type ContinuousAggAlterRequest struct {
+	Name          string         `json:"name"`
+	NewFunction   string         `json:"function,omitempty"`
+	NewWindow     *time.Duration `json:"window,omitempty"`
+	NewGroupBy    []string       `json:"group_by,omitempty"`
+	Pause         *bool          `json:"pause,omitempty"`
+}
+
+// Alter modifies a running continuous aggregation.
+func (e *ContinuousAggEngine) Alter(req ContinuousAggAlterRequest) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	state, exists := e.aggs[req.Name]
+	if !exists {
+		return fmt.Errorf("aggregation %q not found", req.Name)
+	}
+
+	if req.NewFunction != "" {
+		state.Definition.Function = req.NewFunction
+	}
+	if req.NewWindow != nil {
+		state.Definition.Window = *req.NewWindow
+	}
+	if req.NewGroupBy != nil {
+		state.Definition.GroupBy = req.NewGroupBy
+	}
+	if req.Pause != nil {
+		state.Running = !*req.Pause
+	}
+
+	return nil
+}
+
+// ExecuteSQL parses and executes a SQL-style continuous aggregation command.
+// Supports: CREATE CONTINUOUS AGGREGATE, DROP CONTINUOUS AGGREGATE, ALTER CONTINUOUS AGGREGATE.
+func (e *ContinuousAggEngine) ExecuteSQL(sql string) (map[string]any, error) {
+	sql = strings.TrimSpace(sql)
+	upper := strings.ToUpper(sql)
+
+	switch {
+	case strings.HasPrefix(upper, "CREATE CONTINUOUS AGGREGATE"):
+		return e.parseSQLCreate(sql)
+	case strings.HasPrefix(upper, "DROP CONTINUOUS AGGREGATE"):
+		return e.parseSQLDrop(sql)
+	case strings.HasPrefix(upper, "ALTER CONTINUOUS AGGREGATE"):
+		return e.parseSQLAlter(sql)
+	default:
+		return nil, fmt.Errorf("unsupported SQL command; expected CREATE/DROP/ALTER CONTINUOUS AGGREGATE")
+	}
+}
+
+func (e *ContinuousAggEngine) parseSQLCreate(sql string) (map[string]any, error) {
+	// CREATE CONTINUOUS AGGREGATE name AS SELECT func(metric) FROM source WINDOW '5m'
+	upper := strings.ToUpper(sql)
+	asIdx := strings.Index(upper, " AS ")
+	if asIdx < 0 {
+		return nil, fmt.Errorf("expected AS clause in CREATE CONTINUOUS AGGREGATE")
+	}
+
+	nameStr := strings.TrimSpace(sql[len("CREATE CONTINUOUS AGGREGATE"):asIdx])
+
+	// Parse simple function(metric) FROM source WINDOW 'duration'
+	selectPart := strings.TrimSpace(sql[asIdx+4:])
+	upper = strings.ToUpper(selectPart)
+
+	if !strings.HasPrefix(upper, "SELECT ") {
+		return nil, fmt.Errorf("expected SELECT after AS")
+	}
+	selectPart = strings.TrimSpace(selectPart[7:])
+
+	fromIdx := strings.Index(strings.ToUpper(selectPart), " FROM ")
+	if fromIdx < 0 {
+		return nil, fmt.Errorf("expected FROM clause")
+	}
+	funcExpr := strings.TrimSpace(selectPart[:fromIdx])
+	rest := strings.TrimSpace(selectPart[fromIdx+6:])
+
+	// Parse function name
+	funcName := "avg"
+	if parenIdx := strings.Index(funcExpr, "("); parenIdx > 0 {
+		funcName = strings.ToLower(funcExpr[:parenIdx])
+	}
+
+	// Parse source metric and window
+	parts := strings.Fields(rest)
+	sourceName := ""
+	windowStr := "5m"
+	for i, p := range parts {
+		if strings.EqualFold(p, "WINDOW") && i+1 < len(parts) {
+			windowStr = strings.Trim(parts[i+1], "'\"")
+		} else if sourceName == "" {
+			sourceName = p
+		}
+	}
+
+	window, err := time.ParseDuration(windowStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid window duration %q: %w", windowStr, err)
+	}
+
+	def := ContinuousAggDefinition{
+		Name:         nameStr,
+		SourceMetric: sourceName,
+		Function:     funcName,
+		Window:       window,
+	}
+
+	if err := e.Create(def); err != nil {
+		return nil, err
+	}
+
+	return map[string]any{"status": "created", "name": nameStr}, nil
+}
+
+func (e *ContinuousAggEngine) parseSQLDrop(sql string) (map[string]any, error) {
+	name := strings.TrimSpace(sql[len("DROP CONTINUOUS AGGREGATE"):])
+	name = strings.TrimSuffix(name, ";")
+	name = strings.TrimSpace(name)
+
+	if err := e.Delete(name); err != nil {
+		return nil, err
+	}
+	return map[string]any{"status": "dropped", "name": name}, nil
+}
+
+func (e *ContinuousAggEngine) parseSQLAlter(sql string) (map[string]any, error) {
+	rest := strings.TrimSpace(sql[len("ALTER CONTINUOUS AGGREGATE"):])
+	parts := strings.Fields(rest)
+	if len(parts) < 3 {
+		return nil, fmt.Errorf("expected ALTER CONTINUOUS AGGREGATE name SET property value")
+	}
+	name := parts[0]
+
+	req := ContinuousAggAlterRequest{Name: name}
+
+	if strings.EqualFold(parts[1], "SET") && len(parts) >= 4 {
+		prop := strings.ToLower(parts[2])
+		val := strings.Trim(parts[3], "'\"")
+		switch prop {
+		case "function":
+			req.NewFunction = val
+		case "window":
+			d, err := time.ParseDuration(val)
+			if err != nil {
+				return nil, fmt.Errorf("invalid window: %w", err)
+			}
+			req.NewWindow = &d
+		case "pause":
+			b := strings.EqualFold(val, "true")
+			req.Pause = &b
+		default:
+			return nil, fmt.Errorf("unknown property: %s", prop)
+		}
+	}
+
+	if err := e.Alter(req); err != nil {
+		return nil, err
+	}
+	return map[string]any{"status": "altered", "name": name}, nil
 }
 
 var _ = math.MaxFloat64
