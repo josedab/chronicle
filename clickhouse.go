@@ -758,7 +758,9 @@ func (s *ClickHouseServer) writeJSON(w http.ResponseWriter, rows [][]any, column
 		"rows_before_limit_at_least": len(rows),
 	}
 
-	_ = json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("[WARN] chronicle: clickhouse writeJSON encode: %v", err)
+	}
 }
 
 func (s *ClickHouseServer) writeJSONEachRow(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
@@ -804,7 +806,9 @@ func (s *ClickHouseServer) writeJSONCompact(w http.ResponseWriter, rows [][]any,
 		},
 	}
 
-	_ = json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("[WARN] chronicle: clickhouse writeJSONCompact encode: %v", err)
+	}
 }
 
 func (s *ClickHouseServer) writeCSV(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {

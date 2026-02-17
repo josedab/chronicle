@@ -762,9 +762,12 @@ func (g *GRPCIngestionEngine) handleConnection(conn net.Conn) {
 
 		var respBytes []byte
 		if handleErr != nil {
-			respBytes, _ = json.Marshal(map[string]string{"error": handleErr.Error()})
+			respBytes, err = json.Marshal(map[string]string{"error": handleErr.Error()})
 		} else {
-			respBytes, _ = json.Marshal(resp)
+			respBytes, err = json.Marshal(resp)
+		}
+		if err != nil {
+			respBytes = []byte(`{"error":"internal marshal error"}`)
 		}
 		conn.Write(respBytes)
 	}
