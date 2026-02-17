@@ -149,6 +149,7 @@ type SaaSFleetManager struct {
 	mu       sync.RWMutex
 	running  atomic.Bool
 	stopCh   chan struct{}
+	wg       sync.WaitGroup
 }
 
 // NewSaaSFleetManager creates a new fleet manager.
@@ -432,6 +433,7 @@ func (fm *SaaSFleetManager) Start() {
 	if fm.running.Swap(true) {
 		return
 	}
+	fm.wg.Add(1)
 	go fm.healthCheckLoop()
 }
 
@@ -441,9 +443,11 @@ func (fm *SaaSFleetManager) Stop() {
 		return
 	}
 	close(fm.stopCh)
+	fm.wg.Wait()
 }
 
 func (fm *SaaSFleetManager) healthCheckLoop() {
+	defer fm.wg.Done()
 	ticker := time.NewTicker(fm.config.HeartbeatInterval)
 	defer ticker.Stop()
 

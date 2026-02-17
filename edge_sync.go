@@ -146,6 +146,7 @@ type EdgeSyncManager struct {
 	syncMu           sync.Mutex
 	running          atomic.Bool
 	stopCh           chan struct{}
+	wg               sync.WaitGroup
 	stats            EdgeSyncStats
 	statsMu          sync.RWMutex
 	httpClient       *http.Client
@@ -228,6 +229,7 @@ func (m *EdgeSyncManager) Start() {
 		return // Already running
 	}
 
+	m.wg.Add(1)
 	go m.syncLoop()
 }
 
@@ -238,6 +240,7 @@ func (m *EdgeSyncManager) Stop() error {
 	}
 
 	close(m.stopCh)
+	m.wg.Wait()
 
 	// Flush remaining queued items
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -282,6 +285,7 @@ func (m *EdgeSyncManager) Stats() EdgeSyncStats {
 
 // syncLoop runs the periodic sync process.
 func (m *EdgeSyncManager) syncLoop() {
+	defer m.wg.Done()
 	ticker := time.NewTicker(m.config.SyncInterval)
 	defer ticker.Stop()
 

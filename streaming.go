@@ -211,7 +211,10 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 		var connMu sync.Mutex
 
 		// Read commands from client
+		var readerWg sync.WaitGroup
+		readerWg.Add(1)
 		go func() {
+			defer readerWg.Done()
 			defer cancel()
 			for {
 				_, msg, err := conn.ReadMessage()
@@ -267,6 +270,9 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 
 		// Wait for context cancellation
 		<-ctx.Done()
+
+		// Wait for reader goroutine to finish
+		readerWg.Wait()
 
 		// Cleanup subscriptions
 		connMu.Lock()
