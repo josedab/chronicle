@@ -188,7 +188,12 @@ func (f *Federation) Query(ctx context.Context, query *Query) (*FederatedResult,
 		go func(r *RemoteInstance) {
 			defer wg.Done()
 
-			sem <- struct{}{}
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				results <- &federatedQueryResult{source: r.Name, err: ctx.Err()}
+				return
+			}
 			defer func() { <-sem }()
 
 			result, err := f.queryRemote(ctx, r, query)

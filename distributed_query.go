@@ -186,6 +186,15 @@ func (c *DistributedQueryCoordinator) Execute(ctx context.Context, q *Query, nod
 			nodeStart := time.Now()
 			pr := PartialResult{NodeID: nid}
 
+			select {
+			case <-queryCtx.Done():
+				pr.Error = queryCtx.Err().Error()
+				pr.Duration = time.Since(nodeStart)
+				resultCh <- pr
+				return
+			default:
+			}
+
 			result, err := exec(queryCtx, nid, q)
 			pr.Duration = time.Since(nodeStart)
 
