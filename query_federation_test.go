@@ -141,6 +141,9 @@ func TestQueryFederation_ParseSQL(t *testing.T) {
 }
 
 func TestQueryFederation_Cache(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow federation cache test in short mode")
+	}
 	path := "test_federation_cache.db"
 	defer os.Remove(path)
 	defer os.Remove(path + ".wal")
@@ -429,6 +432,9 @@ func TestQueryFederation_MergeResults(t *testing.T) {
 }
 
 func TestFederatedQuery_Timeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow federation timeout test in short mode")
+	}
 	config := DefaultQueryFederationConfig()
 	config.QueryTimeout = 100 * time.Millisecond
 	federation := NewQueryFederation(nil, config)

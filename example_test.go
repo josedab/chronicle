@@ -123,3 +123,73 @@ func ExampleQueryParser() {
 	// Metric: cpu
 	// Has aggregation: true
 }
+
+func ExampleOpen() {
+	dir, _ := os.MkdirTemp("", "chronicle-open-*")
+	defer os.RemoveAll(dir)
+	dbPath := filepath.Join(dir, "data.db")
+
+	db, err := chronicle.Open(dbPath, chronicle.DefaultConfig(dbPath))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	fmt.Println("Database opened")
+	// Output: Database opened
+}
+
+func ExampleDefaultConfig() {
+	cfg := chronicle.DefaultConfig("/tmp/data.db")
+
+	fmt.Printf("Path: %s\n", cfg.Path)
+	fmt.Printf("Has storage config: %v\n", cfg.Storage.MaxMemory > 0)
+	fmt.Printf("Has partition duration: %v\n", cfg.Storage.PartitionDuration > 0)
+	// Output:
+	// Path: /tmp/data.db
+	// Has storage config: true
+	// Has partition duration: true
+}
+
+func ExampleNewConfigBuilder() {
+	cfg, err := chronicle.NewConfigBuilder("/tmp/metrics.db").
+		WithMaxMemory(128 * 1024 * 1024).
+		WithRetention(30 * 24 * time.Hour).
+		WithPartitionDuration(time.Hour).
+		WithQueryTimeout(10 * time.Second).
+		Build()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Path: %s\n", cfg.Path)
+	fmt.Printf("Memory: %d MB\n", cfg.Storage.MaxMemory/(1024*1024))
+	// Output:
+	// Path: /tmp/metrics.db
+	// Memory: 128 MB
+}
+
+func ExampleDB_Execute_tagFilter() {
+	dir, _ := os.MkdirTemp("", "chronicle-tags-*")
+	defer os.RemoveAll(dir)
+	dbPath := filepath.Join(dir, "tags.db")
+
+	db, _ := chronicle.Open(dbPath, chronicle.DefaultConfig(dbPath))
+	defer db.Close()
+
+	now := time.Now().UnixNano()
+	_ = db.Write(chronicle.Point{Metric: "temp", Tags: map[string]string{"room": "kitchen"}, Value: 22.0, Timestamp: now})
+	_ = db.Write(chronicle.Point{Metric: "temp", Tags: map[string]string{"room": "bedroom"}, Value: 19.5, Timestamp: now})
+	_ = db.Flush()
+
+	result, err := db.Execute(&chronicle.Query{
+		Metric: "temp",
+		Tags:   map[string]string{"room": "kitchen"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Kitchen points: %d\n", len(result.Points))
+	// Output: Kitchen points: 1
+}

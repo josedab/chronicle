@@ -332,6 +332,9 @@ func TestSQLiteBackend_Stats(t *testing.T) {
 }
 
 func TestSQLiteBackend_Vacuum(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow SQLite vacuum test in short mode")
+	}
 	dir := t.TempDir()
 	config := DefaultSQLiteBackendConfig()
 	config.Path = filepath.Join(dir, "test.db")
