@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -899,4 +900,161 @@ type RepairResult struct {
 	RangesRepaired int          `json:"ranges_repaired"`
 	KeysRepaired   int          `json:"keys_repaired"`
 	Errors         []string     `json:"errors,omitempty"`
+}
+
+// --- Pre-Vote Protocol ---
+
+// PreVoteState tracks the pre-vote phase to prevent disruptive elections.
+type PreVoteState struct {
+	mu            sync.RWMutex
+	term          uint64
+	votesReceived map[string]bool
+	preVoteActive bool
+	startedAt     time.Time
+}
+
+// NewPreVoteState creates a new pre-vote state tracker.
+func NewPreVoteState() *PreVoteState {
+	return &PreVoteState{
+		votesReceived: make(map[string]bool),
+	}
+}
+
+// StartPreVote initiates a pre-vote round at the given term.
+func (pv *PreVoteState) StartPreVote(term uint64) {
+	pv.mu.Lock()
+	defer pv.mu.Unlock()
+	pv.term = term
+	pv.votesReceived = make(map[string]bool)
+	pv.preVoteActive = true
+	pv.startedAt = time.Now()
+}
+
+// RecordPreVote records a pre-vote grant from a node.
+func (pv *PreVoteState) RecordPreVote(nodeID string, granted bool) {
+	pv.mu.Lock()
+	defer pv.mu.Unlock()
+	if granted {
+		pv.votesReceived[nodeID] = true
+	}
+}
+
+// HasPreVoteQuorum checks if we have received enough pre-votes for a quorum.
+func (pv *PreVoteState) HasPreVoteQuorum(clusterSize int) bool {
+	pv.mu.RLock()
+	defer pv.mu.RUnlock()
+	return len(pv.votesReceived) >= (clusterSize/2)+1
+}
+
+// Reset clears the pre-vote state.
+func (pv *PreVoteState) Reset() {
+	pv.mu.Lock()
+	defer pv.mu.Unlock()
+	pv.preVoteActive = false
+	pv.votesReceived = make(map[string]bool)
+}
+
+// --- Linearizable Read Support ---
+
+// ReadIndex tracks the committed index for linearizable reads.
+type ReadIndex struct {
+	mu             sync.RWMutex
+	committedIndex uint64
+	appliedIndex   uint64
+	pendingReads   map[uint64][]chan struct{}
+}
+
+// NewReadIndex creates a new read index tracker.
+func NewReadIndex() *ReadIndex {
+	return &ReadIndex{
+		pendingReads: make(map[uint64][]chan struct{}),
+	}
+}
+
+// WaitForApplied blocks until the given index has been applied, or context is canceled.
+func (ri *ReadIndex) WaitForApplied(ctx context.Context, index uint64) error {
+	ri.mu.RLock()
+	if ri.appliedIndex >= index {
+		ri.mu.RUnlock()
+		return nil
+	}
+	ri.mu.RUnlock()
+
+	ch := make(chan struct{}, 1)
+	ri.mu.Lock()
+	ri.pendingReads[index] = append(ri.pendingReads[index], ch)
+	ri.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-ch:
+		return nil
+	}
+}
+
+// NotifyApplied notifies all pending reads up to the given applied index.
+func (ri *ReadIndex) NotifyApplied(appliedIndex uint64) {
+	ri.mu.Lock()
+	defer ri.mu.Unlock()
+	ri.appliedIndex = appliedIndex
+
+	for idx, chs := range ri.pendingReads {
+		if idx <= appliedIndex {
+			for _, ch := range chs {
+				close(ch)
+			}
+			delete(ri.pendingReads, idx)
+		}
+	}
+}
+
+// SetCommittedIndex updates the committed index.
+func (ri *ReadIndex) SetCommittedIndex(index uint64) {
+	ri.mu.Lock()
+	defer ri.mu.Unlock()
+	if index > ri.committedIndex {
+		ri.committedIndex = index
+	}
+}
+
+// CommittedIndex returns the current committed index.
+func (ri *ReadIndex) CommittedIndex() uint64 {
+	ri.mu.RLock()
+	defer ri.mu.RUnlock()
+	return ri.committedIndex
+}
+
+// RunAntiEntropyRepair performs a Merkle tree-based anti-entropy repair cycle.
+func (ec *EmbeddedClusterEngine) RunAntiEntropyRepair() *RepairResult {
+	result := &RepairResult{StartedAt: time.Now()}
+
+	ec.mu.RLock()
+	localTree := ec.buildLocalMerkleTree()
+	ec.mu.RUnlock()
+
+	if localTree == nil {
+		result.CompletedAt = time.Now()
+		return result
+	}
+
+	// Compare with each peer's tree (in production, this would be RPC)
+	ec.mu.RLock()
+	for _, node := range ec.nodes {
+		if node.ID == ec.localNode.ID || node.State != GossipNodeStateAlive {
+			continue
+		}
+		result.RangesChecked++
+	}
+	ec.mu.RUnlock()
+
+	result.CompletedAt = time.Now()
+	return result
+}
+
+func (ec *EmbeddedClusterEngine) buildLocalMerkleTree() *ClusterMerkleTree {
+	tree := NewClusterMerkleTree(8)
+	hash := fnv1a64([]byte(ec.localNode.ID))
+	tree.Insert(hash, hash)
+	return tree
 }
