@@ -66,54 +66,111 @@ func (va *VectorizedAggregator) Aggregate(op VectorAggOp, data []float64) (float
 	}
 }
 
-// Sum computes the sum using 4-way unrolled accumulation.
+// Sum computes the sum using 8-way unrolled SIMD-style accumulation for ILP.
 func (va *VectorizedAggregator) Sum(data []float64) float64 {
 	n := len(data)
 	if n == 0 {
 		return 0
 	}
 
-	var s0, s1, s2, s3 float64
+	// 8-way unrolled for instruction-level parallelism on modern CPUs
+	var s0, s1, s2, s3, s4, s5, s6, s7 float64
 	i := 0
-	for ; i+3 < n; i += 4 {
+	for ; i+7 < n; i += 8 {
 		s0 += data[i]
 		s1 += data[i+1]
 		s2 += data[i+2]
 		s3 += data[i+3]
+		s4 += data[i+4]
+		s5 += data[i+5]
+		s6 += data[i+6]
+		s7 += data[i+7]
 	}
-	total := s0 + s1 + s2 + s3
+	total := (s0 + s1) + (s2 + s3) + (s4 + s5) + (s6 + s7)
 	for ; i < n; i++ {
 		total += data[i]
 	}
 	return total
 }
 
-// Min returns the minimum value.
+// Min returns the minimum value using 4-way unrolled comparisons.
 func (va *VectorizedAggregator) Min(data []float64) float64 {
 	if len(data) == 0 {
 		return math.NaN()
 	}
-	min := data[0]
-	for i := 1; i < len(data); i++ {
-		if data[i] < min {
-			min = data[i]
+	n := len(data)
+	min0, min1, min2, min3 := data[0], data[0], data[0], data[0]
+	i := 0
+	for ; i+3 < n; i += 4 {
+		if data[i] < min0 {
+			min0 = data[i]
+		}
+		if data[i+1] < min1 {
+			min1 = data[i+1]
+		}
+		if data[i+2] < min2 {
+			min2 = data[i+2]
+		}
+		if data[i+3] < min3 {
+			min3 = data[i+3]
 		}
 	}
-	return min
+	result := min0
+	if min1 < result {
+		result = min1
+	}
+	if min2 < result {
+		result = min2
+	}
+	if min3 < result {
+		result = min3
+	}
+	for ; i < n; i++ {
+		if data[i] < result {
+			result = data[i]
+		}
+	}
+	return result
 }
 
-// Max returns the maximum value.
+// Max returns the maximum value using 4-way unrolled comparisons.
 func (va *VectorizedAggregator) Max(data []float64) float64 {
 	if len(data) == 0 {
 		return math.NaN()
 	}
-	max := data[0]
-	for i := 1; i < len(data); i++ {
-		if data[i] > max {
-			max = data[i]
+	n := len(data)
+	max0, max1, max2, max3 := data[0], data[0], data[0], data[0]
+	i := 0
+	for ; i+3 < n; i += 4 {
+		if data[i] > max0 {
+			max0 = data[i]
+		}
+		if data[i+1] > max1 {
+			max1 = data[i+1]
+		}
+		if data[i+2] > max2 {
+			max2 = data[i+2]
+		}
+		if data[i+3] > max3 {
+			max3 = data[i+3]
 		}
 	}
-	return max
+	result := max0
+	if max1 > result {
+		result = max1
+	}
+	if max2 > result {
+		result = max2
+	}
+	if max3 > result {
+		result = max3
+	}
+	for ; i < n; i++ {
+		if data[i] > result {
+			result = data[i]
+		}
+	}
+	return result
 }
 
 // Avg returns the average value.
