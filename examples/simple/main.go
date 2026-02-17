@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -16,12 +17,20 @@ func main() {
 	}
 	defer db.Close()
 
-	_ = db.Write(chronicle.Point{
+	err = db.Write(chronicle.Point{
 		Metric:    "temperature",
 		Tags:      map[string]string{"room": "lab"},
 		Value:     21.7,
 		Timestamp: time.Now().UnixNano(),
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Flush ensures buffered writes are persisted before querying.
+	if err := db.Flush(); err != nil {
+		log.Fatal(err)
+	}
 
 	result, err := db.Execute(&chronicle.Query{
 		Metric: "temperature",
@@ -35,5 +44,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_ = result
+	fmt.Printf("Query returned %d point(s)\n", len(result.Points))
+	for _, p := range result.Points {
+		fmt.Printf("  %s [%v] = %.2f at %s\n",
+			p.Metric, p.Tags, p.Value,
+			time.Unix(0, p.Timestamp).Format(time.RFC3339))
+	}
 }
