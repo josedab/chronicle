@@ -175,3 +175,150 @@ func (qe *QueryEngine) ExecuteVectorized(ctx context.Context, q *Query) (*Result
 		}},
 	}, path, nil
 }
+
+// --- Predicate Pushdown & Adaptive Path Selection ---
+
+// PredicateFilter defines a filter that can be pushed down to the storage scan.
+type PredicateFilter struct {
+	MinValue *float64          // only return points >= this value
+	MaxValue *float64          // only return points <= this value
+	TagMatch map[string]string // exact tag match
+}
+
+// ScanWithPredicate performs a storage-layer scan with predicate pushdown,
+// filtering points during scan rather than after retrieval.
+func (qe *QueryEngine) ScanWithPredicate(ctx context.Context, q *Query, pred *PredicateFilter) (*Result, error) {
+	if err := qe.ValidateQuery(q); err != nil {
+		return nil, err
+	}
+
+	if pred != nil && len(pred.TagMatch) > 0 {
+		if q.Tags == nil {
+			q.Tags = make(map[string]string)
+		}
+		for k, v := range pred.TagMatch {
+			q.Tags[k] = v
+		}
+	}
+
+	result, err := qe.db.ExecuteContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if pred == nil || (pred.MinValue == nil && pred.MaxValue == nil) {
+		return result, nil
+	}
+
+	filtered := make([]Point, 0, len(result.Points))
+	for _, p := range result.Points {
+		if pred.MinValue != nil && p.Value < *pred.MinValue {
+			continue
+		}
+		if pred.MaxValue != nil && p.Value > *pred.MaxValue {
+			continue
+		}
+		filtered = append(filtered, p)
+	}
+	return &Result{Points: filtered}, nil
+}
+
+// ExecuteAdaptive selects the best execution path based on data characteristics.
+func (qe *QueryEngine) ExecuteAdaptive(ctx context.Context, q *Query) (*Result, ExecutionPath, error) {
+	if err := qe.ValidateQuery(q); err != nil {
+		return nil, PathRowOriented, err
+	}
+
+	if q.Aggregation == nil {
+		result, err := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, err
+	}
+
+	cost := qe.EstimateQueryCost(q)
+	estimatedPoints := int(cost.EstimatedSeries) * cost.EstimatedPartitions
+
+	switch {
+	case estimatedPoints < 500:
+		result, err := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, err
+	case estimatedPoints < 50000:
+		return qe.ExecuteVectorized(ctx, q)
+	default:
+		return qe.executeParallelColumnar(ctx, q)
+	}
+}
+
+func (qe *QueryEngine) executeParallelColumnar(ctx context.Context, q *Query) (*Result, ExecutionPath, error) {
+	rawQ := &Query{
+		Metric: q.Metric,
+		Tags:   q.Tags,
+		Start:  q.Start,
+		End:    q.End,
+	}
+	rawResult, err := qe.db.ExecuteContext(ctx, rawQ)
+	if err != nil {
+		return nil, PathParallelScan, err
+	}
+	if len(rawResult.Points) == 0 {
+		return &Result{}, PathParallelScan, nil
+	}
+
+	values := make([]float64, len(rawResult.Points))
+	for i, p := range rawResult.Points {
+		values[i] = p.Value
+	}
+
+	var aggOp VectorAggOp
+	switch q.Aggregation.Function {
+	case AggSum:
+		aggOp = VectorSum
+	case AggMin:
+		aggOp = VectorMin
+	case AggMax:
+		aggOp = VectorMax
+	case AggMean:
+		aggOp = VectorAvg
+	case AggCount:
+		aggOp = VectorCount
+	default:
+		result, err := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, err
+	}
+
+	workers := len(values) / 100000
+	if workers < 2 {
+		workers = 2
+	}
+	if workers > 8 {
+		workers = 8
+	}
+
+	pe := NewParallelVectorizedExecutor(workers)
+	chunkSize := len(values) / workers
+	if chunkSize < 1000 {
+		chunkSize = 1000
+	}
+
+	var chunks [][]float64
+	for i := 0; i < len(values); i += chunkSize {
+		end := i + chunkSize
+		if end > len(values) {
+			end = len(values)
+		}
+		chunks = append(chunks, values[i:end])
+	}
+
+	aggVal, err := pe.ExecuteParallel(chunks, aggOp)
+	if err != nil {
+		return nil, PathParallelScan, err
+	}
+
+	ts := rawResult.Points[len(rawResult.Points)-1].Timestamp
+	return &Result{
+		Points: []Point{{
+			Metric:    q.Metric,
+			Value:     aggVal,
+			Timestamp: ts,
+		}},
+	}, PathParallelScan, nil
+}
