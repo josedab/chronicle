@@ -28,7 +28,7 @@ func (ui *AdminUI) handleAPISparkline(w http.ResponseWriter, r *http.Request) {
 
 	q, err := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", metric))
 	if err != nil {
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"metric": metric,
 			"values": []float64{},
 		})
@@ -39,7 +39,7 @@ func (ui *AdminUI) handleAPISparkline(w http.ResponseWriter, r *http.Request) {
 
 	result, err := ui.db.Execute(q)
 	if err != nil {
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"metric": metric,
 			"values": []float64{},
 		})
@@ -67,7 +67,7 @@ func (ui *AdminUI) handleAPISparkline(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"metric": metric,
 		"values": values,
 		"min":    minVal,

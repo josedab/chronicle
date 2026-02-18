@@ -194,11 +194,11 @@ type metricAnnotation struct {
 
 // logEntry represents a single log line
 type logEntry struct {
-	Timestamp time.Time              `json:"timestamp"`
-	Level     string                 `json:"level"` // "debug", "info", "warn", "error"
-	Message   string                 `json:"message"`
-	Source    string                 `json:"source,omitempty"`
-	Fields    map[string]interface{} `json:"fields,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
+	Level     string         `json:"level"` // "debug", "info", "warn", "error"
+	Message   string         `json:"message"`
+	Source    string         `json:"source,omitempty"`
+	Fields    map[string]any `json:"fields,omitempty"`
 }
 
 // userRole defines access control roles

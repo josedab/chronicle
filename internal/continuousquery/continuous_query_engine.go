@@ -347,7 +347,7 @@ func (e *ContinuousQueryEngine) runQuery(query *ContinuousQueryV2) {
 
 			record := &Record{
 				Key:       point.Metric,
-				Value:     make(map[string]interface{}),
+				Value:     make(map[string]any),
 				Timestamp: point.Timestamp,
 			}
 			record.Value["value"] = point.Value
@@ -451,7 +451,7 @@ func (e *ContinuousQueryEngine) updateView(viewName string, record *Record) {
 
 	if view.Data == nil {
 		view.Data = &ViewData{
-			Rows: make([]map[string]interface{}, 0),
+			Rows: make([]map[string]any, 0),
 		}
 	}
 
@@ -529,7 +529,7 @@ func (e *ContinuousQueryEngine) buildPlanFromSQL(sql string) *PlanNode {
 	scanNode := &PlanNode{
 		ID:         "scan-0",
 		Type:       PlanNodeScan,
-		Properties: make(map[string]interface{}),
+		Properties: make(map[string]any),
 	}
 	nodes = append(nodes, scanNode)
 
@@ -537,7 +537,7 @@ func (e *ContinuousQueryEngine) buildPlanFromSQL(sql string) *PlanNode {
 		filterNode := &PlanNode{
 			ID:         "filter-0",
 			Type:       PlanNodeFilter,
-			Properties: make(map[string]interface{}),
+			Properties: make(map[string]any),
 			Children:   []*PlanNode{nodes[len(nodes)-1]},
 		}
 		nodes = append(nodes, filterNode)
@@ -547,7 +547,7 @@ func (e *ContinuousQueryEngine) buildPlanFromSQL(sql string) *PlanNode {
 		windowNode := &PlanNode{
 			ID:         "window-0",
 			Type:       PlanNodeWindow,
-			Properties: make(map[string]interface{}),
+			Properties: make(map[string]any),
 			Children:   []*PlanNode{nodes[len(nodes)-1]},
 		}
 		nodes = append(nodes, windowNode)
@@ -557,7 +557,7 @@ func (e *ContinuousQueryEngine) buildPlanFromSQL(sql string) *PlanNode {
 		aggNode := &PlanNode{
 			ID:         "agg-0",
 			Type:       PlanNodeAggregate,
-			Properties: make(map[string]interface{}),
+			Properties: make(map[string]any),
 			Children:   []*PlanNode{nodes[len(nodes)-1]},
 		}
 		nodes = append(nodes, aggNode)
@@ -566,7 +566,7 @@ func (e *ContinuousQueryEngine) buildPlanFromSQL(sql string) *PlanNode {
 	projectNode := &PlanNode{
 		ID:         "project-0",
 		Type:       PlanNodeProject,
-		Properties: make(map[string]interface{}),
+		Properties: make(map[string]any),
 		Children:   []*PlanNode{nodes[len(nodes)-1]},
 	}
 	nodes = append(nodes, projectNode)
@@ -676,7 +676,7 @@ func (e *ContinuousQueryEngine) CreateMaterializedView(name, sql string, refresh
 		QueryID:     query.ID,
 		Created:     time.Now(),
 		Data: &ViewData{
-			Rows: make([]map[string]interface{}, 0),
+			Rows: make([]map[string]any, 0),
 		},
 	}
 
@@ -700,7 +700,7 @@ func (e *ContinuousQueryEngine) GetView(name string) (*MaterializedView, bool) {
 }
 
 // QueryView queries a materialized view.
-func (e *ContinuousQueryEngine) QueryView(name string, filter func(map[string]interface{}) bool) ([]map[string]interface{}, error) {
+func (e *ContinuousQueryEngine) QueryView(name string, filter func(map[string]any) bool) ([]map[string]any, error) {
 	e.viewMu.RLock()
 	view, ok := e.views[name]
 	e.viewMu.RUnlock()
@@ -720,7 +720,7 @@ func (e *ContinuousQueryEngine) QueryView(name string, filter func(map[string]in
 		return view.Data.Rows, nil
 	}
 
-	var result []map[string]interface{}
+	var result []map[string]any
 	for _, row := range view.Data.Rows {
 		if filter(row) {
 			result = append(result, row)

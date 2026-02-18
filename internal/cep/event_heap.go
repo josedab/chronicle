@@ -6,11 +6,11 @@ func (h eventHeap) Less(i, j int) bool { return h[i].EventTime < h[j].EventTime 
 
 func (h eventHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
-func (h *eventHeap) Push(x interface{}) {
+func (h *eventHeap) Push(x any) {
 	*h = append(*h, x.(windowedEvent))
 }
 
-func (h *eventHeap) Pop() interface{} {
+func (h *eventHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]

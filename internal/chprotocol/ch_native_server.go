@@ -45,7 +45,7 @@ func (s *CHNativeServer) Stop() error {
 		s.listener.Close()
 	}
 
-	s.sessions.Range(func(key, value interface{}) bool {
+	s.sessions.Range(func(key, value any) bool {
 		if session, ok := value.(*CHSession); ok {
 			session.Close()
 		}

@@ -76,7 +76,7 @@ type QueryParser interface {
 }
 
 // writeJSON encodes data as JSON and writes it to the response.
-func writeJSON(w http.ResponseWriter, data interface{}) {
+func writeJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		log.Printf("chronicle: failed to encode JSON response: %v", err)

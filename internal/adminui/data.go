@@ -36,7 +36,7 @@ func (ui *AdminUI) handleAPIMetricDetails(w http.ResponseWriter, r *http.Request
 	q, _ := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", metric))
 	result, _ := ui.db.Execute(q)
 
-	details := map[string]interface{}{
+	details := map[string]any{
 		"name":         metric,
 		"exists":       true,
 		"sample_count": len(result.Points),
@@ -89,7 +89,7 @@ func (ui *AdminUI) handleAPIDataPreview(w http.ResponseWriter, r *http.Request) 
 		points = points[:limit]
 	}
 
-	preview := map[string]interface{}{
+	preview := map[string]any{
 		"metric":   metric,
 		"total":    len(result.Points),
 		"returned": len(points),
@@ -190,7 +190,7 @@ func (ui *AdminUI) handleAPIDeleteMetric(w http.ResponseWriter, r *http.Request)
 	// This is a placeholder that logs the intent
 	ui.logActivity("DeleteMetric", metric)
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"status":  "acknowledged",
 		"message": "Metric deletion scheduled. Data will be removed during next compaction.",
 		"metric":  metric,
@@ -219,7 +219,7 @@ func (ui *AdminUI) handleAPITruncate(w http.ResponseWriter, r *http.Request) {
 
 	ui.logActivity("Truncate", fmt.Sprintf("metric=%s, before=%s", metric, before))
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"status":  "acknowledged",
 		"message": "Truncation scheduled. Data will be removed during next compaction.",
 		"metric":  metric,
@@ -273,7 +273,7 @@ func (ui *AdminUI) handleAPIInsert(w http.ResponseWriter, r *http.Request) {
 
 	ui.logActivity("Insert", fmt.Sprintf("%d points", len(points)))
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"status":   "ok",
 		"inserted": len(points),
 	})

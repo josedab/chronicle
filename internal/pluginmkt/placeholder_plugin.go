@@ -1,6 +1,6 @@
 package pluginmkt
 
-func (p *placeholderPlugin) Init(config map[string]interface{}) error {
+func (p *placeholderPlugin) Init(config map[string]any) error {
 	p.config = config
 	return nil
 }

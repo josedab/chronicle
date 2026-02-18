@@ -134,7 +134,7 @@ type AcceleratorDevice interface {
 	Allocate(size int64) (DeviceBuffer, error)
 
 	// Execute runs a kernel on the device
-	Execute(kernel AcceleratorKernel, args ...interface{}) error
+	Execute(kernel AcceleratorKernel, args ...any) error
 
 	// Sync waits for all pending operations
 	Sync() error
@@ -180,9 +180,9 @@ type HardwareAccelSDK struct {
 	fpgaPool *AcceleratorMemoryPool
 
 	// Kernels
-	compressionKernel   AcceleratorKernel
-	aggregationKernel   AcceleratorKernel
-	filterKernel        AcceleratorKernel
+	compressionKernel AcceleratorKernel
+	aggregationKernel AcceleratorKernel
+	filterKernel      AcceleratorKernel
 
 	// Stats
 	stats HardwareAccelStats
@@ -197,10 +197,10 @@ type HardwareAccelSDK struct {
 // HardwareAccelStats contains acceleration statistics.
 type HardwareAccelStats struct {
 	// Operations accelerated
-	GPUOperations    int64
-	FPGAOperations   int64
-	SIMDOperations   int64
-	CPUFallbacks     int64
+	GPUOperations  int64
+	FPGAOperations int64
+	SIMDOperations int64
+	CPUFallbacks   int64
 
 	// Data processed (bytes)
 	GPUBytesProcessed  int64
@@ -1291,7 +1291,7 @@ func (d *CPUDevice) MemoryAvailable() int64 { return 0 }
 func (d *CPUDevice) Allocate(size int64) (DeviceBuffer, error) {
 	return &CPUBuffer{data: make([]byte, size)}, nil
 }
-func (d *CPUDevice) Execute(kernel AcceleratorKernel, args ...interface{}) error {
+func (d *CPUDevice) Execute(kernel AcceleratorKernel, args ...any) error {
 	return nil // CPU execution is direct
 }
 func (d *CPUDevice) Sync() error  { return nil }
@@ -1302,7 +1302,7 @@ type CPUBuffer struct {
 	data []byte
 }
 
-func (b *CPUBuffer) Size() int64                   { return int64(len(b.data)) }
+func (b *CPUBuffer) Size() int64                    { return int64(len(b.data)) }
 func (b *CPUBuffer) CopyToDevice(data []byte) error { copy(b.data, data); return nil }
 func (b *CPUBuffer) CopyToHost() ([]byte, error)    { return b.data, nil }
 func (b *CPUBuffer) Free() error                    { b.data = nil; return nil }
@@ -1325,7 +1325,7 @@ func (d *SIMDDevice) Allocate(size int64) (DeviceBuffer, error) {
 	aligned := (size + int64(d.alignment-1)) &^ int64(d.alignment-1)
 	return &CPUBuffer{data: make([]byte, aligned)}, nil
 }
-func (d *SIMDDevice) Execute(kernel AcceleratorKernel, args ...interface{}) error {
+func (d *SIMDDevice) Execute(kernel AcceleratorKernel, args ...any) error {
 	return nil
 }
 func (d *SIMDDevice) Sync() error  { return nil }
@@ -1380,7 +1380,7 @@ func (d *GPUDevice) Allocate(size int64) (DeviceBuffer, error) {
 	}, nil
 }
 
-func (d *GPUDevice) Execute(kernel AcceleratorKernel, args ...interface{}) error {
+func (d *GPUDevice) Execute(kernel AcceleratorKernel, args ...any) error {
 	// Simulated execution - real impl would launch GPU kernel
 	return nil
 }
@@ -1468,7 +1468,7 @@ func (d *FPGADevice) Allocate(size int64) (DeviceBuffer, error) {
 	}, nil
 }
 
-func (d *FPGADevice) Execute(kernel AcceleratorKernel, args ...interface{}) error {
+func (d *FPGADevice) Execute(kernel AcceleratorKernel, args ...any) error {
 	// Execute on FPGA - real impl would interact with FPGA driver
 	return nil
 }
@@ -1528,9 +1528,9 @@ type AcceleratorMemoryPool struct {
 }
 
 type pooledBuffer struct {
-	buf    DeviceBuffer
-	inUse  bool
-	size   int64
+	buf   DeviceBuffer
+	inUse bool
+	size  int64
 }
 
 // NewAcceleratorMemoryPool creates a new memory pool.
@@ -1636,14 +1636,14 @@ func (p *BatchProcessor) ProcessBatch(points []chronicle.Point) ([]chronicle.Poi
 
 // AsyncOperation represents an asynchronous accelerated operation.
 type AsyncOperation struct {
-	id       string
-	done     chan struct{}
-	result   interface{}
-	err      error
+	id     string
+	done   chan struct{}
+	result any
+	err    error
 }
 
 // Wait waits for the operation to complete.
-func (op *AsyncOperation) Wait() (interface{}, error) {
+func (op *AsyncOperation) Wait() (any, error) {
 	<-op.done
 	return op.result, op.err
 }

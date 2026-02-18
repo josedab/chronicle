@@ -77,13 +77,13 @@ const (
 
 // PostgreSQL OID type constants for common types
 const (
-	PGTypeInt8    int32 = 20
-	PGTypeInt4    int32 = 23
-	PGTypeFloat8  int32 = 701
-	PGTypeVarchar int32 = 1043
-	PGTypeText    int32 = 25
+	PGTypeInt8      int32 = 20
+	PGTypeInt4      int32 = 23
+	PGTypeFloat8    int32 = 701
+	PGTypeVarchar   int32 = 1043
+	PGTypeText      int32 = 25
 	PGTypeTimestamp int32 = 1114
-	PGTypeBool    int32 = 16
+	PGTypeBool      int32 = 16
 )
 
 // PGWireConfig configures the PostgreSQL wire protocol server.
@@ -194,14 +194,14 @@ func newPGSession(server *PGServer, conn net.Conn) *PGSession {
 // PGQueryResult represents a query result.
 type PGQueryResult struct {
 	Columns  []PGColumn
-	Rows     [][]interface{}
+	Rows     [][]any
 	RowCount int
 	Tag      string // command tag like "SELECT 5"
 }
 
 // PGColumn represents a result column.
 type PGColumn struct {
-	Name   string
+	Name    string
 	TypeOID int32
 	TypeLen int16
 	TypeMod int32

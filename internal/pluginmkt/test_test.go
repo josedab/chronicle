@@ -104,10 +104,10 @@ func TestRegisterFactory(t *testing.T) {
 type testPlugin struct {
 	initialized bool
 	closed      bool
-	config      map[string]interface{}
+	config      map[string]any
 }
 
-func (p *testPlugin) Init(config map[string]interface{}) error {
+func (p *testPlugin) Init(config map[string]any) error {
 	p.initialized = true
 	p.config = config
 	return nil
@@ -171,7 +171,7 @@ func TestPluginConfig(t *testing.T) {
 	})
 
 	// Load with config
-	pluginConfig := map[string]interface{}{
+	pluginConfig := map[string]any{
 		"endpoint": "http://example.com",
 		"timeout":  30,
 		"enabled":  true,
@@ -346,7 +346,7 @@ func TestPluginSDK(t *testing.T) {
 	sdk := NewPluginSDK(meta)
 
 	// Test config methods
-	sdk.config = map[string]interface{}{
+	sdk.config = map[string]any{
 		"string_val": "hello",
 		"int_val":    float64(42), // JSON numbers come as float64
 		"bool_val":   true,
@@ -378,7 +378,7 @@ func TestPluginSDKLogging(t *testing.T) {
 	sdk := NewPluginSDK(MarketplacePluginInfo{ID: "test"})
 
 	var loggedLevel, loggedMsg string
-	sdk.SetLogger(func(level, msg string, args ...interface{}) {
+	sdk.SetLogger(func(level, msg string, args ...any) {
 		loggedLevel = level
 		loggedMsg = msg
 	})

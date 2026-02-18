@@ -125,8 +125,8 @@ type PatternAnalysis struct {
 	TrendChangePoint int64   `json:"trend_change_point,omitempty"`
 
 	// Seasonality analysis
-	SeasonalPeriod     int     `json:"seasonal_period,omitempty"`
-	SeasonalStrength   float64 `json:"seasonal_strength"`
+	SeasonalPeriod        int     `json:"seasonal_period,omitempty"`
+	SeasonalStrength      float64 `json:"seasonal_strength"`
 	ExpectedSeasonalValue float64 `json:"expected_seasonal_value,omitempty"`
 
 	// Volatility analysis
@@ -135,7 +135,7 @@ type PatternAnalysis struct {
 	VolatilityRatio    float64 `json:"volatility_ratio"`
 
 	// Duration analysis (for sustained anomalies)
-	Duration        time.Duration `json:"duration,omitempty"`
+	Duration         time.Duration `json:"duration,omitempty"`
 	ConsecutiveCount int           `json:"consecutive_count"`
 }
 
@@ -150,21 +150,21 @@ type Remediation struct {
 
 // AnomalyClassifier provides AI-powered anomaly classification.
 type AnomalyClassifier struct {
-	config       AnomalyClassifierConfig
-	detector     *AnomalyDetector
-	mu           sync.RWMutex
+	config   AnomalyClassifierConfig
+	detector *AnomalyDetector
+	mu       sync.RWMutex
 
 	// Historical data for pattern analysis
-	recentValues    []float64
+	recentValues     []float64
 	recentTimestamps []int64
-	maxHistory      int
+	maxHistory       int
 
 	// Baseline statistics
-	baselineMean   float64
-	baselineStd    float64
-	baselineMin    float64
-	baselineMax    float64
-	baselineTrend  float64
+	baselineMean  float64
+	baselineStd   float64
+	baselineMin   float64
+	baselineMax   float64
+	baselineTrend float64
 
 	// Seasonal decomposition
 	seasonalPattern []float64
@@ -233,13 +233,13 @@ func NewAnomalyClassifier(detector *AnomalyDetector, config AnomalyClassifierCon
 	}
 
 	return &AnomalyClassifier{
-		config:          config,
-		detector:        detector,
-		maxHistory:      1000,
-		recentValues:    make([]float64, 0, 1000),
+		config:           config,
+		detector:         detector,
+		maxHistory:       1000,
+		recentValues:     make([]float64, 0, 1000),
 		recentTimestamps: make([]int64, 0, 1000),
-		seasonalPeriod:  config.SeasonalPeriod,
-		recentAnomalies: make([]ClassifiedAnomaly, 0),
+		seasonalPeriod:   config.SeasonalPeriod,
+		recentAnomalies:  make([]ClassifiedAnomaly, 0),
 	}
 }
 
@@ -348,10 +348,10 @@ func (c *AnomalyClassifier) classifyType(anomaly *ClassifiedAnomaly, context []f
 
 	value := anomaly.Value
 	deviation := anomaly.Deviation
-	
+
 	// Calculate various features for classification
 	zScore := c.calculateZScore(value)
-	
+
 	var typeScores = make(map[AnomalyType]float64)
 
 	// Spike detection: sudden large positive deviation
@@ -519,7 +519,7 @@ func (c *AnomalyClassifier) detectVarianceChange(context []float64) float64 {
 
 	windowSize := c.config.DriftWindowSize / 2
 	recentStd := stdDevSingle(context[len(context)-windowSize:])
-	
+
 	ratio := recentStd / (c.baselineStd + 1e-10)
 	if ratio > 2.0 || ratio < 0.5 {
 		return sigmoid(math.Abs(math.Log(ratio)))

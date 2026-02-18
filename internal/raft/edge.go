@@ -184,8 +184,8 @@ func DefaultRaftEdgeConfig() RaftEdgeConfig {
 
 // RaftLatencyTracker tracks peer-to-peer latency for adaptive timeouts.
 type RaftLatencyTracker struct {
-	mu      sync.RWMutex
-	samples map[string][]time.Duration
+	mu         sync.RWMutex
+	samples    map[string][]time.Duration
 	maxSamples int
 }
 
@@ -312,10 +312,10 @@ func (lt *RaftLatencyTracker) AllPeers() map[string]time.Duration {
 
 // RaftClusterTopology provides a view of the cluster topology.
 type RaftClusterTopology struct {
-	Nodes   []RaftNodeInfo `json:"nodes"`
-	LeaderID string        `json:"leader_id"`
-	Term    uint64         `json:"term"`
-	Quorum  int            `json:"quorum"`
+	Nodes    []RaftNodeInfo `json:"nodes"`
+	LeaderID string         `json:"leader_id"`
+	Term     uint64         `json:"term"`
+	Quorum   int            `json:"quorum"`
 }
 
 // RaftNodeInfo describes a node in the cluster.

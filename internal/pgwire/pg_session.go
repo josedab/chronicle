@@ -127,12 +127,12 @@ func (sess *PGSession) writeRowDescription(columns []PGColumn) {
 
 	for _, col := range columns {
 		buf = appendString(buf, col.Name)
-		buf = appendInt32(buf, 0)          // table OID
-		buf = appendInt16(buf, 0)          // column attribute number
+		buf = appendInt32(buf, 0)           // table OID
+		buf = appendInt16(buf, 0)           // column attribute number
 		buf = appendInt32(buf, col.TypeOID) // type OID
 		buf = appendInt16(buf, col.TypeLen) // type size
 		buf = appendInt32(buf, col.TypeMod) // type modifier
-		buf = appendInt16(buf, 0)          // format (0=text)
+		buf = appendInt16(buf, 0)           // format (0=text)
 	}
 
 	sess.writeMessage(PGMsgRowDescription, buf)
@@ -347,7 +347,7 @@ func splitStatements(query string) []string {
 	return stmts
 }
 
-func formatValue(v interface{}) string {
+func formatValue(v any) string {
 	if v == nil {
 		return ""
 	}

@@ -26,7 +26,7 @@ func (a *AzureDigitalTwinsAdapter) PushUpdate(ctx context.Context, update *TwinU
 func (a *AzureDigitalTwinsAdapter) PushBatch(ctx context.Context, updates []*TwinUpdate) error {
 	for _, update := range updates {
 
-		patch := []map[string]interface{}{
+		patch := []map[string]any{
 			{
 				"op":    "replace",
 				"path":  "/" + update.Property,
@@ -65,7 +65,7 @@ func (a *AzureDigitalTwinsAdapter) PullUpdates(ctx context.Context, since time.T
 	return nil, nil
 }
 
-func (a *AzureDigitalTwinsAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]interface{}, error) {
+func (a *AzureDigitalTwinsAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]any, error) {
 	url := fmt.Sprintf("%s/digitaltwins/%s?api-version=2022-05-31", a.conn.Endpoint, twinID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -87,7 +87,7 @@ func (a *AzureDigitalTwinsAdapter) GetTwinState(ctx context.Context, twinID stri
 		return nil, fmt.Errorf("azure API error: %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}

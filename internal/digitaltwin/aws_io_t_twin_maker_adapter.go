@@ -26,12 +26,12 @@ func (a *AWSIoTTwinMakerAdapter) PushBatch(ctx context.Context, updates []*TwinU
 	for _, update := range updates {
 		workspaceID := a.conn.Config["workspace_id"]
 
-		payload := map[string]interface{}{
+		payload := map[string]any{
 			"entityId":      update.TwinID,
 			"componentName": update.Component,
-			"propertyValues": map[string]interface{}{
-				update.Property: map[string]interface{}{
-					"value": map[string]interface{}{
+			"propertyValues": map[string]any{
+				update.Property: map[string]any{
+					"value": map[string]any{
 						"doubleValue": update.Value,
 					},
 					"time": update.Timestamp.Format(time.RFC3339),
@@ -66,7 +66,7 @@ func (a *AWSIoTTwinMakerAdapter) PullUpdates(ctx context.Context, since time.Tim
 	return nil, nil
 }
 
-func (a *AWSIoTTwinMakerAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]interface{}, error) {
+func (a *AWSIoTTwinMakerAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]any, error) {
 	return nil, nil
 }
 

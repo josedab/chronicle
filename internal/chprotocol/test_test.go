@@ -353,7 +353,7 @@ func TestParseSelectWithTime(t *testing.T) {
 func TestTypeConversions(t *testing.T) {
 	// Test toUint64
 	tests := []struct {
-		input    interface{}
+		input    any
 		expected uint64
 	}{
 		{uint64(100), 100},
@@ -375,7 +375,7 @@ func TestTypeConversions(t *testing.T) {
 
 	// Test toInt64
 	i64Tests := []struct {
-		input    interface{}
+		input    any
 		expected int64
 	}{
 		{int64(-100), -100},
@@ -396,7 +396,7 @@ func TestTypeConversions(t *testing.T) {
 
 	// Test toFloat64
 	f64Tests := []struct {
-		input    interface{}
+		input    any
 		expected float64
 	}{
 		{float64(1.5), 1.5},

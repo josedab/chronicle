@@ -7,21 +7,21 @@ import (
 
 func TestEncodeDecodeGorilla(t *testing.T) {
 	values := []float64{10.5, 10.6, 10.7, 10.8, 10.9, 11.0}
-	
+
 	encoded := EncodeGorilla(values)
 	if len(encoded) == 0 {
 		t.Fatal("encoded data is empty")
 	}
-	
+
 	decoded, err := DecodeGorilla(encoded)
 	if err != nil {
 		t.Fatalf("DecodeGorilla failed: %v", err)
 	}
-	
+
 	if len(decoded) != len(values) {
 		t.Fatalf("decoded length %d != original length %d", len(decoded), len(values))
 	}
-	
+
 	for i, v := range values {
 		if decoded[i] != v {
 			t.Errorf("value[%d]: got %f, want %f", i, decoded[i], v)
@@ -31,21 +31,21 @@ func TestEncodeDecodeGorilla(t *testing.T) {
 
 func TestEncodeDecodeDelta(t *testing.T) {
 	values := []int64{1000, 1010, 1020, 1030, 1040, 1050}
-	
+
 	encoded := EncodeDelta(values)
 	if len(encoded) == 0 {
 		t.Fatal("encoded data is empty")
 	}
-	
+
 	decoded, err := DecodeDelta(encoded)
 	if err != nil {
 		t.Fatalf("DecodeDelta failed: %v", err)
 	}
-	
+
 	if len(decoded) != len(values) {
 		t.Fatalf("decoded length %d != original length %d", len(decoded), len(values))
 	}
-	
+
 	for i, v := range values {
 		if decoded[i] != v {
 			t.Errorf("value[%d]: got %d, want %d", i, decoded[i], v)
@@ -55,17 +55,17 @@ func TestEncodeDecodeDelta(t *testing.T) {
 
 func TestEncodeDecodeRawInt64(t *testing.T) {
 	values := []int64{100, 200, 300, -100, -200}
-	
+
 	encoded := EncodeRawInt64(values)
 	decoded, err := DecodeRawInt64(encoded)
 	if err != nil {
 		t.Fatalf("DecodeRawInt64 failed: %v", err)
 	}
-	
+
 	if len(decoded) != len(values) {
 		t.Fatalf("length mismatch: got %d, want %d", len(decoded), len(values))
 	}
-	
+
 	for i, v := range values {
 		if decoded[i] != v {
 			t.Errorf("value[%d]: got %d, want %d", i, decoded[i], v)
@@ -75,17 +75,17 @@ func TestEncodeDecodeRawInt64(t *testing.T) {
 
 func TestEncodeDecodeRawFloat64(t *testing.T) {
 	values := []float64{1.1, 2.2, 3.3, -4.4, -5.5}
-	
+
 	encoded := EncodeRawFloat64(values)
 	decoded, err := DecodeRawFloat64(encoded)
 	if err != nil {
 		t.Fatalf("DecodeRawFloat64 failed: %v", err)
 	}
-	
+
 	if len(decoded) != len(values) {
 		t.Fatalf("length mismatch: got %d, want %d", len(decoded), len(values))
 	}
-	
+
 	for i, v := range values {
 		if decoded[i] != v {
 			t.Errorf("value[%d]: got %f, want %f", i, decoded[i], v)
@@ -95,12 +95,12 @@ func TestEncodeDecodeRawFloat64(t *testing.T) {
 
 func TestStringDictionary(t *testing.T) {
 	dict := NewStringDictionary()
-	
+
 	// Add values
 	idx1 := dict.Add("hello")
 	idx2 := dict.Add("world")
 	idx3 := dict.Add("hello") // duplicate
-	
+
 	if idx1 == 0 {
 		t.Error("first index should not be 0")
 	}
@@ -110,7 +110,7 @@ func TestStringDictionary(t *testing.T) {
 	if idx3 != idx1 {
 		t.Error("same string should return same index")
 	}
-	
+
 	// Empty string
 	idx0 := dict.Add("")
 	if idx0 != 0 {
@@ -130,7 +130,7 @@ func TestMinMaxInt64(t *testing.T) {
 		{"negative", []int64{-5, -3, -8, -1}, -8, -1},
 		{"empty", []int64{}, 0, 0},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			min, max := MinMaxInt64(tt.values)

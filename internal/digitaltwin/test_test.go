@@ -312,7 +312,7 @@ func TestPushMetricWithTransform(t *testing.T) {
 		Enabled:         true,
 		Transform: &PropertyTransform{
 			Type: "scale_offset",
-			Parameters: map[string]interface{}{
+			Parameters: map[string]any{
 				"factor": 1.8,
 				"offset": 32.0,
 			},
@@ -336,19 +336,19 @@ func TestTransformFunctions(t *testing.T) {
 	}{
 		{
 			name:      "scale",
-			transform: &PropertyTransform{Type: "scale", Parameters: map[string]interface{}{"factor": 2.0}},
+			transform: &PropertyTransform{Type: "scale", Parameters: map[string]any{"factor": 2.0}},
 			input:     10.0,
 			expected:  20.0,
 		},
 		{
 			name:      "offset",
-			transform: &PropertyTransform{Type: "offset", Parameters: map[string]interface{}{"offset": 5.0}},
+			transform: &PropertyTransform{Type: "offset", Parameters: map[string]any{"offset": 5.0}},
 			input:     10.0,
 			expected:  15.0,
 		},
 		{
 			name:      "scale_offset",
-			transform: &PropertyTransform{Type: "scale_offset", Parameters: map[string]interface{}{"factor": 2.0, "offset": 5.0}},
+			transform: &PropertyTransform{Type: "scale_offset", Parameters: map[string]any{"factor": 2.0, "offset": 5.0}},
 			input:     10.0,
 			expected:  25.0, // (10 * 2) + 5
 		},
@@ -373,19 +373,19 @@ func TestReverseTransform(t *testing.T) {
 	}{
 		{
 			name:      "scale",
-			transform: &PropertyTransform{Type: "scale", Parameters: map[string]interface{}{"factor": 2.0}},
+			transform: &PropertyTransform{Type: "scale", Parameters: map[string]any{"factor": 2.0}},
 			input:     20.0,
 			expected:  10.0,
 		},
 		{
 			name:      "offset",
-			transform: &PropertyTransform{Type: "offset", Parameters: map[string]interface{}{"offset": 5.0}},
+			transform: &PropertyTransform{Type: "offset", Parameters: map[string]any{"offset": 5.0}},
 			input:     15.0,
 			expected:  10.0,
 		},
 		{
 			name:      "scale_offset",
-			transform: &PropertyTransform{Type: "scale_offset", Parameters: map[string]interface{}{"factor": 2.0, "offset": 5.0}},
+			transform: &PropertyTransform{Type: "scale_offset", Parameters: map[string]any{"factor": 2.0, "offset": 5.0}},
 			input:     25.0,
 			expected:  10.0, // (25 - 5) / 2
 		},

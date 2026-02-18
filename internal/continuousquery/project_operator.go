@@ -12,7 +12,7 @@ func (o *ProjectOperator) Process(record *Record) ([]*Record, error) {
 	projected := &Record{
 		Key:       record.Key,
 		Timestamp: record.Timestamp,
-		Value:     make(map[string]interface{}),
+		Value:     make(map[string]any),
 	}
 
 	for _, f := range o.fields {

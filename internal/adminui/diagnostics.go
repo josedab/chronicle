@@ -20,22 +20,22 @@ func (ui *AdminUI) handleAPIDiagnostics(w http.ResponseWriter, r *http.Request) 
 		diskUsage = fileInfo.Size()
 	}
 
-	diagnostics := map[string]interface{}{
-		"system": map[string]interface{}{
+	diagnostics := map[string]any{
+		"system": map[string]any{
 			"go_version":   runtime.Version(),
 			"os":           runtime.GOOS,
 			"arch":         runtime.GOARCH,
 			"num_cpu":      runtime.NumCPU(),
 			"num_cgo_call": runtime.NumCgoCall(),
 		},
-		"runtime": map[string]interface{}{
+		"runtime": map[string]any{
 			"goroutines":      runtime.NumGoroutine(),
 			"gc_pause_total":  time.Duration(memStats.PauseTotalNs).String(),
 			"gc_num":          memStats.NumGC,
 			"gc_last":         time.Unix(0, int64(memStats.LastGC)).Format(time.RFC3339),
 			"gc_cpu_fraction": fmt.Sprintf("%.4f%%", memStats.GCCPUFraction*100),
 		},
-		"memory": map[string]interface{}{
+		"memory": map[string]any{
 			"alloc":         formatBytes(memStats.Alloc),
 			"total_alloc":   formatBytes(memStats.TotalAlloc),
 			"sys":           formatBytes(memStats.Sys),
@@ -48,7 +48,7 @@ func (ui *AdminUI) handleAPIDiagnostics(w http.ResponseWriter, r *http.Request) 
 			"stack_inuse":   formatBytes(memStats.StackInuse),
 			"stack_sys":     formatBytes(memStats.StackSys),
 		},
-		"database": map[string]interface{}{
+		"database": map[string]any{
 			"path":          info.Path,
 			"disk_usage":    formatBytes(uint64(diskUsage)),
 			"metrics_count": len(ui.db.Metrics()),

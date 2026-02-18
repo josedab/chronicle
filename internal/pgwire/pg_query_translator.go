@@ -64,7 +64,7 @@ func (t *PGQueryTranslator) executeSelect(stmt string) (*PGQueryResult, error) {
 	pgCols := buildPGColumns(colNames)
 
 	// Build rows
-	rows := make([][]interface{}, 0, len(result.Points))
+	rows := make([][]any, 0, len(result.Points))
 	for _, p := range result.Points {
 		row := buildRow(colNames, p)
 		rows = append(rows, row)
@@ -85,9 +85,9 @@ func (t *PGQueryTranslator) handleSpecialSelect(stmt string) (*PGQueryResult, er
 	if strings.Contains(upper, "FROM METRICS") || strings.Contains(upper, "FROM TABLES") || strings.Contains(upper, "FROM PG_TABLES") {
 		metrics := t.db.Metrics()
 		cols := []PGColumn{{Name: "metric_name", TypeOID: PGTypeText, TypeLen: -1, TypeMod: -1}}
-		rows := make([][]interface{}, len(metrics))
+		rows := make([][]any, len(metrics))
 		for i, m := range metrics {
-			rows[i] = []interface{}{m}
+			rows[i] = []any{m}
 		}
 		return &PGQueryResult{
 			Columns:  cols,
@@ -220,8 +220,8 @@ func buildPGColumns(names []string) []PGColumn {
 	return cols
 }
 
-func buildRow(colNames []string, p Point) []interface{} {
-	row := make([]interface{}, len(colNames))
+func buildRow(colNames []string, p Point) []any {
+	row := make([]any, len(colNames))
 	for i, col := range colNames {
 		col = strings.Trim(strings.TrimSpace(col), `"`)
 		switch strings.ToLower(col) {

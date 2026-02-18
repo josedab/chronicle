@@ -174,16 +174,16 @@ func TestRaftReadConsistency_String(t *testing.T) {
 
 func TestRaftHealthStatus_Fields(t *testing.T) {
 	status := RaftHealthStatus{
-		NodeID:       "n1",
-		Role:         "LEADER",
-		Term:         5,
-		CommitIndex:  100,
-		LastApplied:  100,
-		LeaderID:     "n1",
-		PeerCount:    2,
-		Healthy:      true,
-		Uptime:       time.Minute,
-		LastContact:  time.Now(),
+		NodeID:      "n1",
+		Role:        "LEADER",
+		Term:        5,
+		CommitIndex: 100,
+		LastApplied: 100,
+		LeaderID:    "n1",
+		PeerCount:   2,
+		Healthy:     true,
+		Uptime:      time.Minute,
+		LastContact: time.Now(),
 	}
 
 	if !status.Healthy {

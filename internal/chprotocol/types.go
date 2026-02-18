@@ -179,7 +179,7 @@ func newCHSession(server *CHNativeServer, conn net.Conn) *CHSession {
 // CHQueryResult represents a query result
 type CHQueryResult struct {
 	Columns  []CHColumn
-	Rows     [][]interface{}
+	Rows     [][]any
 	RowCount int
 }
 
@@ -208,7 +208,7 @@ type parsedSelect struct {
 }
 
 // Conversion helpers
-func toUint64(v interface{}) (uint64, error) {
+func toUint64(v any) (uint64, error) {
 	switch val := v.(type) {
 	case uint64:
 		return val, nil
@@ -233,7 +233,7 @@ func toUint64(v interface{}) (uint64, error) {
 	}
 }
 
-func toInt64(v interface{}) (int64, error) {
+func toInt64(v any) (int64, error) {
 	switch val := v.(type) {
 	case int64:
 		return val, nil
@@ -258,7 +258,7 @@ func toInt64(v interface{}) (int64, error) {
 	}
 }
 
-func toFloat64(v interface{}) (float64, error) {
+func toFloat64(v any) (float64, error) {
 	switch val := v.(type) {
 	case float64:
 		return val, nil

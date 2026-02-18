@@ -38,7 +38,7 @@ func (s *PGServer) Stop() error {
 		_ = s.listener.Close()
 	}
 
-	s.sessions.Range(func(key, val interface{}) bool {
+	s.sessions.Range(func(key, val any) bool {
 		if sess, ok := val.(*PGSession); ok {
 			sess.cancel()
 			_ = sess.conn.Close()

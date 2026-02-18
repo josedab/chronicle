@@ -35,7 +35,7 @@ func (ui *AdminUI) handleAPICompare(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	results := make(map[string]interface{})
+	results := make(map[string]any)
 	for _, metric := range metricNames {
 		metric = strings.TrimSpace(metric)
 		if metric == "" {
@@ -44,7 +44,7 @@ func (ui *AdminUI) handleAPICompare(w http.ResponseWriter, r *http.Request) {
 
 		q, err := ui.db.ParseQuery(fmt.Sprintf("SELECT mean(value) FROM %s", metric))
 		if err != nil {
-			results[metric] = map[string]interface{}{
+			results[metric] = map[string]any{
 				"error": err.Error(),
 			}
 			continue
@@ -54,19 +54,19 @@ func (ui *AdminUI) handleAPICompare(w http.ResponseWriter, r *http.Request) {
 
 		result, err := ui.db.Execute(q)
 		if err != nil {
-			results[metric] = map[string]interface{}{
+			results[metric] = map[string]any{
 				"error": err.Error(),
 			}
 			continue
 		}
 
-		points := make([]map[string]interface{}, 0)
+		points := make([]map[string]any, 0)
 		var minVal, maxVal, sum float64
 		if result != nil && len(result.Points) > 0 {
 			minVal = result.Points[0].Value
 			maxVal = result.Points[0].Value
 			for _, p := range result.Points {
-				points = append(points, map[string]interface{}{
+				points = append(points, map[string]any{
 					"timestamp": p.Timestamp,
 					"value":     p.Value,
 				})
@@ -85,7 +85,7 @@ func (ui *AdminUI) handleAPICompare(w http.ResponseWriter, r *http.Request) {
 			meanVal = sum / float64(len(result.Points))
 		}
 
-		results[metric] = map[string]interface{}{
+		results[metric] = map[string]any{
 			"points": points,
 			"min":    minVal,
 			"max":    maxVal,
@@ -93,7 +93,7 @@ func (ui *AdminUI) handleAPICompare(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"metrics":    metricNames,
 		"start":      start.Format(time.RFC3339),
 		"end":        end.Format(time.RFC3339),

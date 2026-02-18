@@ -264,7 +264,7 @@ func TestContinuousQueryEngine_Operators(t *testing.T) {
 
 		record := &Record{
 			Key:       "test",
-			Value:     map[string]interface{}{"value": 42.0},
+			Value:     map[string]any{"value": 42.0},
 			Timestamp: time.Now().UnixNano(),
 		}
 
@@ -297,14 +297,14 @@ func TestContinuousQueryEngine_Operators(t *testing.T) {
 		defer op.Close()
 
 		// Should pass
-		record1 := &Record{Value: map[string]interface{}{"value": 60.0}}
+		record1 := &Record{Value: map[string]any{"value": 60.0}}
 		results, _ := op.Process(record1)
 		if len(results) != 1 {
 			t.Error("Expected record to pass filter")
 		}
 
 		// Should filter out
-		record2 := &Record{Value: map[string]interface{}{"value": 40.0}}
+		record2 := &Record{Value: map[string]any{"value": 40.0}}
 		results, _ = op.Process(record2)
 		if len(results) != 0 {
 			t.Error("Expected record to be filtered out")
@@ -320,7 +320,7 @@ func TestContinuousQueryEngine_Operators(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			record := &Record{
 				Key:   "metric",
-				Value: map[string]interface{}{"value": float64(i * 10)},
+				Value: map[string]any{"value": float64(i * 10)},
 			}
 			op.Process(record)
 		}
@@ -361,7 +361,7 @@ func TestContinuousQueryEngine_Operators(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			record := &Record{
 				Key:       "metric",
-				Value:     map[string]interface{}{"value": float64(i)},
+				Value:     map[string]any{"value": float64(i)},
 				Timestamp: now + int64(i*1000),
 			}
 			op.Process(record)
@@ -424,9 +424,9 @@ func TestContinuousQueryEngine_MaterializedView(t *testing.T) {
 		view, _ := engine.GetView("query_test")
 		view.mu.Lock()
 		view.Data.Rows = append(view.Data.Rows,
-			map[string]interface{}{"value": 10.0},
-			map[string]interface{}{"value": 20.0},
-			map[string]interface{}{"value": 30.0},
+			map[string]any{"value": 10.0},
+			map[string]any{"value": 20.0},
+			map[string]any{"value": 30.0},
 		)
 		view.mu.Unlock()
 
@@ -441,7 +441,7 @@ func TestContinuousQueryEngine_MaterializedView(t *testing.T) {
 		}
 
 		// Query with filter
-		rows, err = engine.QueryView("query_test", func(row map[string]interface{}) bool {
+		rows, err = engine.QueryView("query_test", func(row map[string]any) bool {
 			if v, ok := row["value"].(float64); ok {
 				return v > 15
 			}
@@ -706,7 +706,7 @@ func TestOperatorState(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			op.Process(&Record{
 				Key:   "metric",
-				Value: map[string]interface{}{"value": float64(i * 10)},
+				Value: map[string]any{"value": float64(i * 10)},
 			})
 		}
 
@@ -737,7 +737,7 @@ func TestOperatorState(t *testing.T) {
 		op.Process(&Record{
 			Key:       "metric",
 			Timestamp: now,
-			Value:     map[string]interface{}{"value": 42.0},
+			Value:     map[string]any{"value": 42.0},
 		})
 
 		// Save state
@@ -766,7 +766,7 @@ func BenchmarkContinuousQuery_Process(b *testing.B) {
 
 	record := &Record{
 		Key:       "metric",
-		Value:     map[string]interface{}{"value": 42.0},
+		Value:     map[string]any{"value": 42.0},
 		Timestamp: time.Now().UnixNano(),
 	}
 
@@ -784,7 +784,7 @@ func BenchmarkContinuousQuery_Aggregation(b *testing.B) {
 
 	record := &Record{
 		Key:       "metric",
-		Value:     map[string]interface{}{"value": 42.0},
+		Value:     map[string]any{"value": 42.0},
 		Timestamp: time.Now().UnixNano(),
 	}
 

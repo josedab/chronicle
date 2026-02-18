@@ -87,7 +87,7 @@ type EventPattern struct {
 	Sequence    []PatternStep
 	WithinTime  time.Duration
 	Condition   string
-	OnMatch     func(events []chronicle.Point, context map[string]interface{})
+	OnMatch     func(events []chronicle.Point, context map[string]any)
 	PartitionBy []string
 }
 
@@ -207,7 +207,7 @@ type CEPSelectItem struct {
 type CEPCondition struct {
 	Field    string
 	Operator string
-	Value    interface{}
+	Value    any
 	And      *CEPCondition
 	Or       *CEPCondition
 }
@@ -230,15 +230,15 @@ type CEPEmitSpec struct {
 
 // CEPResult is the output of a CEP computation.
 type CEPResult struct {
-	QueryID       string                 `json:"query_id"`
-	PatternID     string                 `json:"pattern_id,omitempty"`
-	WindowStart   int64                  `json:"window_start"`
-	WindowEnd     int64                  `json:"window_end"`
-	Timestamp     int64                  `json:"timestamp"`
-	Values        map[string]float64     `json:"values"`
-	GroupKey      map[string]string      `json:"group_key,omitempty"`
-	MatchedEvents []chronicle.Point                `json:"matched_events,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	QueryID       string             `json:"query_id"`
+	PatternID     string             `json:"pattern_id,omitempty"`
+	WindowStart   int64              `json:"window_start"`
+	WindowEnd     int64              `json:"window_end"`
+	Timestamp     int64              `json:"timestamp"`
+	Values        map[string]float64 `json:"values"`
+	GroupKey      map[string]string  `json:"group_key,omitempty"`
+	MatchedEvents []chronicle.Point  `json:"matched_events,omitempty"`
+	Metadata      map[string]any     `json:"metadata,omitempty"`
 }
 
 // CEPStateStore manages state for CEP operations.

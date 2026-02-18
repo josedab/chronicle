@@ -62,7 +62,7 @@ func (a *EclipseDittoAdapter) PullUpdates(ctx context.Context, since time.Time) 
 	return nil, nil
 }
 
-func (a *EclipseDittoAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]interface{}, error) {
+func (a *EclipseDittoAdapter) GetTwinState(ctx context.Context, twinID string) (map[string]any, error) {
 	url := fmt.Sprintf("%s/api/2/things/%s", a.conn.Endpoint, twinID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -84,7 +84,7 @@ func (a *EclipseDittoAdapter) GetTwinState(ctx context.Context, twinID string) (
 		return nil, fmt.Errorf("Ditto API error: %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (a *EclipseDittoAdapter) ListTwins(ctx context.Context) ([]string, error) {
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-	var things []map[string]interface{}
+	var things []map[string]any
 	json.Unmarshal(body, &things)
 
 	ids := make([]string, 0, len(things))

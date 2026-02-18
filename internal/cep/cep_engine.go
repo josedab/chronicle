@@ -407,7 +407,7 @@ func (e *CEPEngine) computeWindowResult(w *CEPWindow, pane *WindowPane) *CEPResu
 		WindowEnd:   pane.EndTime,
 		Timestamp:   time.Now().UnixNano(),
 		Values:      make(map[string]float64),
-		Metadata:    make(map[string]interface{}),
+		Metadata:    make(map[string]any),
 	}
 
 	for k, v := range pane.State {
@@ -499,7 +499,7 @@ func (e *CEPEngine) emitPatternMatch(pattern *EventPattern, events []chronicle.P
 		Timestamp:     time.Now().UnixNano(),
 		MatchedEvents: events,
 		Values:        make(map[string]float64),
-		Metadata:      make(map[string]interface{}),
+		Metadata:      make(map[string]any),
 	}
 
 	if len(events) > 0 {
@@ -566,10 +566,10 @@ func (e *CEPEngine) checkpointLoop() {
 func (e *CEPEngine) checkpoint() {
 
 	e.windowsMu.RLock()
-	windowState := make(map[string]interface{})
+	windowState := make(map[string]any)
 	for id, w := range e.windows {
 		w.bufferMu.RLock()
-		windowState[id] = map[string]interface{}{
+		windowState[id] = map[string]any{
 			"pane_count":  len(w.panes),
 			"buffer_size": len(w.buffer),
 		}

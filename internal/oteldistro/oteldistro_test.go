@@ -113,7 +113,7 @@ func TestBatchDistroProcessor(t *testing.T) {
 	metrics := &Metrics{
 		ResourceMetrics: []ResourceMetrics{
 			{
-				Resource: Resource{Attributes: map[string]interface{}{"service": "test"}},
+				Resource: Resource{Attributes: map[string]any{"service": "test"}},
 				ScopeMetrics: []ScopeMetrics{
 					{
 						Scope: InstrumentationScope{Name: "test-scope"},
@@ -153,7 +153,7 @@ func TestAttributesDistroProcessor(t *testing.T) {
 	metrics := &Metrics{
 		ResourceMetrics: []ResourceMetrics{
 			{
-				Resource: Resource{Attributes: map[string]interface{}{
+				Resource: Resource{Attributes: map[string]any{
 					"service": "test",
 					"debug":   "true",
 				}},
@@ -234,7 +234,7 @@ func TestChronicleDistroExporter(t *testing.T) {
 	metrics := &Metrics{
 		ResourceMetrics: []ResourceMetrics{
 			{
-				Resource: Resource{Attributes: map[string]interface{}{"host": "server1"}},
+				Resource: Resource{Attributes: map[string]any{"host": "server1"}},
 				ScopeMetrics: []ScopeMetrics{
 					{
 						Metrics: []Metric{
@@ -482,7 +482,7 @@ func TestPipelineProcessing(t *testing.T) {
 	metrics := &Metrics{
 		ResourceMetrics: []ResourceMetrics{
 			{
-				Resource: Resource{Attributes: map[string]interface{}{"service": "test"}},
+				Resource: Resource{Attributes: map[string]any{"service": "test"}},
 				ScopeMetrics: []ScopeMetrics{
 					{
 						Metrics: []Metric{{Name: "test_metric"}},
@@ -598,7 +598,7 @@ func BenchmarkDistroMetricProcessing(b *testing.B) {
 	metrics := &Metrics{
 		ResourceMetrics: []ResourceMetrics{
 			{
-				Resource: Resource{Attributes: map[string]interface{}{"service": "bench"}},
+				Resource: Resource{Attributes: map[string]any{"service": "bench"}},
 				ScopeMetrics: []ScopeMetrics{
 					{
 						Metrics: []Metric{{Name: "bench_metric"}},

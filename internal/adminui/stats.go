@@ -15,7 +15,7 @@ func (ui *AdminUI) handleAPIStats(w http.ResponseWriter, r *http.Request) {
 
 	info := ui.db.Info()
 
-	stats := map[string]interface{}{
+	stats := map[string]any{
 		"uptime":          time.Since(ui.startTime).Seconds(),
 		"version":         "1.0.0",
 		"go_version":      runtime.Version(),
@@ -46,12 +46,12 @@ func (ui *AdminUI) handleAPIMetrics(w http.ResponseWriter, r *http.Request) {
 
 	search := strings.ToLower(r.URL.Query().Get("search"))
 
-	result := make([]map[string]interface{}, 0, len(metrics))
+	result := make([]map[string]any, 0, len(metrics))
 	for _, m := range metrics {
 		if search != "" && !strings.Contains(strings.ToLower(m), search) {
 			continue
 		}
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"name": m,
 		})
 	}
@@ -62,15 +62,15 @@ func (ui *AdminUI) handleAPIMetrics(w http.ResponseWriter, r *http.Request) {
 func (ui *AdminUI) handleAPISeries(w http.ResponseWriter, r *http.Request) {
 	metric := r.URL.Query().Get("metric")
 
-	var series []map[string]interface{}
+	var series []map[string]any
 
 	if metric != "" {
-		series = append(series, map[string]interface{}{
+		series = append(series, map[string]any{
 			"metric": metric,
 		})
 	} else {
 		for _, m := range ui.db.Metrics() {
-			series = append(series, map[string]interface{}{
+			series = append(series, map[string]any{
 				"metric": m,
 			})
 		}
@@ -110,7 +110,7 @@ func (ui *AdminUI) handleAPIQuery(w http.ResponseWriter, r *http.Request) {
 
 func (ui *AdminUI) handleAPIConfig(w http.ResponseWriter, r *http.Request) {
 	info := ui.db.Info()
-	config := map[string]interface{}{
+	config := map[string]any{
 		"path":               info.Path,
 		"partition_duration": info.PartitionDuration,
 		"buffer_size":        info.BufferSize,
@@ -123,10 +123,10 @@ func (ui *AdminUI) handleAPIConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ui *AdminUI) handleAPIHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
+	health := map[string]any{
 		"status": "healthy",
 		"uptime": time.Since(ui.startTime).Seconds(),
-		"checks": map[string]interface{}{
+		"checks": map[string]any{
 			"database":   "ok",
 			"memory":     "ok",
 			"goroutines": "ok",
@@ -136,19 +136,19 @@ func (ui *AdminUI) handleAPIHealth(w http.ResponseWriter, r *http.Request) {
 	// Check if database is responsive
 	if ui.db.IsClosed() {
 		health["status"] = "unhealthy"
-		health["checks"].(map[string]interface{})["database"] = "closed"
+		health["checks"].(map[string]any)["database"] = "closed"
 	}
 
 	// Check memory usage
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	if m.Alloc > 1<<30 { // > 1GB
-		health["checks"].(map[string]interface{})["memory"] = "warning"
+		health["checks"].(map[string]any)["memory"] = "warning"
 	}
 
 	// Check goroutine count
 	if runtime.NumGoroutine() > 10000 {
-		health["checks"].(map[string]interface{})["goroutines"] = "warning"
+		health["checks"].(map[string]any)["goroutines"] = "warning"
 	}
 
 	writeJSON(w, health)

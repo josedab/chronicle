@@ -53,7 +53,7 @@ func (b *PatternBuilder) PartitionBy(fields ...string) *PatternBuilder {
 }
 
 // OnMatch sets the callback for pattern matches.
-func (b *PatternBuilder) OnMatch(fn func(events []chronicle.Point, context map[string]interface{})) *PatternBuilder {
+func (b *PatternBuilder) OnMatch(fn func(events []chronicle.Point, context map[string]any)) *PatternBuilder {
 	b.pattern.OnMatch = fn
 	return b
 }

@@ -226,7 +226,7 @@ type PluginInstanceStats struct {
 // Plugin is the interface all plugins must implement
 type Plugin interface {
 	// Init initializes the plugin with configuration
-	Init(config map[string]interface{}) error
+	Init(config map[string]any) error
 
 	// Capabilities returns the plugin's capabilities
 	Capabilities() []PluginCapability
@@ -283,7 +283,7 @@ type QueryFunctionPlugin interface {
 	ReturnType() string
 
 	// Execute executes the function
-	Execute(args ...interface{}) (interface{}, error)
+	Execute(args ...any) (any, error)
 }
 
 // IntegrationPlugin is the interface for external integrations
@@ -300,10 +300,10 @@ type IntegrationPlugin interface {
 	IsConnected() bool
 
 	// Export exports data to external system
-	Export(ctx context.Context, data interface{}) error
+	Export(ctx context.Context, data any) error
 
 	// Import imports data from external system
-	Import(ctx context.Context, query interface{}) (interface{}, error)
+	Import(ctx context.Context, query any) (any, error)
 }
 
 // PluginFactory creates plugin instances
@@ -421,7 +421,7 @@ type PluginMarketplaceStats struct {
 
 type placeholderPlugin struct {
 	capabilities []PluginCapability
-	config       map[string]interface{}
+	config       map[string]any
 }
 
 func sortPlugins(plugins []MarketplacePluginInfo, sortBy string, desc bool) {
@@ -460,16 +460,16 @@ func compareVersions(v1, v2 string) int {
 // PluginSDK helps create Chronicle plugins
 type PluginSDK struct {
 	metadata MarketplacePluginInfo
-	config   map[string]interface{}
-	logger   func(level, msg string, args ...interface{})
+	config   map[string]any
+	logger   func(level, msg string, args ...any)
 }
 
 // NewPluginSDK creates a new plugin SDK instance
 func NewPluginSDK(metadata MarketplacePluginInfo) *PluginSDK {
 	return &PluginSDK{
 		metadata: metadata,
-		config:   make(map[string]interface{}),
-		logger:   func(level, msg string, args ...interface{}) {},
+		config:   make(map[string]any),
+		logger:   func(level, msg string, args ...any) {},
 	}
 }
 
@@ -484,12 +484,12 @@ type PluginManifest struct {
 
 // PluginConfigOption defines a configuration option
 type PluginConfigOption struct {
-	Name        string      `json:"name"`
-	Type        string      `json:"type"` // string, int, bool, float, []string
-	Required    bool        `json:"required"`
-	Default     interface{} `json:"default,omitempty"`
-	Description string      `json:"description"`
-	Validate    string      `json:"validate,omitempty"` // Validation regex or rule
+	Name        string `json:"name"`
+	Type        string `json:"type"` // string, int, bool, float, []string
+	Required    bool   `json:"required"`
+	Default     any    `json:"default,omitempty"`
+	Description string `json:"description"`
+	Validate    string `json:"validate,omitempty"` // Validation regex or rule
 }
 
 // ValidateManifest validates a plugin manifest
