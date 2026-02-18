@@ -40,55 +40,55 @@ func DefaultAdaptiveOptimizerConfig() AdaptiveOptimizerConfig {
 
 // QueryExecutionRecord stores statistics about a query execution.
 type QueryExecutionRecord struct {
-	QueryHash     string            `json:"query_hash"`
-	Metric        string            `json:"metric"`
-	Duration      time.Duration     `json:"duration"`
-	PointsScanned int64             `json:"points_scanned"`
-	PointsReturned int64            `json:"points_returned"`
-	PlanUsed      string            `json:"plan_used"`
-	Timestamp     time.Time         `json:"timestamp"`
-	Tags          map[string]string `json:"tags,omitempty"`
+	QueryHash      string            `json:"query_hash"`
+	Metric         string            `json:"metric"`
+	Duration       time.Duration     `json:"duration"`
+	PointsScanned  int64             `json:"points_scanned"`
+	PointsReturned int64             `json:"points_returned"`
+	PlanUsed       string            `json:"plan_used"`
+	Timestamp      time.Time         `json:"timestamp"`
+	Tags           map[string]string `json:"tags,omitempty"`
 }
 
 // IndexRecommendation suggests an index to improve query performance.
 type IndexRecommendation struct {
-	Metric          string        `json:"metric"`
-	TagKeys         []string      `json:"tag_keys"`
-	Reason          string        `json:"reason"`
-	EstimatedSpeedup float64      `json:"estimated_speedup"`
-	QueryCount      int           `json:"affected_query_count"`
-	Confidence      float64       `json:"confidence"`
-	CreatedAt       time.Time     `json:"created_at"`
+	Metric           string    `json:"metric"`
+	TagKeys          []string  `json:"tag_keys"`
+	Reason           string    `json:"reason"`
+	EstimatedSpeedup float64   `json:"estimated_speedup"`
+	QueryCount       int       `json:"affected_query_count"`
+	Confidence       float64   `json:"confidence"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // QueryPlanCandidate is a possible execution plan.
 type QueryPlanCandidate struct {
-	ID            string        `json:"id"`
-	Strategy      string        `json:"strategy"` // "full_scan", "index_scan", "partition_prune", "cached"
-	EstimatedCost float64       `json:"estimated_cost"`
-	ActualCost    float64       `json:"actual_cost"`
-	Confidence    float64       `json:"confidence"`
-	UsageCount    int64         `json:"usage_count"`
+	ID            string  `json:"id"`
+	Strategy      string  `json:"strategy"` // "full_scan", "index_scan", "partition_prune", "cached"
+	EstimatedCost float64 `json:"estimated_cost"`
+	ActualCost    float64 `json:"actual_cost"`
+	Confidence    float64 `json:"confidence"`
+	UsageCount    int64   `json:"usage_count"`
 }
 
 // CostModelMetrics tracks cost model accuracy.
 type CostModelMetrics struct {
-	TotalPredictions   int64   `json:"total_predictions"`
-	AccuratePredictions int64  `json:"accurate_predictions"`
-	MeanAbsoluteError  float64 `json:"mean_absolute_error"`
-	LastUpdated        time.Time `json:"last_updated"`
+	TotalPredictions    int64     `json:"total_predictions"`
+	AccuratePredictions int64     `json:"accurate_predictions"`
+	MeanAbsoluteError   float64   `json:"mean_absolute_error"`
+	LastUpdated         time.Time `json:"last_updated"`
 }
 
 // AdaptiveOptimizerStats contains optimizer statistics.
 type AdaptiveOptimizerStats struct {
-	TotalRecords        int64        `json:"total_records"`
-	UniqueQueries       int          `json:"unique_queries"`
-	PlanCacheEntries    int          `json:"plan_cache_entries"`
-	Recommendations     int          `json:"recommendations"`
+	TotalRecords        int64            `json:"total_records"`
+	UniqueQueries       int              `json:"unique_queries"`
+	PlanCacheEntries    int              `json:"plan_cache_entries"`
+	Recommendations     int              `json:"recommendations"`
 	CostModel           CostModelMetrics `json:"cost_model"`
-	AvgQueryDuration    time.Duration `json:"avg_query_duration"`
-	P95QueryDuration    time.Duration `json:"p95_query_duration"`
-	OptimizationSavings float64       `json:"optimization_savings_pct"`
+	AvgQueryDuration    time.Duration    `json:"avg_query_duration"`
+	P95QueryDuration    time.Duration    `json:"p95_query_duration"`
+	OptimizationSavings float64          `json:"optimization_savings_pct"`
 }
 
 // AdaptiveOptimizer is an ML-powered query optimizer that learns from execution history.

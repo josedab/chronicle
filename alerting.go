@@ -74,14 +74,14 @@ type AlertRule struct {
 
 // Alert represents an active or resolved alert.
 type Alert struct {
-	Rule        *AlertRule
-	State       AlertState
-	Value       float64
-	FiredAt     time.Time
-	ResolvedAt  time.Time
+	Rule         *AlertRule
+	State        AlertState
+	Value        float64
+	FiredAt      time.Time
+	ResolvedAt   time.Time
 	PendingSince time.Time
-	Labels      map[string]string
-	Annotations map[string]string
+	Labels       map[string]string
+	Annotations  map[string]string
 }
 
 // AlertNotification is sent to webhooks.

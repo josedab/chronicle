@@ -71,13 +71,13 @@ func DefaultAdaptiveCompressionV3Config() AdaptiveCompressionV3Config {
 
 // codecArm represents one arm in the multi-armed bandit (one codec).
 type codecArm struct {
-	codec      CodecType
+	codec       CodecType
 	totalReward float64
-	trialCount int
-	successes  float64 // For Thompson Sampling (Beta distribution)
-	failures   float64
-	lastReward float64
-	lastUsed   time.Time
+	trialCount  int
+	successes   float64 // For Thompson Sampling (Beta distribution)
+	failures    float64
+	lastReward  float64
+	lastUsed    time.Time
 }
 
 // ColumnBandit manages bandit-based codec selection for one column.

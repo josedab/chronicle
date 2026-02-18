@@ -626,7 +626,7 @@ func (e *DeclarativeAlertingEngine) route(alert *LoadedAlert) error {
 		case "webhook":
 			if r.Target != "" {
 				client := &http.Client{Timeout: 10 * time.Second}
-				payload, _ := json.Marshal(map[string]interface{}{
+				payload, _ := json.Marshal(map[string]any{
 					"alert":    alert.Definition.Metadata.Name,
 					"state":    alert.State,
 					"severity": alert.Definition.Spec.Severity,

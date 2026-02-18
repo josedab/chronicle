@@ -45,15 +45,15 @@ func TestCodecType(t *testing.T) {
 
 func TestDataCharacteristics(t *testing.T) {
 	chars := DataCharacteristics{
-		DataType:     "float64",
-		Entropy:      0.3,
-		Cardinality:  100,
-		Monotonicity: 0.9,
-		MeanDelta:    1.5,
+		DataType:      "float64",
+		Entropy:       0.3,
+		Cardinality:   100,
+		Monotonicity:  0.9,
+		MeanDelta:     1.5,
 		DeltaVariance: 0.1,
-		RepeatRatio:  0.1,
-		Range:        100.0,
-		BitsRequired: 8,
+		RepeatRatio:   0.1,
+		Range:         100.0,
+		BitsRequired:  8,
 	}
 
 	if chars.DataType != "float64" {
@@ -206,9 +206,9 @@ func TestCodecSelectionModel(t *testing.T) {
 	// Test with history - model uses weighted recency
 	// With equal recent data, the one with more recent high performance wins
 	history := []CodecPerformance{
-		{Codec: CodecSnappy, CompressionRatio: 2.0},  // weight 0.33
-		{Codec: CodecSnappy, CompressionRatio: 2.0},  // weight 0.67
-		{Codec: CodecGzip, CompressionRatio: 4.0},    // weight 1.0 (most recent)
+		{Codec: CodecSnappy, CompressionRatio: 2.0}, // weight 0.33
+		{Codec: CodecSnappy, CompressionRatio: 2.0}, // weight 0.67
+		{Codec: CodecGzip, CompressionRatio: 4.0},   // weight 1.0 (most recent)
 	}
 
 	codec = model.PredictBestCodec(history)

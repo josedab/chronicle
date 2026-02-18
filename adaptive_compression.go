@@ -720,10 +720,10 @@ func (e *AdaptiveCompressionEngine) Stats() CompressionStats {
 	}
 
 	return CompressionStats{
-		ColumnCount:          len(e.codecSelection),
-		CodecDistribution:    codecCounts,
+		ColumnCount:             len(e.codecSelection),
+		CodecDistribution:       codecCounts,
 		AverageCompressionRatio: avgRatio,
-		HistorySize:          count,
+		HistorySize:             count,
 	}
 }
 
