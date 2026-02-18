@@ -13,10 +13,10 @@ import (
 
 // QueryAssistant provides AI-powered natural language to query translation.
 type QueryAssistant struct {
-	db       *DB
-	config   AssistantConfig
-	client   *http.Client
-	cache    map[string]cachedQuery
+	db     *DB
+	config AssistantConfig
+	client *http.Client
+	cache  map[string]cachedQuery
 }
 
 type cachedQuery struct {
@@ -315,7 +315,7 @@ func (qa *QueryAssistant) callOpenAI(ctx context.Context, prompt string) (*Trans
 		model = "gpt-3.5-turbo"
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"model": model,
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
@@ -385,7 +385,7 @@ func (qa *QueryAssistant) callAnthropic(ctx context.Context, prompt string) (*Tr
 		model = "claude-3-haiku-20240307"
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"model":      model,
 		"max_tokens": qa.config.MaxTokens,
 		"messages": []map[string]string{

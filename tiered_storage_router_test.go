@@ -104,10 +104,10 @@ func TestTierPolicyEngine_RecommendTier(t *testing.T) {
 func TestTierPolicyEngine_RecommendTierNoCold(t *testing.T) {
 	pe := NewTierPolicyEngine()
 	pe.SetPolicy(MetricTierPolicy{
-		Metric:      "temp",
-		HotDuration: time.Hour,
+		Metric:       "temp",
+		HotDuration:  time.Hour,
 		WarmDuration: time.Hour,
-		ColdEnabled: false,
+		ColdEnabled:  false,
 	})
 
 	tier := pe.RecommendTier("temp", 100*time.Hour)

@@ -12,7 +12,7 @@ import (
 
 // Extended PromQL aggregation operators.
 const (
-	PromQLAggTopk        PromQLAggOp = iota + 10
+	PromQLAggTopk PromQLAggOp = iota + 10
 	PromQLAggBottomk
 	PromQLAggCountValues
 	PromQLAggQuantile
@@ -22,7 +22,7 @@ const (
 
 // PromQL functions (non-aggregation).
 const (
-	PromQLFuncAbsent       PromQLAggOp = iota + 20
+	PromQLFuncAbsent PromQLAggOp = iota + 20
 	PromQLFuncAbsentOverTime
 	PromQLFuncCeil
 	PromQLFuncFloor
@@ -237,8 +237,8 @@ func (p *PromQLCompleteParser) parseLabelJoin(inner string) (*PromQLQuery, error
 
 func (p *PromQLCompleteParser) parseVector(inner string) (*PromQLQuery, error) {
 	return &PromQLQuery{
-		Metric: "__vector__",
-		Labels: map[string]LabelMatcher{},
+		Metric:      "__vector__",
+		Labels:      map[string]LabelMatcher{},
 		Aggregation: &PromQLAggregation{Op: PromQLFuncVector},
 	}, nil
 }
@@ -515,7 +515,7 @@ func (s *PromQLComplianceSuite) PassRate() float64 {
 }
 
 // Summary returns a summary of compliance test results.
-func (s *PromQLComplianceSuite) Summary() map[string]interface{} {
+func (s *PromQLComplianceSuite) Summary() map[string]any {
 	results := s.RunAll()
 	passed := 0
 	byCategory := make(map[string]int)
@@ -529,10 +529,10 @@ func (s *PromQLComplianceSuite) Summary() map[string]interface{} {
 		}
 	}
 
-	categories := make(map[string]interface{})
+	categories := make(map[string]any)
 	for cat, total := range byCategory {
 		p := passedByCategory[cat]
-		categories[cat] = map[string]interface{}{
+		categories[cat] = map[string]any{
 			"total":     total,
 			"passed":    p,
 			"failed":    total - p,
@@ -540,7 +540,7 @@ func (s *PromQLComplianceSuite) Summary() map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"total_tests": len(results),
 		"passed":      passed,
 		"failed":      len(results) - passed,

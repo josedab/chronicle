@@ -80,18 +80,18 @@ type IRNode struct {
 // IRProps holds the properties that vary by node type.
 type IRProps struct {
 	// Scan
-	Metric   string            `json:"metric,omitempty"`
-	Tags     map[string]string `json:"tags,omitempty"`
-	Start    int64             `json:"start,omitempty"`
-	End      int64             `json:"end,omitempty"`
+	Metric string            `json:"metric,omitempty"`
+	Tags   map[string]string `json:"tags,omitempty"`
+	Start  int64             `json:"start,omitempty"`
+	End    int64             `json:"end,omitempty"`
 
 	// Filter
 	Predicate *IRPredicate `json:"predicate,omitempty"`
 
 	// Aggregation
-	AggFunc  AggFunc       `json:"agg_func,omitempty"`
-	Window   time.Duration `json:"window,omitempty"`
-	GroupBy  []string      `json:"group_by,omitempty"`
+	AggFunc AggFunc       `json:"agg_func,omitempty"`
+	Window  time.Duration `json:"window,omitempty"`
+	GroupBy []string      `json:"group_by,omitempty"`
 
 	// Sort/Limit
 	SortField string `json:"sort_field,omitempty"`
@@ -104,35 +104,35 @@ type IRProps struct {
 
 // IRPredicate represents a filter predicate in the IR.
 type IRPredicate struct {
-	Field    string        `json:"field"`
-	Op       IRPredicateOp `json:"op"`
-	Value    interface{}   `json:"value"`
-	And      []*IRPredicate `json:"and,omitempty"`
-	Or       []*IRPredicate `json:"or,omitempty"`
+	Field string         `json:"field"`
+	Op    IRPredicateOp  `json:"op"`
+	Value any            `json:"value"`
+	And   []*IRPredicate `json:"and,omitempty"`
+	Or    []*IRPredicate `json:"or,omitempty"`
 }
 
 // IRPredicateOp is a predicate comparison operator.
 type IRPredicateOp string
 
 const (
-	IROpEq  IRPredicateOp = "="
-	IROpNe  IRPredicateOp = "!="
-	IROpGt  IRPredicateOp = ">"
-	IROpGte IRPredicateOp = ">="
-	IROpLt  IRPredicateOp = "<"
-	IROpLte IRPredicateOp = "<="
-	IROpIn  IRPredicateOp = "IN"
+	IROpEq   IRPredicateOp = "="
+	IROpNe   IRPredicateOp = "!="
+	IROpGt   IRPredicateOp = ">"
+	IROpGte  IRPredicateOp = ">="
+	IROpLt   IRPredicateOp = "<"
+	IROpLte  IRPredicateOp = "<="
+	IROpIn   IRPredicateOp = "IN"
 	IROpLike IRPredicateOp = "LIKE"
 )
 
 // CompiledPlan is the result of compiling a query through the unified pipeline.
 type CompiledPlan struct {
-	Root           *IRNode       `json:"root"`
-	SourceLanguage string        `json:"source_language"`
-	OriginalQuery  string        `json:"original_query"`
-	EstimatedCost  float64       `json:"estimated_cost"`
-	Optimizations  []string      `json:"optimizations"`
-	CompiledAt     time.Time     `json:"compiled_at"`
+	Root           *IRNode   `json:"root"`
+	SourceLanguage string    `json:"source_language"`
+	OriginalQuery  string    `json:"original_query"`
+	EstimatedCost  float64   `json:"estimated_cost"`
+	Optimizations  []string  `json:"optimizations"`
+	CompiledAt     time.Time `json:"compiled_at"`
 }
 
 // QueryCompiler provides unified compilation from SQL/PromQL/CQL/NL to IR.
@@ -1018,7 +1018,7 @@ func parseWherePredicate(where string) *IRPredicate {
 			val := strings.Trim(strings.TrimSpace(where[idx+len(o.sym):]), `"'`)
 
 			// Try numeric
-			var value interface{} = val
+			var value any = val
 			var f float64
 			if _, err := fmt.Sscanf(val, "%f", &f); err == nil {
 				value = f

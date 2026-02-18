@@ -43,9 +43,9 @@ func TestOptimize(t *testing.T) {
 	defer qo.Close()
 
 	query := &Query{
-		Metric:    "cpu_usage",
-		Start: time.Now().Add(-time.Hour).UnixNano(),
-		End:   time.Now().UnixNano(),
+		Metric: "cpu_usage",
+		Start:  time.Now().Add(-time.Hour).UnixNano(),
+		End:    time.Now().UnixNano(),
 	}
 
 	plan, err := qo.Optimize(query)
@@ -101,9 +101,9 @@ func TestPlanCaching(t *testing.T) {
 	defer qo.Close()
 
 	query := &Query{
-		Metric:    "cached_metric",
-		Start: 1000,
-		End:   2000,
+		Metric: "cached_metric",
+		Start:  1000,
+		End:    2000,
 	}
 
 	// First call - cache miss
@@ -132,9 +132,9 @@ func TestCandidatePlanGeneration(t *testing.T) {
 
 	// Query with series - should generate index scan plan
 	query := &Query{
-		Metric:    "metrics",
-		Start: time.Now().Add(-time.Hour).UnixNano(),
-		End:   time.Now().UnixNano(),
+		Metric: "metrics",
+		Start:  time.Now().Add(-time.Hour).UnixNano(),
+		End:    time.Now().UnixNano(),
 	}
 
 	candidates := qo.generateCandidatePlans(query)
@@ -171,9 +171,9 @@ func TestParallelPlanGeneration(t *testing.T) {
 
 	// Large time range query
 	query := &Query{
-		Metric:    "metrics",
-		Start: time.Now().Add(-48 * time.Hour).UnixNano(),
-		End:   time.Now().UnixNano(),
+		Metric: "metrics",
+		Start:  time.Now().Add(-48 * time.Hour).UnixNano(),
+		End:    time.Now().UnixNano(),
 	}
 
 	candidates := qo.generateCandidatePlans(query)
@@ -209,8 +209,8 @@ func TestAggregationPlanGeneration(t *testing.T) {
 	query := &Query{
 		Metric:      "metrics",
 		Aggregation: &Aggregation{Function: AggMean},
-		Start:   time.Now().Add(-time.Hour).UnixNano(),
-		End:     time.Now().UnixNano(),
+		Start:       time.Now().Add(-time.Hour).UnixNano(),
+		End:         time.Now().UnixNano(),
 	}
 
 	candidates := qo.generateCandidatePlans(query)
@@ -286,9 +286,9 @@ func TestWorkloadProfiler(t *testing.T) {
 	// Record queries
 	for i := 0; i < 10; i++ {
 		profiler.recordQuery(&Query{
-			Metric:    "cpu",
-			Start: int64(i * 1000),
-			End:   int64((i + 1) * 1000),
+			Metric: "cpu",
+			Start:  int64(i * 1000),
+			End:    int64((i + 1) * 1000),
 		})
 	}
 
@@ -453,9 +453,9 @@ func TestAnalyzeQueryLargeRange(t *testing.T) {
 
 	// Large time range query
 	query := &Query{
-		Metric:    "metrics",
-		Start: time.Now().Add(-30 * 24 * time.Hour).UnixNano(),
-		End:   time.Now().UnixNano(),
+		Metric: "metrics",
+		Start:  time.Now().Add(-30 * 24 * time.Hour).UnixNano(),
+		End:    time.Now().UnixNano(),
 	}
 
 	analysis := qo.AnalyzeQuery(query)
@@ -518,9 +518,9 @@ func TestPlanCacheEviction(t *testing.T) {
 	// Fill cache
 	for i := 0; i < 5; i++ {
 		qo.Optimize(&Query{
-			Metric:    "series_" + string(rune('a'+i)),
-			Start: int64(i),
-			End:   int64(i + 1),
+			Metric: "series_" + string(rune('a'+i)),
+			Start:  int64(i),
+			End:    int64(i + 1),
 		})
 	}
 
@@ -711,17 +711,17 @@ func TestTimeRangeHistogram(t *testing.T) {
 
 	// Record queries with different time ranges
 	ranges := []int64{
-		int64(30 * time.Minute),  // < 1h
-		int64(6 * time.Hour),     // 1h - 1d
-		int64(3 * 24 * time.Hour), // 1d - 1w
+		int64(30 * time.Minute),    // < 1h
+		int64(6 * time.Hour),       // 1h - 1d
+		int64(3 * 24 * time.Hour),  // 1d - 1w
 		int64(14 * 24 * time.Hour), // > 1w
 	}
 
 	for _, r := range ranges {
 		profiler.recordQuery(&Query{
-			Metric:    "test",
-			Start: 0,
-			End:   r,
+			Metric: "test",
+			Start:  0,
+			End:    r,
 		})
 	}
 

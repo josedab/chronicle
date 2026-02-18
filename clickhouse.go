@@ -134,20 +134,20 @@ func (s *ClickHouseServer) handleSystemQuery(w http.ResponseWriter, query string
 
 	// Ping check
 	if queryLower == "select 1" || queryLower == "select 1;" {
-		s.writeResult(w, [][]interface{}{{1}}, []ClickHouseColumn{{Name: "1", Type: "UInt8"}}, format)
+		s.writeResult(w, [][]any{{1}}, []ClickHouseColumn{{Name: "1", Type: "UInt8"}}, format)
 		return true
 	}
 
 	// Version query
 	if strings.Contains(queryLower, "version()") {
-		s.writeResult(w, [][]interface{}{{"Chronicle/1.0.0 (ClickHouse-compatible)"}},
+		s.writeResult(w, [][]any{{"Chronicle/1.0.0 (ClickHouse-compatible)"}},
 			[]ClickHouseColumn{{Name: "version()", Type: "String"}}, format)
 		return true
 	}
 
 	// Database list
 	if strings.HasPrefix(queryLower, "show databases") {
-		s.writeResult(w, [][]interface{}{{s.config.DefaultDatabase}},
+		s.writeResult(w, [][]any{{s.config.DefaultDatabase}},
 			[]ClickHouseColumn{{Name: "name", Type: "String"}}, format)
 		return true
 	}
@@ -155,9 +155,9 @@ func (s *ClickHouseServer) handleSystemQuery(w http.ResponseWriter, query string
 	// Tables list (returns metrics)
 	if strings.HasPrefix(queryLower, "show tables") {
 		metrics := s.db.Metrics()
-		rows := make([][]interface{}, len(metrics))
+		rows := make([][]any, len(metrics))
 		for i, m := range metrics {
-			rows[i] = []interface{}{m}
+			rows[i] = []any{m}
 		}
 		s.writeResult(w, rows, []ClickHouseColumn{{Name: "name", Type: "String"}}, format)
 		return true
@@ -187,15 +187,15 @@ func (s *ClickHouseServer) handleSystemQuery(w http.ResponseWriter, query string
 func (s *ClickHouseServer) handleSystemTableQuery(w http.ResponseWriter, query string, format ClickHouseFormat) bool {
 	switch {
 	case strings.Contains(query, "system.databases"):
-		s.writeResult(w, [][]interface{}{{s.config.DefaultDatabase}},
+		s.writeResult(w, [][]any{{s.config.DefaultDatabase}},
 			[]ClickHouseColumn{{Name: "name", Type: "String"}}, format)
 		return true
 
 	case strings.Contains(query, "system.tables"):
 		metrics := s.db.Metrics()
-		rows := make([][]interface{}, len(metrics))
+		rows := make([][]any, len(metrics))
 		for i, m := range metrics {
-			rows[i] = []interface{}{s.config.DefaultDatabase, m, "MergeTree"}
+			rows[i] = []any{s.config.DefaultDatabase, m, "MergeTree"}
 		}
 		s.writeResult(w, rows, []ClickHouseColumn{
 			{Name: "database", Type: "String"},
@@ -206,7 +206,7 @@ func (s *ClickHouseServer) handleSystemTableQuery(w http.ResponseWriter, query s
 
 	case strings.Contains(query, "system.columns"):
 		// Return standard time-series columns for all metrics
-		rows := [][]interface{}{
+		rows := [][]any{
 			{s.config.DefaultDatabase, "", "timestamp", "DateTime64(9)"},
 			{s.config.DefaultDatabase, "", "metric", "String"},
 			{s.config.DefaultDatabase, "", "value", "Float64"},
@@ -221,7 +221,7 @@ func (s *ClickHouseServer) handleSystemTableQuery(w http.ResponseWriter, query s
 		return true
 
 	case strings.Contains(query, "system.settings"):
-		s.writeResult(w, [][]interface{}{},
+		s.writeResult(w, [][]any{},
 			[]ClickHouseColumn{{Name: "name", Type: "String"}, {Name: "value", Type: "String"}}, format)
 		return true
 	}
@@ -230,7 +230,7 @@ func (s *ClickHouseServer) handleSystemTableQuery(w http.ResponseWriter, query s
 }
 
 // executeQuery translates and executes a ClickHouse SQL query.
-func (s *ClickHouseServer) executeQuery(ctx context.Context, query string) ([][]interface{}, []ClickHouseColumn, error) {
+func (s *ClickHouseServer) executeQuery(ctx context.Context, query string) ([][]any, []ClickHouseColumn, error) {
 	// Parse ClickHouse SQL to Chronicle query
 	chronicleQuery, selectFields, err := s.translateQuery(query)
 	if err != nil {
@@ -604,18 +604,18 @@ func (p *clickHouseQueryParser) translateAggFunc(funcName string) AggFunc {
 }
 
 // convertResult converts Chronicle result to ClickHouse row format.
-func (s *ClickHouseServer) convertResult(result *Result, selectFields []ClickHouseSelectField, query *Query) ([][]interface{}, []ClickHouseColumn, error) {
+func (s *ClickHouseServer) convertResult(result *Result, selectFields []ClickHouseSelectField, query *Query) ([][]any, []ClickHouseColumn, error) {
 	if result == nil || len(result.Points) == 0 {
 		// Return empty result with proper columns
 		columns := s.buildColumns(selectFields)
-		return [][]interface{}{}, columns, nil
+		return [][]any{}, columns, nil
 	}
 
 	columns := s.buildColumns(selectFields)
-	rows := make([][]interface{}, 0, len(result.Points))
+	rows := make([][]any, 0, len(result.Points))
 
 	for _, point := range result.Points {
-		row := make([]interface{}, len(selectFields))
+		row := make([]any, len(selectFields))
 		for i, field := range selectFields {
 			row[i] = s.extractFieldValue(point, field)
 		}
@@ -650,7 +650,7 @@ func (s *ClickHouseServer) buildColumns(fields []ClickHouseSelectField) []ClickH
 	return columns
 }
 
-func (s *ClickHouseServer) extractFieldValue(point Point, field ClickHouseSelectField) interface{} {
+func (s *ClickHouseServer) extractFieldValue(point Point, field ClickHouseSelectField) any {
 	switch strings.ToLower(field.FieldName) {
 	case "timestamp", "time", "ts":
 		return time.Unix(0, point.Timestamp).Format("2006-01-02 15:04:05.000000000")
@@ -695,7 +695,7 @@ func (s *ClickHouseServer) parseFormat(format string) ClickHouseFormat {
 }
 
 // writeResult writes query results in the specified format.
-func (s *ClickHouseServer) writeResult(w http.ResponseWriter, rows [][]interface{}, columns []ClickHouseColumn, format ClickHouseFormat) {
+func (s *ClickHouseServer) writeResult(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn, format ClickHouseFormat) {
 	switch format {
 	case ClickHouseFormatJSON:
 		s.writeJSON(w, rows, columns)
@@ -710,7 +710,7 @@ func (s *ClickHouseServer) writeResult(w http.ResponseWriter, rows [][]interface
 	}
 }
 
-func (s *ClickHouseServer) writeTabSeparated(w http.ResponseWriter, rows [][]interface{}, columns []ClickHouseColumn) {
+func (s *ClickHouseServer) writeTabSeparated(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
 	w.Header().Set("Content-Type", "text/tab-separated-values; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Format", "TabSeparated")
 
@@ -727,7 +727,7 @@ func (s *ClickHouseServer) writeTabSeparated(w http.ResponseWriter, rows [][]int
 	_, _ = w.Write(buf.Bytes())
 }
 
-func (s *ClickHouseServer) writeJSON(w http.ResponseWriter, rows [][]interface{}, columns []ClickHouseColumn) {
+func (s *ClickHouseServer) writeJSON(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Format", "JSON")
 
@@ -736,9 +736,9 @@ func (s *ClickHouseServer) writeJSON(w http.ResponseWriter, rows [][]interface{}
 		meta[i] = map[string]string{"name": col.Name, "type": col.Type}
 	}
 
-	data := make([]map[string]interface{}, len(rows))
+	data := make([]map[string]any, len(rows))
 	for i, row := range rows {
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for j, col := range columns {
 			if j < len(row) {
 				rowMap[col.Name] = row[j]
@@ -747,23 +747,23 @@ func (s *ClickHouseServer) writeJSON(w http.ResponseWriter, rows [][]interface{}
 		data[i] = rowMap
 	}
 
-	response := map[string]interface{}{
-		"meta":          meta,
-		"data":          data,
-		"rows":          len(rows),
-		"statistics":    map[string]interface{}{"elapsed": 0.001, "rows_read": len(rows), "bytes_read": 0},
+	response := map[string]any{
+		"meta":                       meta,
+		"data":                       data,
+		"rows":                       len(rows),
+		"statistics":                 map[string]any{"elapsed": 0.001, "rows_read": len(rows), "bytes_read": 0},
 		"rows_before_limit_at_least": len(rows),
 	}
 
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (s *ClickHouseServer) writeJSONEachRow(w http.ResponseWriter, rows [][]interface{}, columns []ClickHouseColumn) {
+func (s *ClickHouseServer) writeJSONEachRow(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
 	w.Header().Set("Content-Type", "application/x-ndjson; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Format", "JSONEachRow")
 
 	for _, row := range rows {
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for j, col := range columns {
 			if j < len(row) {
 				rowMap[col.Name] = row[j]
@@ -775,7 +775,7 @@ func (s *ClickHouseServer) writeJSONEachRow(w http.ResponseWriter, rows [][]inte
 	}
 }
 
-func (s *ClickHouseServer) writeJSONCompact(w http.ResponseWriter, rows [][]interface{}, columns []ClickHouseColumn) {
+func (s *ClickHouseServer) writeJSONCompact(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Format", "JSONCompact")
 
@@ -784,11 +784,11 @@ func (s *ClickHouseServer) writeJSONCompact(w http.ResponseWriter, rows [][]inte
 		meta[i] = map[string]string{"name": col.Name, "type": col.Type}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"meta": meta,
 		"data": rows,
 		"rows": len(rows),
-		"statistics": map[string]interface{}{
+		"statistics": map[string]any{
 			"elapsed":    0.001,
 			"rows_read":  len(rows),
 			"bytes_read": 0,
@@ -798,7 +798,7 @@ func (s *ClickHouseServer) writeJSONCompact(w http.ResponseWriter, rows [][]inte
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (s *ClickHouseServer) writeCSV(w http.ResponseWriter, rows [][]interface{}, columns []ClickHouseColumn) {
+func (s *ClickHouseServer) writeCSV(w http.ResponseWriter, rows [][]any, columns []ClickHouseColumn) {
 	w.Header().Set("Content-Type", "text/csv; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Format", "CSV")
 

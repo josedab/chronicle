@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,8 +25,8 @@ type WAL struct {
 	retain       int
 
 	// syncErrors tracks consecutive sync errors for monitoring
-	syncErrors   int
-	onSyncError  func(error) // optional callback for sync errors
+	syncErrors  int
+	onSyncError func(error) // optional callback for sync errors
 }
 
 // WALOption configures a WAL instance.
@@ -105,7 +105,11 @@ func (w *WAL) Write(points []Point) error {
 		return err
 	}
 
-	return w.writer.Flush()
+	// Don't flush here on every write — the background syncLoop handles
+	// periodic flush + fsync to batch WAL I/O for better throughput.
+	// Data is still in the bufio.Writer and will be persisted on the next
+	// sync tick or on Close().
+	return nil
 }
 
 // ReadAll reads all points from the WAL.
@@ -243,7 +247,7 @@ func (w *WAL) syncLoop() {
 				w.syncErrors++
 
 				// Log the error
-				log.Printf("chronicle: WAL sync error (count=%d): %v", w.syncErrors, syncErr)
+				slog.Error("WAL sync error", "count", w.syncErrors, "err", syncErr)
 
 				// Call error callback if set
 				if w.onSyncError != nil {

@@ -49,12 +49,12 @@ func TestClickHouseServer_Select1(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse JSON response: %v", err)
 	}
 
-	data, ok := resp["data"].([]interface{})
+	data, ok := resp["data"].([]any)
 	if !ok || len(data) == 0 {
 		t.Errorf("expected data array with results")
 	}
@@ -76,18 +76,18 @@ func TestClickHouseServer_ShowDatabases(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse JSON response: %v", err)
 	}
 
-	data, ok := resp["data"].([]interface{})
+	data, ok := resp["data"].([]any)
 	if !ok || len(data) == 0 {
 		t.Errorf("expected data array with results")
 		return
 	}
 
-	row := data[0].(map[string]interface{})
+	row := data[0].(map[string]any)
 	if row["name"] != "testdb" {
 		t.Errorf("expected database 'testdb', got %v", row["name"])
 	}
@@ -289,7 +289,7 @@ func TestClickHouseServer_Limit(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse JSON response: %v", err)
 	}
@@ -442,7 +442,7 @@ func TestClickHouseServer_MaxResultRows(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	rows := int(resp["rows"].(float64))
 	if rows > 3 {

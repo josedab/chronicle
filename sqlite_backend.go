@@ -507,7 +507,7 @@ func (s *SQLiteBackend) QueryRange(ctx context.Context, metric string, start, en
 
 // ExecuteSQL executes a raw SQL query and returns the results.
 // This enables direct SQL access using standard SQLite tools.
-func (s *SQLiteBackend) ExecuteSQL(ctx context.Context, query string, args ...interface{}) (*SQLResult, error) {
+func (s *SQLiteBackend) ExecuteSQL(ctx context.Context, query string, args ...any) (*SQLResult, error) {
 	s.mu.RLock()
 	if s.closed {
 		s.mu.RUnlock()
@@ -527,13 +527,13 @@ func (s *SQLiteBackend) ExecuteSQL(ctx context.Context, query string, args ...in
 
 // SQLResult represents the result of an SQL query.
 type SQLResult struct {
-	Columns      []string        `json:"columns,omitempty"`
-	Rows         [][]interface{} `json:"rows,omitempty"`
-	RowsAffected int64           `json:"rows_affected,omitempty"`
-	LastInsertID int64           `json:"last_insert_id,omitempty"`
+	Columns      []string `json:"columns,omitempty"`
+	Rows         [][]any  `json:"rows,omitempty"`
+	RowsAffected int64    `json:"rows_affected,omitempty"`
+	LastInsertID int64    `json:"last_insert_id,omitempty"`
 }
 
-func (s *SQLiteBackend) executeSelect(ctx context.Context, query string, args ...interface{}) (*SQLResult, error) {
+func (s *SQLiteBackend) executeSelect(ctx context.Context, query string, args ...any) (*SQLResult, error) {
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
@@ -547,12 +547,12 @@ func (s *SQLiteBackend) executeSelect(ctx context.Context, query string, args ..
 
 	result := &SQLResult{
 		Columns: columns,
-		Rows:    make([][]interface{}, 0),
+		Rows:    make([][]any, 0),
 	}
 
 	for rows.Next() {
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
@@ -574,7 +574,7 @@ func (s *SQLiteBackend) executeSelect(ctx context.Context, query string, args ..
 	return result, rows.Err()
 }
 
-func (s *SQLiteBackend) executeModify(ctx context.Context, query string, args ...interface{}) (*SQLResult, error) {
+func (s *SQLiteBackend) executeModify(ctx context.Context, query string, args ...any) (*SQLResult, error) {
 	res, err := s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)

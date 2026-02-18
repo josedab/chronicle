@@ -61,8 +61,8 @@ func TestQueryBuilder_BuildSQL(t *testing.T) {
 		{
 			name: "select with order and limit",
 			query: &VisualQuery{
-				Source: QuerySource{Type: "metric", Name: "latency"},
-				Select: []SelectItem{{Field: "value"}},
+				Source:  QuerySource{Type: "metric", Name: "latency"},
+				Select:  []SelectItem{{Field: "value"}},
 				OrderBy: []OrderItem{{Field: "value", Direction: "desc"}},
 				Limit:   10,
 			},
@@ -130,9 +130,9 @@ func TestQueryBuilder_ValidateQuery(t *testing.T) {
 	qb := NewQueryBuilder(db, DefaultQueryBuilderConfig())
 
 	tests := []struct {
-		name      string
-		query     *VisualQuery
-		wantErrs  int
+		name     string
+		query    *VisualQuery
+		wantErrs int
 	}{
 		{
 			name: "valid query",
@@ -296,7 +296,7 @@ func TestQueryBuilder_ApplyTemplate(t *testing.T) {
 	qb := NewQueryBuilder(db, DefaultQueryBuilderConfig())
 
 	// Apply template with parameters
-	query, err := qb.ApplyTemplate("avg-by-time", map[string]interface{}{
+	query, err := qb.ApplyTemplate("avg-by-time", map[string]any{
 		"metric": "cpu_usage",
 	})
 	if err != nil {
@@ -319,7 +319,7 @@ func TestQueryBuilder_ApplyTemplateInvalid(t *testing.T) {
 	}
 
 	// Missing required parameter
-	_, err = qb.ApplyTemplate("avg-by-time", map[string]interface{}{})
+	_, err = qb.ApplyTemplate("avg-by-time", map[string]any{})
 	if err == nil {
 		t.Error("expected error for missing required parameter")
 	}
@@ -370,7 +370,7 @@ func TestQueryBuilder_AutocompleteWithPrefix(t *testing.T) {
 
 func TestFormatValue(t *testing.T) {
 	tests := []struct {
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"test", "'test'"},

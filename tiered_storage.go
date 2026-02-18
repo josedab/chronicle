@@ -207,12 +207,12 @@ func (t *AccessTracker) GetColdPartitions(threshold float64) []string {
 
 // MigrationPlan describes a planned data migration between tiers.
 type MigrationPlan struct {
-	PartitionKey    string
-	SourceTier      StorageTierLevel
-	TargetTier      StorageTierLevel
-	Reason          string
+	PartitionKey     string
+	SourceTier       StorageTierLevel
+	TargetTier       StorageTierLevel
+	Reason           string
 	EstimatedSavings float64
-	DataSize        int64
+	DataSize         int64
 }
 
 // MigrationResult records the outcome of a completed migration.
@@ -245,14 +245,14 @@ func DefaultMigrationEngineConfig() MigrationEngineConfig {
 
 // MigrationEngine manages background tier-to-tier data migrations.
 type MigrationEngine struct {
-	mu       sync.RWMutex
-	tiers    []*StorageTierConfig
-	tracker  *AccessTracker
-	config   MigrationEngineConfig
-	history  []*MigrationResult
-	running  bool
-	stopCh   chan struct{}
-	tierMap  map[StorageTierLevel]*StorageTierConfig
+	mu      sync.RWMutex
+	tiers   []*StorageTierConfig
+	tracker *AccessTracker
+	config  MigrationEngineConfig
+	history []*MigrationResult
+	running bool
+	stopCh  chan struct{}
+	tierMap map[StorageTierLevel]*StorageTierConfig
 }
 
 // NewMigrationEngine creates a new migration engine.
@@ -366,10 +366,10 @@ func (e *MigrationEngine) PlanMigrations() []*MigrationPlan {
 					savings -= dst.CostPerGBMonth
 				}
 				plans = append(plans, &MigrationPlan{
-					PartitionKey:    key,
-					SourceTier:      level,
-					TargetTier:      th.target,
-					Reason:          fmt.Sprintf("access score %.2f below threshold %.2f", score, th.score),
+					PartitionKey:     key,
+					SourceTier:       level,
+					TargetTier:       th.target,
+					Reason:           fmt.Sprintf("access score %.2f below threshold %.2f", score, th.score),
 					EstimatedSavings: savings,
 				})
 			}
@@ -464,11 +464,11 @@ type CostReport struct {
 
 // OptimizationRecommendation describes a possible cost optimisation action.
 type OptimizationRecommendation struct {
-	Type                string
-	Description         string
-	EstimatedSavings    float64
-	PartitionsAffected  int
-	Priority            int
+	Type               string
+	Description        string
+	EstimatedSavings   float64
+	PartitionsAffected int
+	Priority           int
 }
 
 // DailyCost holds projected cost for a single day.
@@ -650,7 +650,7 @@ func (o *CostOptimizer) ProjectCost(days int) *CostProjection {
 	dailyCost := report.TotalMonthly / 30.0
 
 	proj := &CostProjection{
-		Days:  days,
+		Days:      days,
 		CostTrend: make([]DailyCost, days),
 	}
 	var total float64

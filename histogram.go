@@ -58,9 +58,9 @@ type HistogramPoint struct {
 
 // HistogramStore manages histogram storage and queries.
 type HistogramStore struct {
-	db       *DB
-	data     map[string]*histogramSeries
-	mu       sync.RWMutex
+	db   *DB
+	data map[string]*histogramSeries
+	mu   sync.RWMutex
 }
 
 type histogramSeries struct {
@@ -251,6 +251,7 @@ func (h *Histogram) Quantile(q float64) float64 {
 //   - Schema 0: factor = 2 (each bucket is 2x wider than previous)
 //   - Schema 1: factor = √2 ≈ 1.41
 //   - Schema 3: factor = 2^(1/8) ≈ 1.09 (finer granularity)
+//
 // Bucket index i covers values in range [factor^i, factor^(i+1))
 func (h *Histogram) bucketBounds(idx int, positive bool) (float64, float64) {
 	// Exponential bucket bounds based on schema

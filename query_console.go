@@ -15,11 +15,15 @@ var consoleTemplateFS embed.FS
 
 // QueryConsoleConfig configures the web query console.
 type QueryConsoleConfig struct {
-	Bind          string
-	ReadTimeout   time.Duration
-	WriteTimeout  time.Duration
-	MaxQueryLen   int
-	EnableCORS    bool
+	Bind         string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	MaxQueryLen  int
+	EnableCORS   bool
+
+	// AllowedOrigins restricts CORS to these origins when EnableCORS is true.
+	// An empty list defaults to same-origin only (no wildcard).
+	AllowedOrigins []string
 }
 
 // DefaultQueryConsoleConfig returns sensible defaults.
@@ -179,8 +183,19 @@ func (qc *QueryConsole) corsMiddleware(next http.Handler) http.Handler {
 	if !qc.config.EnableCORS {
 		return next
 	}
+	allowed := qc.config.AllowedOrigins
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if len(allowed) == 0 {
+			// No origins configured: allow same-origin only (no header set).
+		} else {
+			for _, o := range allowed {
+				if o == origin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
+			}
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {

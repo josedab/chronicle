@@ -100,25 +100,25 @@ const (
 
 // QueryFederatedQuery represents a federated query for query federation.
 type QueryFederatedQuery struct {
-	SQL          string                 `json:"sql"`
-	Source       string                 `json:"source,omitempty"`
-	Metric       string                 `json:"metric,omitempty"`
-	Tags         map[string]string      `json:"tags,omitempty"`
-	Start        int64                  `json:"start"`
-	End          int64                  `json:"end"`
-	Aggregation  *Aggregation           `json:"aggregation,omitempty"`
-	Params       map[string]interface{} `json:"params,omitempty"`
-	PushPredicates bool                 `json:"push_predicates"`
+	SQL            string            `json:"sql"`
+	Source         string            `json:"source,omitempty"`
+	Metric         string            `json:"metric,omitempty"`
+	Tags           map[string]string `json:"tags,omitempty"`
+	Start          int64             `json:"start"`
+	End            int64             `json:"end"`
+	Aggregation    *Aggregation      `json:"aggregation,omitempty"`
+	Params         map[string]any    `json:"params,omitempty"`
+	PushPredicates bool              `json:"push_predicates"`
 }
 
 // QueryFederatedResult contains query results from a federated source.
 type QueryFederatedResult struct {
-	Source   string          `json:"source"`
+	Source   string                 `json:"source"`
 	Columns  []QueryFederatedColumn `json:"columns"`
-	Rows     [][]interface{} `json:"rows"`
-	Points   []Point         `json:"points,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-	Duration time.Duration   `json:"duration"`
+	Rows     [][]any                `json:"rows"`
+	Points   []Point                `json:"points,omitempty"`
+	Metadata map[string]any         `json:"metadata,omitempty"`
+	Duration time.Duration          `json:"duration"`
 }
 
 // QueryFederatedColumn describes a result column.
@@ -134,7 +134,7 @@ type QueryFederatedSchema struct {
 
 // QueryFederatedTable describes a table in the schema.
 type QueryFederatedTable struct {
-	Name    string            `json:"name"`
+	Name    string                 `json:"name"`
 	Columns []QueryFederatedColumn `json:"columns"`
 }
 
@@ -333,15 +333,15 @@ func (f *QueryFederation) executeFederatedSQL(ctx context.Context, query *QueryF
 
 // SQLPlan represents a parsed SQL query plan.
 type SQLPlan struct {
-	SQL       string
-	Sources   []string
-	Tables    []string
-	JoinType  string
-	JoinOn    string
-	Where     string
-	GroupBy   string
-	OrderBy   string
-	Limit     int
+	SQL      string
+	Sources  []string
+	Tables   []string
+	JoinType string
+	JoinOn   string
+	Where    string
+	GroupBy  string
+	OrderBy  string
+	Limit    int
 }
 
 func (f *QueryFederation) parseSQL(sql string) *SQLPlan {
@@ -448,7 +448,7 @@ func (f *QueryFederation) mergeResults(results []*QueryFederatedResult) (*QueryF
 	merged := &QueryFederatedResult{
 		Source:  "federated",
 		Columns: results[0].Columns,
-		Rows:    make([][]interface{}, 0),
+		Rows:    make([][]any, 0),
 		Points:  make([]Point, 0),
 	}
 
@@ -504,7 +504,7 @@ func (f *QueryFederation) Close() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("errors closing sources: %v", errs)
+		return errors.Join(errs...)
 	}
 	return nil
 }
@@ -555,7 +555,7 @@ func (s *ClickHouseSource) Query(ctx context.Context, query *QueryFederatedQuery
 			{Name: "timestamp", Type: "DateTime"},
 			{Name: "value", Type: "Float64"},
 		},
-		Rows:     [][]interface{}{},
+		Rows:     [][]any{},
 		Duration: time.Since(start),
 	}
 
@@ -611,7 +611,7 @@ func (s *DuckDBSource) Query(ctx context.Context, query *QueryFederatedQuery) (*
 			{Name: "timestamp", Type: "TIMESTAMP"},
 			{Name: "value", Type: "DOUBLE"},
 		},
-		Rows:     [][]interface{}{},
+		Rows:     [][]any{},
 		Duration: time.Since(start),
 	}
 
@@ -676,7 +676,7 @@ func (s *PostgresSource) Query(ctx context.Context, query *QueryFederatedQuery) 
 	result := &QueryFederatedResult{
 		Source:   s.name,
 		Columns:  []QueryFederatedColumn{},
-		Rows:     [][]interface{}{},
+		Rows:     [][]any{},
 		Duration: time.Since(start),
 	}
 
@@ -833,7 +833,7 @@ func (s *ChronicleSource) Type() FederatedSourceType { return FederatedSourceTyp
 
 func (s *ChronicleSource) Query(ctx context.Context, query *QueryFederatedQuery) (*QueryFederatedResult, error) {
 	// Chronicle-specific query format
-	chronicleQuery := map[string]interface{}{
+	chronicleQuery := map[string]any{
 		"metric": query.Metric,
 		"tags":   query.Tags,
 		"start":  query.Start,

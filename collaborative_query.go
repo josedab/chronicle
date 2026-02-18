@@ -55,20 +55,20 @@ func DefaultCollaborativeQueryConfig() CollaborativeQueryConfig {
 
 // CollaborativeSession represents a shared query editing session.
 type CollaborativeSession struct {
-	ID           string                 `json:"id"`
-	Name         string                 `json:"name"`
-	CreatedAt    time.Time              `json:"created_at"`
-	CreatedBy    string                 `json:"created_by"`
-	Participants map[string]*Participant `json:"participants"`
+	ID           string                   `json:"id"`
+	Name         string                   `json:"name"`
+	CreatedAt    time.Time                `json:"created_at"`
+	CreatedBy    string                   `json:"created_by"`
+	Participants map[string]*Participant  `json:"participants"`
 	QueryState   *CollaborativeQueryState `json:"query_state"`
-	Annotations  []*QueryAnnotation     `json:"annotations"`
-	Bookmarks    []*QueryBookmark       `json:"bookmarks"`
-	LastActivity time.Time              `json:"last_activity"`
-	
-	mu           sync.RWMutex
-	operations   chan CollaborativeOp
-	broadcast    chan []byte
-	done         chan struct{}
+	Annotations  []*QueryAnnotation       `json:"annotations"`
+	Bookmarks    []*QueryBookmark         `json:"bookmarks"`
+	LastActivity time.Time                `json:"last_activity"`
+
+	mu         sync.RWMutex
+	operations chan CollaborativeOp
+	broadcast  chan []byte
+	done       chan struct{}
 }
 
 // Participant represents a user in a collaborative session.
@@ -82,9 +82,9 @@ type Participant struct {
 	LastSeen    time.Time         `json:"last_seen"`
 	Permissions []string          `json:"permissions"`
 	Metadata    map[string]string `json:"metadata"`
-	
-	conn        *websocket.Conn
-	send        chan []byte
+
+	conn *websocket.Conn
+	send chan []byte
 }
 
 // CursorPosition tracks a participant's cursor location.
@@ -102,17 +102,17 @@ type SelectionRange struct {
 
 // CollaborativeQueryState holds the shared query state.
 type CollaborativeQueryState struct {
-	QueryText    string                 `json:"query_text"`
-	QueryType    string                 `json:"query_type"` // sql, promql, graphql
-	Parameters   map[string]interface{} `json:"parameters"`
-	TimeRange    *CollabQueryTimeRange        `json:"time_range"`
-	Version      int64                  `json:"version"`
-	LastModified time.Time              `json:"last_modified"`
-	ModifiedBy   string                 `json:"modified_by"`
-	
+	QueryText    string                `json:"query_text"`
+	QueryType    string                `json:"query_type"` // sql, promql, graphql
+	Parameters   map[string]any        `json:"parameters"`
+	TimeRange    *CollabQueryTimeRange `json:"time_range"`
+	Version      int64                 `json:"version"`
+	LastModified time.Time             `json:"last_modified"`
+	ModifiedBy   string                `json:"modified_by"`
+
 	// CRDT state for conflict resolution
-	operations   []CollabCRDTOperation
-	vectorClock  map[string]int64
+	operations  []CollabCRDTOperation
+	vectorClock map[string]int64
 }
 
 // CollabQueryTimeRange specifies the time bounds for a query.
@@ -124,58 +124,58 @@ type CollabQueryTimeRange struct {
 
 // QueryAnnotation allows participants to add notes to query results.
 type QueryAnnotation struct {
-	ID          string    `json:"id"`
-	ParticipantID string  `json:"participant_id"`
-	Text        string    `json:"text"`
-	Position    *CursorPosition `json:"position,omitempty"`
-	Timestamp   int64     `json:"timestamp,omitempty"` // For result annotations
-	CreatedAt   time.Time `json:"created_at"`
+	ID            string          `json:"id"`
+	ParticipantID string          `json:"participant_id"`
+	Text          string          `json:"text"`
+	Position      *CursorPosition `json:"position,omitempty"`
+	Timestamp     int64           `json:"timestamp,omitempty"` // For result annotations
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 // QueryBookmark saves interesting query states.
 type QueryBookmark struct {
-	ID          string                  `json:"id"`
-	Name        string                  `json:"name"`
-	QueryState  *CollaborativeQueryState `json:"query_state"`
-	CreatedBy   string                  `json:"created_by"`
-	CreatedAt   time.Time               `json:"created_at"`
+	ID         string                   `json:"id"`
+	Name       string                   `json:"name"`
+	QueryState *CollaborativeQueryState `json:"query_state"`
+	CreatedBy  string                   `json:"created_by"`
+	CreatedAt  time.Time                `json:"created_at"`
 }
 
 // CollaborativeOp represents an operation in the collaborative session.
 type CollaborativeOp struct {
-	Type          CollabOpType      `json:"type"`
-	ParticipantID string            `json:"participant_id"`
-	Timestamp     time.Time         `json:"timestamp"`
-	Data          json.RawMessage   `json:"data"`
-	Version       int64             `json:"version"`
+	Type          CollabOpType    `json:"type"`
+	ParticipantID string          `json:"participant_id"`
+	Timestamp     time.Time       `json:"timestamp"`
+	Data          json.RawMessage `json:"data"`
+	Version       int64           `json:"version"`
 }
 
 // CollabOpType defines operation types.
 type CollabOpType string
 
 const (
-	CollabOpJoin           CollabOpType = "join"
-	CollabOpLeave          CollabOpType = "leave"
-	CollabOpCursorMove     CollabOpType = "cursor_move"
-	CollabOpSelectionChange CollabOpType = "selection_change"
-	CollabOpQueryEdit      CollabOpType = "query_edit"
-	CollabOpExecuteQuery   CollabOpType = "execute_query"
-	CollabOpAnnotationAdd  CollabOpType = "annotation_add"
+	CollabOpJoin             CollabOpType = "join"
+	CollabOpLeave            CollabOpType = "leave"
+	CollabOpCursorMove       CollabOpType = "cursor_move"
+	CollabOpSelectionChange  CollabOpType = "selection_change"
+	CollabOpQueryEdit        CollabOpType = "query_edit"
+	CollabOpExecuteQuery     CollabOpType = "execute_query"
+	CollabOpAnnotationAdd    CollabOpType = "annotation_add"
 	CollabOpAnnotationRemove CollabOpType = "annotation_remove"
-	CollabOpBookmarkAdd    CollabOpType = "bookmark_add"
-	CollabOpResultHighlight CollabOpType = "result_highlight"
-	CollabOpSync           CollabOpType = "sync"
+	CollabOpBookmarkAdd      CollabOpType = "bookmark_add"
+	CollabOpResultHighlight  CollabOpType = "result_highlight"
+	CollabOpSync             CollabOpType = "sync"
 )
 
 // CollabCRDTOperation represents a conflict-free operation.
 type CollabCRDTOperation struct {
-	ID            string    `json:"id"`
-	Type          string    `json:"type"` // insert, delete
-	Position      int       `json:"position"`
-	Character     string    `json:"character,omitempty"`
-	Length        int       `json:"length,omitempty"`
-	ParticipantID string    `json:"participant_id"`
-	Timestamp     time.Time `json:"timestamp"`
+	ID            string           `json:"id"`
+	Type          string           `json:"type"` // insert, delete
+	Position      int              `json:"position"`
+	Character     string           `json:"character,omitempty"`
+	Length        int              `json:"length,omitempty"`
+	ParticipantID string           `json:"participant_id"`
+	Timestamp     time.Time        `json:"timestamp"`
 	VectorClock   map[string]int64 `json:"vector_clock"`
 }
 
@@ -190,15 +190,15 @@ type CollaborativeQueryHub struct {
 	wg       sync.WaitGroup
 
 	// Stats
-	totalSessions    int64
-	activeSessions   int64
-	totalOperations  int64
+	totalSessions   int64
+	activeSessions  int64
+	totalOperations int64
 }
 
 // NewCollaborativeQueryHub creates a new collaborative query hub.
 func NewCollaborativeQueryHub(db *DB, config CollaborativeQueryConfig) *CollaborativeQueryHub {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	hub := &CollaborativeQueryHub{
 		db:       db,
 		config:   config,
@@ -220,7 +220,7 @@ func (hub *CollaborativeQueryHub) CreateSession(name, creatorID string) (*Collab
 	defer hub.mu.Unlock()
 
 	sessionID := generateCollabSessionID()
-	
+
 	session := &CollaborativeSession{
 		ID:           sessionID,
 		Name:         name,
@@ -230,7 +230,7 @@ func (hub *CollaborativeQueryHub) CreateSession(name, creatorID string) (*Collab
 		QueryState: &CollaborativeQueryState{
 			QueryText:   "",
 			QueryType:   "sql",
-			Parameters:  make(map[string]interface{}),
+			Parameters:  make(map[string]any),
 			Version:     0,
 			vectorClock: make(map[string]int64),
 			operations:  make([]CollabCRDTOperation, 0),
@@ -330,11 +330,11 @@ func (hub *CollaborativeQueryHub) JoinSession(sessionID string, participant *Par
 	// Send current state to new participant
 	stateMsg, _ := json.Marshal(CollaborativeMessage{
 		Type: "session_state",
-		Data: map[string]interface{}{
-			"query_state":   session.QueryState,
-			"participants":  session.Participants,
-			"annotations":   session.Annotations,
-			"bookmarks":     session.Bookmarks,
+		Data: map[string]any{
+			"query_state":  session.QueryState,
+			"participants": session.Participants,
+			"annotations":  session.Annotations,
+			"bookmarks":    session.Bookmarks,
 		},
 	})
 	participant.send <- stateMsg
@@ -381,19 +381,19 @@ func (hub *CollaborativeQueryHub) LeaveSession(sessionID, participantID string) 
 
 // CollaborativeMessage is the WebSocket message format.
 type CollaborativeMessage struct {
-	Type    string      `json:"type"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	Version int64       `json:"version,omitempty"`
+	Type    string `json:"type"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Version int64  `json:"version,omitempty"`
 }
 
 // QueryEditOperation represents a text edit.
 type QueryEditOperation struct {
-	Type      string `json:"type"` // insert, delete, replace
-	Position  int    `json:"position"`
-	Text      string `json:"text,omitempty"`
-	Length    int    `json:"length,omitempty"`
-	OldText   string `json:"old_text,omitempty"`
+	Type     string `json:"type"` // insert, delete, replace
+	Position int    `json:"position"`
+	Text     string `json:"text,omitempty"`
+	Length   int    `json:"length,omitempty"`
+	OldText  string `json:"old_text,omitempty"`
 }
 
 func (hub *CollaborativeQueryHub) runSession(session *CollaborativeSession) {
@@ -584,7 +584,7 @@ func (hub *CollaborativeQueryHub) syncSessionState(session *CollaborativeSession
 
 func (hub *CollaborativeQueryHub) applyQueryEdit(session *CollaborativeSession, participantID string, edit QueryEditOperation) {
 	session.mu.Lock()
-	
+
 	state := session.QueryState
 	text := state.QueryText
 
@@ -600,13 +600,13 @@ func (hub *CollaborativeQueryHub) applyQueryEdit(session *CollaborativeSession, 
 			Timestamp:     time.Now(),
 			VectorClock:   copyVectorClock(state.vectorClock),
 		}
-		
+
 		// Increment vector clock
 		state.vectorClock[participantID]++
 		op.VectorClock[participantID] = state.vectorClock[participantID]
-		
+
 		state.operations = append(state.operations, op)
-		
+
 		// Prune old operations
 		if len(state.operations) > hub.config.HistoryRetention {
 			state.operations = state.operations[len(state.operations)-hub.config.HistoryRetention:]
@@ -639,7 +639,7 @@ func (hub *CollaborativeQueryHub) applyQueryEdit(session *CollaborativeSession, 
 	msg, _ := json.Marshal(CollaborativeMessage{
 		Type:    "query_updated",
 		Version: state.Version,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"edit":        edit,
 			"participant": participantID,
 			"query_text":  text,
@@ -664,7 +664,7 @@ func (hub *CollaborativeQueryHub) executeCollaborativeQuery(session *Collaborati
 
 	// Execute the query
 	start := time.Now()
-	var result interface{}
+	var result any
 	var execErr error
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -698,7 +698,7 @@ func (hub *CollaborativeQueryHub) executeCollaborativeQuery(session *Collaborati
 		responseMsg = CollaborativeMessage{
 			Type:  "query_error",
 			Error: execErr.Error(),
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"participant": participant.ID,
 				"duration_ms": duration.Milliseconds(),
 			},
@@ -706,7 +706,7 @@ func (hub *CollaborativeQueryHub) executeCollaborativeQuery(session *Collaborati
 	} else {
 		responseMsg = CollaborativeMessage{
 			Type: "query_result",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"participant": participant.ID,
 				"result":      result,
 				"duration_ms": duration.Milliseconds(),
@@ -721,7 +721,7 @@ func (hub *CollaborativeQueryHub) executeCollaborativeQuery(session *Collaborati
 func (hub *CollaborativeQueryHub) broadcastCursorUpdate(session *CollaborativeSession, participant *Participant) {
 	msg, _ := json.Marshal(CollaborativeMessage{
 		Type: "cursor_update",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"participant_id": participant.ID,
 			"cursor":         participant.Cursor,
 			"color":          participant.Color,
@@ -743,7 +743,7 @@ func (hub *CollaborativeQueryHub) broadcastCursorUpdate(session *CollaborativeSe
 func (hub *CollaborativeQueryHub) broadcastSelectionUpdate(session *CollaborativeSession, participant *Participant) {
 	msg, _ := json.Marshal(CollaborativeMessage{
 		Type: "selection_update",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"participant_id": participant.ID,
 			"selection":      participant.Selection,
 			"color":          participant.Color,
@@ -795,10 +795,10 @@ func (hub *CollaborativeQueryHub) addBookmark(session *CollaborativeSession, boo
 	session.broadcast <- msg
 }
 
-func (hub *CollaborativeQueryHub) broadcastResultHighlight(session *CollaborativeSession, participantID string, data interface{}) {
+func (hub *CollaborativeQueryHub) broadcastResultHighlight(session *CollaborativeSession, participantID string, data any) {
 	msg, _ := json.Marshal(CollaborativeMessage{
 		Type: "result_highlight",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"participant_id": participantID,
 			"highlight":      data,
 		},
@@ -945,10 +945,10 @@ func (hub *CollaborativeQueryHub) HandleSessions(w http.ResponseWriter, r *http.
 	}
 
 	hub.mu.RLock()
-	sessions := make([]map[string]interface{}, 0, len(hub.sessions))
+	sessions := make([]map[string]any, 0, len(hub.sessions))
 	for id, s := range hub.sessions {
 		s.mu.RLock()
-		sessions = append(sessions, map[string]interface{}{
+		sessions = append(sessions, map[string]any{
 			"id":           id,
 			"name":         s.Name,
 			"participants": len(s.Participants),
@@ -960,7 +960,7 @@ func (hub *CollaborativeQueryHub) HandleSessions(w http.ResponseWriter, r *http.
 	hub.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"sessions": sessions,
 	})
 }
@@ -989,7 +989,7 @@ func (hub *CollaborativeQueryHub) HandleCreateSession(w http.ResponseWriter, r *
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"session_id": session.ID,
 		"name":       session.Name,
 		"owner_id":   session.CreatedBy,
@@ -1023,7 +1023,7 @@ func (hub *CollaborativeQueryHub) HandleJoinSession(w http.ResponseWriter, r *ht
 
 	// This returns the WebSocket URL to connect to
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"websocket_url": fmt.Sprintf("/api/collab/ws?session=%s&participant=%s&name=%s",
 			req.SessionID, participant.ID, participant.Name),
 		"participant": participant,
@@ -1052,7 +1052,7 @@ func (hub *CollaborativeQueryHub) HandleLeaveSession(w http.ResponseWriter, r *h
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 	})
 }
@@ -1100,8 +1100,8 @@ func copyVectorClock(vc map[string]int64) map[string]int64 {
 	return copy
 }
 
-func copyParams(params map[string]interface{}) map[string]interface{} {
-	copy := make(map[string]interface{})
+func copyParams(params map[string]any) map[string]any {
+	copy := make(map[string]any)
 	for k, v := range params {
 		copy[k] = v
 	}
@@ -1115,7 +1115,7 @@ func parseQueryText(queryText string, timeRange *CollabQueryTimeRange) (*Query, 
 		// Return basic query if parsing fails
 		q = &Query{}
 	}
-	
+
 	if timeRange != nil {
 		if !timeRange.Start.IsZero() {
 			q.Start = timeRange.Start.UnixNano()
@@ -1124,15 +1124,15 @@ func parseQueryText(queryText string, timeRange *CollabQueryTimeRange) (*Query, 
 			q.End = timeRange.End.UnixNano()
 		}
 	}
-	
+
 	return q, nil
 }
 
 // TransformOperations applies operational transformation to concurrent edits.
 func TransformOperations(op1, op2 CollabCRDTOperation) (CollabCRDTOperation, CollabCRDTOperation) {
 	// If op1 and op2 are concurrent (neither causally precedes the other)
-	if !causallyPrecedes(op1.VectorClock, op2.VectorClock) && 
-	   !causallyPrecedes(op2.VectorClock, op1.VectorClock) {
+	if !causallyPrecedes(op1.VectorClock, op2.VectorClock) &&
+		!causallyPrecedes(op2.VectorClock, op1.VectorClock) {
 		// Transform based on position
 		if op1.Position <= op2.Position {
 			// op1 affects op2's position

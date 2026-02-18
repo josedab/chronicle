@@ -439,7 +439,7 @@ type HybridSearchQuery struct {
 	EndTime      int64
 	MetricFilter string
 	TagFilters   map[string]string
-	MaxDistance   float64
+	MaxDistance  float64
 	Ef           int
 }
 
@@ -456,12 +456,12 @@ type HybridSearchResult struct {
 
 // HybridIndexStats reports statistics about the hybrid index.
 type HybridIndexStats struct {
-	TotalPoints          int
-	PartitionCount       int
+	TotalPoints           int
+	PartitionCount        int
 	AvgPointsPerPartition float64
-	TotalVectors         int
-	MaxLevel             int
-	MemoryEstimateBytes  int64
+	TotalVectors          int
+	MaxLevel              int
+	MemoryEstimateBytes   int64
 }
 
 // --- Temporal Partitioned Index ---
@@ -699,10 +699,10 @@ const (
 
 // HybridQueryPlan describes the planned execution of a hybrid query.
 type HybridQueryPlan struct {
-	Strategy        HybridStrategy
+	Strategy         HybridStrategy
 	PartitionsToScan []string
-	EstimatedCost   float64
-	Steps           []string
+	EstimatedCost    float64
+	Steps            []string
 }
 
 // HybridQueryPlanner decides between temporal, vector, or hybrid scan strategies.
@@ -931,4 +931,3 @@ func builtinPatterns() []*HybridTimeSeriesPattern {
 		},
 	}
 }
-

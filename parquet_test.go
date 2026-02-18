@@ -270,7 +270,7 @@ func TestParquetBackend_LargeDataset(t *testing.T) {
 			Metric:    "large.test",
 			Value:     float64(i),
 			Timestamp: now + int64(i*1000),
-			Tags:      map[string]string{"index": string(rune(i % 26) + 'a')},
+			Tags:      map[string]string{"index": string(rune(i%26) + 'a')},
 		}
 	}
 

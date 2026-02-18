@@ -84,7 +84,19 @@ func (p *Partition) queryContext(ctx context.Context, db *DB, q *Query, allowed 
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	var points []Point
+	// Pre-allocate with estimated capacity to reduce slice growth.
+	estimatedCap := 0
+	for _, series := range p.series {
+		estimatedCap += len(series.Timestamps)
+	}
+	if q.Limit > 0 && estimatedCap > q.Limit {
+		estimatedCap = q.Limit
+	}
+	points := make([]Point, 0, estimatedCap)
+
+	sorted := true
+	var lastTS int64
+
 	for _, series := range p.series {
 		// Check context periodically during iteration
 		select {
@@ -114,6 +126,8 @@ func (p *Partition) queryContext(ctx context.Context, db *DB, q *Query, allowed 
 			continue
 		}
 
+		// Share tag reference — tags are immutable within a partition.
+		tags := series.Series.Tags
 		for i, ts := range series.Timestamps {
 			if q.Start != 0 && ts < q.Start {
 				continue
@@ -121,18 +135,25 @@ func (p *Partition) queryContext(ctx context.Context, db *DB, q *Query, allowed 
 			if q.End != 0 && ts >= q.End {
 				continue
 			}
+			if ts < lastTS {
+				sorted = false
+			}
+			lastTS = ts
 			points = append(points, Point{
 				Metric:    series.Series.Metric,
-				Tags:      cloneTags(series.Series.Tags),
+				Tags:      tags,
 				Value:     series.Values[i],
 				Timestamp: ts,
 			})
 		}
 	}
 
-	sort.Slice(points, func(i, j int) bool {
-		return points[i].Timestamp < points[j].Timestamp
-	})
+	// Only sort if data isn't already in order.
+	if !sorted {
+		sort.Slice(points, func(i, j int) bool {
+			return points[i].Timestamp < points[j].Timestamp
+		})
+	}
 
 	if q.Limit > 0 && len(points) > q.Limit {
 		points = points[:q.Limit]

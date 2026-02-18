@@ -91,34 +91,34 @@ func NewParquetBackend(baseDir string, config ParquetConfig) (*ParquetBackend, e
 
 // ParquetFileMetadata contains metadata about a Parquet file.
 type ParquetFileMetadata struct {
-	Version       int32       `json:"version"`
-	Schema        []ColumnDef `json:"schema"`
-	NumRows       int64       `json:"num_rows"`
-	NumRowGroups  int         `json:"num_row_groups"`
-	CreatedBy     string      `json:"created_by"`
-	CreatedAt     time.Time   `json:"created_at"`
-	Compression   string      `json:"compression"`
-	FileSize      int64       `json:"file_size"`
-	MinTimestamp  int64       `json:"min_timestamp"`
-	MaxTimestamp  int64       `json:"max_timestamp"`
-	ColumnStats   []ColumnStats `json:"column_stats,omitempty"`
+	Version      int32         `json:"version"`
+	Schema       []ColumnDef   `json:"schema"`
+	NumRows      int64         `json:"num_rows"`
+	NumRowGroups int           `json:"num_row_groups"`
+	CreatedBy    string        `json:"created_by"`
+	CreatedAt    time.Time     `json:"created_at"`
+	Compression  string        `json:"compression"`
+	FileSize     int64         `json:"file_size"`
+	MinTimestamp int64         `json:"min_timestamp"`
+	MaxTimestamp int64         `json:"max_timestamp"`
+	ColumnStats  []ColumnStats `json:"column_stats,omitempty"`
 }
 
 // ColumnDef defines a Parquet column schema.
 type ColumnDef struct {
 	Name           string `json:"name"`
-	Type           string `json:"type"` // INT64, DOUBLE, BYTE_ARRAY, etc.
+	Type           string `json:"type"`            // INT64, DOUBLE, BYTE_ARRAY, etc.
 	RepetitionType string `json:"repetition_type"` // REQUIRED, OPTIONAL, REPEATED
 	LogicalType    string `json:"logical_type,omitempty"`
 }
 
 // ColumnStats contains statistics for a column.
 type ColumnStats struct {
-	Column      string  `json:"column"`
-	NullCount   int64   `json:"null_count"`
-	DistinctCount int64 `json:"distinct_count,omitempty"`
-	MinValue    string  `json:"min_value,omitempty"`
-	MaxValue    string  `json:"max_value,omitempty"`
+	Column        string `json:"column"`
+	NullCount     int64  `json:"null_count"`
+	DistinctCount int64  `json:"distinct_count,omitempty"`
+	MinValue      string `json:"min_value,omitempty"`
+	MaxValue      string `json:"max_value,omitempty"`
 }
 
 // TimeSeriesParquetSchema returns the schema for time-series data.

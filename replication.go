@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -22,8 +22,8 @@ type ReplicationConfig struct {
 	Timeout       time.Duration
 
 	// Retry configuration
-	MaxRetries     int           // Max retry attempts (default: 3)
-	RetryBackoff   time.Duration // Initial backoff (default: 100ms)
+	MaxRetries   int           // Max retry attempts (default: 3)
+	RetryBackoff time.Duration // Initial backoff (default: 100ms)
 
 	// HTTPClient allows injecting a custom HTTP client for testing.
 	// If nil, a default client is created with the configured timeout.
@@ -143,7 +143,7 @@ func (r *replicator) flush(points []Point) {
 
 	payload, err := json.Marshal(writeRequest{Points: points})
 	if err != nil {
-		log.Printf("chronicle: replication marshal error: %v", err)
+		slog.Error("replication marshal error", "err", err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (r *replicator) flush(points []Point) {
 	gz := gzip.NewWriter(&buf)
 	if _, err := gz.Write(payload); err != nil {
 		_ = gz.Close()
-		log.Printf("chronicle: replication compress error: %v", err)
+		slog.Error("replication compress error", "err", err)
 		return
 	}
 	_ = gz.Close()
@@ -174,7 +174,7 @@ func (r *replicator) flush(points []Point) {
 
 	if err != nil {
 		if err == ErrCircuitOpen {
-			log.Printf("chronicle: replication circuit breaker open, dropping %d points", len(points))
+			slog.Warn("replication circuit breaker open, dropping points", "count", len(points))
 		}
 		// Error already logged in sendWithRetry
 	}
@@ -189,7 +189,7 @@ func (r *replicator) sendWithRetry(payload []byte) error {
 	})
 
 	if result.LastErr != nil {
-		log.Printf("chronicle: replication failed after %d attempts: %v", result.Attempts, result.LastErr)
+		slog.Error("replication failed", "attempts", result.Attempts, "err", result.LastErr)
 	}
 
 	return result.LastErr
@@ -220,7 +220,7 @@ func (r *replicator) send(payload []byte) error {
 	}
 	if resp.StatusCode >= 400 {
 		// Client errors are not retryable
-		log.Printf("chronicle: replication target returned client error status %d", resp.StatusCode)
+		slog.Warn("replication target returned client error", "status", resp.StatusCode)
 		return nil
 	}
 

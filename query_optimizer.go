@@ -215,31 +215,31 @@ func (qo *AdaptiveQueryOptimizer) GetWorkloadProfile() *QueryWorkloadProfile {
 
 // QueryPlan represents an optimized query execution plan
 type OptimizedQueryPlan struct {
-	ID             string            `json:"id"`
-	Query          *Query            `json:"query"`
-	Strategy       ExecutionStrategy `json:"strategy"`
-	EstimatedCost  float64           `json:"estimated_cost"`
-	EstimatedRows  int64             `json:"estimated_rows"`
-	EstimatedTime  time.Duration     `json:"estimated_time"`
-	IndexUsed      string            `json:"index_used,omitempty"`
-	Parallelism    int               `json:"parallelism"`
-	Steps          []PlanStep        `json:"steps"`
-	Hints          []string          `json:"hints"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID            string            `json:"id"`
+	Query         *Query            `json:"query"`
+	Strategy      ExecutionStrategy `json:"strategy"`
+	EstimatedCost float64           `json:"estimated_cost"`
+	EstimatedRows int64             `json:"estimated_rows"`
+	EstimatedTime time.Duration     `json:"estimated_time"`
+	IndexUsed     string            `json:"index_used,omitempty"`
+	Parallelism   int               `json:"parallelism"`
+	Steps         []PlanStep        `json:"steps"`
+	Hints         []string          `json:"hints"`
+	CreatedAt     time.Time         `json:"created_at"`
 }
 
 // ExecutionStrategy defines how a query will be executed
 type ExecutionStrategy string
 
 const (
-	StrategyFullScan       ExecutionStrategy = "full_scan"
-	StrategyIndexScan      ExecutionStrategy = "index_scan"
-	StrategyRangeScan      ExecutionStrategy = "range_scan"
-	StrategyIndexSeek      ExecutionStrategy = "index_seek"
-	StrategyParallelScan   ExecutionStrategy = "parallel_scan"
-	StrategyHashAggregate  ExecutionStrategy = "hash_aggregate"
-	StrategySortAggregate  ExecutionStrategy = "sort_aggregate"
-	StrategyMerge          ExecutionStrategy = "merge"
+	StrategyFullScan      ExecutionStrategy = "full_scan"
+	StrategyIndexScan     ExecutionStrategy = "index_scan"
+	StrategyRangeScan     ExecutionStrategy = "range_scan"
+	StrategyIndexSeek     ExecutionStrategy = "index_seek"
+	StrategyParallelScan  ExecutionStrategy = "parallel_scan"
+	StrategyHashAggregate ExecutionStrategy = "hash_aggregate"
+	StrategySortAggregate ExecutionStrategy = "sort_aggregate"
+	StrategyMerge         ExecutionStrategy = "merge"
 )
 
 // PlanStep represents a step in the execution plan
@@ -254,51 +254,51 @@ type PlanStep struct {
 
 // CachedPlan represents a cached query plan
 type CachedPlan struct {
-	Plan      *OptimizedQueryPlan
-	CachedAt  time.Time
-	HitCount  int64
+	Plan     *OptimizedQueryPlan
+	CachedAt time.Time
+	HitCount int64
 }
 
 // QueryFeedback contains feedback about query execution
 type QueryFeedback struct {
-	PlanID        string        `json:"plan_id"`
-	Query         *Query        `json:"query"`
-	Strategy      ExecutionStrategy `json:"strategy"`
-	ActualCost    float64       `json:"actual_cost"`
-	ActualRows    int64         `json:"actual_rows"`
-	ActualTime    time.Duration `json:"actual_time"`
-	MemoryUsed    int64         `json:"memory_used"`
-	Success       bool          `json:"success"`
-	ErrorMessage  string        `json:"error_message,omitempty"`
-	Timestamp     time.Time     `json:"timestamp"`
+	PlanID       string            `json:"plan_id"`
+	Query        *Query            `json:"query"`
+	Strategy     ExecutionStrategy `json:"strategy"`
+	ActualCost   float64           `json:"actual_cost"`
+	ActualRows   int64             `json:"actual_rows"`
+	ActualTime   time.Duration     `json:"actual_time"`
+	MemoryUsed   int64             `json:"memory_used"`
+	Success      bool              `json:"success"`
+	ErrorMessage string            `json:"error_message,omitempty"`
+	Timestamp    time.Time         `json:"timestamp"`
 }
 
 // Recommendation represents an optimization recommendation
 type Recommendation struct {
-	ID          string            `json:"id"`
+	ID          string             `json:"id"`
 	Type        RecommendationType `json:"type"`
-	Priority    int               `json:"priority"` // 1-10, higher = more important
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Impact      string            `json:"impact"`
-	Action      string            `json:"action"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
+	Priority    int                `json:"priority"` // 1-10, higher = more important
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	Impact      string             `json:"impact"`
+	Action      string             `json:"action"`
+	Metadata    map[string]string  `json:"metadata,omitempty"`
+	CreatedAt   time.Time          `json:"created_at"`
 }
 
 // RecommendationType defines the type of recommendation
 type RecommendationType string
 
 const (
-	RecommendationCreateIndex    RecommendationType = "create_index"
-	RecommendationDropIndex      RecommendationType = "drop_index"
-	RecommendationPartition      RecommendationType = "partition"
-	RecommendationCompression    RecommendationType = "compression"
-	RecommendationDownsample     RecommendationType = "downsample"
-	RecommendationParallelism    RecommendationType = "parallelism"
-	RecommendationRetention      RecommendationType = "retention"
-	RecommendationCaching        RecommendationType = "caching"
-	RecommendationSchema         RecommendationType = "schema"
+	RecommendationCreateIndex RecommendationType = "create_index"
+	RecommendationDropIndex   RecommendationType = "drop_index"
+	RecommendationPartition   RecommendationType = "partition"
+	RecommendationCompression RecommendationType = "compression"
+	RecommendationDownsample  RecommendationType = "downsample"
+	RecommendationParallelism RecommendationType = "parallelism"
+	RecommendationRetention   RecommendationType = "retention"
+	RecommendationCaching     RecommendationType = "caching"
+	RecommendationSchema      RecommendationType = "schema"
 )
 
 func (qo *AdaptiveQueryOptimizer) createDefaultPlan(query *Query) *OptimizedQueryPlan {
@@ -645,10 +645,10 @@ func (qo *AdaptiveQueryOptimizer) Close() error {
 
 // WorkloadProfiler profiles query workloads
 type QueryWorkloadProfiler struct {
-	window     time.Duration
-	queries    []queryRecord
+	window      time.Duration
+	queries     []queryRecord
 	seriesStats map[string]*SeriesQueryStats
-	mu         sync.RWMutex
+	mu          sync.RWMutex
 }
 
 type queryRecord struct {
@@ -669,12 +669,12 @@ type SeriesQueryStats struct {
 
 // WorkloadProfile represents the current workload profile
 type QueryWorkloadProfile struct {
-	TotalQueries     int64                       `json:"total_queries"`
-	AvgQueryDuration time.Duration               `json:"avg_query_duration"`
+	TotalQueries     int64                        `json:"total_queries"`
+	AvgQueryDuration time.Duration                `json:"avg_query_duration"`
 	SeriesStats      map[string]*SeriesQueryStats `json:"series_stats"`
-	LargeQueryRatio  float64                     `json:"large_query_ratio"`
-	PeakQPS          float64                     `json:"peak_qps"`
-	TimeRangeHist    map[string]int              `json:"time_range_histogram"`
+	LargeQueryRatio  float64                      `json:"large_query_ratio"`
+	PeakQPS          float64                      `json:"peak_qps"`
+	TimeRangeHist    map[string]int               `json:"time_range_histogram"`
 }
 
 func newWorkloadProfiler(window time.Duration) *QueryWorkloadProfiler {
@@ -927,9 +927,9 @@ func (qo *AdaptiveQueryOptimizer) ExplainPlan(plan *OptimizedQueryPlan) string {
 // AnalyzeQuery provides detailed analysis of a query
 func (qo *AdaptiveQueryOptimizer) AnalyzeQuery(query *Query) *QueryAnalysis {
 	analysis := &QueryAnalysis{
-		Query:      query,
-		Timestamp:  time.Now(),
-		Issues:     make([]string, 0),
+		Query:       query,
+		Timestamp:   time.Now(),
+		Issues:      make([]string, 0),
 		Suggestions: make([]string, 0),
 	}
 
