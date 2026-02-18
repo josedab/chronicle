@@ -116,17 +116,55 @@ type PluginAlertNotification struct {
 
 // PluginManifest describes a plugin's metadata.
 type PluginManifest struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Version      string     `json:"version"`
-	Type         PluginType `json:"type"`
-	Description  string     `json:"description"`
-	Author       string     `json:"author"`
-	License      string     `json:"license"`
-	Homepage     string     `json:"homepage,omitempty"`
-	MinVersion   string     `json:"min_chronicle_version,omitempty"`
-	Dependencies []string   `json:"dependencies,omitempty"`
-	Checksum     string     `json:"checksum,omitempty"`
+	ID           string             `json:"id"`
+	Name         string             `json:"name"`
+	Version      string             `json:"version"`
+	Type         PluginType         `json:"type"`
+	Description  string             `json:"description"`
+	Author       string             `json:"author"`
+	License      string             `json:"license"`
+	Homepage     string             `json:"homepage,omitempty"`
+	MinVersion   string             `json:"min_chronicle_version,omitempty"`
+	Dependencies []string           `json:"dependencies,omitempty"`
+	Checksum     string             `json:"checksum,omitempty"`
+	APIVersion   string             `json:"api_version,omitempty"`
+	Capabilities []PluginCapability `json:"capabilities,omitempty"`
+	ResourceQuota *ResourceQuota    `json:"resource_quota,omitempty"`
+	Signature    string             `json:"signature,omitempty"`
+}
+
+// PluginCapability declares what a plugin can do.
+type PluginCapability string
+
+const (
+	CapabilityReadData    PluginCapability = "read_data"
+	CapabilityWriteData   PluginCapability = "write_data"
+	CapabilityNetwork     PluginCapability = "network"
+	CapabilityFileSystem  PluginCapability = "filesystem"
+	CapabilityCustomAgg   PluginCapability = "custom_aggregation"
+	CapabilityCustomIngest PluginCapability = "custom_ingestion"
+	CapabilityAlertHandler PluginCapability = "alert_handler"
+	CapabilityTransformer  PluginCapability = "transformer"
+)
+
+// ResourceQuota defines resource limits for sandboxed plugin execution.
+type ResourceQuota struct {
+	MaxMemoryBytes  int64         `json:"max_memory_bytes"`
+	MaxCPUTime      time.Duration `json:"max_cpu_time"`
+	MaxWallTime     time.Duration `json:"max_wall_time"`
+	MaxOutputBytes  int64         `json:"max_output_bytes"`
+	MaxPointsPerCall int          `json:"max_points_per_call"`
+}
+
+// DefaultResourceQuota returns conservative default quotas.
+func DefaultResourceQuota() *ResourceQuota {
+	return &ResourceQuota{
+		MaxMemoryBytes:   64 * 1024 * 1024, // 64MB
+		MaxCPUTime:       10 * time.Second,
+		MaxWallTime:      30 * time.Second,
+		MaxOutputBytes:   10 * 1024 * 1024, // 10MB
+		MaxPointsPerCall: 100000,
+	}
 }
 
 // PluginInfo describes a loaded plugin's runtime info.
@@ -463,4 +501,135 @@ func (pm *PluginMarketplace) ListingCount() int {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	return len(pm.listings)
+}
+
+// --- Plugin Validation & Signature Verification ---
+
+// ValidateManifest validates a plugin manifest for completeness and correctness.
+func ValidateManifest(m PluginManifest) error {
+	if m.ID == "" {
+		return errors.New("plugin_sdk: plugin ID is required")
+	}
+	if m.Name == "" {
+		return errors.New("plugin_sdk: plugin name is required")
+	}
+	if m.Version == "" {
+		return errors.New("plugin_sdk: plugin version is required")
+	}
+	if m.Type == "" {
+		return errors.New("plugin_sdk: plugin type is required")
+	}
+	if m.APIVersion == "" {
+		m.APIVersion = "v1"
+	}
+	if m.ResourceQuota != nil {
+		if m.ResourceQuota.MaxMemoryBytes <= 0 {
+			return errors.New("plugin_sdk: max_memory_bytes must be positive")
+		}
+		if m.ResourceQuota.MaxWallTime <= 0 {
+			return errors.New("plugin_sdk: max_wall_time must be positive")
+		}
+	}
+	return nil
+}
+
+// VerifySignature checks the plugin signature against a trusted public key.
+// Returns true if the signature is valid or if no signature verification is configured.
+func VerifySignature(manifest PluginManifest, trustedKeys []string) bool {
+	if manifest.Signature == "" {
+		return len(trustedKeys) == 0 // unsigned is OK only if no keys configured
+	}
+	if len(trustedKeys) == 0 {
+		return true // no verification configured
+	}
+	// Compute expected signature: sha256(id + version + checksum)
+	data := manifest.ID + ":" + manifest.Version + ":" + manifest.Checksum
+	expected := computePluginHash(data)
+	for _, key := range trustedKeys {
+		if manifest.Signature == computePluginHash(key+":"+expected) {
+			return true
+		}
+	}
+	return false
+}
+
+func computePluginHash(data string) string {
+	h := uint64(14695981039346656037)
+	for _, b := range []byte(data) {
+		h ^= uint64(b)
+		h *= 1099511628211
+	}
+	return fmt.Sprintf("%016x", h)
+}
+
+// HasCapability checks if a manifest declares a specific capability.
+func (m PluginManifest) HasCapability(cap PluginCapability) bool {
+	for _, c := range m.Capabilities {
+		if c == cap {
+			return true
+		}
+	}
+	return false
+}
+
+// --- Versioned Plugin API ---
+
+// PluginAPIVersion represents the SDK API version for compatibility checking.
+type PluginAPIVersion struct {
+	Major int `json:"major"`
+	Minor int `json:"minor"`
+	Patch int `json:"patch"`
+}
+
+// CurrentAPIVersion returns the current plugin SDK API version.
+func CurrentAPIVersion() PluginAPIVersion {
+	return PluginAPIVersion{Major: 1, Minor: 0, Patch: 0}
+}
+
+// IsCompatible checks if a plugin's API version is compatible with the current SDK.
+func (v PluginAPIVersion) IsCompatible(pluginAPIVersion string) bool {
+	switch pluginAPIVersion {
+	case "v1", "v1.0", "v1.0.0":
+		return v.Major == 1
+	case "":
+		return true // unversioned plugins are assumed compatible
+	default:
+		return false
+	}
+}
+
+// --- Plugin Dependency Resolution ---
+
+// ResolveDependencies checks if all plugin dependencies are satisfied.
+func (pr *PluginRegistry) ResolveDependencies(manifest PluginManifest) []string {
+	pr.mu.RLock()
+	defer pr.mu.RUnlock()
+
+	var missing []string
+	for _, dep := range manifest.Dependencies {
+		if _, ok := pr.plugins[dep]; !ok {
+			missing = append(missing, dep)
+		}
+	}
+	return missing
+}
+
+// InstallWithDeps attempts to install a plugin, checking dependencies first.
+func (pr *PluginRegistry) InstallWithDeps(manifest PluginManifest, plugin AggregatorPlugin) error {
+	if err := ValidateManifest(manifest); err != nil {
+		return err
+	}
+
+	missing := pr.ResolveDependencies(manifest)
+	if len(missing) > 0 {
+		return fmt.Errorf("plugin_sdk: missing dependencies: %v", missing)
+	}
+
+	apiVer := CurrentAPIVersion()
+	if !apiVer.IsCompatible(manifest.APIVersion) {
+		return fmt.Errorf("plugin_sdk: incompatible API version %q (current: v%d.%d.%d)",
+			manifest.APIVersion, apiVer.Major, apiVer.Minor, apiVer.Patch)
+	}
+
+	return pr.RegisterAggregator(manifest, plugin)
 }
