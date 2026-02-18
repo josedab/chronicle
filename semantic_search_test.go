@@ -12,7 +12,7 @@ func TestSemanticSearchEngine(t *testing.T) {
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0 // Disable auto-indexing for tests
-	
+
 	engine := NewSemanticSearchEngine(db, config)
 	defer engine.Close()
 
@@ -109,7 +109,7 @@ func TestPatternEncoderDescription(t *testing.T) {
 
 	// Test NL encoding
 	embedding := encoder.EncodeDescription("show me spike anomaly patterns")
-	
+
 	if len(embedding) != 32 {
 		t.Errorf("expected embedding dimension 32, got %d", len(embedding))
 	}
@@ -383,7 +383,7 @@ func generateSpike(n int) []float64 {
 
 func BenchmarkHNSWInsert(b *testing.B) {
 	index := NewHNSWIndex(32, 100, 50, 16)
-	
+
 	vectors := make([][]float32, b.N)
 	for i := 0; i < b.N; i++ {
 		vectors[i] = make([]float32, 32)
@@ -400,7 +400,7 @@ func BenchmarkHNSWInsert(b *testing.B) {
 
 func BenchmarkHNSWSearch(b *testing.B) {
 	index := NewHNSWIndex(32, 100, 50, 16)
-	
+
 	// Pre-populate index
 	for i := 0; i < 1000; i++ {
 		vec := make([]float32, 32)

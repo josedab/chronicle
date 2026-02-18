@@ -9,11 +9,11 @@ func TestFoundationModelForecast(t *testing.T) {
 	fm := NewFoundationModel(nil, DefaultFoundationModelConfig())
 
 	input := TSModelInput{
-		Task:   TSModelForecast,
-		Metric: "cpu_usage",
-		Values: []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0},
+		Task:       TSModelForecast,
+		Metric:     "cpu_usage",
+		Values:     []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0},
 		Timestamps: []int64{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000},
-		Horizon: 5,
+		Horizon:    5,
 	}
 
 	result, err := fm.Forecast(context.Background(), input)

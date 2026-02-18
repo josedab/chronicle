@@ -18,17 +18,17 @@ func TestAnomalyCorrelationEngine(t *testing.T) {
 	now := time.Now()
 	engine.IngestSignal(AnomalySignal{
 		ID: "s1", SignalType: CorrelationSignalMetric, Metric: "cpu_usage",
-		Tags: map[string]string{"host": "web-1", "env": "prod"},
+		Tags:     map[string]string{"host": "web-1", "env": "prod"},
 		Severity: 0.8, Timestamp: now,
 	})
 	engine.IngestSignal(AnomalySignal{
 		ID: "s2", SignalType: CorrelationSignalLog, Metric: "error_log",
-		Tags: map[string]string{"host": "web-1", "env": "prod"},
+		Tags:     map[string]string{"host": "web-1", "env": "prod"},
 		Severity: 0.6, Timestamp: now.Add(5 * time.Second),
 	})
 	engine.IngestSignal(AnomalySignal{
 		ID: "s3", SignalType: CorrelationSignalTrace, Metric: "latency_spike",
-		Tags: map[string]string{"host": "web-1", "env": "prod"},
+		Tags:     map[string]string{"host": "web-1", "env": "prod"},
 		Severity: 0.9, Timestamp: now.Add(10 * time.Second),
 	})
 

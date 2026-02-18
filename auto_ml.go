@@ -228,12 +228,12 @@ func (a *AutoMLForecaster) AutoForecast(ctx context.Context, metric string, peri
 	}
 
 	return &AutoMLResult{
-		BestModel:           bestModel,
-		CandidateModels:     evaluatedModels,
-		Forecast:            forecast,
+		BestModel:                 bestModel,
+		CandidateModels:           evaluatedModels,
+		Forecast:                  forecast,
 		TimeSeriesCharacteristics: chars,
-		TrainingTime:        time.Since(startTime),
-		DataPoints:          len(data.Values),
+		TrainingTime:              time.Since(startTime),
+		DataPoints:                len(data.Values),
 	}, nil
 }
 

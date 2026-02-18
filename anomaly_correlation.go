@@ -252,10 +252,10 @@ func (e *AnomalyCorrelationEngine) GetIncident(id string) (*CorrelatedIncident, 
 }
 
 // Stats returns engine statistics.
-func (e *AnomalyCorrelationEngine) Stats() map[string]interface{} {
+func (e *AnomalyCorrelationEngine) Stats() map[string]any {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return map[string]interface{}{
+	return map[string]any{
 		"active_incidents": len(e.incidents),
 		"buffered_signals": len(e.signals),
 		"enabled":          e.config.Enabled,

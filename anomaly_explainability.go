@@ -15,7 +15,7 @@ import (
 type ExplainDepth int
 
 const (
-	ExplainBrief    ExplainDepth = iota
+	ExplainBrief ExplainDepth = iota
 	ExplainDetailed
 	ExplainExpert
 )
@@ -31,17 +31,17 @@ const (
 
 // AnomalyExplainabilityConfig configures the anomaly explainability engine.
 type AnomalyExplainabilityConfig struct {
-	LLMProvider           ExplainLLMProvider `json:"llm_provider"`
-	LLMModel              string        `json:"llm_model"`
-	APIKey                string        `json:"api_key,omitempty"`
-	MaxContextWindow      int           `json:"max_context_window"`
-	ExplanationDepth      ExplainDepth  `json:"explanation_depth"`
-	IncludeHistorical     bool          `json:"include_historical"`
-	IncludeCorrelations   bool          `json:"include_correlations"`
-	IncludeRecommendations bool         `json:"include_recommendations"`
-	MaxRecommendations    int           `json:"max_recommendations"`
-	CacheExplanations     bool          `json:"cache_explanations"`
-	CacheTTL              time.Duration `json:"cache_ttl"`
+	LLMProvider            ExplainLLMProvider `json:"llm_provider"`
+	LLMModel               string             `json:"llm_model"`
+	APIKey                 string             `json:"api_key,omitempty"`
+	MaxContextWindow       int                `json:"max_context_window"`
+	ExplanationDepth       ExplainDepth       `json:"explanation_depth"`
+	IncludeHistorical      bool               `json:"include_historical"`
+	IncludeCorrelations    bool               `json:"include_correlations"`
+	IncludeRecommendations bool               `json:"include_recommendations"`
+	MaxRecommendations     int                `json:"max_recommendations"`
+	CacheExplanations      bool               `json:"cache_explanations"`
+	CacheTTL               time.Duration      `json:"cache_ttl"`
 }
 
 // DefaultAnomalyExplainabilityConfig returns sensible defaults.
@@ -62,18 +62,18 @@ func DefaultAnomalyExplainabilityConfig() AnomalyExplainabilityConfig {
 
 // AnomalyExplanation represents a generated explanation for an anomaly.
 type AnomalyExplanation struct {
-	AnomalyID            string                    `json:"anomaly_id"`
-	Metric               string                    `json:"metric"`
-	Timestamp            time.Time                 `json:"timestamp"`
-	Severity             int                       `json:"severity"`
-	Explanation          string                    `json:"explanation"`
-	ContributingFactors  []ExplainContributingFactor `json:"contributing_factors"`
-	HistoricalComparisons []HistoricalComparison    `json:"historical_comparisons"`
-	RecommendedActions   []RecommendedAction        `json:"recommended_actions"`
-	Confidence           float64                    `json:"confidence"`
-	GeneratedAt          time.Time                  `json:"generated_at"`
-	ModelUsed            string                     `json:"model_used"`
-	TokensUsed           int                        `json:"tokens_used"`
+	AnomalyID             string                      `json:"anomaly_id"`
+	Metric                string                      `json:"metric"`
+	Timestamp             time.Time                   `json:"timestamp"`
+	Severity              int                         `json:"severity"`
+	Explanation           string                      `json:"explanation"`
+	ContributingFactors   []ExplainContributingFactor `json:"contributing_factors"`
+	HistoricalComparisons []HistoricalComparison      `json:"historical_comparisons"`
+	RecommendedActions    []RecommendedAction         `json:"recommended_actions"`
+	Confidence            float64                     `json:"confidence"`
+	GeneratedAt           time.Time                   `json:"generated_at"`
+	ModelUsed             string                      `json:"model_used"`
+	TokensUsed            int                         `json:"tokens_used"`
 }
 
 // ExplainContributingFactor represents a factor that contributed to the anomaly.
@@ -95,11 +95,11 @@ type HistoricalComparison struct {
 
 // RecommendedAction represents a recommended remediation action.
 type RecommendedAction struct {
-	Priority           int     `json:"priority"`
-	Action             string  `json:"action"`
-	Rationale          string  `json:"rationale"`
-	EstimatedImpact    string  `json:"estimated_impact"`
-	AutomationPossible bool    `json:"automation_possible"`
+	Priority           int    `json:"priority"`
+	Action             string `json:"action"`
+	Rationale          string `json:"rationale"`
+	EstimatedImpact    string `json:"estimated_impact"`
+	AutomationPossible bool   `json:"automation_possible"`
 }
 
 // ExplainabilityContext provides context for generating an explanation.
@@ -115,12 +115,12 @@ type ExplainabilityContext struct {
 
 // AnomalyExplainabilityStats holds engine statistics.
 type AnomalyExplainabilityStats struct {
-	TotalExplanations      int64         `json:"total_explanations"`
-	CacheHits              int64         `json:"cache_hits"`
-	CacheMisses            int64         `json:"cache_misses"`
-	AvgGenerationTime      time.Duration `json:"avg_generation_time"`
-	TotalTokensUsed        int64         `json:"total_tokens_used"`
-	RecommendationsGenerated int64       `json:"recommendations_generated"`
+	TotalExplanations        int64         `json:"total_explanations"`
+	CacheHits                int64         `json:"cache_hits"`
+	CacheMisses              int64         `json:"cache_misses"`
+	AvgGenerationTime        time.Duration `json:"avg_generation_time"`
+	TotalTokensUsed          int64         `json:"total_tokens_used"`
+	RecommendationsGenerated int64         `json:"recommendations_generated"`
 }
 
 type cacheEntry struct {
@@ -145,9 +145,9 @@ type AnomalyExplainabilityEngine struct {
 // NewAnomalyExplainabilityEngine creates a new anomaly explainability engine.
 func NewAnomalyExplainabilityEngine(db *DB, config AnomalyExplainabilityConfig) *AnomalyExplainabilityEngine {
 	templates := map[ExplainDepth]string{
-		ExplainBrief: "Summarize the anomaly on metric %q at %s with value %.4f (baseline mean=%.4f, stddev=%.4f) in one sentence.",
+		ExplainBrief:    "Summarize the anomaly on metric %q at %s with value %.4f (baseline mean=%.4f, stddev=%.4f) in one sentence.",
 		ExplainDetailed: "Analyze the anomaly on metric %q at %s.\nValue: %.4f\nBaseline mean: %.4f\nBaseline stddev: %.4f\nDeviation: %.2f sigma\nTrend: %s\nProvide a detailed explanation including potential causes, impact, and recommendations.",
-		ExplainExpert: "Perform expert-level root cause analysis for the anomaly on metric %q at %s.\nValue: %.4f\nBaseline: mean=%.4f stddev=%.4f\nDeviation: %.2f sigma\nTrend: %s\nRelated metrics: %s\nProvide comprehensive analysis with statistical context, contributing factors, historical patterns, and prioritized remediation steps.",
+		ExplainExpert:   "Perform expert-level root cause analysis for the anomaly on metric %q at %s.\nValue: %.4f\nBaseline: mean=%.4f stddev=%.4f\nDeviation: %.2f sigma\nTrend: %s\nRelated metrics: %s\nProvide comprehensive analysis with statistical context, contributing factors, historical patterns, and prioritized remediation steps.",
 	}
 	return &AnomalyExplainabilityEngine{
 		db:              db,

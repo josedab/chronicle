@@ -477,7 +477,7 @@ func TestAnomalyExplainabilityHTTPHandlers(t *testing.T) {
 	engine.RegisterHTTPHandlers(mux)
 
 	// Test POST /api/v1/explain/anomaly
-	reqBody, _ := json.Marshal(map[string]interface{}{
+	reqBody, _ := json.Marshal(map[string]any{
 		"metric": "cpu_usage",
 		"value":  95.0,
 		"time":   time.Now().Format(time.RFC3339Nano),

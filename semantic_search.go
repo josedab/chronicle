@@ -43,9 +43,9 @@ type SemanticSearchConfig struct {
 type SearchIndexType string
 
 const (
-	IndexTypeFlat  SearchIndexType = "flat"  // Brute force
-	IndexTypeHNSW  SearchIndexType = "hnsw"  // Hierarchical Navigable Small World
-	IndexTypeLSH   SearchIndexType = "lsh"   // Locality Sensitive Hashing
+	IndexTypeFlat SearchIndexType = "flat" // Brute force
+	IndexTypeHNSW SearchIndexType = "hnsw" // Hierarchical Navigable Small World
+	IndexTypeLSH  SearchIndexType = "lsh"  // Locality Sensitive Hashing
 )
 
 // DefaultSemanticSearchConfig returns default configuration.
@@ -66,29 +66,29 @@ func DefaultSemanticSearchConfig() SemanticSearchConfig {
 
 // TimeSeriesPattern represents an indexed pattern.
 type TimeSeriesPattern struct {
-	ID          string            `json:"id"`
-	Metric      string            `json:"metric"`
-	Tags        map[string]string `json:"tags"`
-	StartTime   int64             `json:"start_time"`
-	EndTime     int64             `json:"end_time"`
-	Embedding   []float32         `json:"embedding"`
-	RawValues   []float64         `json:"raw_values,omitempty"`
-	Statistics  *PatternStats     `json:"statistics"`
-	Labels      []string          `json:"labels,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID         string            `json:"id"`
+	Metric     string            `json:"metric"`
+	Tags       map[string]string `json:"tags"`
+	StartTime  int64             `json:"start_time"`
+	EndTime    int64             `json:"end_time"`
+	Embedding  []float32         `json:"embedding"`
+	RawValues  []float64         `json:"raw_values,omitempty"`
+	Statistics *PatternStats     `json:"statistics"`
+	Labels     []string          `json:"labels,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // PatternStats contains statistical features of a pattern.
 type PatternStats struct {
-	Mean       float64 `json:"mean"`
-	StdDev     float64 `json:"std_dev"`
-	Min        float64 `json:"min"`
-	Max        float64 `json:"max"`
-	Trend      float64 `json:"trend"`      // Linear trend coefficient
+	Mean        float64 `json:"mean"`
+	StdDev      float64 `json:"std_dev"`
+	Min         float64 `json:"min"`
+	Max         float64 `json:"max"`
+	Trend       float64 `json:"trend"`       // Linear trend coefficient
 	Seasonality float64 `json:"seasonality"` // Dominant frequency
-	Entropy    float64 `json:"entropy"`    // Information entropy
-	Skewness   float64 `json:"skewness"`
-	Kurtosis   float64 `json:"kurtosis"`
+	Entropy     float64 `json:"entropy"`     // Information entropy
+	Skewness    float64 `json:"skewness"`
+	Kurtosis    float64 `json:"kurtosis"`
 }
 
 // SearchResult represents a similarity search result.
@@ -103,24 +103,24 @@ type SearchResult struct {
 type SemanticQuery struct {
 	// Query by example pattern
 	ExampleValues []float64 `json:"example_values,omitempty"`
-	
+
 	// Query by natural language
 	NaturalLanguage string `json:"natural_language,omitempty"`
-	
+
 	// Query by existing pattern ID
 	PatternID string `json:"pattern_id,omitempty"`
-	
+
 	// Query by reference time range
 	ReferenceMetric string            `json:"reference_metric,omitempty"`
 	ReferenceTags   map[string]string `json:"reference_tags,omitempty"`
 	ReferenceStart  time.Time         `json:"reference_start,omitempty"`
 	ReferenceEnd    time.Time         `json:"reference_end,omitempty"`
-	
+
 	// Filters
 	MetricFilter string            `json:"metric_filter,omitempty"`
 	TagFilters   map[string]string `json:"tag_filters,omitempty"`
 	TimeRange    *QueryTimeRange   `json:"time_range,omitempty"`
-	
+
 	// Options
 	TopK      int     `json:"top_k"`
 	Threshold float64 `json:"threshold"`
@@ -128,16 +128,16 @@ type SemanticQuery struct {
 
 // SemanticSearchEngine provides semantic similarity search for time series.
 type SemanticSearchEngine struct {
-	db       *DB
-	config   SemanticSearchConfig
+	db     *DB
+	config SemanticSearchConfig
 
 	// Pattern storage
 	patterns   map[string]*TimeSeriesPattern
 	patternsMu sync.RWMutex
 
 	// HNSW index
-	hnswIndex  *HNSWIndex
-	indexMu    sync.RWMutex
+	hnswIndex *HNSWIndex
+	indexMu   sync.RWMutex
 
 	// Pattern encoder
 	encoder *PatternEncoder
@@ -147,30 +147,30 @@ type SemanticSearchEngine struct {
 	wg     sync.WaitGroup
 
 	// Stats
-	patternsIndexed int64
+	patternsIndexed  int64
 	searchesExecuted int64
-	indexUpdates    int64
+	indexUpdates     int64
 }
 
 // HNSWIndex implements Hierarchical Navigable Small World graph for ANN search.
 type HNSWIndex struct {
-	nodes       map[string]*HNSWNode
-	entryPoint  string
-	maxLevel    int
+	nodes          map[string]*HNSWNode
+	entryPoint     string
+	maxLevel       int
 	efConstruction int
-	efSearch    int
-	m           int // Max connections per layer
-	mL          float64 // Level generation factor
-	dimension   int
-	mu          sync.RWMutex
+	efSearch       int
+	m              int     // Max connections per layer
+	mL             float64 // Level generation factor
+	dimension      int
+	mu             sync.RWMutex
 }
 
 // HNSWNode represents a node in the HNSW graph.
 type HNSWNode struct {
-	ID         string
-	Vector     []float32
-	Level      int
-	Neighbors  [][]string // Neighbors per level
+	ID        string
+	Vector    []float32
+	Level     int
+	Neighbors [][]string // Neighbors per level
 }
 
 // PatternEncoder encodes time series patterns into embeddings.
@@ -287,7 +287,7 @@ func (e *SemanticSearchEngine) Search(query *SemanticQuery) ([]SearchResult, err
 
 	// Build results with filtering
 	results := make([]SearchResult, 0, topK)
-	
+
 	e.patternsMu.RLock()
 	for rank, n := range neighbors {
 		if len(results) >= topK {
@@ -370,7 +370,7 @@ func (e *SemanticSearchEngine) IndexFromDatabase(metric string, tags map[string]
 	indexed := 0
 	for i := 0; i <= len(result.Points)-e.config.WindowSize; i += e.config.WindowSize / 2 {
 		window := result.Points[i : i+e.config.WindowSize]
-		
+
 		values := make([]float64, len(window))
 		for j, p := range window {
 			values[j] = p.Value
@@ -452,7 +452,7 @@ func (e *SemanticSearchEngine) indexRecentData() {
 	// Index patterns from recent data (last hour)
 	end := time.Now()
 	start := end.Add(-time.Hour)
-	
+
 	// Get list of metrics
 	metrics := e.db.Metrics()
 
@@ -573,20 +573,20 @@ func (e *PatternEncoder) EncodeDescription(description string) []float32 {
 
 	// Simple keyword-based encoding
 	keywords := map[string]int{
-		"spike":     0,
-		"drop":      1,
-		"increase":  2,
-		"decrease":  3,
-		"stable":    4,
-		"volatile":  5,
-		"trend":     6,
-		"seasonal":  7,
-		"anomaly":   8,
-		"outlier":   9,
-		"high":      10,
-		"low":       11,
-		"normal":    12,
-		"periodic":  13,
+		"spike":    0,
+		"drop":     1,
+		"increase": 2,
+		"decrease": 3,
+		"stable":   4,
+		"volatile": 5,
+		"trend":    6,
+		"seasonal": 7,
+		"anomaly":  8,
+		"outlier":  9,
+		"high":     10,
+		"low":      11,
+		"normal":   12,
+		"periodic": 13,
 	}
 
 	for word, idx := range keywords {
@@ -621,14 +621,14 @@ func (h *HNSWIndex) Insert(id string, vector []float32) {
 
 	// Generate random level
 	level := h.randomLevel()
-	
+
 	node := &HNSWNode{
 		ID:        id,
 		Vector:    vector,
 		Level:     level,
 		Neighbors: make([][]string, level+1),
 	}
-	
+
 	for i := range node.Neighbors {
 		node.Neighbors[i] = make([]string, 0, h.m)
 	}
@@ -643,7 +643,7 @@ func (h *HNSWIndex) Insert(id string, vector []float32) {
 
 	// Find entry point
 	entryID := h.entryPoint
-	
+
 	// Traverse from top level
 	for l := h.maxLevel; l > level; l-- {
 		entryID = h.searchLevel(vector, entryID, 1, l)[0].ID
@@ -652,10 +652,10 @@ func (h *HNSWIndex) Insert(id string, vector []float32) {
 	// Insert at each level
 	for l := semMin(level, h.maxLevel); l >= 0; l-- {
 		neighbors := h.searchLevel(vector, entryID, h.efConstruction, l)
-		
+
 		// Select best neighbors
 		selected := h.selectNeighbors(vector, neighbors, h.m)
-		
+
 		// Add bidirectional connections
 		for _, n := range selected {
 			node.Neighbors[l] = append(node.Neighbors[l], n.ID)
@@ -669,14 +669,14 @@ func (h *HNSWIndex) Insert(id string, vector []float32) {
 				}
 			}
 		}
-		
+
 		if len(selected) > 0 {
 			entryID = selected[0].ID
 		}
 	}
 
 	h.nodes[id] = node
-	
+
 	if level > h.maxLevel {
 		h.maxLevel = level
 		h.entryPoint = id
@@ -693,7 +693,7 @@ func (h *HNSWIndex) SearchKNN(query []float32, k int) []Neighbor {
 	}
 
 	entryID := h.entryPoint
-	
+
 	// Traverse from top level
 	for l := h.maxLevel; l > 0; l-- {
 		results := h.searchLevel(query, entryID, 1, l)
@@ -704,11 +704,11 @@ func (h *HNSWIndex) SearchKNN(query []float32, k int) []Neighbor {
 
 	// Search at level 0
 	results := h.searchLevel(query, entryID, semMax(h.efSearch, k), 0)
-	
+
 	if len(results) > k {
 		results = results[:k]
 	}
-	
+
 	return results
 }
 
@@ -806,11 +806,11 @@ func (h *HNSWIndex) searchLevel(query []float32, entryID string, ef, level int) 
 			}
 
 			dist := cosineDistance(query, neighbor.Vector)
-			
+
 			if len(results) < ef || dist < furthest.Distance {
 				candidates = append(candidates, Neighbor{ID: neighborID, Distance: dist})
 				results = append(results, Neighbor{ID: neighborID, Distance: dist})
-				
+
 				if len(results) > ef {
 					sort.Slice(results, func(i, j int) bool {
 						return results[i].Distance < results[j].Distance
@@ -889,7 +889,7 @@ func computePatternStats(values []float64) *PatternStats {
 	sumQuad := 0.0
 	min := values[0]
 	max := values[0]
-	
+
 	for _, v := range values {
 		diff := v - mean
 		sumSq += diff * diff
@@ -909,7 +909,7 @@ func computePatternStats(values []float64) *PatternStats {
 	var skewness, kurtosis float64
 	if stdDev > 0 {
 		skewness = (sumCube / float64(n)) / (stdDev * stdDev * stdDev)
-		kurtosis = (sumQuad / float64(n)) / (variance * variance) - 3
+		kurtosis = (sumQuad/float64(n))/(variance*variance) - 3
 	}
 
 	// Trend (linear regression slope)
@@ -932,14 +932,14 @@ func computePatternStats(values []float64) *PatternStats {
 	entropy := computeEntropy(values)
 
 	return &PatternStats{
-		Mean:       mean,
-		StdDev:     stdDev,
-		Min:        min,
-		Max:        max,
-		Trend:      trend,
-		Skewness:   skewness,
-		Kurtosis:   kurtosis,
-		Entropy:    entropy,
+		Mean:     mean,
+		StdDev:   stdDev,
+		Min:      min,
+		Max:      max,
+		Trend:    trend,
+		Skewness: skewness,
+		Kurtosis: kurtosis,
+		Entropy:  entropy,
 	}
 }
 
@@ -1003,7 +1003,7 @@ func computeFrequencyFeatures(values []float64, dimension int) []float32 {
 			realPart += v * math.Cos(angle)
 			imagPart += v * math.Sin(angle)
 		}
-		magnitude := math.Sqrt(realPart*realPart + imagPart*imagPart) / float64(n)
+		magnitude := math.Sqrt(realPart*realPart+imagPart*imagPart) / float64(n)
 		features[k] = float32(magnitude)
 	}
 

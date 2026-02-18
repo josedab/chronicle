@@ -71,14 +71,14 @@ const (
 
 // Re-export constructor functions.
 var (
-	DefaultAnomalyConfig          = anomaly.DefaultAnomalyConfig
-	NewIsolationForest            = anomaly.NewIsolationForest
-	NewLSTMModel                  = anomaly.NewLSTMModel
-	NewAutoencoder                = anomaly.NewAutoencoder
-	NewTransformerModel           = anomaly.NewTransformerModel
-	NewStatisticalModel           = anomaly.NewStatisticalModel
+	DefaultAnomalyConfig           = anomaly.DefaultAnomalyConfig
+	NewIsolationForest             = anomaly.NewIsolationForest
+	NewLSTMModel                   = anomaly.NewLSTMModel
+	NewAutoencoder                 = anomaly.NewAutoencoder
+	NewTransformerModel            = anomaly.NewTransformerModel
+	NewStatisticalModel            = anomaly.NewStatisticalModel
 	DefaultAnomalyClassifierConfig = anomaly.DefaultAnomalyClassifierConfig
-	NewAnomalyClassifier          = anomaly.NewAnomalyClassifier
+	NewAnomalyClassifier           = anomaly.NewAnomalyClassifier
 )
 
 // NewAnomalyDetector creates a new anomaly detector. If ds is nil, the detector
