@@ -544,6 +544,104 @@ func (s *FlightSQLServer) handleStatementUpdateMsg(conn net.Conn, body []byte) {
 	s.sendErrorMsg(conn, fmt.Errorf("statement updates are not supported on a time-series database"))
 }
 
+// --- Standard Flight SQL RPC Methods for Client Interop ---
+
+// GetFlightInfoStatement returns FlightInfo for a SQL statement (DBeaver, ADBC, DataFusion).
+func (s *FlightSQLServer) GetFlightInfoStatement(sql string) (*FlightInfo, error) {
+	if !s.config.EnableSQL {
+		return nil, fmt.Errorf("SQL queries are disabled")
+	}
+	if sql == "" {
+		return nil, fmt.Errorf("empty SQL statement")
+	}
+
+	// Generate a unique ticket for this query
+	ticketID := fmt.Sprintf("stmt-%d", time.Now().UnixNano())
+
+	// Store the prepared statement for later DoGet
+	s.sessionMu.Lock()
+	s.preparedStatements[ticketID] = &preparedStatement{
+		id:      ticketID,
+		sql:     sql,
+		schema:  ChronicleSchema(),
+		created: time.Now(),
+	}
+	s.sessionMu.Unlock()
+
+	return &FlightInfo{
+		Schema: ChronicleSchema(),
+		Endpoints: []FlightEndpoint{{
+			Ticket: FlightTicket{Ticket: []byte(ticketID)},
+			Locations: []FlightLocation{{URI: s.config.BindAddr}},
+		}},
+		TotalRows:  -1, // unknown until executed
+		TotalBytes: -1,
+	}, nil
+}
+
+// DoGetStatement executes a SQL statement and returns results as Arrow batches.
+func (s *FlightSQLServer) DoGetStatement(ticketID string) ([]ArrowRecordBatch, error) {
+	s.sessionMu.RLock()
+	ps, exists := s.preparedStatements[ticketID]
+	s.sessionMu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("unknown ticket: %s", ticketID)
+	}
+
+	return s.HandleStatementQuery(ps.sql)
+}
+
+// CreatePreparedStatement creates a server-side prepared statement.
+func (s *FlightSQLServer) CreatePreparedStatement(sql string) (string, *ArrowSchema, error) {
+	if !s.config.EnableSQL {
+		return "", nil, fmt.Errorf("SQL queries are disabled")
+	}
+
+	stmtID := fmt.Sprintf("prepared-%d", time.Now().UnixNano())
+	schema := ChronicleSchema()
+
+	s.sessionMu.Lock()
+	s.preparedStatements[stmtID] = &preparedStatement{
+		id:      stmtID,
+		sql:     sql,
+		schema:  schema,
+		created: time.Now(),
+	}
+	s.sessionMu.Unlock()
+
+	return stmtID, &schema, nil
+}
+
+// ClosePreparedStatement closes a previously created prepared statement.
+func (s *FlightSQLServer) ClosePreparedStatement(stmtID string) error {
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
+
+	if _, exists := s.preparedStatements[stmtID]; !exists {
+		return fmt.Errorf("prepared statement not found: %s", stmtID)
+	}
+	delete(s.preparedStatements, stmtID)
+	return nil
+}
+
+// GetSqlInfo returns SQL information for client capability detection.
+func (s *FlightSQLServer) GetSqlInfo() map[string]any {
+	return map[string]any{
+		"flight_sql_server_name":          "Chronicle Flight SQL",
+		"flight_sql_server_version":       "1.0.0",
+		"flight_sql_server_arrow_version": "15.0.0",
+		"flight_sql_server_read_only":     false,
+		"sql_ddl_catalog":                 false,
+		"sql_ddl_schema":                  false,
+		"sql_ddl_table":                   false,
+		"sql_identifier_case":             "case_insensitive",
+		"sql_identifier_quote_char":       "\"",
+		"sql_quoted_identifier_case":      "case_sensitive",
+		"sql_all_tables_are_selectable":   true,
+	}
+}
+
 func (s *FlightSQLServer) handlePreparedQueryMsg(conn net.Conn, body []byte) {
 	var req struct {
 		StatementID string `json:"statement_id"`
