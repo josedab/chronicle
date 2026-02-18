@@ -19,6 +19,15 @@ linters:
     - nakedret
     - noctx
     - bodyclose
+    - errorlint
+    - gosec
+    - prealloc
+    - nolintlint
+    - wastedassign
+    - predeclared
+    - dupword
+    - tenv
+    - gci
 
 linters-settings:
   errcheck:
@@ -32,6 +41,22 @@ linters-settings:
     max-func-lines: 30
   goimports:
     local-prefixes: github.com/chronicle-db/chronicle
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  gosec:
+    excludes:
+      - G104  # Unhandled errors (covered by errcheck)
+      - G304  # File path from variable (expected in DB)
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/chronicle-db/chronicle)
 
 issues:
   exclude-use-default: false
@@ -41,3 +66,7 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
+        - gosec
+        - prealloc
+        - tenv
+        - dupword
