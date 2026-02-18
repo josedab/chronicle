@@ -551,7 +551,7 @@ func TestStreamDSLV2HTTPHandlers(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Errorf("validate status = %d, want 200", w.Code)
 	}
-	var valResp map[string]interface{}
+	var valResp map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &valResp)
 	if valResp["valid"] != true {
 		t.Errorf("valid = %v, want true", valResp["valid"])
@@ -568,7 +568,7 @@ func TestStreamDSLV2HTTPHandlers(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Errorf("create status = %d, want 201; body = %s", w.Code, w.Body.String())
 	}
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &createResp)
 	queryID, ok := createResp["id"].(string)
 	if !ok || queryID == "" {
@@ -592,7 +592,7 @@ func TestStreamDSLV2HTTPHandlers(t *testing.T) {
 	}
 
 	// POST event
-	body, _ = json.Marshal(map[string]interface{}{
+	body, _ = json.Marshal(map[string]any{
 		"metric": "cpu.usage",
 		"value":  42.0,
 		"tags":   map[string]string{"host": "a"},
@@ -621,9 +621,9 @@ func TestStreamDSLV2HTTPHandlers(t *testing.T) {
 	}
 
 	// POST patterns
-	body, _ = json.Marshal(map[string]interface{}{
+	body, _ = json.Marshal(map[string]any{
 		"name":   "test_pattern",
-		"events": []map[string]interface{}{{"metric": "cpu.usage"}},
+		"events": []map[string]any{{"metric": "cpu.usage"}},
 		"within": "5m",
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v2/stream-dsl/patterns", bytes.NewReader(body))

@@ -46,14 +46,14 @@ func DefaultStreamingSQLConfig() StreamingSQLConfig {
 
 // StreamingSQLEngine provides KSQL-style streaming SQL capabilities.
 type StreamingSQLEngine struct {
-	db       *DB
-	config   StreamingSQLConfig
-	hub      *StreamHub
-	mu       sync.RWMutex
+	db     *DB
+	config StreamingSQLConfig
+	hub    *StreamHub
+	mu     sync.RWMutex
 
 	// Active streaming queries
-	queries  map[string]*StreamingQuery
-	queryMu  sync.RWMutex
+	queries map[string]*StreamingQuery
+	queryMu sync.RWMutex
 
 	// State store for aggregations
 	stateStore *StateStore
@@ -66,15 +66,15 @@ type StreamingSQLEngine struct {
 
 // StreamingQuery represents an active streaming SQL query.
 type StreamingQuery struct {
-	ID          string                 `json:"id"`
-	SQL         string                 `json:"sql"`
-	Parsed      *ParsedStreamingSQL    `json:"parsed"`
-	State       StreamingQueryState    `json:"state"`
-	Created     time.Time              `json:"created"`
-	LastEmit    time.Time              `json:"last_emit"`
-	Results     chan *StreamingResult  `json:"-"`
-	cancel      context.CancelFunc
-	mu          sync.Mutex
+	ID       string                `json:"id"`
+	SQL      string                `json:"sql"`
+	Parsed   *ParsedStreamingSQL   `json:"parsed"`
+	State    StreamingQueryState   `json:"state"`
+	Created  time.Time             `json:"created"`
+	LastEmit time.Time             `json:"last_emit"`
+	Results  chan *StreamingResult `json:"-"`
+	cancel   context.CancelFunc
+	mu       sync.Mutex
 }
 
 // StreamingQueryState represents query execution state.
@@ -107,16 +107,16 @@ func (s StreamingQueryState) String() string {
 
 // ParsedStreamingSQL represents a parsed streaming SQL statement.
 type ParsedStreamingSQL struct {
-	Type        StreamingSQLType       `json:"type"`
-	Source      string                 `json:"source"`
-	Sink        string                 `json:"sink,omitempty"`
-	Select      []SelectField          `json:"select"`
-	Joins       []StreamJoin           `json:"joins,omitempty"`
-	Where       *WhereClause           `json:"where,omitempty"`
-	GroupBy     *GroupByClause         `json:"group_by,omitempty"`
-	Window      *WindowClause          `json:"window,omitempty"`
-	Having      *HavingClause          `json:"having,omitempty"`
-	Emit        *EmitClause            `json:"emit,omitempty"`
+	Type    StreamingSQLType `json:"type"`
+	Source  string           `json:"source"`
+	Sink    string           `json:"sink,omitempty"`
+	Select  []SelectField    `json:"select"`
+	Joins   []StreamJoin     `json:"joins,omitempty"`
+	Where   *WhereClause     `json:"where,omitempty"`
+	GroupBy *GroupByClause   `json:"group_by,omitempty"`
+	Window  *WindowClause    `json:"window,omitempty"`
+	Having  *HavingClause    `json:"having,omitempty"`
+	Emit    *EmitClause      `json:"emit,omitempty"`
 }
 
 // StreamingSQLType identifies the SQL statement type.
@@ -161,11 +161,11 @@ type WhereClause struct {
 
 // Condition represents a filter condition.
 type Condition struct {
-	Field    string      `json:"field"`
-	Operator string      `json:"operator"`
-	Value    interface{} `json:"value"`
-	And      *Condition  `json:"and,omitempty"`
-	Or       *Condition  `json:"or,omitempty"`
+	Field    string     `json:"field"`
+	Operator string     `json:"operator"`
+	Value    any        `json:"value"`
+	And      *Condition `json:"and,omitempty"`
+	Or       *Condition `json:"or,omitempty"`
 }
 
 // GroupByClause represents GROUP BY.
@@ -175,10 +175,10 @@ type GroupByClause struct {
 
 // WindowClause represents window specifications.
 type WindowClause struct {
-	Type     StreamingWindowType `json:"type"`
-	Size     time.Duration       `json:"size"`
-	Advance  time.Duration       `json:"advance,omitempty"`
-	Grace    time.Duration       `json:"grace,omitempty"`
+	Type    StreamingWindowType `json:"type"`
+	Size    time.Duration       `json:"size"`
+	Advance time.Duration       `json:"advance,omitempty"`
+	Grace   time.Duration       `json:"grace,omitempty"`
 }
 
 // StreamingWindowType identifies window types for streaming SQL.
@@ -228,13 +228,13 @@ const (
 
 // StreamingResult represents a streaming query result.
 type StreamingResult struct {
-	QueryID   string                 `json:"query_id"`
-	Timestamp int64                  `json:"timestamp"`
-	WindowStart int64                `json:"window_start,omitempty"`
-	WindowEnd   int64                `json:"window_end,omitempty"`
-	GroupKey  string                 `json:"group_key,omitempty"`
-	Values    map[string]interface{} `json:"values"`
-	Type      ResultType             `json:"type"`
+	QueryID     string         `json:"query_id"`
+	Timestamp   int64          `json:"timestamp"`
+	WindowStart int64          `json:"window_start,omitempty"`
+	WindowEnd   int64          `json:"window_end,omitempty"`
+	GroupKey    string         `json:"group_key,omitempty"`
+	Values      map[string]any `json:"values"`
+	Type        ResultType     `json:"type"`
 }
 
 // ResultType identifies result types.
@@ -255,16 +255,16 @@ type StateStore struct {
 
 // WindowState holds state for a window.
 type WindowState struct {
-	Key       string
-	Start     int64
-	End       int64
-	Values    map[string]float64
-	Count     int64
-	Sum       float64
-	Min       float64
-	Max       float64
-	Created   time.Time
-	Updated   time.Time
+	Key     string
+	Start   int64
+	End     int64
+	Values  map[string]float64
+	Count   int64
+	Sum     float64
+	Min     float64
+	Max     float64
+	Created time.Time
+	Updated time.Time
 }
 
 // NewStreamingSQLEngine creates a new streaming SQL engine.
@@ -459,7 +459,7 @@ func (e *StreamingSQLEngine) matchesWhere(point Point, where *WhereClause) bool 
 }
 
 func (e *StreamingSQLEngine) matchesCondition(point Point, cond Condition) bool {
-	var value interface{}
+	var value any
 
 	switch cond.Field {
 	case "value":
@@ -587,7 +587,7 @@ func (e *StreamingSQLEngine) emitWindowResults(query *StreamingQuery, windowStat
 				WindowStart: state.Start,
 				WindowEnd:   state.End,
 				GroupKey:    state.Key,
-				Values:      make(map[string]interface{}),
+				Values:      make(map[string]any),
 				Type:        ResultTypeFinal,
 			}
 
@@ -670,7 +670,7 @@ func (e *StreamingSQLEngine) projectPoint(query *StreamingQuery, point Point) *S
 	result := &StreamingResult{
 		QueryID:   query.ID,
 		Timestamp: point.Timestamp,
-		Values:    make(map[string]interface{}),
+		Values:    make(map[string]any),
 		Type:      ResultTypeUpdate,
 	}
 
@@ -916,7 +916,7 @@ func (e *StreamingSQLEngine) parseCondition(condStr string) *Condition {
 			valueStr := strings.TrimSpace(condStr[idx+len(op):])
 			valueStr = strings.Trim(valueStr, "'\"")
 
-			var value interface{} = valueStr
+			var value any = valueStr
 			// Try to parse as number
 			if f, ok := parseFloat(valueStr); ok {
 				value = f
@@ -1108,17 +1108,17 @@ func (e *StreamingSQLEngine) GetStats() StreamingSQLStats {
 	e.stateStore.mu.RUnlock()
 
 	return StreamingSQLStats{
-		ActiveQueries:    queryCount,
-		ActiveWindows:    windowCount,
-		MaxConcurrent:    e.config.MaxConcurrentQueries,
-		StateStoreSize:   e.config.StateStoreSize,
+		ActiveQueries:  queryCount,
+		ActiveWindows:  windowCount,
+		MaxConcurrent:  e.config.MaxConcurrentQueries,
+		StateStoreSize: e.config.StateStoreSize,
 	}
 }
 
 // StreamingSQLStats contains engine statistics.
 type StreamingSQLStats struct {
-	ActiveQueries    int `json:"active_queries"`
-	ActiveWindows    int `json:"active_windows"`
-	MaxConcurrent    int `json:"max_concurrent"`
-	StateStoreSize   int `json:"state_store_size"`
+	ActiveQueries  int `json:"active_queries"`
+	ActiveWindows  int `json:"active_windows"`
+	MaxConcurrent  int `json:"max_concurrent"`
+	StateStoreSize int `json:"state_store_size"`
 }

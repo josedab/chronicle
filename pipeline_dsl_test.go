@@ -223,10 +223,10 @@ func TestParseByteSize(t *testing.T) {
 
 func TestPipelineDSL_MarshalYAML(t *testing.T) {
 	p := &PipelineDSL{
-		Version: "1",
-		Name:    "roundtrip",
+		Version:  "1",
+		Name:     "roundtrip",
 		Database: DatabaseDSL{Path: "/tmp/rt"},
-		Inputs: []InputDSL{{Name: "in", Type: "stdin"}},
+		Inputs:   []InputDSL{{Name: "in", Type: "stdin"}},
 	}
 
 	data, err := p.MarshalYAML()

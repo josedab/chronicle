@@ -424,9 +424,9 @@ func TestPipelineSpecBuild(t *testing.T) {
 	defer db.Close()
 
 	spec := &PipelineSpec{
-		Name:    "build-test",
-		Source:  SourceSpec{Type: "chronicle", Metric: "test", Interval: "1s"},
-		Sinks:   []SinkSpec{{Type: "chronicle"}},
+		Name:     "build-test",
+		Source:   SourceSpec{Type: "chronicle", Metric: "test", Interval: "1s"},
+		Sinks:    []SinkSpec{{Type: "chronicle"}},
 		Settings: SettingsSpec{Workers: 2, BufferSize: 512, Backpressure: "drop"},
 	}
 

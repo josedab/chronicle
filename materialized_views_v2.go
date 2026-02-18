@@ -80,18 +80,18 @@ func DefaultMaterializedViewV2Config() MaterializedViewV2Config {
 
 // ViewV2Definition describes a v2 materialized view.
 type ViewV2Definition struct {
-	Name              string            `json:"name"`
-	SourceMetric      string            `json:"source_metric"`
-	Tags              map[string]string `json:"tags,omitempty"`
-	Aggregation       AggFunc           `json:"aggregation"`
-	WindowType        WindowType        `json:"window_type"`
-	WindowSize        time.Duration     `json:"window_size"`
-	SlideInterval     time.Duration     `json:"slide_interval,omitempty"` // For sliding windows
-	SessionGap        time.Duration     `json:"session_gap,omitempty"`   // For session windows
-	GroupBy           []string          `json:"group_by,omitempty"`
-	LatePolicy        LateDataPolicy    `json:"late_policy"`
-	AllowedLateness   time.Duration     `json:"allowed_lateness"`
-	Enabled           bool              `json:"enabled"`
+	Name            string            `json:"name"`
+	SourceMetric    string            `json:"source_metric"`
+	Tags            map[string]string `json:"tags,omitempty"`
+	Aggregation     AggFunc           `json:"aggregation"`
+	WindowType      WindowType        `json:"window_type"`
+	WindowSize      time.Duration     `json:"window_size"`
+	SlideInterval   time.Duration     `json:"slide_interval,omitempty"` // For sliding windows
+	SessionGap      time.Duration     `json:"session_gap,omitempty"`    // For session windows
+	GroupBy         []string          `json:"group_by,omitempty"`
+	LatePolicy      LateDataPolicy    `json:"late_policy"`
+	AllowedLateness time.Duration     `json:"allowed_lateness"`
+	Enabled         bool              `json:"enabled"`
 }
 
 // Watermark tracks the event-time progress of a stream.
@@ -102,12 +102,12 @@ type Watermark struct {
 
 // ViewV2State represents the runtime state of a v2 view.
 type ViewV2State struct {
-	Definition    ViewV2Definition `json:"definition"`
-	Watermark     Watermark        `json:"watermark"`
-	WindowCount   int              `json:"window_count"`
-	LateDataCount int64            `json:"late_data_count"`
-	LastCheckpoint time.Time       `json:"last_checkpoint"`
-	IsActive      bool             `json:"is_active"`
+	Definition     ViewV2Definition `json:"definition"`
+	Watermark      Watermark        `json:"watermark"`
+	WindowCount    int              `json:"window_count"`
+	LateDataCount  int64            `json:"late_data_count"`
+	LastCheckpoint time.Time        `json:"last_checkpoint"`
+	IsActive       bool             `json:"is_active"`
 }
 
 // viewV2Window tracks state for a single window instance.
@@ -330,7 +330,7 @@ func (e *MaterializedViewV2Engine) assignSlidingWindows(vr *viewV2Runtime, p *Po
 	var windows []*viewV2Window
 
 	// Earliest window that includes this point
-	earliest := ((p.Timestamp - windowNs) / slideNs + 1) * slideNs
+	earliest := ((p.Timestamp-windowNs)/slideNs + 1) * slideNs
 	for wStart := earliest; wStart <= p.Timestamp; wStart += slideNs {
 		wEnd := wStart + windowNs
 		key := fmt.Sprintf("%s:%d", groupKey, wStart)
@@ -430,8 +430,8 @@ func (e *MaterializedViewV2Engine) applyToWindow(vr *viewV2Runtime, win *viewV2W
 
 	return &AggregateUpdate{
 		GroupKey:    buildGroupKey(p),
-		OldValue:   oldValue,
-		NewValue:   newValue,
+		OldValue:    oldValue,
+		NewValue:    newValue,
 		WindowStart: win.start,
 		PointCount:  ws.count,
 	}
