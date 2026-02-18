@@ -16,28 +16,14 @@ type otlpExporterState struct {
 	failed   int64
 }
 
-var otlpExporterStates sync.Map // *OTLPDistroExporter → *otlpExporterState
-
-func getOTLPExporterState(e *OTLPDistroExporter) *otlpExporterState {
-	if v, ok := otlpExporterStates.Load(e); ok {
-		return v.(*otlpExporterState)
-	}
-	s := &otlpExporterState{}
-	actual, _ := otlpExporterStates.LoadOrStore(e, s)
-	return actual.(*otlpExporterState)
-}
-
 func (e *OTLPDistroExporter) Start(ctx context.Context, host Host) error { return nil }
 
 func (e *OTLPDistroExporter) Shutdown(ctx context.Context) error {
-	s := getOTLPExporterState(e)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// Flush remaining buffer on shutdown
-	if len(s.buffer) > 0 {
-		e.flushLocked(s)
+	e.state.mu.Lock()
+	defer e.state.mu.Unlock()
+	if len(e.state.buffer) > 0 {
+		e.flushLocked(&e.state)
 	}
-	otlpExporterStates.Delete(e)
 	return nil
 }
 
@@ -48,26 +34,23 @@ func (e *OTLPDistroExporter) ExportMetrics(ctx context.Context, metrics *Metrics
 
 	data, err := json.Marshal(metrics)
 	if err != nil {
-		s := getOTLPExporterState(e)
-		atomic.AddInt64(&s.failed, 1)
+		atomic.AddInt64(&e.state.failed, 1)
 		return fmt.Errorf("failed to serialize metrics: %w", err)
 	}
 
-	s := getOTLPExporterState(e)
-	s.mu.Lock()
-	s.buffer = append(s.buffer, data)
-	s.mu.Unlock()
+	e.state.mu.Lock()
+	e.state.buffer = append(e.state.buffer, data)
+	e.state.mu.Unlock()
 
-	atomic.AddInt64(&s.exported, 1)
+	atomic.AddInt64(&e.state.exported, 1)
 	return nil
 }
 
 // Flush sends buffered metrics to the remote OTLP endpoint.
 func (e *OTLPDistroExporter) Flush() error {
-	s := getOTLPExporterState(e)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return e.flushLocked(s)
+	e.state.mu.Lock()
+	defer e.state.mu.Unlock()
+	return e.flushLocked(&e.state)
 }
 
 func (e *OTLPDistroExporter) flushLocked(s *otlpExporterState) error {

@@ -554,6 +554,7 @@ func NewHostMetricsDistroReceiver(config *HostMetricsReceiverConfig, distro *Chr
 // BatchDistroProcessor batches metrics.
 type BatchDistroProcessor struct {
 	config *BatchProcessorConfig
+	state  batchState
 }
 
 // NewBatchDistroProcessor creates a batch processor.
@@ -564,6 +565,7 @@ func NewBatchDistroProcessor(config *BatchProcessorConfig) *BatchDistroProcessor
 // MemoryLimiterDistroProcessor limits memory usage.
 type MemoryLimiterDistroProcessor struct {
 	config *MemoryLimiterConfig
+	state  memLimiterState
 }
 
 // NewMemoryLimiterDistroProcessor creates a memory limiter.
@@ -606,6 +608,7 @@ func NewChronicleDistroExporter(pw PointWriter, config *ChronicleExporterConfig)
 type OTLPDistroExporter struct {
 	config *OTLPExporterConfig
 	client *http.Client
+	state  otlpExporterState
 }
 
 // NewOTLPDistroExporter creates an OTLP exporter.
@@ -619,6 +622,7 @@ func NewOTLPDistroExporter(config *OTLPExporterConfig) *OTLPDistroExporter {
 // DebugDistroExporter outputs debug information.
 type DebugDistroExporter struct {
 	config *DebugExporterConfig
+	state  debugExporterState
 }
 
 // NewDebugDistroExporter creates a debug exporter.

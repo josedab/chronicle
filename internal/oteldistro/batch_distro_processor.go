@@ -14,60 +14,45 @@ type batchState struct {
 	nextProcessor Processor
 }
 
-var batchStates sync.Map // *BatchDistroProcessor → *batchState
-
-func getBatchState(p *BatchDistroProcessor) *batchState {
-	if v, ok := batchStates.Load(p); ok {
-		return v.(*batchState)
-	}
-	s := &batchState{}
-	actual, _ := batchStates.LoadOrStore(p, s)
-	return actual.(*batchState)
-}
-
 func (p *BatchDistroProcessor) Start(ctx context.Context, host Host) error {
-	s := getBatchState(p)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	p.state.mu.Lock()
+	defer p.state.mu.Unlock()
 
 	timeout := p.config.Timeout
 	if timeout <= 0 {
 		timeout = time.Second
 	}
-	s.timer = time.AfterFunc(timeout, func() {
+	p.state.timer = time.AfterFunc(timeout, func() {
 		p.flushBatch()
 	})
 	return nil
 }
 
 func (p *BatchDistroProcessor) Shutdown(ctx context.Context) error {
-	s := getBatchState(p)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	p.state.mu.Lock()
+	defer p.state.mu.Unlock()
 
-	if s.timer != nil {
-		s.timer.Stop()
+	if p.state.timer != nil {
+		p.state.timer.Stop()
 	}
-	p.flushBatchLocked(s)
-	batchStates.Delete(p)
+	p.flushBatchLocked(&p.state)
 	return nil
 }
 
 func (p *BatchDistroProcessor) ProcessMetrics(ctx context.Context, metrics *Metrics) (*Metrics, error) {
-	s := getBatchState(p)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	p.state.mu.Lock()
+	defer p.state.mu.Unlock()
 
-	s.batch = append(s.batch, metrics)
+	p.state.batch = append(p.state.batch, metrics)
 
-	if p.config.SendBatchSize > 0 && len(s.batch) >= p.config.SendBatchSize {
-		merged := p.mergeBatchLocked(s)
-		s.batch = nil
-		if s.timer != nil {
-			s.timer.Reset(p.config.Timeout)
+	if p.config.SendBatchSize > 0 && len(p.state.batch) >= p.config.SendBatchSize {
+		merged := p.mergeBatchLocked(&p.state)
+		p.state.batch = nil
+		if p.state.timer != nil {
+			p.state.timer.Reset(p.config.Timeout)
 		}
-		if s.nextProcessor != nil {
-			return s.nextProcessor.ProcessMetrics(ctx, merged)
+		if p.state.nextProcessor != nil {
+			return p.state.nextProcessor.ProcessMetrics(ctx, merged)
 		}
 		return merged, nil
 	}
@@ -76,12 +61,11 @@ func (p *BatchDistroProcessor) ProcessMetrics(ctx context.Context, metrics *Metr
 }
 
 func (p *BatchDistroProcessor) flushBatch() {
-	s := getBatchState(p)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	p.flushBatchLocked(s)
-	if s.timer != nil {
-		s.timer.Reset(p.config.Timeout)
+	p.state.mu.Lock()
+	defer p.state.mu.Unlock()
+	p.flushBatchLocked(&p.state)
+	if p.state.timer != nil {
+		p.state.timer.Reset(p.config.Timeout)
 	}
 }
 
