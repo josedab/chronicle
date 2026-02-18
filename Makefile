@@ -1,10 +1,16 @@
-.PHONY: all build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run check-versions doctor help
+.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run check-versions doctor help
 
 GO ?= go
 GOFLAGS ?= -race
 MIN_GO_VERSION := 1.24
 
 all: lint test build ## Run lint, test, and build
+
+quickstart: setup install-hooks doctor ## One-command setup for new contributors
+	@echo ""
+	@echo "════════════════════════════════════════════════"
+	@echo "  ✓ Ready! Run 'make dev' to start."
+	@echo "════════════════════════════════════════════════"
 
 preflight: ## Validate development environment
 	@echo "Checking Go installation..."
