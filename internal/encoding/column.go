@@ -6,6 +6,9 @@ import (
 )
 
 // EncodeRawInt64 encodes int64 values without compression.
+// binary.Write to bytes.Buffer is guaranteed to succeed (Write never returns an error).
+//
+//nolint:errcheck // binary.Write to bytes.Buffer cannot fail
 func EncodeRawInt64(values []int64) []byte {
 	buf := &bytes.Buffer{}
 	_ = binary.Write(buf, binary.LittleEndian, uint32(len(values)))
@@ -34,6 +37,8 @@ func DecodeRawInt64(data []byte) ([]int64, error) {
 }
 
 // EncodeRawFloat64 encodes float64 values without compression.
+//
+//nolint:errcheck // binary.Write to bytes.Buffer cannot fail
 func EncodeRawFloat64(values []float64) []byte {
 	buf := &bytes.Buffer{}
 	_ = binary.Write(buf, binary.LittleEndian, uint32(len(values)))
@@ -62,6 +67,8 @@ func DecodeRawFloat64(data []byte) ([]float64, error) {
 }
 
 // EncodeRLEBool encodes boolean values using run-length encoding.
+//
+//nolint:errcheck // binary.Write to bytes.Buffer cannot fail
 func EncodeRLEBool(values []bool) []byte {
 	if len(values) == 0 {
 		return []byte{0, 0, 0, 0}
@@ -112,6 +119,8 @@ func MinMaxInt64(values []int64) (minVal, maxVal int64) {
 }
 
 // EncodeIndexInt64 encodes min/max index for int64 values.
+//
+//nolint:errcheck // binary.Write to bytes.Buffer cannot fail
 func EncodeIndexInt64(values []int64) []byte {
 	minVal, maxVal := MinMaxInt64(values)
 	buf := &bytes.Buffer{}
@@ -121,6 +130,8 @@ func EncodeIndexInt64(values []int64) []byte {
 }
 
 // EncodeIndexFloat64 encodes min/max index for float64 values.
+//
+//nolint:errcheck // binary.Write to bytes.Buffer cannot fail
 func EncodeIndexFloat64(values []float64) []byte {
 	if len(values) == 0 {
 		return nil
@@ -142,6 +153,8 @@ func EncodeIndexFloat64(values []float64) []byte {
 }
 
 // EncodeIndexBool encodes true/false counts for boolean values.
+//
+//nolint:errcheck // binary.Write to bytes.Buffer cannot fail
 func EncodeIndexBool(values []bool) []byte {
 	var trueCount uint32
 	for _, v := range values {

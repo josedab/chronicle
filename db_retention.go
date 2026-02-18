@@ -22,11 +22,11 @@ func (db *DB) backgroundWorker() {
 				db.applyRetention()
 			}
 			if db.config.Storage.MaxStorageBytes > 0 {
-				_ = db.applySizeRetention()
+				_ = db.applySizeRetention() //nolint:errcheck // background worker: best-effort, retried on next tick
 			}
 		case <-downsampleTicker.C:
 			if len(db.config.Retention.DownsampleRules) > 0 {
-				_ = db.applyDownsampling()
+				_ = db.applyDownsampling() //nolint:errcheck // background worker: best-effort, retried on next tick
 			}
 		case <-compactionTicker.C:
 			db.scheduleCompaction()
@@ -44,7 +44,7 @@ func (db *DB) compactionWorker() {
 		case <-db.closeCh:
 			return
 		case <-db.lifecycle.compactCh:
-			_ = db.compact()
+			_ = db.compact() //nolint:errcheck // background worker: best-effort, retried on next trigger
 		}
 	}
 }
@@ -149,7 +149,7 @@ func (db *DB) pruneDownsampled(rule DownsampleRule) error {
 		if changed {
 			db.mu.Lock()
 			if len(part.series) == 0 {
-				_ = db.index.RemovePartitionByID(part.id)
+				_ = db.index.RemovePartitionByID(part.id) //nolint:errcheck // partition already empty, removal failure is non-critical
 				db.mu.Unlock()
 				db.scheduleCompaction()
 				continue
@@ -174,24 +174,24 @@ func (db *DB) compact() error {
 	}
 
 	if err := initStorage(tempFile); err != nil {
-		_ = tempFile.Close()
+		_ = tempFile.Close() //nolint:errcheck // cleanup on error path
 		return err
 	}
 
 	for _, part := range db.index.partitions {
 		if err := persistPartition(tempFile, part); err != nil {
-			_ = tempFile.Close()
+			_ = tempFile.Close() //nolint:errcheck // cleanup on error path
 			return err
 		}
 	}
 
 	if err := persistIndex(tempFile, db.index); err != nil {
-		_ = tempFile.Close()
+		_ = tempFile.Close() //nolint:errcheck // cleanup on error path
 		return err
 	}
 
 	if err := tempFile.Sync(); err != nil {
-		_ = tempFile.Close()
+		_ = tempFile.Close() //nolint:errcheck // cleanup on error path
 		return err
 	}
 

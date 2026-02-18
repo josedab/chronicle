@@ -153,7 +153,7 @@ func (s *FlightSQLServer) Stop() error {
 
 	close(s.stopCh)
 	if s.listener != nil {
-		_ = s.listener.Close()
+		_ = s.listener.Close() //nolint:errcheck // best-effort cleanup during shutdown
 	}
 	s.wg.Wait()
 	s.running = false
@@ -357,7 +357,7 @@ func (s *FlightSQLServer) handleDoGetMsg(conn net.Conn, body []byte) {
 			return
 		}
 	}
-	_ = s.sendResponseMsg(conn, flightSQLMessageDoGet, map[string]any{"complete": true})
+	_ = s.sendResponseMsg(conn, flightSQLMessageDoGet, map[string]any{"complete": true}) //nolint:errcheck // final completion marker, no recovery action
 }
 
 // HandleDoPut ingests record batches into the database.
@@ -429,7 +429,7 @@ func (s *FlightSQLServer) handleGetSchemasMsg(conn net.Conn, body []byte) {
 		Catalog string `json:"catalog"`
 	}
 	if len(body) > 0 {
-		_ = json.Unmarshal(body, &req)
+		_ = json.Unmarshal(body, &req) //nolint:errcheck // optional request body; defaults used on parse failure
 	}
 	schemas := s.HandleGetSchemas(req.Catalog)
 	batch := schemasToRecordBatch(req.Catalog, schemas)
@@ -461,7 +461,7 @@ func (s *FlightSQLServer) handleGetTablesMsg(conn net.Conn, body []byte) {
 		Schema  string `json:"schema"`
 	}
 	if len(body) > 0 {
-		_ = json.Unmarshal(body, &req)
+		_ = json.Unmarshal(body, &req) //nolint:errcheck // optional request body; defaults used on parse failure
 	}
 	tables := s.HandleGetTables(req.Catalog, req.Schema)
 	batch := tablesToRecordBatch(req.Catalog, req.Schema, tables)
@@ -526,6 +526,7 @@ func (s *FlightSQLServer) handleStatementQueryMsg(conn net.Conn, body []byte) {
 			return
 		}
 	}
+	//nolint:errcheck // final completion marker, no recovery action
 	_ = s.sendResponseMsg(conn, flightSQLMessageResponse, map[string]any{
 		"complete": true,
 		"batches":  len(batches),
@@ -682,6 +683,7 @@ func (s *FlightSQLServer) handlePreparedQueryMsg(conn net.Conn, body []byte) {
 			return
 		}
 	}
+	//nolint:errcheck // final completion marker, no recovery action
 	_ = s.sendResponseMsg(conn, flightSQLMessageResponse, map[string]any{
 		"complete":     true,
 		"statement_id": ps.id,
@@ -700,8 +702,8 @@ func (s *FlightSQLServer) sendResponseMsg(conn net.Conn, msgType uint32, data an
 
 func (s *FlightSQLServer) sendErrorMsg(conn net.Conn, err error) {
 	resp := map[string]string{"error": err.Error()}
-	body, _ := json.Marshal(resp)
-	_ = s.sendMessage(conn, flightSQLMessageError, body)
+	body, _ := json.Marshal(resp)                           //nolint:errcheck // simple map marshal cannot fail
+	_ = s.sendMessage(conn, flightSQLMessageError, body) //nolint:errcheck // error path: best-effort send
 }
 
 func (s *FlightSQLServer) sendMessage(conn net.Conn, msgType uint32, body []byte) error {
@@ -1058,7 +1060,7 @@ func recordBatchToPoints(batch ArrowRecordBatch) ([]Point, error) {
 
 	var tagsData []any
 	if tagsCol != nil {
-		tagsData, _ = tagsCol.Data.([]any)
+		tagsData, _ = tagsCol.Data.([]any) //nolint:errcheck // tags column is optional; nil tagsData is handled below
 	}
 
 	points := make([]Point, 0, batch.Length)

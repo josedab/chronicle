@@ -22,6 +22,11 @@ func (s *CHSession) readPacketType() (uint64, error) {
 	return s.readVarUInt()
 }
 
+// handleHandshake reads the ClickHouse client hello and responds.
+// Protocol fields are read best-effort; individual field errors are ignored
+// because the connection will fail at flush if the stream is corrupted.
+//
+//nolint:errcheck // intentional: ClickHouse protocol fields are read best-effort
 func (s *CHSession) handleHandshake() error {
 
 	packetType, err := s.readPacketType()
@@ -59,6 +64,11 @@ func (s *CHSession) handlePing() error {
 	return s.flush()
 }
 
+// handleQuery reads and executes a ClickHouse query packet.
+// Protocol metadata fields are read best-effort; only the SQL query itself
+// is required. If the stream is corrupted, readString for the query will fail.
+//
+//nolint:errcheck // intentional: ClickHouse protocol metadata fields are read best-effort
 func (s *CHSession) handleQuery() error {
 
 	_, _ = s.readString()
