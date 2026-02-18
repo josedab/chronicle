@@ -124,14 +124,14 @@ func TestMetricLifecycleTombstone(t *testing.T) {
 	}
 
 	state, _ := mgr.GetState("old_metric")
-	if state.State != "tombstoned" {
-		t.Errorf("expected tombstoned, got %s", state.State)
+	if state.State != "deleted" {
+		t.Errorf("expected deleted, got %s", state.State)
 	}
 
-	// Cannot archive a tombstoned metric
+	// Cannot archive a deleted metric
 	err = mgr.Archive("old_metric")
 	if err == nil {
-		t.Error("expected error archiving tombstoned metric")
+		t.Error("expected error archiving deleted metric")
 	}
 }
 
@@ -158,8 +158,8 @@ func TestMetricLifecycleStats(t *testing.T) {
 	if stats.ArchivedMetrics != 1 {
 		t.Errorf("expected 1 archived, got %d", stats.ArchivedMetrics)
 	}
-	if stats.TombstonedMetrics != 1 {
-		t.Errorf("expected 1 tombstoned, got %d", stats.TombstonedMetrics)
+	if stats.DeletedMetrics != 1 {
+		t.Errorf("expected 1 deleted, got %d", stats.DeletedMetrics)
 	}
 }
 
@@ -208,5 +208,132 @@ func TestMetricLifecyclePolicyMatching(t *testing.T) {
 
 	if len(state.Policies) != 2 {
 		t.Errorf("expected 2 matching policies, got %d", len(state.Policies))
+	}
+}
+
+func TestMetricLifecycle_DeprecateMetric(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
+	mgr.TrackMetric("old_cpu")
+
+	err := mgr.DeprecateMetric("old_cpu", "Use cpu_v2 instead", "cpu_v2")
+	if err != nil {
+		t.Fatalf("DeprecateMetric failed: %v", err)
+	}
+
+	deprecated, msg, replacement := mgr.CheckDeprecated("old_cpu")
+	if !deprecated {
+		t.Error("expected old_cpu to be deprecated")
+	}
+	if msg != "Use cpu_v2 instead" {
+		t.Errorf("expected deprecation message, got %q", msg)
+	}
+	if replacement != "cpu_v2" {
+		t.Errorf("expected replacement cpu_v2, got %q", replacement)
+	}
+
+	// Non-deprecated metric
+	mgr.TrackMetric("new_cpu")
+	deprecated, _, _ = mgr.CheckDeprecated("new_cpu")
+	if deprecated {
+		t.Error("new_cpu should not be deprecated")
+	}
+}
+
+func TestMetricLifecycle_DeprecateNonexistent(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
+
+	err := mgr.DeprecateMetric("nonexistent", "test", "")
+	if err == nil {
+		t.Error("expected error for nonexistent metric")
+	}
+}
+
+func TestMetricLifecycle_QueryTracking(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
+	mgr.TrackMetric("queried_metric")
+
+	mgr.TrackQuery("queried_metric")
+	mgr.TrackQuery("queried_metric")
+	mgr.TrackQuery("queried_metric")
+
+	state, _ := mgr.GetState("queried_metric")
+	if state.QueryCount != 3 {
+		t.Errorf("expected 3 queries, got %d", state.QueryCount)
+	}
+	if state.LastQueried.IsZero() {
+		t.Error("expected non-zero LastQueried time")
+	}
+}
+
+func TestMetricLifecycle_StaleTransition(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultMetricLifecycleConfig()
+	cfg.StaleTimeout = 10 * time.Millisecond
+	cfg.ArchiveTimeout = 50 * time.Millisecond
+	cfg.EvaluationInterval = 5 * time.Millisecond
+	mgr := NewMetricLifecycleManager(db, cfg)
+
+	mgr.TrackMetric("ephemeral")
+
+	// Wait for staleness
+	time.Sleep(30 * time.Millisecond)
+	mgr.evaluateTransitions()
+
+	state, _ := mgr.GetState("ephemeral")
+	if state.State != "stale" {
+		t.Errorf("expected stale state, got %s", state.State)
+	}
+}
+
+func TestMetricLifecycle_ReactivateFromStale(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultMetricLifecycleConfig()
+	cfg.StaleTimeout = 10 * time.Millisecond
+	mgr := NewMetricLifecycleManager(db, cfg)
+
+	mgr.TrackMetric("revived")
+
+	// Wait for staleness
+	time.Sleep(20 * time.Millisecond)
+	mgr.evaluateTransitions()
+
+	state, _ := mgr.GetState("revived")
+	if state.State != "stale" {
+		t.Errorf("expected stale, got %s", state.State)
+	}
+
+	// New data should reactivate
+	mgr.TrackMetric("revived")
+	state, _ = mgr.GetState("revived")
+	if state.State != "active" {
+		t.Errorf("expected reactivated to active, got %s", state.State)
+	}
+}
+
+func TestMetricLifecycle_DeprecatedStats(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
+	mgr.TrackMetric("m1")
+	mgr.TrackMetric("m2")
+	mgr.DeprecateMetric("m1", "old", "m2")
+
+	stats := mgr.Stats()
+	if stats.DeprecatedMetrics != 1 {
+		t.Errorf("expected 1 deprecated, got %d", stats.DeprecatedMetrics)
 	}
 }
