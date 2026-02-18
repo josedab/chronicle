@@ -701,6 +701,103 @@ chronicle_error_t chronicle_compact(chronicle_db_t db);
 `
 }
 
+// chronicle_query_json executes a query and returns all results as a JSON string.
+// This provides a language-agnostic way to iterate results via JSON parsing.
+//
+//export chronicle_query_json
+func chronicle_query_json(db C.chronicle_db_t, query *C.chronicle_query_t) *C.char {
+	if db == 0 || query == nil {
+		return C.CString(`{"error":"invalid arguments"}`)
+	}
+
+	handle := cgo.Handle(db)
+	dbPtr, ok := getHandle(handle)
+	if !ok {
+		return C.CString(`{"error":"database not found"}`)
+	}
+
+	q := &Query{
+		Metric: C.GoString(query.metric),
+		Start:  int64(query.start),
+		End:    int64(query.end),
+	}
+
+	if query.limit > 0 {
+		q.Limit = int(query.limit)
+	}
+
+	if query.aggregation != nil {
+		agg := C.GoString(query.aggregation)
+		if agg != "" {
+			aggFn := stringToAggFunc(agg)
+			if aggFn != AggNone {
+				window := time.Duration(query.step) * time.Nanosecond
+				if window <= 0 {
+					window = time.Minute
+				}
+				q.Aggregation = &Aggregation{
+					Function: aggFn,
+					Window:   window,
+				}
+			}
+		}
+	}
+
+	queryResult, err := dbPtr.Execute(q)
+	if err != nil {
+		errJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
+		return C.CString(string(errJSON))
+	}
+
+	resultJSON, err := json.Marshal(queryResult)
+	if err != nil {
+		errJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
+		return C.CString(string(errJSON))
+	}
+
+	return C.CString(string(resultJSON))
+}
+
+// chronicle_write_json writes a point using JSON string input.
+// The JSON should contain: {"metric":"name","value":1.0,"timestamp":0,"tags":{"k":"v"}}
+//
+//export chronicle_write_json
+func chronicle_write_json(db C.chronicle_db_t, jsonStr *C.char) C.chronicle_error_t {
+	if db == 0 || jsonStr == nil {
+		return C.CHRONICLE_ERR_INVALID_ARG
+	}
+
+	handle := cgo.Handle(db)
+	dbPtr, ok := getHandle(handle)
+	if !ok {
+		return C.CHRONICLE_ERR_NOT_FOUND
+	}
+
+	var input struct {
+		Metric    string            `json:"metric"`
+		Value     float64           `json:"value"`
+		Timestamp int64             `json:"timestamp"`
+		Tags      map[string]string `json:"tags"`
+	}
+
+	if err := json.Unmarshal([]byte(C.GoString(jsonStr)), &input); err != nil {
+		return C.CHRONICLE_ERR_INVALID_ARG
+	}
+
+	p := Point{
+		Metric:    input.Metric,
+		Value:     input.Value,
+		Timestamp: input.Timestamp,
+		Tags:      input.Tags,
+	}
+
+	if err := dbPtr.Write(p); err != nil {
+		return C.CHRONICLE_ERR_IO
+	}
+
+	return C.CHRONICLE_OK
+}
+
 // FFIConfig contains configuration for FFI operations.
 type FFIConfig struct {
 	// EnableThreadSafety enables mutex protection for all operations

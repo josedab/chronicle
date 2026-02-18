@@ -247,6 +247,45 @@ chronicle_error_t chronicle_delete_metric(chronicle_db_t db, const char* metric)
  */
 chronicle_error_t chronicle_compact(chronicle_db_t db);
 
+/*
+ * Callback function type for iterating query results.
+ * Return 0 to continue iteration, non-zero to stop.
+ *
+ * @param metric  Metric name
+ * @param value   Point value
+ * @param timestamp  Unix timestamp in nanoseconds
+ * @param tags_json  JSON-encoded tags (may be NULL)
+ * @param user_data  User-provided context pointer
+ */
+typedef int (*chronicle_result_callback_t)(
+    const char* metric,
+    double value,
+    int64_t timestamp,
+    const char* tags_json,
+    void* user_data
+);
+
+/*
+ * Execute a query and return all results as a JSON string.
+ * This provides a language-agnostic way to iterate results via JSON parsing.
+ * Caller must free the returned string with chronicle_string_free.
+ *
+ * @param db    Database handle
+ * @param query Query parameters
+ * @return JSON string with results (caller must free with chronicle_string_free)
+ */
+char* chronicle_query_json(chronicle_db_t db, chronicle_query_t* query);
+
+/*
+ * Write a point using a JSON string.
+ * JSON format: {"metric":"name","value":1.0,"timestamp":0,"tags":{"k":"v"}}
+ *
+ * @param db   Database handle
+ * @param json JSON string describing the point
+ * @return CHRONICLE_OK on success
+ */
+chronicle_error_t chronicle_write_json(chronicle_db_t db, const char* json);
+
 /* Time duration constants (in nanoseconds) for convenience */
 #define CHRONICLE_NANOSECOND  1LL
 #define CHRONICLE_MICROSECOND 1000LL
