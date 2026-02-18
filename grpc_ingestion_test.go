@@ -96,8 +96,8 @@ func TestGRPCIngestionEngine(t *testing.T) {
 
 	t.Run("services reflection", func(t *testing.T) {
 		services := engine.Services()
-		if len(services) != 3 {
-			t.Errorf("expected 3 services, got %d", len(services))
+		if len(services) != 4 {
+			t.Errorf("expected 4 services, got %d", len(services))
 		}
 		found := false
 		for _, s := range services {
