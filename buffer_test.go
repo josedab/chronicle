@@ -164,3 +164,71 @@ func TestWriteBuffer_ConcurrentDrain(t *testing.T) {
 		t.Errorf("expected 500 total drained points, got %d", total)
 	}
 }
+
+func TestWriteBuffer_AddBatch(t *testing.T) {
+	buf := NewWriteBuffer(100)
+
+	pts := []Point{
+		{Metric: "a", Value: 1.0},
+		{Metric: "b", Value: 2.0},
+		{Metric: "c", Value: 3.0},
+	}
+	buf.AddBatch(pts)
+
+	if buf.Len() != 3 {
+		t.Errorf("expected length 3, got %d", buf.Len())
+	}
+
+	// Add another batch
+	buf.AddBatch([]Point{{Metric: "d", Value: 4.0}})
+	if buf.Len() != 4 {
+		t.Errorf("expected length 4, got %d", buf.Len())
+	}
+
+	// Empty batch should be no-op
+	buf.AddBatch(nil)
+	if buf.Len() != 4 {
+		t.Errorf("expected length 4 after nil batch, got %d", buf.Len())
+	}
+}
+
+func TestWriteBuffer_AddAndLen(t *testing.T) {
+	buf := NewWriteBuffer(100)
+
+	n := buf.AddAndLen(Point{Metric: "a", Value: 1.0})
+	if n != 1 {
+		t.Errorf("expected length 1, got %d", n)
+	}
+
+	n = buf.AddAndLen(Point{Metric: "b", Value: 2.0})
+	if n != 2 {
+		t.Errorf("expected length 2, got %d", n)
+	}
+
+	// Verify actual length matches
+	if buf.Len() != 2 {
+		t.Errorf("Len() expected 2, got %d", buf.Len())
+	}
+}
+
+func TestWriteBuffer_AddBatchConcurrent(t *testing.T) {
+	buf := NewWriteBuffer(10000)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			pts := make([]Point, 50)
+			for j := range pts {
+				pts[j] = Point{Metric: "test", Value: float64(id*50 + j)}
+			}
+			buf.AddBatch(pts)
+		}(i)
+	}
+	wg.Wait()
+
+	if buf.Len() != 500 {
+		t.Errorf("expected 500 points, got %d", buf.Len())
+	}
+}

@@ -304,6 +304,259 @@ func (bs *BenchmarkSuite) RunMemoryBenchmark(pointCount int) *BenchmarkResult {
 	return result
 }
 
+// RunConcurrentWriteBenchmark measures write throughput under concurrent goroutine contention.
+func (bs *BenchmarkSuite) RunConcurrentWriteBenchmark(db *DB, concurrency int, pointsPerWriter int) (*BenchmarkResult, error) {
+	if concurrency <= 0 {
+		concurrency = runtime.GOMAXPROCS(0)
+	}
+	if pointsPerWriter <= 0 {
+		pointsPerWriter = 10000
+	}
+
+	totalPoints := int64(concurrency * pointsPerWriter)
+	latencies := make([]time.Duration, totalPoints)
+	var latIdx int64
+	var mu sync.Mutex
+
+	start := time.Now()
+	var wg sync.WaitGroup
+	var writeErr error
+
+	for g := 0; g < concurrency; g++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+			base := time.Now().UnixNano()
+			for i := 0; i < pointsPerWriter; i++ {
+				p := Point{
+					Metric:    fmt.Sprintf("conc.bench.%d", goroutineID%10),
+					Value:     rand.Float64() * 100,
+					Timestamp: base + int64(i),
+					Tags:      map[string]string{"writer": fmt.Sprintf("w%d", goroutineID)},
+				}
+				t0 := time.Now()
+				if err := db.Write(p); err != nil {
+					mu.Lock()
+					writeErr = err
+					mu.Unlock()
+					return
+				}
+				dur := time.Since(t0)
+				mu.Lock()
+				if latIdx < totalPoints {
+					latencies[latIdx] = dur
+					latIdx++
+				}
+				mu.Unlock()
+			}
+		}(g)
+	}
+
+	wg.Wait()
+	elapsed := time.Since(start)
+
+	if writeErr != nil {
+		return nil, writeErr
+	}
+
+	// Calculate percentiles from collected latencies
+	collected := latencies[:latIdx]
+	sort.Slice(collected, func(i, j int) bool { return collected[i] < collected[j] })
+
+	var p50, p99 float64
+	if len(collected) > 0 {
+		p50 = float64(collected[len(collected)*50/100].Microseconds())
+		p99 = float64(collected[len(collected)*99/100].Microseconds())
+	}
+
+	result := &BenchmarkResult{
+		Name:         fmt.Sprintf("concurrent_write_%d_writers", concurrency),
+		Category:     "write",
+		Operations:   totalPoints,
+		Duration:     elapsed,
+		OpsPerSec:    float64(totalPoints) / elapsed.Seconds(),
+		AvgLatencyUs: float64(elapsed.Microseconds()) / float64(totalPoints),
+		P50LatencyUs: p50,
+		P99LatencyUs: p99,
+	}
+
+	bs.mu.Lock()
+	bs.results = append(bs.results, *result)
+	bs.mu.Unlock()
+	return result, nil
+}
+
+// RunCardinalityBenchmark measures query latency as series cardinality scales.
+func (bs *BenchmarkSuite) RunCardinalityBenchmark(db *DB, seriesCounts []int) ([]BenchmarkResult, error) {
+	if len(seriesCounts) == 0 {
+		seriesCounts = []int{100, 1000, 10000}
+	}
+
+	var results []BenchmarkResult
+	for _, count := range seriesCounts {
+		// Write data with N distinct series
+		now := time.Now().UnixNano()
+		for i := 0; i < count; i++ {
+			p := Point{
+				Metric:    fmt.Sprintf("card.bench.%d", i),
+				Value:     rand.Float64() * 100,
+				Timestamp: now + int64(i),
+				Tags:      map[string]string{"series": fmt.Sprintf("s%d", i)},
+			}
+			if err := db.Write(p); err != nil {
+				return nil, err
+			}
+		}
+		_ = db.Flush()
+
+		// Benchmark query across all series
+		iterations := 50
+		latencies := make([]time.Duration, iterations)
+		for i := 0; i < iterations; i++ {
+			t0 := time.Now()
+			_, err := db.Execute(&Query{Metric: fmt.Sprintf("card.bench.%d", rand.Intn(count))})
+			latencies[i] = time.Since(t0)
+			if err != nil {
+				return nil, err
+			}
+		}
+		sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+
+		r := BenchmarkResult{
+			Name:         fmt.Sprintf("cardinality_%d_series", count),
+			Category:     "cardinality",
+			Operations:   int64(iterations),
+			Duration:     latencies[len(latencies)-1],
+			P50LatencyUs: float64(latencies[iterations*50/100].Microseconds()),
+			P99LatencyUs: float64(latencies[iterations*99/100].Microseconds()),
+		}
+		bs.mu.Lock()
+		bs.results = append(bs.results, r)
+		bs.mu.Unlock()
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// RunAggregationBenchmark measures latency of different aggregation functions.
+func (bs *BenchmarkSuite) RunAggregationBenchmark(db *DB, pointCount int) ([]BenchmarkResult, error) {
+	if pointCount <= 0 {
+		pointCount = 10000
+	}
+
+	// Seed data
+	now := time.Now().UnixNano()
+	pts := make([]Point, pointCount)
+	for i := range pts {
+		pts[i] = Point{
+			Metric:    "agg_bench",
+			Value:     rand.Float64()*100 + float64(i%10),
+			Timestamp: now + int64(i)*int64(time.Second),
+			Tags:      map[string]string{"host": fmt.Sprintf("h%d", i%5)},
+		}
+	}
+	if err := db.WriteBatch(pts); err != nil {
+		return nil, err
+	}
+	_ = db.Flush()
+
+	aggs := []struct {
+		name string
+		fn   AggFunc
+	}{
+		{"sum", AggSum},
+		{"mean", AggMean},
+		{"min", AggMin},
+		{"max", AggMax},
+		{"count", AggCount},
+		{"stddev", AggStddev},
+	}
+
+	iterations := 100
+	var results []BenchmarkResult
+	for _, ag := range aggs {
+		latencies := make([]time.Duration, iterations)
+		for i := 0; i < iterations; i++ {
+			q := &Query{
+				Metric:      "agg_bench",
+				Aggregation: &Aggregation{Function: ag.fn, Window: time.Minute},
+			}
+			t0 := time.Now()
+			_, err := db.Execute(q)
+			latencies[i] = time.Since(t0)
+			if err != nil {
+				return nil, err
+			}
+		}
+		sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+
+		var total time.Duration
+		for _, l := range latencies {
+			total += l
+		}
+
+		r := BenchmarkResult{
+			Name:         fmt.Sprintf("aggregation_%s", ag.name),
+			Category:     "aggregation",
+			Operations:   int64(iterations),
+			Duration:     total,
+			OpsPerSec:    float64(iterations) / total.Seconds(),
+			AvgLatencyUs: float64(total.Microseconds()) / float64(iterations),
+			P50LatencyUs: float64(latencies[iterations*50/100].Microseconds()),
+			P99LatencyUs: float64(latencies[iterations*99/100].Microseconds()),
+		}
+		bs.mu.Lock()
+		bs.results = append(bs.results, r)
+		bs.mu.Unlock()
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// RunRetentionBenchmark measures the impact of retention eviction on write throughput.
+func (bs *BenchmarkSuite) RunRetentionBenchmark(db *DB, pointCount int) (*BenchmarkResult, error) {
+	if pointCount <= 0 {
+		pointCount = 50000
+	}
+
+	// Write a mix of old and new data; old data triggers retention eviction.
+	now := time.Now().UnixNano()
+	start := time.Now()
+
+	for i := 0; i < pointCount; i++ {
+		// Alternate between recent and aged-out timestamps
+		ts := now + int64(i)
+		if i%5 == 0 {
+			ts = now - int64(30*24*time.Hour) + int64(i) // 30 days old
+		}
+		p := Point{
+			Metric:    "retention_bench",
+			Value:     rand.Float64() * 100,
+			Timestamp: ts,
+			Tags:      map[string]string{"src": "bench"},
+		}
+		if err := db.Write(p); err != nil {
+			return nil, err
+		}
+	}
+	_ = db.Flush()
+	elapsed := time.Since(start)
+
+	result := &BenchmarkResult{
+		Name:         "retention_mixed_write",
+		Category:     "retention",
+		Operations:   int64(pointCount),
+		Duration:     elapsed,
+		OpsPerSec:    float64(pointCount) / elapsed.Seconds(),
+		AvgLatencyUs: float64(elapsed.Microseconds()) / float64(pointCount),
+	}
+
+	bs.mu.Lock()
+	bs.results = append(bs.results, *result)
+	bs.mu.Unlock()
+	return result, nil
+}
+
 // Results returns all benchmark results.
 func (bs *BenchmarkSuite) Results() []BenchmarkResult {
 	bs.mu.Lock()
