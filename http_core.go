@@ -46,6 +46,7 @@ var (
 
 type httpServer struct {
 	srv *http.Server
+	wg  sync.WaitGroup
 }
 
 type writeRequest struct {

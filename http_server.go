@@ -63,11 +63,17 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 		WriteTimeout: 15 * time.Second,
 	}
 
+	s := &httpServer{srv: srv}
+
+	s.wg.Add(1)
 	go func() {
-		_ = srv.Serve(listener)
+		defer s.wg.Done()
+		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+			// Log non-shutdown errors
+		}
 	}()
 
-	return &httpServer{srv: srv}, nil
+	return s, nil
 }
 
 func (s *httpServer) Close() error {
@@ -76,5 +82,7 @@ func (s *httpServer) Close() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return s.srv.Shutdown(ctx)
+	err := s.srv.Shutdown(ctx)
+	s.wg.Wait()
+	return err
 }
