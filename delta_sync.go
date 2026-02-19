@@ -761,7 +761,11 @@ func (m *DeltaSyncManager) sendBatch(batch DeltaBatch) error {
 		}
 
 		lastErr = fmt.Errorf("server returned %d", resp.StatusCode)
-		time.Sleep(backoff)
+		select {
+		case <-time.After(backoff):
+		case <-m.ctx.Done():
+			return m.ctx.Err()
+		}
 		backoff = backoff * 2
 		if backoff > m.config.MaxRetryBackoff {
 			backoff = m.config.MaxRetryBackoff
