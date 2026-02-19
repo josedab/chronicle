@@ -91,6 +91,8 @@ Sample output:
 
 → **[Full Getting Started Guide](docs/GETTING_STARTED.md)** — 10-minute tutorial covering install, write, query, retention, and HTTP API.
 
+> **Having build issues?** See the **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for CGO errors, Apple Silicon setup, and more.
+
 ## Core API
 
 These are the essential types and functions for most use cases:

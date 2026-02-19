@@ -91,3 +91,7 @@ Check [`api_stability.go`](../api_stability.go) for the full classification. The
 - 🧪 **Experimental** — may change or be removed without notice
 
 Core types (`DB`, `Point`, `Query`, `Config`, `Open()`, `Write()`, `Execute()`) are Stable.
+
+## Build or setup problems?
+
+See the **[Troubleshooting Guide](TROUBLESHOOTING.md)** for solutions to CGO errors, Apple Silicon issues, golangci-lint mismatches, and more.

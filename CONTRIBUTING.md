@@ -51,10 +51,11 @@ Before pushing, run `make lint` to check if your code passes all linters:
 
 ```bash
 make lint          # go vet + golangci-lint (dry-run, no changes)
+make lint-ci       # same as CI: golangci-lint with --timeout=5m
 make lint-fix      # auto-fix fixable lint issues + reformat
 ```
 
-`make lint` runs the same checks as CI. If it passes locally, lint will pass in the pipeline.
+`make lint` runs the same checks as CI. If it passes locally, lint will pass in the pipeline. Run `make lint-ci` before pushing to match the exact CI timeout configuration.
 
 ### Running Tests
 
@@ -155,6 +156,10 @@ Before submitting, please ensure:
 - [ ] Commit messages follow conventions
 
 **Quick check**: Run `make check` to validate vet + fast tests in ~15 seconds.
+
+## Troubleshooting
+
+Build or setup issues? See the **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to common problems including CGO errors, Apple Silicon setup, golangci-lint version mismatches, and test failures.
 
 ## Reporting Issues
 
