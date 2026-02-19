@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size help
+.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt clean clean-all bench benchmark profile-cpu profile-mem check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -140,6 +140,15 @@ lint-fix: ## Auto-fix all fixable lint issues
 	gofmt -s -w .
 	goimports -w .
 
+lint-changed: ## Lint only modified files (fast iteration)
+	@if ! git rev-parse --verify HEAD~1 >/dev/null 2>&1; then \
+		echo "No previous commit to compare against; running full lint"; \
+		$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run; \
+	else \
+		echo "Linting changes since HEAD~1..."; \
+		$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --new-from-rev=HEAD~1; \
+	fi
+
 fmt: ## Format code
 	gofmt -s -w .
 	goimports -w .
@@ -164,6 +173,20 @@ benchmark: ## Run benchmarks and save results for comparison
 	else \
 		echo "  Run again to compare: benchstat benchmark-results.txt.prev benchmark-results.txt"; \
 	fi
+
+profile-cpu: ## Run benchmarks with CPU profiling
+	$(GO) test -bench=. -benchmem -cpuprofile=cpu.prof -short -run=^$$ .
+	@echo ""
+	@echo "✓ CPU profile saved to cpu.prof"
+	@echo "  View interactively:  go tool pprof -http=:8081 cpu.prof"
+	@echo "  View in terminal:    go tool pprof cpu.prof"
+
+profile-mem: ## Run benchmarks with memory profiling
+	$(GO) test -bench=. -benchmem -memprofile=mem.prof -short -run=^$$ .
+	@echo ""
+	@echo "✓ Memory profile saved to mem.prof"
+	@echo "  View interactively:  go tool pprof -http=:8081 mem.prof"
+	@echo "  View in terminal:    go tool pprof mem.prof"
 
 clean: ## Clean build artifacts
 	rm -f coverage.out coverage.html benchmark-results.txt
@@ -426,6 +449,31 @@ endif
 	FUNC_NAME=$$(echo "$$BASE" | awk -F_ '{for(i=1;i<=NF;i++){$$i=toupper(substr($$i,1,1)) substr($$i,2)}}1' OFS=''); \
 	printf 'package chronicle\n\nimport (\n\t"testing"\n)\n\nfunc Test'"$$FUNC_NAME"'(t *testing.T) {\n\tdb := setupTestDB(t)\n\tdefer db.Close()\n\n\ttests := []struct {\n\t\tname    string\n\t\twantErr bool\n\t}{\n\t\t{name: "basic", wantErr: false},\n\t}\n\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_ = db // TODO: implement test\n\t\t\tif tt.wantErr {\n\t\t\t\tt.Error("expected error")\n\t\t\t}\n\t\t})\n\t}\n}\n' > $(FILE)_test.go
 	@echo "✓ Created $(FILE)_test.go with table-driven test scaffold"
+
+check-todos: ## Surface technical debt markers (TODO/FIXME/HACK/XXX)
+	@echo "Scanning production .go files for technical debt markers..."
+	@RESULTS=$$(grep -rn 'TODO\|FIXME\|HACK\|XXX' --include='*.go' . | grep -v '_test.go' | grep -v vendor | grep -v '.git'); \
+	COUNT=$$(echo "$$RESULTS" | grep -c . 2>/dev/null || echo 0); \
+	echo "Found $$COUNT marker(s)"; \
+	echo ""; \
+	if [ "$$COUNT" -gt 0 ]; then \
+		echo "$$RESULTS" | head -20; \
+		if [ "$$COUNT" -gt 20 ]; then \
+			echo "  ... and $$((COUNT - 20)) more (use grep to see all)"; \
+		fi; \
+	fi
+
+deps-check: ## Check for untidy or outdated dependencies
+	@echo "Checking if go.mod is tidy..."
+	@if $(GO) mod tidy -diff > /dev/null 2>&1; then \
+		echo "  ✓ go.mod is tidy"; \
+	else \
+		echo "  ⚠ go.mod is not tidy. Run 'go mod tidy' to fix."; \
+		$(GO) mod tidy -diff 2>&1 | head -20; \
+	fi
+	@echo ""
+	@echo "Outdated direct dependencies:"
+	@$(GO) list -m -u -f '{{if and .Update (not .Indirect)}}  {{.Path}}: {{.Version}} → {{.Update.Version}}{{end}}' all 2>/dev/null | grep -v '^$$' || echo "  ✓ All direct dependencies are up to date"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
