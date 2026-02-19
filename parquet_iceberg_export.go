@@ -505,8 +505,11 @@ func (m *IcebergExportManager) Start() error {
 		return fmt.Errorf("create export dir: %w", err)
 	}
 
-	// Ensure default namespace exists.
-	_ = m.catalog.CreateNamespace(m.config.Namespace)
+	// Ensure default namespace exists (ignore "already exists" errors).
+	if err := m.catalog.CreateNamespace(m.config.Namespace); err != nil &&
+		!strings.Contains(err.Error(), "already exists") {
+		return fmt.Errorf("create iceberg namespace: %w", err)
+	}
 
 	m.running = true
 	m.stopCh = make(chan struct{})
@@ -584,7 +587,11 @@ func (m *IcebergExportManager) ExportColdPartitions(ctx context.Context) error {
 		tableName := m.config.TablePrefix + icebergTableName(cp.Metric)
 		if _, err := m.catalog.LoadTable(m.config.Namespace, tableName); err != nil {
 			schema := DefaultTimeSeriesIcebergSchema()
-			_, _ = m.catalog.CreateTable(m.config.Namespace, tableName, schema)
+			if _, createErr := m.catalog.CreateTable(m.config.Namespace, tableName, schema); createErr != nil {
+				m.failedExports.Add(1)
+				lastErr = fmt.Errorf("create iceberg table %s: %w", tableName, createErr)
+				continue
+			}
 		}
 
 		snapshot := IcebergSnapshot{
@@ -597,7 +604,9 @@ func (m *IcebergExportManager) ExportColdPartitions(ctx context.Context) error {
 				"total-file-size":  fmt.Sprintf("%d", info.SizeBytes),
 			},
 		}
-		_ = m.catalog.UpdateTable(m.config.Namespace, tableName, snapshot)
+		if err := m.catalog.UpdateTable(m.config.Namespace, tableName, snapshot); err != nil {
+			lastErr = fmt.Errorf("update iceberg table %s: %w", tableName, err)
+		}
 	}
 	return lastErr
 }
