@@ -237,7 +237,11 @@ func (r *CloudRelay) sendBatch(points []Point) {
 	for attempt := 0; attempt <= r.config.MaxRetries; attempt++ {
 		if attempt > 0 {
 			atomic.AddUint64(&r.stats.RetryCount, 1)
-			time.Sleep(r.config.RetryBackoff * time.Duration(attempt))
+			select {
+			case <-time.After(r.config.RetryBackoff * time.Duration(attempt)):
+			case <-r.done:
+				return
+			}
 		}
 
 		if err := r.doSend(data); err != nil {

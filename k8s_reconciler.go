@@ -70,6 +70,7 @@ type FullReconciler struct {
 	db               *DB
 	client           K8sClient
 	running          bool
+	ctx              context.Context
 	cancel           context.CancelFunc
 	mu               sync.RWMutex
 	reconcileHistory []ReconcileRecord
@@ -96,6 +97,7 @@ func (fr *FullReconciler) Start(ctx context.Context) error {
 	fr.running = true
 
 	ctx, cancel := context.WithCancel(ctx)
+	fr.ctx = ctx
 	fr.cancel = cancel
 	fr.mu.Unlock()
 
@@ -281,7 +283,12 @@ func (fr *FullReconciler) Reconcile(resource *ChronicleResource) (*CRDReconcileR
 			// Retry with backoff
 			retried := false
 			for attempt := 1; attempt <= fr.config.MaxRetries; attempt++ {
-				time.Sleep(fr.config.RetryBackoff)
+				select {
+				case <-time.After(fr.config.RetryBackoff):
+				case <-fr.ctx.Done():
+					reconcileErr = fr.ctx.Err()
+					break
+				}
 				switch action.Type {
 				case ActionCreate:
 					err = fr.reconcileCreate(resource.Spec)
