@@ -77,15 +77,15 @@ const (
 
 // MMLogEntry represents a multi-modal log entry
 type MMLogEntry struct {
-	ID           string            `json:"id"`
-	Timestamp    time.Time         `json:"timestamp"`
-	Level        LogLevel          `json:"level"`
-	Message      string            `json:"message"`
-	Service      string            `json:"service"`
-	TraceID      string            `json:"trace_id,omitempty"`
-	SpanID       string            `json:"span_id,omitempty"`
-	Attributes   map[string]string `json:"attributes,omitempty"`
-	Resource     map[string]string `json:"resource,omitempty"`
+	ID         string            `json:"id"`
+	Timestamp  time.Time         `json:"timestamp"`
+	Level      LogLevel          `json:"level"`
+	Message    string            `json:"message"`
+	Service    string            `json:"service"`
+	TraceID    string            `json:"trace_id,omitempty"`
+	SpanID     string            `json:"span_id,omitempty"`
+	Attributes map[string]string `json:"attributes,omitempty"`
+	Resource   map[string]string `json:"resource,omitempty"`
 }
 
 // LogLevel defines log severity levels
@@ -110,7 +110,7 @@ type Span struct {
 	StartTime    time.Time         `json:"start_time"`
 	EndTime      time.Time         `json:"end_time"`
 	Duration     time.Duration     `json:"duration"`
-	Status       MMSpanStatusInfo    `json:"status"`
+	Status       MMSpanStatusInfo  `json:"status"`
 	Attributes   map[string]string `json:"attributes,omitempty"`
 	Events       []SpanEvent       `json:"events,omitempty"`
 	Links        []SpanLink        `json:"links,omitempty"`
@@ -170,12 +170,12 @@ type MMTrace struct {
 
 // CorrelatedSignals represents correlated observability data
 type CorrelatedSignals struct {
-	TraceID      string          `json:"trace_id,omitempty"`
-	TimeRange    MMTimeRange     `json:"time_range"`
-	Metrics      []Point         `json:"metrics,omitempty"`
-	Logs         []MMLogEntry    `json:"logs,omitempty"`
-	Spans        []*Span         `json:"spans,omitempty"`
-	Correlations []Correlation   `json:"correlations,omitempty"`
+	TraceID      string        `json:"trace_id,omitempty"`
+	TimeRange    MMTimeRange   `json:"time_range"`
+	Metrics      []Point       `json:"metrics,omitempty"`
+	Logs         []MMLogEntry  `json:"logs,omitempty"`
+	Spans        []*Span       `json:"spans,omitempty"`
+	Correlations []Correlation `json:"correlations,omitempty"`
 }
 
 // MMTimeRange represents a multi-modal time range
@@ -186,10 +186,10 @@ type MMTimeRange struct {
 
 // Correlation represents a correlation between signals
 type Correlation struct {
-	Type       string      `json:"type"`
-	Signal1    SignalRef   `json:"signal1"`
-	Signal2    SignalRef   `json:"signal2"`
-	Confidence float64     `json:"confidence"`
+	Type       string            `json:"type"`
+	Signal1    SignalRef         `json:"signal1"`
+	Signal2    SignalRef         `json:"signal2"`
+	Confidence float64           `json:"confidence"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
@@ -206,17 +206,17 @@ type MultiModalStorage struct {
 	config *MultiModalConfig
 
 	// Log storage
-	logs    []MMLogEntry
-	logsMu  sync.RWMutex
+	logs   []MMLogEntry
+	logsMu sync.RWMutex
 
 	// Trace storage
-	spans   map[string]*Span // spanID -> span
-	traces  map[string][]*Span // traceID -> spans
+	spans    map[string]*Span   // spanID -> span
+	traces   map[string][]*Span // traceID -> spans
 	tracesMu sync.RWMutex
 
 	// Full-text index for logs
-	logIndex   *invertedIndex
-	indexMu    sync.RWMutex
+	logIndex *invertedIndex
+	indexMu  sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -238,13 +238,13 @@ func NewMultiModalStorage(db *DB, config *MultiModalConfig) (*MultiModalStorage,
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mms := &MultiModalStorage{
-		db:       db,
-		config:   config,
-		logs:     make([]MMLogEntry, 0),
-		spans:    make(map[string]*Span),
-		traces:   make(map[string][]*Span),
-		ctx:      ctx,
-		cancel:   cancel,
+		db:     db,
+		config: config,
+		logs:   make([]MMLogEntry, 0),
+		spans:  make(map[string]*Span),
+		traces: make(map[string][]*Span),
+		ctx:    ctx,
+		cancel: cancel,
 	}
 
 	if config.FullTextIndexing {
@@ -715,11 +715,11 @@ func (mms *MultiModalStorage) UnifiedQuery(query *UnifiedQuery) (*UnifiedResult,
 	// Query logs
 	if query.IncludeLogs {
 		logs, _ := mms.QueryLogs(&MMLogQuery{
-			StartTime:  query.StartTime,
-			EndTime:    query.EndTime,
-			Service:    query.Service,
-			Search:     query.Search,
-			Limit:      query.Limit,
+			StartTime: query.StartTime,
+			EndTime:   query.EndTime,
+			Service:   query.Service,
+			Search:    query.Search,
+			Limit:     query.Limit,
 		})
 		result.Logs = logs
 	}
@@ -755,7 +755,7 @@ type UnifiedQuery struct {
 type UnifiedResult struct {
 	Query   *UnifiedQuery `json:"query"`
 	Metrics []Point       `json:"metrics,omitempty"`
-	Logs    []MMLogEntry    `json:"logs,omitempty"`
+	Logs    []MMLogEntry  `json:"logs,omitempty"`
 	Spans   []*Span       `json:"spans,omitempty"`
 }
 
@@ -771,12 +771,12 @@ func (mms *MultiModalStorage) Stats() MultiModalStats {
 	mms.tracesMu.RUnlock()
 
 	return MultiModalStats{
-		TotalLogs:   atomic.LoadInt64(&mms.totalLogs),
-		TotalSpans:  atomic.LoadInt64(&mms.totalSpans),
-		TotalTraces: atomic.LoadInt64(&mms.totalTraces),
-		TotalQueries: atomic.LoadInt64(&mms.queries),
-		LogsInMemory:  logCount,
-		SpansInMemory: spanCount,
+		TotalLogs:      atomic.LoadInt64(&mms.totalLogs),
+		TotalSpans:     atomic.LoadInt64(&mms.totalSpans),
+		TotalTraces:    atomic.LoadInt64(&mms.totalTraces),
+		TotalQueries:   atomic.LoadInt64(&mms.queries),
+		LogsInMemory:   logCount,
+		SpansInMemory:  spanCount,
 		TracesInMemory: traceCount,
 	}
 }
@@ -889,9 +889,9 @@ func (mms *MultiModalStorage) pruneOldestSpans() {
 
 // Inverted index for full-text search
 type invertedIndex struct {
-	index   map[string]map[string]bool // term -> docIDs
+	index     map[string]map[string]bool // term -> docIDs
 	ngramSize int
-	mu      sync.RWMutex
+	mu        sync.RWMutex
 }
 
 func newInvertedIndex(ngramSize int) *invertedIndex {

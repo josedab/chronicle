@@ -19,12 +19,12 @@ const (
 
 // NotebookConfig configures the notebook engine.
 type NotebookConfig struct {
-	Enabled         bool          `json:"enabled"`
-	MaxCells        int           `json:"max_cells"`
-	MaxOutputRows   int           `json:"max_output_rows"`
+	Enabled          bool          `json:"enabled"`
+	MaxCells         int           `json:"max_cells"`
+	MaxOutputRows    int           `json:"max_output_rows"`
 	ExecutionTimeout time.Duration `json:"execution_timeout"`
 	AutoSaveInterval time.Duration `json:"auto_save_interval"`
-	MaxNotebooks    int           `json:"max_notebooks"`
+	MaxNotebooks     int           `json:"max_notebooks"`
 }
 
 // DefaultNotebookConfig returns sensible defaults.
@@ -41,31 +41,31 @@ func DefaultNotebookConfig() NotebookConfig {
 
 // NotebookCell represents a single cell in a notebook.
 type NotebookCell struct {
-	ID       string           `json:"id"`
-	Type     NotebookCellType `json:"type"`
-	Source   string           `json:"source"`
-	Output   *CellOutput      `json:"output,omitempty"`
+	ID       string            `json:"id"`
+	Type     NotebookCellType  `json:"type"`
+	Source   string            `json:"source"`
+	Output   *CellOutput       `json:"output,omitempty"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // CellOutput holds the execution result of a cell.
 type CellOutput struct {
-	Data      interface{} `json:"data,omitempty"`
-	Error     string      `json:"error,omitempty"`
-	Duration  string      `json:"duration,omitempty"`
-	Timestamp time.Time   `json:"timestamp"`
+	Data      any       `json:"data,omitempty"`
+	Error     string    `json:"error,omitempty"`
+	Duration  string    `json:"duration,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Notebook represents an interactive .chronicle notebook document.
 type Notebook struct {
-	ID          string         `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description,omitempty"`
-	Cells       []NotebookCell `json:"cells"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	Author      string         `json:"author,omitempty"`
-	Tags        []string       `json:"tags,omitempty"`
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Description string            `json:"description,omitempty"`
+	Cells       []NotebookCell    `json:"cells"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	Author      string            `json:"author,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
 	Parameters  map[string]string `json:"parameters,omitempty"`
 }
 
@@ -350,9 +350,9 @@ func (ne *NotebookEngine) ParseMarkdown(content string) (*Notebook, error) {
 				cellType = CellChart
 			}
 			nb.Cells = append(nb.Cells, NotebookCell{
-				ID:     fmt.Sprintf("cell-%d", len(nb.Cells)),
-				Type:   cellType,
-				Source: source,
+				ID:       fmt.Sprintf("cell-%d", len(nb.Cells)),
+				Type:     cellType,
+				Source:   source,
 				Metadata: map[string]string{"language": codeLang},
 			})
 			continue

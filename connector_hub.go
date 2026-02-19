@@ -20,21 +20,21 @@ const (
 type ConnectorStatus string
 
 const (
-	ConnectorStatusStopped  ConnectorStatus = "stopped"
-	ConnectorStatusRunning  ConnectorStatus = "running"
-	ConnectorStatusFailed   ConnectorStatus = "failed"
-	ConnectorStatusPaused   ConnectorStatus = "paused"
+	ConnectorStatusStopped ConnectorStatus = "stopped"
+	ConnectorStatusRunning ConnectorStatus = "running"
+	ConnectorStatusFailed  ConnectorStatus = "failed"
+	ConnectorStatusPaused  ConnectorStatus = "paused"
 )
 
 // ConnectorHubConfig configures the connector hub.
 type ConnectorHubConfig struct {
-	Enabled          bool          `json:"enabled"`
-	MaxConnectors    int           `json:"max_connectors"`
+	Enabled             bool          `json:"enabled"`
+	MaxConnectors       int           `json:"max_connectors"`
 	HealthCheckInterval time.Duration `json:"health_check_interval"`
-	DeadLetterEnabled bool         `json:"dead_letter_enabled"`
-	DeadLetterMax    int           `json:"dead_letter_max"`
-	DefaultBatchSize int           `json:"default_batch_size"`
-	DefaultFlushMs   int           `json:"default_flush_ms"`
+	DeadLetterEnabled   bool          `json:"dead_letter_enabled"`
+	DeadLetterMax       int           `json:"dead_letter_max"`
+	DefaultBatchSize    int           `json:"default_batch_size"`
+	DefaultFlushMs      int           `json:"default_flush_ms"`
 }
 
 // DefaultConnectorHubConfig returns sensible defaults.
@@ -52,13 +52,13 @@ func DefaultConnectorHubConfig() ConnectorHubConfig {
 
 // ConnectorConfig is the configuration for a single connector instance.
 type ConnectorConfig struct {
-	Name         string                 `json:"name"`
-	Type         ConnectorType          `json:"type"`
-	Driver       string                 `json:"driver"`
-	BatchSize    int                    `json:"batch_size"`
-	FlushIntervalMs int                `json:"flush_interval_ms"`
-	Properties   map[string]string      `json:"properties"`
-	Filters      ConnectorFilters       `json:"filters,omitempty"`
+	Name            string            `json:"name"`
+	Type            ConnectorType     `json:"type"`
+	Driver          string            `json:"driver"`
+	BatchSize       int               `json:"batch_size"`
+	FlushIntervalMs int               `json:"flush_interval_ms"`
+	Properties      map[string]string `json:"properties"`
+	Filters         ConnectorFilters  `json:"filters,omitempty"`
 }
 
 // ConnectorFilters defines which data to include/exclude.
@@ -70,11 +70,11 @@ type ConnectorFilters struct {
 
 // ConnectorInstance represents a running connector instance.
 type ConnectorInstance struct {
-	Config    ConnectorConfig `json:"config"`
-	Status    ConnectorStatus `json:"status"`
-	StartedAt time.Time      `json:"started_at,omitempty"`
+	Config    ConnectorConfig        `json:"config"`
+	Status    ConnectorStatus        `json:"status"`
+	StartedAt time.Time              `json:"started_at,omitempty"`
 	Stats     ConnectorInstanceStats `json:"stats"`
-	LastError string         `json:"last_error,omitempty"`
+	LastError string                 `json:"last_error,omitempty"`
 	done      chan struct{}
 }
 
@@ -457,9 +457,9 @@ func (h *ConnectorHub) registerBuiltinDrivers() {
 // stdoutConnectorDriver writes points to stdout as JSON (useful for debugging).
 type stdoutConnectorDriver struct{}
 
-func (d *stdoutConnectorDriver) Name() string                           { return "stdout" }
-func (d *stdoutConnectorDriver) Type() ConnectorType                    { return ConnectorTypeSink }
-func (d *stdoutConnectorDriver) Initialize(_ map[string]string) error   { return nil }
+func (d *stdoutConnectorDriver) Name() string                         { return "stdout" }
+func (d *stdoutConnectorDriver) Type() ConnectorType                  { return ConnectorTypeSink }
+func (d *stdoutConnectorDriver) Initialize(_ map[string]string) error { return nil }
 func (d *stdoutConnectorDriver) Write(points []Point) error {
 	for _, p := range points {
 		data, _ := json.Marshal(p)
@@ -467,20 +467,22 @@ func (d *stdoutConnectorDriver) Write(points []Point) error {
 	}
 	return nil
 }
-func (d *stdoutConnectorDriver) Read(_ int) ([]Point, error)           { return nil, fmt.Errorf("stdout is sink-only") }
-func (d *stdoutConnectorDriver) HealthCheck() error                    { return nil }
-func (d *stdoutConnectorDriver) Close() error                          { return nil }
+func (d *stdoutConnectorDriver) Read(_ int) ([]Point, error) {
+	return nil, fmt.Errorf("stdout is sink-only")
+}
+func (d *stdoutConnectorDriver) HealthCheck() error { return nil }
+func (d *stdoutConnectorDriver) Close() error       { return nil }
 
 // noopConnectorDriver discards all data (useful for testing).
 type noopConnectorDriver struct{}
 
-func (d *noopConnectorDriver) Name() string                           { return "noop" }
-func (d *noopConnectorDriver) Type() ConnectorType                    { return ConnectorTypeSink }
-func (d *noopConnectorDriver) Initialize(_ map[string]string) error   { return nil }
-func (d *noopConnectorDriver) Write(_ []Point) error                  { return nil }
-func (d *noopConnectorDriver) Read(_ int) ([]Point, error)            { return nil, nil }
-func (d *noopConnectorDriver) HealthCheck() error                     { return nil }
-func (d *noopConnectorDriver) Close() error                           { return nil }
+func (d *noopConnectorDriver) Name() string                         { return "noop" }
+func (d *noopConnectorDriver) Type() ConnectorType                  { return ConnectorTypeSink }
+func (d *noopConnectorDriver) Initialize(_ map[string]string) error { return nil }
+func (d *noopConnectorDriver) Write(_ []Point) error                { return nil }
+func (d *noopConnectorDriver) Read(_ int) ([]Point, error)          { return nil, nil }
+func (d *noopConnectorDriver) HealthCheck() error                   { return nil }
+func (d *noopConnectorDriver) Close() error                         { return nil }
 
 // Ensure drivers implement the interface.
 var (

@@ -707,7 +707,7 @@ func TestMaxSpans(t *testing.T) {
 	defer mms.Close()
 
 	for i := 0; i < 10; i++ {
-		mms.WriteSpan(&Span{TraceID: "t", SpanID: string(rune('a'+i))})
+		mms.WriteSpan(&Span{TraceID: "t", SpanID: string(rune('a' + i))})
 	}
 
 	stats := mms.Stats()
@@ -864,7 +864,7 @@ func TestQuerySpansWithLimit(t *testing.T) {
 	defer mms.Close()
 
 	for i := 0; i < 20; i++ {
-		mms.WriteSpan(&Span{TraceID: "t", SpanID: string(rune('a'+i))})
+		mms.WriteSpan(&Span{TraceID: "t", SpanID: string(rune('a' + i))})
 	}
 
 	results, _ := mms.QuerySpans(&SpanQuery{Limit: 5})

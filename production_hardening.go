@@ -41,11 +41,11 @@ type HardeningResult struct {
 
 // HardeningSummary provides an overview of all hardening test results.
 type HardeningSummary struct {
-	TotalTests int              `json:"total_tests"`
-	Passed     int              `json:"passed"`
-	Failed     int              `json:"failed"`
-	PassRate   float64          `json:"pass_rate"`
-	Duration   time.Duration    `json:"duration"`
+	TotalTests int               `json:"total_tests"`
+	Passed     int               `json:"passed"`
+	Failed     int               `json:"failed"`
+	PassRate   float64           `json:"pass_rate"`
+	Duration   time.Duration     `json:"duration"`
 	Results    []HardeningResult `json:"results"`
 }
 
@@ -311,11 +311,11 @@ func (hs *HardeningSuite) RunClockSkewTest() HardeningResult {
 
 	// Write points out of order: future, past, present
 	timestamps := []int64{
-		baseTime + int64(2*time.Second),  // future
-		baseTime - int64(2*time.Second),  // past
-		baseTime,                          // present
-		baseTime + int64(1*time.Second),  // near future
-		baseTime - int64(1*time.Second),  // near past
+		baseTime + int64(2*time.Second), // future
+		baseTime - int64(2*time.Second), // past
+		baseTime,                        // present
+		baseTime + int64(1*time.Second), // near future
+		baseTime - int64(1*time.Second), // near past
 	}
 
 	for i, ts := range timestamps {

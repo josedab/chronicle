@@ -228,9 +228,9 @@ func TestBranchQuery(t *testing.T) {
 
 	// Query branch
 	query := &Query{
-		Metric:    "metric",
-		Start: 0,
-		End:   5000,
+		Metric: "metric",
+		Start:  0,
+		End:    5000,
 	}
 
 	results, err := bm.Query("feature", query)
@@ -367,11 +367,11 @@ func TestMergeStrategies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.strategy), func(t *testing.T) {
 			dir := t.TempDir()
-	cfg := DefaultConfig(dir + "/test.db")
-	db, err := Open(cfg.Path, cfg)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
+			cfg := DefaultConfig(dir + "/test.db")
+			db, err := Open(cfg.Path, cfg)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
 			defer db.Close()
 
 			bm, _ := NewTSBranchManager(db, nil)
@@ -761,9 +761,9 @@ func TestQueryWithTimeRange(t *testing.T) {
 
 	// Query with time range
 	query := &Query{
-		Metric:    "metric",
-		Start: 3000,
-		End:   7000,
+		Metric: "metric",
+		Start:  3000,
+		End:    7000,
 	}
 
 	results, _ := bm.Query("feature", query)

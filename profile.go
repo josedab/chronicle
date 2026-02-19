@@ -305,7 +305,7 @@ func (ps *ProfileStore) enforceRetention(series *profileSeries) {
 	}
 
 	cutoff := time.Now().Add(-ps.config.RetentionDuration).UnixNano()
-	
+
 	var kept []storedProfile
 	for _, sp := range series.profiles {
 		if sp.timestamp >= cutoff {
@@ -329,7 +329,7 @@ func (ps *ProfileStore) Stats() ProfileStats {
 		count := int64(len(series.profiles))
 		stats.ProfileCount += count
 		stats.TypeCounts[series.profileType] += count
-		
+
 		for _, sp := range series.profiles {
 			stats.TotalBytes += int64(len(sp.data))
 		}

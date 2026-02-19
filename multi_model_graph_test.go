@@ -138,11 +138,11 @@ func TestGraphStoreFindNodes(t *testing.T) {
 func TestDocumentIndex(t *testing.T) {
 	di := NewDocumentIndex()
 
-	di.Index("doc1", map[string]interface{}{
+	di.Index("doc1", map[string]any{
 		"title": "CPU spike analysis",
 		"type":  "incident",
 	})
-	di.Index("doc2", map[string]interface{}{
+	di.Index("doc2", map[string]any{
 		"title": "Memory leak report",
 		"type":  "incident",
 	})
@@ -174,7 +174,7 @@ func TestMultiModelGraphStoreDocument(t *testing.T) {
 	err := mm.StoreDocument(&Document{
 		ID:         "inc-1",
 		Collection: "incidents",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"title":    "High CPU on web-1",
 			"severity": "high",
 		},
@@ -209,7 +209,7 @@ func TestMultiModelGraphStoreCrossQuery(t *testing.T) {
 
 	mm.StoreDocument(&Document{
 		ID: "event-1", Collection: "events",
-		Data: map[string]interface{}{"title": "web-1 latency spike"},
+		Data: map[string]any{"title": "web-1 latency spike"},
 	})
 
 	result, err := mm.CrossModelQueryExecute(CrossModelQuery{

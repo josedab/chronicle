@@ -71,35 +71,35 @@ type MultiModelStore struct {
 
 // KVEntry represents a key-value entry.
 type KVEntry struct {
-	Key       string      `json:"key"`
-	Value     interface{} `json:"value"`
-	Version   int64       `json:"version"`
-	Created   time.Time   `json:"created"`
-	Updated   time.Time   `json:"updated"`
-	ExpiresAt time.Time   `json:"expires_at,omitempty"`
+	Key       string        `json:"key"`
+	Value     any           `json:"value"`
+	Version   int64         `json:"version"`
+	Created   time.Time     `json:"created"`
+	Updated   time.Time     `json:"updated"`
+	ExpiresAt time.Time     `json:"expires_at,omitempty"`
 	TTL       time.Duration `json:"ttl,omitempty"`
 }
 
 // Document represents a stored document.
 type Document struct {
-	ID          string                 `json:"id"`
-	Collection  string                 `json:"collection"`
-	Data        map[string]interface{} `json:"data"`
-	Version     int64                  `json:"version"`
-	Created     time.Time              `json:"created"`
-	Updated     time.Time              `json:"updated"`
-	Metadata    map[string]string      `json:"metadata,omitempty"`
+	ID         string            `json:"id"`
+	Collection string            `json:"collection"`
+	Data       map[string]any    `json:"data"`
+	Version    int64             `json:"version"`
+	Created    time.Time         `json:"created"`
+	Updated    time.Time         `json:"updated"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // MultiModelLogEntry represents a log entry in multi-model storage.
 type MultiModelLogEntry struct {
-	ID        string                 `json:"id"`
-	Stream    string                 `json:"stream"`
-	Timestamp int64                  `json:"timestamp"`
-	Level     MultiModelLogLevel     `json:"level"`
-	Message   string                 `json:"message"`
-	Fields    map[string]interface{} `json:"fields,omitempty"`
-	Tags      map[string]string      `json:"tags,omitempty"`
+	ID        string             `json:"id"`
+	Stream    string             `json:"stream"`
+	Timestamp int64              `json:"timestamp"`
+	Level     MultiModelLogLevel `json:"level"`
+	Message   string             `json:"message"`
+	Fields    map[string]any     `json:"fields,omitempty"`
+	Tags      map[string]string  `json:"tags,omitempty"`
 }
 
 // MultiModelLogLevel represents log severity.
@@ -132,10 +132,10 @@ func (l MultiModelLogLevel) String() string {
 
 // LogStream contains log entries for a stream.
 type LogStream struct {
-	Name      string                 `json:"name"`
-	Entries   []*MultiModelLogEntry  `json:"entries"`
-	Created   time.Time              `json:"created"`
-	LastWrite time.Time              `json:"last_write"`
+	Name      string                `json:"name"`
+	Entries   []*MultiModelLogEntry `json:"entries"`
+	Created   time.Time             `json:"created"`
+	LastWrite time.Time             `json:"last_write"`
 	mu        sync.RWMutex
 }
 
@@ -234,7 +234,7 @@ func (m *MultiModelStore) runCompaction() {
 // --- Key-Value Operations ---
 
 // Set stores a key-value pair.
-func (m *MultiModelStore) Set(key string, value interface{}, opts ...KVOption) error {
+func (m *MultiModelStore) Set(key string, value any, opts ...KVOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -270,7 +270,7 @@ func (m *MultiModelStore) Set(key string, value interface{}, opts ...KVOption) e
 }
 
 // Get retrieves a value by key.
-func (m *MultiModelStore) Get(key string) (interface{}, bool) {
+func (m *MultiModelStore) Get(key string) (any, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -396,7 +396,7 @@ func WithExpiry(t time.Time) KVOption {
 // --- Document Operations ---
 
 // InsertDocument inserts a document into a collection.
-func (m *MultiModelStore) InsertDocument(collection string, doc map[string]interface{}) (*Document, error) {
+func (m *MultiModelStore) InsertDocument(collection string, doc map[string]any) (*Document, error) {
 	// Validate size
 	data, err := json.Marshal(doc)
 	if err != nil {
@@ -458,7 +458,7 @@ func (m *MultiModelStore) GetDocument(collection, id string) (*Document, bool) {
 }
 
 // UpdateDocument updates a document.
-func (m *MultiModelStore) UpdateDocument(collection, id string, updates map[string]interface{}) (*Document, error) {
+func (m *MultiModelStore) UpdateDocument(collection, id string, updates map[string]any) (*Document, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -548,11 +548,11 @@ func (m *MultiModelStore) FindDocuments(collection string, query DocumentQuery) 
 
 // DocumentQuery represents a document query.
 type DocumentQuery struct {
-	Filters   map[string]interface{} `json:"filters"`
-	SortField string                 `json:"sort_field"`
-	SortDesc  bool                   `json:"sort_desc"`
-	Limit     int                    `json:"limit"`
-	Skip      int                    `json:"skip"`
+	Filters   map[string]any `json:"filters"`
+	SortField string         `json:"sort_field"`
+	SortDesc  bool           `json:"sort_desc"`
+	Limit     int            `json:"limit"`
+	Skip      int            `json:"skip"`
 }
 
 func (m *MultiModelStore) matchesDocumentQuery(doc *Document, query DocumentQuery) bool {
@@ -565,13 +565,13 @@ func (m *MultiModelStore) matchesDocumentQuery(doc *Document, query DocumentQuer
 	return true
 }
 
-func matchesFilter(docValue, filterValue interface{}) bool {
+func matchesFilter(docValue, filterValue any) bool {
 	if filterValue == nil {
 		return docValue == nil
 	}
 
 	// Handle filter operators
-	if fmap, ok := filterValue.(map[string]interface{}); ok {
+	if fmap, ok := filterValue.(map[string]any); ok {
 		for op, val := range fmap {
 			switch op {
 			case "$eq":
@@ -587,7 +587,7 @@ func matchesFilter(docValue, filterValue interface{}) bool {
 			case "$lte":
 				return compareValues(docValue, val) <= 0
 			case "$in":
-				if arr, ok := val.([]interface{}); ok {
+				if arr, ok := val.([]any); ok {
 					for _, v := range arr {
 						if compareValues(docValue, v) == 0 {
 							return true
@@ -611,12 +611,12 @@ func matchesFilter(docValue, filterValue interface{}) bool {
 	return compareValues(docValue, filterValue) == 0
 }
 
-func getNestedValue(data map[string]interface{}, path string) interface{} {
+func getNestedValue(data map[string]any, path string) any {
 	parts := strings.Split(path, ".")
-	var current interface{} = data
+	var current any = data
 
 	for _, part := range parts {
-		if m, ok := current.(map[string]interface{}); ok {
+		if m, ok := current.(map[string]any); ok {
 			current = m[part]
 		} else {
 			return nil
@@ -626,7 +626,7 @@ func getNestedValue(data map[string]interface{}, path string) interface{} {
 	return current
 }
 
-func compareValues(a, b interface{}) int {
+func compareValues(a, b any) int {
 	// Convert to comparable types
 	switch va := a.(type) {
 	case float64:
@@ -660,7 +660,7 @@ func compareValues(a, b interface{}) int {
 	return strings.Compare(sa, sb)
 }
 
-func multiModelToFloat64(v interface{}) (float64, bool) {
+func multiModelToFloat64(v any) (float64, bool) {
 	switch val := v.(type) {
 	case float64:
 		return val, true
@@ -705,14 +705,14 @@ func (m *MultiModelStore) removeFromIndexes(collection string, doc *Document) {
 	}
 }
 
-func extractJSONPath(data map[string]interface{}, path string) string {
+func extractJSONPath(data map[string]any, path string) string {
 	// Simple JSON path extraction ($.field or field)
 	path = strings.TrimPrefix(path, "$.")
 	parts := strings.Split(path, ".")
 
-	var current interface{} = data
+	var current any = data
 	for _, part := range parts {
-		if m, ok := current.(map[string]interface{}); ok {
+		if m, ok := current.(map[string]any); ok {
 			current = m[part]
 		} else {
 			return ""
@@ -854,15 +854,15 @@ func (m *MultiModelStore) QueryLogs(query MultiModelLogQuery) ([]*MultiModelLogE
 
 // MultiModelLogQuery represents a log query.
 type MultiModelLogQuery struct {
-	Stream    string                  `json:"stream"`
-	Level     *MultiModelLogLevel     `json:"level,omitempty"`
-	MinLevel  *MultiModelLogLevel     `json:"min_level,omitempty"`
-	StartTime int64                   `json:"start_time"`
-	EndTime   int64                   `json:"end_time"`
-	Contains  string                  `json:"contains"`
-	Tags      map[string]string       `json:"tags"`
-	Limit     int                     `json:"limit"`
-	Desc      bool                    `json:"desc"`
+	Stream    string              `json:"stream"`
+	Level     *MultiModelLogLevel `json:"level,omitempty"`
+	MinLevel  *MultiModelLogLevel `json:"min_level,omitempty"`
+	StartTime int64               `json:"start_time"`
+	EndTime   int64               `json:"end_time"`
+	Contains  string              `json:"contains"`
+	Tags      map[string]string   `json:"tags"`
+	Limit     int                 `json:"limit"`
+	Desc      bool                `json:"desc"`
 }
 
 func (m *MultiModelStore) matchesLogQuery(entry *MultiModelLogEntry, query MultiModelLogQuery) bool {
@@ -946,13 +946,13 @@ func (m *MultiModelStore) GetStreamStats(streamName string) (*LogStreamStats, bo
 
 // LogStreamStats contains log stream statistics.
 type LogStreamStats struct {
-	Name        string                      `json:"name"`
-	Count       int                         `json:"count"`
-	Created     time.Time                   `json:"created"`
-	LastWrite   time.Time                   `json:"last_write"`
-	OldestEntry int64                       `json:"oldest_entry"`
-	NewestEntry int64                       `json:"newest_entry"`
-	LevelCounts map[MultiModelLogLevel]int  `json:"level_counts"`
+	Name        string                     `json:"name"`
+	Count       int                        `json:"count"`
+	Created     time.Time                  `json:"created"`
+	LastWrite   time.Time                  `json:"last_write"`
+	OldestEntry int64                      `json:"oldest_entry"`
+	NewestEntry int64                      `json:"newest_entry"`
+	LevelCounts map[MultiModelLogLevel]int `json:"level_counts"`
 }
 
 // --- Utility Functions ---

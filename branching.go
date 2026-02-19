@@ -670,12 +670,12 @@ func (bm *BranchManager) Diff(branchA, branchB string) (*BranchDiff, error) {
 
 // BranchDiff represents differences between two branches.
 type BranchDiff struct {
-	BranchA    string      `json:"branch_a"`
-	BranchB    string      `json:"branch_b"`
-	OnlyInA    []Point     `json:"only_in_a,omitempty"`
-	OnlyInB    []Point     `json:"only_in_b,omitempty"`
+	BranchA    string            `json:"branch_a"`
+	BranchB    string            `json:"branch_b"`
+	OnlyInA    []Point           `json:"only_in_a,omitempty"`
+	OnlyInB    []Point           `json:"only_in_b,omitempty"`
 	Modified   []BranchPointDiff `json:"modified,omitempty"`
-	TotalDiffs int         `json:"total_diffs"`
+	TotalDiffs int               `json:"total_diffs"`
 }
 
 // PointDiff represents a difference in a single point.
@@ -720,8 +720,8 @@ func (bm *BranchManager) Export() ([]byte, error) {
 	defer bm.mu.RUnlock()
 
 	state := struct {
-		Current   string               `json:"current"`
-		Branches  map[string]*Branch   `json:"branches"`
+		Current   string                     `json:"current"`
+		Branches  map[string]*Branch         `json:"branches"`
 		Snapshots map[string]*BranchSnapshot `json:"snapshots"`
 	}{
 		Current:   bm.current,
@@ -738,8 +738,8 @@ func (bm *BranchManager) Import(data []byte) error {
 	defer bm.mu.Unlock()
 
 	state := struct {
-		Current   string               `json:"current"`
-		Branches  map[string]*Branch   `json:"branches"`
+		Current   string                     `json:"current"`
+		Branches  map[string]*Branch         `json:"branches"`
 		Snapshots map[string]*BranchSnapshot `json:"snapshots"`
 	}{}
 

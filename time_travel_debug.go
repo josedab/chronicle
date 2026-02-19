@@ -73,15 +73,15 @@ type MetricDiff struct {
 
 // DebugDiffResult holds the complete diff between two metric states.
 type DebugDiffResult struct {
-	FromTime   int64        `json:"from_time"`
-	ToTime     int64        `json:"to_time"`
-	Metric     string       `json:"metric,omitempty"`
-	Added      int          `json:"added"`
-	Removed    int          `json:"removed"`
-	Modified   int          `json:"modified"`
-	Unchanged  int          `json:"unchanged"`
-	Diffs      []MetricDiff `json:"diffs"`
-	ComputedAt time.Time    `json:"computed_at"`
+	FromTime   int64         `json:"from_time"`
+	ToTime     int64         `json:"to_time"`
+	Metric     string        `json:"metric,omitempty"`
+	Added      int           `json:"added"`
+	Removed    int           `json:"removed"`
+	Modified   int           `json:"modified"`
+	Unchanged  int           `json:"unchanged"`
+	Diffs      []MetricDiff  `json:"diffs"`
+	ComputedAt time.Time     `json:"computed_at"`
 	Duration   time.Duration `json:"duration"`
 }
 
@@ -154,7 +154,7 @@ type DebugTimeline struct {
 // TimelineEvent represents an annotated event on the timeline.
 type TimelineEvent struct {
 	Timestamp   int64  `json:"timestamp"`
-	Type        string `json:"type"`     // "anomaly", "deploy", "config_change", "alert"
+	Type        string `json:"type"` // "anomaly", "deploy", "config_change", "alert"
 	Description string `json:"description"`
 	Severity    string `json:"severity"` // "info", "warning", "critical"
 }
@@ -737,7 +737,7 @@ func (e *TimeTravelDebugEngine) GetTimeline(metric string, start, end int64) (*D
 			prev := points[i-1].Value
 			curr := points[i].Value
 			if prev != 0 {
-				changePct := math.Abs((curr - prev) / prev) * 100
+				changePct := math.Abs((curr-prev)/prev) * 100
 				if changePct > 50 {
 					severity := "warning"
 					if changePct > 100 {

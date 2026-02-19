@@ -238,7 +238,7 @@ func TestStudioEnhancedExportResults(t *testing.T) {
 	engine := NewStudioEnhancedEngine(nil, DefaultStudioEnhancedConfig())
 
 	// JSON export
-	data := map[string]interface{}{"metric": "cpu", "value": 42}
+	data := map[string]any{"metric": "cpu", "value": 42}
 	result, err := engine.ExportResults("json", data)
 	if err != nil {
 		t.Fatalf("ExportResults json failed: %v", err)

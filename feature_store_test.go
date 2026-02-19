@@ -600,7 +600,7 @@ func TestValueToFloat(t *testing.T) {
 	fs, _ := NewFeatureStore(db, DefaultFeatureStoreConfig())
 
 	tests := []struct {
-		input    interface{}
+		input    any
 		expected float64
 	}{
 		{1.5, 1.5},

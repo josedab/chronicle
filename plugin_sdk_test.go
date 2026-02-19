@@ -26,7 +26,7 @@ func (a *testAggregator) Reset() {}
 type testIngestor struct{}
 
 func (i *testIngestor) Name() string        { return "csv_ingestor" }
-func (i *testIngestor) ContentType() string  { return "text/csv" }
+func (i *testIngestor) ContentType() string { return "text/csv" }
 func (i *testIngestor) Parse(data []byte) ([]Point, error) {
 	return []Point{{Metric: "parsed", Value: 42}}, nil
 }

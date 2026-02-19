@@ -23,7 +23,7 @@ func TestAdminUI_APISchemas(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var schemas []map[string]interface{}
+	var schemas []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&schemas); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestAdminUI_APIDiagnostics(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestAdminUI_APISessions(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var sessions []map[string]interface{}
+	var sessions []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&sessions); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAdminUI_APITemplates(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var templates []map[string]interface{}
+	var templates []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&templates); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestAdminUI_APIAnnotations(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var annotations []map[string]interface{}
+	var annotations []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&annotations); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestAdminUI_APIProfiling(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestAdminUI_APILogs(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var logs []map[string]interface{}
+	var logs []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&logs); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestAdminUI_APIRoles(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var roles []map[string]interface{}
+	var roles []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&roles); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -301,7 +301,7 @@ func TestAdminUI_APIPermissions(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var access map[string]interface{}
+	var access map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&access); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

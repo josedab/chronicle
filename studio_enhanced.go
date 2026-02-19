@@ -12,15 +12,15 @@ import (
 
 // StudioEnhancedConfig configures the next-gen Web IDE capabilities for Chronicle Studio.
 type StudioEnhancedConfig struct {
-	EnableCollaboration    bool          `json:"enable_collaboration"`
-	MaxSessions            int           `json:"max_sessions"`
-	SessionTimeout         time.Duration `json:"session_timeout"`
-	EnableAutocomplete     bool          `json:"enable_autocomplete"`
-	EnableSyntaxHighlight  bool          `json:"enable_syntax_highlighting"`
-	Theme                  string        `json:"theme"`
-	EnableRealtimePreview  bool          `json:"enable_real_time_preview"`
-	MaxQueryHistory        int           `json:"max_query_history"`
-	EnableDataExport       bool          `json:"enable_data_export"`
+	EnableCollaboration   bool          `json:"enable_collaboration"`
+	MaxSessions           int           `json:"max_sessions"`
+	SessionTimeout        time.Duration `json:"session_timeout"`
+	EnableAutocomplete    bool          `json:"enable_autocomplete"`
+	EnableSyntaxHighlight bool          `json:"enable_syntax_highlighting"`
+	Theme                 string        `json:"theme"`
+	EnableRealtimePreview bool          `json:"enable_real_time_preview"`
+	MaxQueryHistory       int           `json:"max_query_history"`
+	EnableDataExport      bool          `json:"enable_data_export"`
 }
 
 // DefaultStudioEnhancedConfig returns sensible defaults for StudioEnhanced.
@@ -89,30 +89,30 @@ type StudioLayout struct {
 
 // StudioCollaboration holds real-time collaboration state for a session.
 type StudioCollaboration struct {
-	SessionID      string            `json:"session_id"`
-	Participants   []string          `json:"participants"`
-	CursorPositions map[string]int   `json:"cursor_positions"`
-	Edits          []string          `json:"edits"`
+	SessionID       string         `json:"session_id"`
+	Participants    []string       `json:"participants"`
+	CursorPositions map[string]int `json:"cursor_positions"`
+	Edits           []string       `json:"edits"`
 }
 
 // StudioSession represents an active workspace session in the enhanced studio.
 type StudioSession struct {
-	ID             string              `json:"id"`
-	UserID         string              `json:"user_id"`
-	CreatedAt      time.Time           `json:"created_at"`
-	LastActive     time.Time           `json:"last_active"`
+	ID             string                    `json:"id"`
+	UserID         string                    `json:"user_id"`
+	CreatedAt      time.Time                 `json:"created_at"`
+	LastActive     time.Time                 `json:"last_active"`
 	QueryHistory   []StudioQueryHistoryEntry `json:"query_history"`
-	ActiveTab      string              `json:"active_tab"`
-	WorkspaceState map[string]string   `json:"workspace_state"`
+	ActiveTab      string                    `json:"active_tab"`
+	WorkspaceState map[string]string         `json:"workspace_state"`
 }
 
 // StudioQueryResult holds the result set of an executed query.
 type StudioQueryResult struct {
-	Columns   []string        `json:"columns"`
-	Rows      [][]interface{} `json:"rows"`
-	Duration  time.Duration   `json:"duration"`
-	RowCount  int             `json:"row_count"`
-	Truncated bool            `json:"truncated"`
+	Columns   []string      `json:"columns"`
+	Rows      [][]any       `json:"rows"`
+	Duration  time.Duration `json:"duration"`
+	RowCount  int           `json:"row_count"`
+	Truncated bool          `json:"truncated"`
 }
 
 // StudioEnhancedStats holds aggregate statistics for the enhanced studio.
@@ -228,7 +228,7 @@ func (e *StudioEnhancedEngine) ExecuteQuery(sessionID, query string) (*StudioQue
 	// Simulate query execution against the database
 	result := &StudioQueryResult{
 		Columns:   []string{"time", "value"},
-		Rows:      [][]interface{}{},
+		Rows:      [][]any{},
 		Duration:  time.Since(start),
 		RowCount:  0,
 		Truncated: false,
@@ -376,7 +376,7 @@ func (e *StudioEnhancedEngine) GetAutocompleteSuggestions(prefix string) []strin
 }
 
 // ExportResults exports data in the specified format (csv or json).
-func (e *StudioEnhancedEngine) ExportResults(format string, data interface{}) ([]byte, error) {
+func (e *StudioEnhancedEngine) ExportResults(format string, data any) ([]byte, error) {
 	if !e.config.EnableDataExport {
 		return nil, fmt.Errorf("data export is disabled")
 	}
@@ -584,8 +584,8 @@ func (e *StudioEnhancedEngine) handleExport(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var req struct {
-		Format string      `json:"format"`
-		Data   interface{} `json:"data"`
+		Format string `json:"format"`
+		Data   any    `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

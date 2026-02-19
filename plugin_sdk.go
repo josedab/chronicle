@@ -142,11 +142,11 @@ type PluginInfo struct {
 // --- Plugin Registry ---
 
 type pluginEntry struct {
-	info        PluginInfo
-	aggregator  AggregatorPlugin
-	ingestor    IngestorPlugin
+	info         PluginInfo
+	aggregator   AggregatorPlugin
+	ingestor     IngestorPlugin
 	alertHandler AlertHandlerPlugin
-	transformer TransformerPlugin
+	transformer  TransformerPlugin
 }
 
 // PluginRegistry manages plugin lifecycle and discovery.
@@ -367,10 +367,10 @@ type MarketplaceSearch struct {
 
 // PluginMarketplace provides discovery and installation of plugins.
 type PluginMarketplace struct {
-	baseURL    string
-	registry   *PluginRegistry
-	listings   map[string]*MarketplaceListing
-	mu         sync.RWMutex
+	baseURL  string
+	registry *PluginRegistry
+	listings map[string]*MarketplaceListing
+	mu       sync.RWMutex
 }
 
 // NewPluginMarketplace creates a new marketplace client.

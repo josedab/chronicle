@@ -73,14 +73,14 @@ type TSBranch struct {
 	ID          string            `json:"id"`
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
-	Parent      string            `json:"parent"`       // Parent branch ID
-	BaseCommit  string            `json:"base_commit"`  // Commit where branch was created
-	HeadCommit  string            `json:"head_commit"`  // Current head commit
+	Parent      string            `json:"parent"`      // Parent branch ID
+	BaseCommit  string            `json:"base_commit"` // Commit where branch was created
+	HeadCommit  string            `json:"head_commit"` // Current head commit
 	CreatedAt   time.Time         `json:"created_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
 	CreatedBy   string            `json:"created_by"`
 	Metadata    map[string]string `json:"metadata"`
-	Protected   bool              `json:"protected"`    // Protected branches can't be deleted
+	Protected   bool              `json:"protected"` // Protected branches can't be deleted
 	Deleted     bool              `json:"deleted"`
 	DeletedAt   *time.Time        `json:"deleted_at,omitempty"`
 }
@@ -100,11 +100,11 @@ type BranchCommit struct {
 
 // BranchChange represents a change in a commit
 type BranchChange struct {
-	Type      ChangeType `json:"type"`      // insert, update, delete
-	Series    string     `json:"series"`
-	Timestamp int64      `json:"timestamp"` // Point timestamp
-	OldValue  *float64   `json:"old_value,omitempty"`
-	NewValue  *float64   `json:"new_value,omitempty"`
+	Type      ChangeType        `json:"type"` // insert, update, delete
+	Series    string            `json:"series"`
+	Timestamp int64             `json:"timestamp"` // Point timestamp
+	OldValue  *float64          `json:"old_value,omitempty"`
+	NewValue  *float64          `json:"new_value,omitempty"`
 	Tags      map[string]string `json:"tags,omitempty"`
 }
 
@@ -119,55 +119,55 @@ const (
 
 // BranchDiff represents differences between two branches
 type TSBranchDiff struct {
-	SourceBranch string          `json:"source_branch"`
-	TargetBranch string          `json:"target_branch"`
-	BaseCommit   string          `json:"base_commit"`   // Common ancestor
-	SourceCommit string          `json:"source_commit"` // Source head
-	TargetCommit string          `json:"target_commit"` // Target head
-	Additions    []Point         `json:"additions"`
-	Deletions    []Point         `json:"deletions"`
+	SourceBranch  string              `json:"source_branch"`
+	TargetBranch  string              `json:"target_branch"`
+	BaseCommit    string              `json:"base_commit"`   // Common ancestor
+	SourceCommit  string              `json:"source_commit"` // Source head
+	TargetCommit  string              `json:"target_commit"` // Target head
+	Additions     []Point             `json:"additions"`
+	Deletions     []Point             `json:"deletions"`
 	Modifications []PointModification `json:"modifications"`
-	Conflicts    []TSMergeConflict `json:"conflicts"`
-	Stats        DiffStats       `json:"stats"`
+	Conflicts     []TSMergeConflict   `json:"conflicts"`
+	Stats         DiffStats           `json:"stats"`
 }
 
 // PointModification represents a changed point
 type PointModification struct {
-	Series       string  `json:"series"`
-	Timestamp    int64   `json:"timestamp"`
-	SourceValue  float64 `json:"source_value"`
-	TargetValue  float64 `json:"target_value"`
+	Series      string  `json:"series"`
+	Timestamp   int64   `json:"timestamp"`
+	SourceValue float64 `json:"source_value"`
+	TargetValue float64 `json:"target_value"`
 }
 
 // MergeConflict represents a merge conflict
 type TSMergeConflict struct {
-	Series       string    `json:"series"`
-	Timestamp    int64     `json:"timestamp"`
-	SourceValue  float64   `json:"source_value"`
-	TargetValue  float64   `json:"target_value"`
-	BaseValue    *float64  `json:"base_value,omitempty"`
-	Resolution   *float64  `json:"resolution,omitempty"`
-	Strategy     TSMergeStrategy `json:"strategy,omitempty"`
+	Series      string          `json:"series"`
+	Timestamp   int64           `json:"timestamp"`
+	SourceValue float64         `json:"source_value"`
+	TargetValue float64         `json:"target_value"`
+	BaseValue   *float64        `json:"base_value,omitempty"`
+	Resolution  *float64        `json:"resolution,omitempty"`
+	Strategy    TSMergeStrategy `json:"strategy,omitempty"`
 }
 
 // DiffStats contains statistics about a diff
 type DiffStats struct {
-	TotalChanges    int `json:"total_changes"`
-	Additions       int `json:"additions"`
-	Deletions       int `json:"deletions"`
-	Modifications   int `json:"modifications"`
-	Conflicts       int `json:"conflicts"`
-	SeriesAffected  int `json:"series_affected"`
+	TotalChanges   int `json:"total_changes"`
+	Additions      int `json:"additions"`
+	Deletions      int `json:"deletions"`
+	Modifications  int `json:"modifications"`
+	Conflicts      int `json:"conflicts"`
+	SeriesAffected int `json:"series_affected"`
 }
 
 // MergeResult represents the result of a merge operation
 type TSMergeResult struct {
-	Success      bool            `json:"success"`
-	MergeCommit  string          `json:"merge_commit"`
-	Strategy     TSMergeStrategy   `json:"strategy"`
-	Conflicts    []TSMergeConflict `json:"conflicts"`
-	Stats        DiffStats       `json:"stats"`
-	Error        string          `json:"error,omitempty"`
+	Success     bool              `json:"success"`
+	MergeCommit string            `json:"merge_commit"`
+	Strategy    TSMergeStrategy   `json:"strategy"`
+	Conflicts   []TSMergeConflict `json:"conflicts"`
+	Stats       DiffStats         `json:"stats"`
+	Error       string            `json:"error,omitempty"`
 }
 
 // BranchManager manages time-series branches
@@ -180,17 +180,17 @@ type TSBranchManager struct {
 	branchMu sync.RWMutex
 
 	// Copy-on-write delta storage
-	deltas   map[string]map[string][]Point // branchID -> series -> points
-	deltaMu  sync.RWMutex
+	deltas  map[string]map[string][]Point // branchID -> series -> points
+	deltaMu sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
 	// Stats
-	totalBranches int64
-	totalCommits  int64
-	totalMerges   int64
+	totalBranches  int64
+	totalCommits   int64
+	totalMerges    int64
 	mergeConflicts int64
 }
 
@@ -549,14 +549,14 @@ func (bm *TSBranchManager) Diff(sourceBranch, targetBranch string) (*TSBranchDif
 	}
 
 	diff := &TSBranchDiff{
-		SourceBranch: sourceBranch,
-		TargetBranch: targetBranch,
-		SourceCommit: source.HeadCommit,
-		TargetCommit: target.HeadCommit,
-		Additions:    make([]Point, 0),
-		Deletions:    make([]Point, 0),
+		SourceBranch:  sourceBranch,
+		TargetBranch:  targetBranch,
+		SourceCommit:  source.HeadCommit,
+		TargetCommit:  target.HeadCommit,
+		Additions:     make([]Point, 0),
+		Deletions:     make([]Point, 0),
 		Modifications: make([]PointModification, 0),
-		Conflicts:    make([]TSMergeConflict, 0),
+		Conflicts:     make([]TSMergeConflict, 0),
 	}
 
 	// Find common ancestor
@@ -739,7 +739,7 @@ func (bm *TSBranchManager) Merge(sourceBranch, targetBranch, author, message str
 
 	// Apply additions to target branch
 	target, _ := bm.GetBranch(targetBranch)
-	
+
 	pointsToAdd := make([]Point, 0)
 	for _, p := range diff.Additions {
 		pointsToAdd = append(pointsToAdd, p)
@@ -907,11 +907,11 @@ func (bm *TSBranchManager) Stats() BranchManagerStats {
 	bm.branchMu.RUnlock()
 
 	return BranchManagerStats{
-		TotalBranches:   atomic.LoadInt64(&bm.totalBranches),
-		ActiveBranches:  int64(activeBranches),
-		TotalCommits:    atomic.LoadInt64(&bm.totalCommits),
-		TotalMerges:     atomic.LoadInt64(&bm.totalMerges),
-		MergeConflicts:  atomic.LoadInt64(&bm.mergeConflicts),
+		TotalBranches:  atomic.LoadInt64(&bm.totalBranches),
+		ActiveBranches: int64(activeBranches),
+		TotalCommits:   atomic.LoadInt64(&bm.totalCommits),
+		TotalMerges:    atomic.LoadInt64(&bm.totalMerges),
+		MergeConflicts: atomic.LoadInt64(&bm.mergeConflicts),
 	}
 }
 

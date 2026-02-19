@@ -113,7 +113,7 @@ func TestAdminUI_APIActivity(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var activity []map[string]interface{}
+	var activity []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&activity); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestAdminUI_ActivityLogging(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var activities []map[string]interface{}
+	var activities []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&activities); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestAdminUI_QueryHistoryTracking(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var history []map[string]interface{}
+	var history []map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&history); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

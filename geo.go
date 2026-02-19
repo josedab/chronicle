@@ -44,14 +44,14 @@ func DefaultGeoConfig() GeoConfig {
 
 // GeoPoint represents a geographic point with timestamp.
 type GeoPoint struct {
-	Latitude   float64            `json:"latitude"`
-	Longitude  float64            `json:"longitude"`
-	Altitude   float64            `json:"altitude,omitempty"`
-	Timestamp  time.Time          `json:"timestamp"`
-	Accuracy   float64            `json:"accuracy,omitempty"`
-	Speed      float64            `json:"speed,omitempty"`
-	Heading    float64            `json:"heading,omitempty"`
-	Properties map[string]any     `json:"properties,omitempty"`
+	Latitude   float64        `json:"latitude"`
+	Longitude  float64        `json:"longitude"`
+	Altitude   float64        `json:"altitude,omitempty"`
+	Timestamp  time.Time      `json:"timestamp"`
+	Accuracy   float64        `json:"accuracy,omitempty"`
+	Speed      float64        `json:"speed,omitempty"`
+	Heading    float64        `json:"heading,omitempty"`
+	Properties map[string]any `json:"properties,omitempty"`
 }
 
 // BoundingBox represents a geographic bounding box.
@@ -112,16 +112,16 @@ func (p Polygon) Contains(lat, lon float64) bool {
 
 // Geofence represents a geographic fence with triggers.
 type Geofence struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Type        GeofenceType   `json:"type"`
-	BoundingBox *BoundingBox   `json:"bounding_box,omitempty"`
-	Circle      *Circle        `json:"circle,omitempty"`
-	Polygon     *Polygon       `json:"polygon,omitempty"`
-	TriggerOn   []TriggerEvent `json:"trigger_on"`
+	ID          string                    `json:"id"`
+	Name        string                    `json:"name"`
+	Type        GeofenceType              `json:"type"`
+	BoundingBox *BoundingBox              `json:"bounding_box,omitempty"`
+	Circle      *Circle                   `json:"circle,omitempty"`
+	Polygon     *Polygon                  `json:"polygon,omitempty"`
+	TriggerOn   []TriggerEvent            `json:"trigger_on"`
 	Callback    func(event GeofenceEvent) `json:"-"`
-	Enabled     bool           `json:"enabled"`
-	CreatedAt   time.Time      `json:"created_at"`
+	Enabled     bool                      `json:"enabled"`
+	CreatedAt   time.Time                 `json:"created_at"`
 }
 
 // GeofenceType identifies the geofence shape type.
@@ -596,14 +596,14 @@ func (e *GeoEngine) GeohashNeighbors(geohash string) []string {
 
 	neighbors := make([]string, 8)
 	offsets := []struct{ dlat, dlon float64 }{
-		{latErr * 2, 0},          // N
-		{latErr * 2, lonErr * 2}, // NE
-		{0, lonErr * 2},          // E
-		{-latErr * 2, lonErr * 2}, // SE
-		{-latErr * 2, 0},         // S
+		{latErr * 2, 0},            // N
+		{latErr * 2, lonErr * 2},   // NE
+		{0, lonErr * 2},            // E
+		{-latErr * 2, lonErr * 2},  // SE
+		{-latErr * 2, 0},           // S
 		{-latErr * 2, -lonErr * 2}, // SW
-		{0, -lonErr * 2},         // W
-		{latErr * 2, -lonErr * 2}, // NW
+		{0, -lonErr * 2},           // W
+		{latErr * 2, -lonErr * 2},  // NW
 	}
 
 	for i, off := range offsets {

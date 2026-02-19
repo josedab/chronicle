@@ -167,18 +167,18 @@ func NewClient(baseURL string) *Client {
 func DefaultClient() *Client { return NewClient("%s") }
 
 type Point struct {
-	Metric    string            ` + "`" + `json:"metric"` + "`" + `
-	Value     float64           ` + "`" + `json:"value"` + "`" + `
-	Timestamp int64             ` + "`" + `json:"timestamp"` + "`" + `
-	Tags      map[string]string ` + "`" + `json:"tags,omitempty"` + "`" + `
+	Metric    string            `+"`"+`json:"metric"`+"`"+`
+	Value     float64           `+"`"+`json:"value"`+"`"+`
+	Timestamp int64             `+"`"+`json:"timestamp"`+"`"+`
+	Tags      map[string]string `+"`"+`json:"tags,omitempty"`+"`"+`
 }
 
 type QueryRequest struct {
-	Metric string ` + "`" + `json:"metric"` + "`" + `
+	Metric string `+"`"+`json:"metric"`+"`"+`
 }
 
 type QueryResponse struct {
-	Points []Point ` + "`" + `json:"points"` + "`" + `
+	Points []Point `+"`"+`json:"points"`+"`"+`
 }
 
 func (c *Client) Write(ctx context.Context, points []Point) error {

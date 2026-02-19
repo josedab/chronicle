@@ -12,11 +12,11 @@ import (
 
 // SchemaDesignerConfig configures the visual schema designer.
 type SchemaDesignerConfig struct {
-	Enabled          bool `json:"enabled"`
-	MaxSchemas       int  `json:"max_schemas"`
-	MaxFieldsPerSchema int `json:"max_fields_per_schema"`
-	EnableCodeGen    bool `json:"enable_code_gen"`
-	EnableValidation bool `json:"enable_validation"`
+	Enabled            bool `json:"enabled"`
+	MaxSchemas         int  `json:"max_schemas"`
+	MaxFieldsPerSchema int  `json:"max_fields_per_schema"`
+	EnableCodeGen      bool `json:"enable_code_gen"`
+	EnableValidation   bool `json:"enable_validation"`
 }
 
 // DefaultSchemaDesignerConfig returns sensible defaults.
@@ -34,21 +34,21 @@ func DefaultSchemaDesignerConfig() SchemaDesignerConfig {
 type SchemaFieldType string
 
 const (
-	SchemaFieldFloat   SchemaFieldType = "float64"
-	SchemaFieldInt     SchemaFieldType = "int64"
-	SchemaFieldString  SchemaFieldType = "string"
-	SchemaFieldBool    SchemaFieldType = "bool"
-	SchemaFieldTime    SchemaFieldType = "timestamp"
+	SchemaFieldFloat  SchemaFieldType = "float64"
+	SchemaFieldInt    SchemaFieldType = "int64"
+	SchemaFieldString SchemaFieldType = "string"
+	SchemaFieldBool   SchemaFieldType = "bool"
+	SchemaFieldTime   SchemaFieldType = "timestamp"
 )
 
 // SchemaDesignField is a field in a designed schema.
 type SchemaDesignField struct {
-	Name        string          `json:"name"`
-	Type        SchemaFieldType `json:"type"`
-	Description string          `json:"description,omitempty"`
-	Required    bool            `json:"required"`
-	IsTag       bool            `json:"is_tag"`
-	DefaultVal  string          `json:"default_value,omitempty"`
+	Name        string           `json:"name"`
+	Type        SchemaFieldType  `json:"type"`
+	Description string           `json:"description,omitempty"`
+	Required    bool             `json:"required"`
+	IsTag       bool             `json:"is_tag"`
+	DefaultVal  string           `json:"default_value,omitempty"`
 	Validation  *FieldValidation `json:"validation,omitempty"`
 }
 
@@ -78,9 +78,9 @@ type SchemaDesign struct {
 
 // SchemaRetention defines retention settings in a schema design.
 type SchemaRetention struct {
-	MaxAge      time.Duration `json:"max_age"`
-	MaxSizeBytes int64        `json:"max_size_bytes"`
-	Action      string        `json:"action"` // delete, downsample, archive
+	MaxAge       time.Duration `json:"max_age"`
+	MaxSizeBytes int64         `json:"max_size_bytes"`
+	Action       string        `json:"action"` // delete, downsample, archive
 }
 
 // SchemaDownsample defines downsampling rules in a schema design.
@@ -434,7 +434,7 @@ func (sd *SchemaDesigner) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		errors := sd.ValidateSchema(schema)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"valid":  len(errors) == 0,
 			"errors": errors,
 		})
@@ -500,7 +500,7 @@ func (sd *SchemaDesigner) goType(ft SchemaFieldType) string {
 	case SchemaFieldTime:
 		return "time.Time"
 	default:
-		return "interface{}"
+		return "any"
 	}
 }
 

@@ -40,7 +40,7 @@ func TestAdminUI_APIBackup_POST(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestAdminUI_APIInsert_DevMode(t *testing.T) {
 		t.Errorf("expected status 200, got %d; body: %s", rec.Code, rec.Body.String())
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestAdminUI_APIImport_JSON(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

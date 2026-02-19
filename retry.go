@@ -122,8 +122,8 @@ func (r *Retryer) Do(ctx context.Context, op func() error) RetryResult {
 }
 
 // DoWithResult executes an operation that returns a value with retries.
-func (r *Retryer) DoWithResult(ctx context.Context, op func() (interface{}, error)) (interface{}, RetryResult) {
-	var result interface{}
+func (r *Retryer) DoWithResult(ctx context.Context, op func() (any, error)) (any, RetryResult) {
+	var result any
 	var lastErr error
 	backoff := r.config.InitialBackoff
 
@@ -227,10 +227,10 @@ func IsRetryable(err error) bool {
 }
 
 func containsIgnoreCase(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		(s == substr || 
-		 len(s) > len(substr) && 
-		 (indexIgnoreCase(s, substr) >= 0))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			len(s) > len(substr) &&
+				(indexIgnoreCase(s, substr) >= 0))
 }
 
 func indexIgnoreCase(s, substr string) int {
@@ -266,12 +266,12 @@ func toLower(c byte) byte {
 // CircuitBreaker implements a simple circuit breaker pattern.
 // It is safe for concurrent use.
 type CircuitBreaker struct {
-	mu            sync.Mutex
-	maxFailures   int
-	resetTimeout  time.Duration
-	failures      int
-	lastFailure   time.Time
-	state         circuitState
+	mu           sync.Mutex
+	maxFailures  int
+	resetTimeout time.Duration
+	failures     int
+	lastFailure  time.Time
+	state        circuitState
 }
 
 type circuitState int

@@ -149,7 +149,7 @@ func TestMultiModelStore_Documents(t *testing.T) {
 	defer store.Stop()
 
 	// Insert document
-	doc, err := store.InsertDocument("users", map[string]interface{}{
+	doc, err := store.InsertDocument("users", map[string]any{
 		"id":    "user1",
 		"name":  "Alice",
 		"email": "alice@example.com",
@@ -172,7 +172,7 @@ func TestMultiModelStore_Documents(t *testing.T) {
 	}
 
 	// Update document
-	updated, err := store.UpdateDocument("users", "user1", map[string]interface{}{
+	updated, err := store.UpdateDocument("users", "user1", map[string]any{
 		"age": 31,
 	})
 	if err != nil {
@@ -183,7 +183,7 @@ func TestMultiModelStore_Documents(t *testing.T) {
 	}
 
 	// Duplicate insert should fail
-	_, err = store.InsertDocument("users", map[string]interface{}{
+	_, err = store.InsertDocument("users", map[string]any{
 		"id":   "user1",
 		"name": "Duplicate",
 	})
@@ -203,19 +203,19 @@ func TestMultiModelStore_FindDocuments(t *testing.T) {
 	store := NewMultiModelStore(db, DefaultMultiModelConfig())
 
 	// Insert test documents
-	store.InsertDocument("products", map[string]interface{}{
+	store.InsertDocument("products", map[string]any{
 		"id":       "p1",
 		"name":     "Widget",
 		"price":    9.99,
 		"category": "electronics",
 	})
-	store.InsertDocument("products", map[string]interface{}{
+	store.InsertDocument("products", map[string]any{
 		"id":       "p2",
 		"name":     "Gadget",
 		"price":    19.99,
 		"category": "electronics",
 	})
-	store.InsertDocument("products", map[string]interface{}{
+	store.InsertDocument("products", map[string]any{
 		"id":       "p3",
 		"name":     "Thing",
 		"price":    5.99,
@@ -224,7 +224,7 @@ func TestMultiModelStore_FindDocuments(t *testing.T) {
 
 	// Find by category
 	results, err := store.FindDocuments("products", DocumentQuery{
-		Filters: map[string]interface{}{
+		Filters: map[string]any{
 			"category": "electronics",
 		},
 	})
@@ -237,8 +237,8 @@ func TestMultiModelStore_FindDocuments(t *testing.T) {
 
 	// Find with $gt operator
 	results, err = store.FindDocuments("products", DocumentQuery{
-		Filters: map[string]interface{}{
-			"price": map[string]interface{}{"$gt": 10.0},
+		Filters: map[string]any{
+			"price": map[string]any{"$gt": 10.0},
 		},
 	})
 	if err != nil {
@@ -370,9 +370,9 @@ func TestMultiModelStore_Collections(t *testing.T) {
 	db := &DB{}
 	store := NewMultiModelStore(db, DefaultMultiModelConfig())
 
-	store.InsertDocument("users", map[string]interface{}{"id": "1"})
-	store.InsertDocument("products", map[string]interface{}{"id": "1"})
-	store.InsertDocument("orders", map[string]interface{}{"id": "1"})
+	store.InsertDocument("users", map[string]any{"id": "1"})
+	store.InsertDocument("products", map[string]any{"id": "1"})
+	store.InsertDocument("orders", map[string]any{"id": "1"})
 
 	collections := store.ListCollections()
 	if len(collections) != 3 {
@@ -391,7 +391,7 @@ func TestMultiModelStore_GetStats(t *testing.T) {
 
 	store.Set("key1", "value1")
 	store.Set("key2", "value2")
-	store.InsertDocument("users", map[string]interface{}{"id": "1"})
+	store.InsertDocument("users", map[string]any{"id": "1"})
 	store.AppendLog("app", &MultiModelLogEntry{Message: "test"})
 
 	stats := store.GetStats()
