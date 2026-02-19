@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -103,7 +104,7 @@ func TestBackupManager_DeleteBackup_NotFound(t *testing.T) {
 		DestinationPath: tmpDir,
 	})
 
-	err := bm.DeleteBackup("nonexistent")
+	err := bm.DeleteBackup(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent backup")
 	}
@@ -232,7 +233,7 @@ func TestBackupManager_EnforceRetention(t *testing.T) {
 		})
 	}
 
-	bm.enforceRetention()
+	bm.enforceRetention(context.Background())
 
 	// Should have retention count backups
 	if len(bm.manifest.Backups) > 3 {
@@ -257,7 +258,7 @@ func TestBackupManager_EnforceRetention_KeepsFullBackup(t *testing.T) {
 		{ID: "incr_4", Type: "incremental", Timestamp: time.Now().Add(-1 * time.Hour)},
 	}
 
-	bm.enforceRetention()
+	bm.enforceRetention(context.Background())
 
 	// Should keep at least the full backup
 	hasFullBackup := false

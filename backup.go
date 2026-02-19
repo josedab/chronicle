@@ -123,7 +123,7 @@ func (bm *BackupManager) FullBackup() (*BackupResult, error) {
 	if bm.config.DestinationPath != "" {
 		bytesWritten, err = bm.writeFullBackupToFile(filePath)
 	} else if bm.config.StorageBackend != nil {
-		bytesWritten, err = bm.writeFullBackupToBackend(filename)
+		bytesWritten, err = bm.writeFullBackupToBackend(context.TODO(), filename)
 	}
 
 	if err != nil {
@@ -151,7 +151,7 @@ func (bm *BackupManager) FullBackup() (*BackupResult, error) {
 		return nil, err
 	}
 
-	bm.enforceRetention()
+	bm.enforceRetention(context.TODO())
 
 	return &BackupResult{
 		Record:    record,
@@ -192,7 +192,7 @@ func (bm *BackupManager) IncrementalBackup() (*BackupResult, error) {
 	if bm.config.DestinationPath != "" {
 		bytesWritten, err = bm.writeIncrementalBackupToFile(filePath, walStart, walEnd)
 	} else if bm.config.StorageBackend != nil {
-		bytesWritten, err = bm.writeIncrementalBackupToBackend(filename, walStart, walEnd)
+		bytesWritten, err = bm.writeIncrementalBackupToBackend(context.TODO(), filename, walStart, walEnd)
 	}
 
 	if err != nil {
@@ -219,7 +219,7 @@ func (bm *BackupManager) IncrementalBackup() (*BackupResult, error) {
 		return nil, err
 	}
 
-	bm.enforceRetention()
+	bm.enforceRetention(context.TODO())
 
 	return &BackupResult{
 		Record:    record,
@@ -247,10 +247,10 @@ func (bm *BackupManager) Restore(backupID string) error {
 	}
 
 	if record.Type == "incremental" {
-		return bm.restoreIncremental(record)
+		return bm.restoreIncremental(context.TODO(), record)
 	}
 
-	return bm.restoreFull(record)
+	return bm.restoreFull(context.TODO(), record)
 }
 
 // RestoreLatest restores from the most recent backup.
@@ -286,14 +286,14 @@ func (bm *BackupManager) RestoreLatest() error {
 	}
 
 	// Restore full backup first
-	if err := bm.restoreFull(fullBackup); err != nil {
+	if err := bm.restoreFull(context.TODO(), fullBackup); err != nil {
 		return err
 	}
 
 	// Apply incrementals in order (oldest first)
 	for i := len(incrementals) - 1; i >= 0; i-- {
 		if incrementals[i].Timestamp.After(fullBackup.Timestamp) {
-			if err := bm.restoreIncremental(incrementals[i]); err != nil {
+			if err := bm.restoreIncremental(context.TODO(), incrementals[i]); err != nil {
 				return err
 			}
 		}
@@ -313,11 +313,10 @@ func (bm *BackupManager) ListBackups() []BackupRecord {
 }
 
 // DeleteBackup removes a backup.
-func (bm *BackupManager) DeleteBackup(backupID string) error {
+func (bm *BackupManager) DeleteBackup(ctx context.Context, backupID string) error {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
-	ctx := context.Background()
 	for i, record := range bm.manifest.Backups {
 		if record.ID == backupID {
 			// Remove file
@@ -376,7 +375,7 @@ func (bm *BackupManager) writeFullBackupToFile(path string) (int64, error) {
 	return n, nil
 }
 
-func (bm *BackupManager) writeFullBackupToBackend(filename string) (int64, error) {
+func (bm *BackupManager) writeFullBackupToBackend(ctx context.Context, filename string) (int64, error) {
 	bm.db.mu.RLock()
 	defer bm.db.mu.RUnlock()
 
@@ -386,7 +385,6 @@ func (bm *BackupManager) writeFullBackupToBackend(filename string) (int64, error
 		return 0, err
 	}
 
-	ctx := context.Background()
 	if err := bm.config.StorageBackend.Write(ctx, filename, data); err != nil {
 		return 0, err
 	}
@@ -426,7 +424,7 @@ func (bm *BackupManager) writeIncrementalBackupToFile(path string, walStart, wal
 	return int64(n), err
 }
 
-func (bm *BackupManager) writeIncrementalBackupToBackend(filename string, walStart, walEnd int64) (int64, error) {
+func (bm *BackupManager) writeIncrementalBackupToBackend(ctx context.Context, filename string, walStart, walEnd int64) (int64, error) {
 	if bm.db.wal == nil {
 		return 0, errors.New("WAL not available")
 	}
@@ -436,7 +434,6 @@ func (bm *BackupManager) writeIncrementalBackupToBackend(filename string, walSta
 		return 0, err
 	}
 
-	ctx := context.Background()
 	if err := bm.config.StorageBackend.Write(ctx, filename, walData); err != nil {
 		return 0, err
 	}
@@ -444,7 +441,7 @@ func (bm *BackupManager) writeIncrementalBackupToBackend(filename string, walSta
 	return int64(len(walData)), nil
 }
 
-func (bm *BackupManager) restoreFull(record *BackupRecord) error {
+func (bm *BackupManager) restoreFull(ctx context.Context, record *BackupRecord) error {
 	var reader io.Reader
 
 	if record.FilePath != "" {
@@ -464,7 +461,6 @@ func (bm *BackupManager) restoreFull(record *BackupRecord) error {
 			reader = gr
 		}
 	} else if bm.config.StorageBackend != nil {
-		ctx := context.Background()
 		data, err := bm.config.StorageBackend.Read(ctx, record.ID)
 		if err != nil {
 			return err
@@ -499,7 +495,7 @@ func (bm *BackupManager) restoreFull(record *BackupRecord) error {
 	return err
 }
 
-func (bm *BackupManager) restoreIncremental(record *BackupRecord) error {
+func (bm *BackupManager) restoreIncremental(ctx context.Context, record *BackupRecord) error {
 	var data []byte
 	var err error
 
@@ -525,7 +521,6 @@ func (bm *BackupManager) restoreIncremental(record *BackupRecord) error {
 			return err
 		}
 	} else if bm.config.StorageBackend != nil {
-		ctx := context.Background()
 		data, err = bm.config.StorageBackend.Read(ctx, record.ID)
 		if err != nil {
 			return err
@@ -568,7 +563,7 @@ func (bm *BackupManager) saveManifest() error {
 	return os.WriteFile(manifestPath, data, 0644)
 }
 
-func (bm *BackupManager) enforceRetention() {
+func (bm *BackupManager) enforceRetention(ctx context.Context) {
 	if len(bm.manifest.Backups) <= bm.config.RetentionCount {
 		return
 	}
@@ -599,7 +594,6 @@ func (bm *BackupManager) enforceRetention() {
 		}
 
 		// Delete backup file
-		ctx := context.Background()
 		if record.FilePath != "" {
 			os.Remove(record.FilePath)
 		} else if bm.config.StorageBackend != nil {
