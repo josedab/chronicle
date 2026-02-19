@@ -64,7 +64,7 @@ func TestGraphQLServer_Execute_MetricsQuery(t *testing.T) {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		t.Fatalf("expected map data, got %T", resp.Data)
 	}
@@ -93,12 +93,12 @@ func TestGraphQLServer_Execute_StatsQuery(t *testing.T) {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		t.Fatalf("expected map data")
 	}
 
-	stats, ok := data["stats"].(map[string]interface{})
+	stats, ok := data["stats"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected stats map")
 	}
@@ -446,12 +446,12 @@ func TestGraphQLServer_Execute_ConfigQuery(t *testing.T) {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		t.Fatalf("expected map data")
 	}
 
-	config, ok := data["config"].(map[string]interface{})
+	config, ok := data["config"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected config map")
 	}

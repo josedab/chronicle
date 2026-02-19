@@ -14,6 +14,10 @@ import (
 )
 
 // EXPERIMENTAL: This API is unstable and may change without notice.
+// NOTE: Hardware TEE support (SGX, SEV, TrustZone, Nitro) is not yet implemented.
+// Only the software-based TEE is functional. Hardware TEE constructors return stubs
+// that report IsAvailable() == false.
+//
 // ConfidentialConfig configures confidential computing support.
 type ConfidentialConfig struct {
 	// Enabled enables confidential computing.
@@ -121,8 +125,8 @@ type ConfidentialEngine struct {
 	tee TEE
 
 	// Attestation
-	attestation    *Attestation
-	attestationMu  sync.RWMutex
+	attestation     *Attestation
+	attestationMu   sync.RWMutex
 	lastAttestation time.Time
 
 	// Sealing
@@ -343,13 +347,13 @@ func (e *ConfidentialEngine) UnsealData(sealed []byte) ([]byte, error) {
 }
 
 // SecureWrite writes data securely within the TEE.
-func (e *ConfidentialEngine) SecureWrite(measurement string, tags map[string]string, fields map[string]interface{}, timestamp time.Time) error {
+func (e *ConfidentialEngine) SecureWrite(measurement string, tags map[string]string, fields map[string]any, timestamp time.Time) error {
 	if !e.isOperationAllowed(OpWrite) {
 		return errors.New("write operation not allowed")
 	}
 
 	// Encrypt sensitive fields
-	encryptedFields := make(map[string]interface{})
+	encryptedFields := make(map[string]any)
 	for k, v := range fields {
 		if e.config.EncryptInMemory {
 			// Encrypt the value
@@ -791,7 +795,7 @@ func (b *EncryptedBuffer) Clear() {
 
 // ========== Utility Functions ==========
 
-func serializeValue(v interface{}) string {
+func serializeValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		return val
@@ -836,7 +840,7 @@ func (db *ConfidentialDB) Confidential() *ConfidentialEngine {
 }
 
 // SecureWrite writes data securely.
-func (db *ConfidentialDB) SecureWrite(measurement string, tags map[string]string, fields map[string]interface{}, timestamp time.Time) error {
+func (db *ConfidentialDB) SecureWrite(measurement string, tags map[string]string, fields map[string]any, timestamp time.Time) error {
 	return db.engine.SecureWrite(measurement, tags, fields, timestamp)
 }
 
@@ -864,8 +868,8 @@ func (db *ConfidentialDB) Stop() error {
 
 // SMPCConfig configures secure multi-party computation.
 type SMPCConfig struct {
-	Enabled     bool
-	Threshold   int // Minimum parties needed
+	Enabled      bool
+	Threshold    int // Minimum parties needed
 	TotalParties int
 }
 

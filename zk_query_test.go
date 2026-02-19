@@ -44,7 +44,7 @@ func TestCreateCommitment(t *testing.T) {
 	defer engine.Close()
 
 	// Create commitment
-	commitment, err := engine.CreateCommitment(context.Background(), "cpu", 
+	commitment, err := engine.CreateCommitment(context.Background(), "cpu",
 		map[string]string{"host": "server1"}, now.Add(-2*time.Hour), now)
 	if err != nil {
 		t.Fatalf("failed to create commitment: %v", err)
@@ -353,7 +353,7 @@ func TestGetCommitment(t *testing.T) {
 	engine := NewZKQueryEngine(db, config)
 	defer engine.Close()
 
-	commitment, _ := engine.CreateCommitment(context.Background(), "test", nil, 
+	commitment, _ := engine.CreateCommitment(context.Background(), "test", nil,
 		now.Add(-time.Hour), now.Add(time.Hour))
 
 	// Get existing commitment
@@ -386,7 +386,7 @@ func TestListCommitments(t *testing.T) {
 
 	// Create multiple commitments
 	for i := 0; i < 3; i++ {
-		engine.CreateCommitment(context.Background(), "test", nil, 
+		engine.CreateCommitment(context.Background(), "test", nil,
 			now.Add(-time.Hour), now.Add(time.Hour))
 	}
 
@@ -409,7 +409,7 @@ func TestAuditLog(t *testing.T) {
 	defer engine.Close()
 
 	// Perform operations
-	engine.CreateCommitment(context.Background(), "audit_test", nil, 
+	engine.CreateCommitment(context.Background(), "audit_test", nil,
 		now.Add(-time.Hour), now.Add(time.Hour))
 
 	req := &QueryProofRequest{
@@ -595,7 +595,7 @@ func TestProofWithExistingCommitment(t *testing.T) {
 	defer engine.Close()
 
 	// Create commitment first
-	commitment, err := engine.CreateCommitment(context.Background(), "existing_commit", nil, 
+	commitment, err := engine.CreateCommitment(context.Background(), "existing_commit", nil,
 		now.Add(-time.Hour), now.Add(time.Hour))
 	if err != nil {
 		t.Fatalf("failed to create commitment: %v", err)
@@ -646,7 +646,7 @@ func BenchmarkCreateCommitment(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		engine.CreateCommitment(context.Background(), "bench", nil, 
+		engine.CreateCommitment(context.Background(), "bench", nil,
 			now.Add(-2*time.Hour), now)
 	}
 }

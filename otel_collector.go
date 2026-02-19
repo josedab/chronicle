@@ -322,7 +322,7 @@ func (e *OTelCollectorExporter) convertMetricDataPoints(
 	return points
 }
 
-func (e *OTelCollectorExporter) mergeTags(maps ...interface{}) map[string]string {
+func (e *OTelCollectorExporter) mergeTags(maps ...any) map[string]string {
 	result := make(map[string]string)
 	for _, m := range maps {
 		switch v := m.(type) {
@@ -513,11 +513,11 @@ func (e *OTelCollectorExporter) Stats() ExporterStats {
 // OTelCollectorReceiver implements a receiver that accepts data from OTel Collector.
 // This can be embedded directly in Chronicle to receive data.
 type OTelCollectorReceiver struct {
-	db       *DB
-	config   OTelCollectorReceiverConfig
-	server   *http.Server
-	stats    ReceiverStats
-	statsMu  sync.RWMutex
+	db      *DB
+	config  OTelCollectorReceiverConfig
+	server  *http.Server
+	stats   ReceiverStats
+	statsMu sync.RWMutex
 }
 
 // OTelCollectorReceiverConfig configures the receiver.

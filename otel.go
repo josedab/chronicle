@@ -76,13 +76,13 @@ type OTLPScope struct {
 
 // OTLPMetric is a single metric with its data points.
 type OTLPMetric struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Unit        string          `json:"unit"`
-	Gauge       *OTLPGauge      `json:"gauge,omitempty"`
-	Sum         *OTLPSum        `json:"sum,omitempty"`
-	Histogram   *OTLPHistogram  `json:"histogram,omitempty"`
-	Summary     *OTLPSummary    `json:"summary,omitempty"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Unit        string         `json:"unit"`
+	Gauge       *OTLPGauge     `json:"gauge,omitempty"`
+	Sum         *OTLPSum       `json:"sum,omitempty"`
+	Histogram   *OTLPHistogram `json:"histogram,omitempty"`
+	Summary     *OTLPSummary   `json:"summary,omitempty"`
 }
 
 // OTLPGauge holds gauge data points.
@@ -130,12 +130,12 @@ type OTLPHistogramDataPoint struct {
 
 // OTLPSummaryDataPoint is a summary measurement.
 type OTLPSummaryDataPoint struct {
-	Attributes        []OTLPKeyValue        `json:"attributes"`
-	TimeUnixNano      string                `json:"timeUnixNano"`
-	Count             uint64                `json:"count"`
-	Sum               float64               `json:"sum"`
-	QuantileValues    []OTLPQuantileValue   `json:"quantileValues"`
-	StartTimeUnixNano string                `json:"startTimeUnixNano,omitempty"`
+	Attributes        []OTLPKeyValue      `json:"attributes"`
+	TimeUnixNano      string              `json:"timeUnixNano"`
+	Count             uint64              `json:"count"`
+	Sum               float64             `json:"sum"`
+	QuantileValues    []OTLPQuantileValue `json:"quantileValues"`
+	StartTimeUnixNano string              `json:"startTimeUnixNano,omitempty"`
 }
 
 // OTLPQuantileValue is a quantile in a summary.
@@ -146,8 +146,8 @@ type OTLPQuantileValue struct {
 
 // OTLPKeyValue is an attribute key-value pair.
 type OTLPKeyValue struct {
-	Key   string        `json:"key"`
-	Value OTLPAnyValue  `json:"value"`
+	Key   string       `json:"key"`
+	Value OTLPAnyValue `json:"value"`
 }
 
 // OTLPAnyValue can hold different value types.

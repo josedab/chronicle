@@ -253,7 +253,7 @@ func TestOperators(t *testing.T) {
 		name     string
 		operator string
 		field    string
-		value    interface{}
+		value    any
 		ctx      *PolicyContext
 		expected bool
 	}{
@@ -325,7 +325,7 @@ func TestOperators(t *testing.T) {
 	}
 }
 
-func getFieldValue(field string, ctx *PolicyContext) interface{} {
+func getFieldValue(field string, ctx *PolicyContext) any {
 	switch field {
 	case "user":
 		return ctx.User
@@ -821,7 +821,7 @@ func TestMaskData(t *testing.T) {
 	pe, _ := NewPolicyEngine(db, nil)
 	defer pe.Close()
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"username": "john",
 		"password": "secret123",
 		"email":    "john@example.com",
@@ -833,7 +833,7 @@ func TestMaskData(t *testing.T) {
 	}
 
 	masked := pe.MaskData(data, rules)
-	maskedMap := masked.(map[string]interface{})
+	maskedMap := masked.(map[string]any)
 
 	if maskedMap["username"] != "john" {
 		t.Error("Username should not be masked")

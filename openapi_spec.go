@@ -12,18 +12,18 @@ import (
 // OpenAPI 3.0 specification types.
 
 type OpenAPISpec struct {
-	OpenAPI    string                       `json:"openapi"`
-	Info       OpenAPIInfo                  `json:"info"`
-	Servers    []OpenAPIServer              `json:"servers,omitempty"`
-	Paths      map[string]*OpenAPIPathItem  `json:"paths"`
-	Components *OpenAPIComponents           `json:"components,omitempty"`
+	OpenAPI    string                      `json:"openapi"`
+	Info       OpenAPIInfo                 `json:"info"`
+	Servers    []OpenAPIServer             `json:"servers,omitempty"`
+	Paths      map[string]*OpenAPIPathItem `json:"paths"`
+	Components *OpenAPIComponents          `json:"components,omitempty"`
 }
 
 type OpenAPIInfo struct {
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	Version     string        `json:"version"`
-	License     string        `json:"license,omitempty"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Version     string         `json:"version"`
+	License     string         `json:"license,omitempty"`
 	Contact     OpenAPIContact `json:"contact,omitempty"`
 }
 
@@ -46,20 +46,20 @@ type OpenAPIPathItem struct {
 }
 
 type OpenAPIOperation struct {
-	OperationID string                       `json:"operationId"`
-	Summary     string                       `json:"summary"`
-	Description string                       `json:"description,omitempty"`
-	Tags        []string                     `json:"tags,omitempty"`
-	Parameters  []OpenAPIParameter           `json:"parameters,omitempty"`
-	RequestBody *OpenAPIRequestBody          `json:"requestBody,omitempty"`
-	Responses   map[string]*OpenAPIResponse  `json:"responses"`
+	OperationID string                      `json:"operationId"`
+	Summary     string                      `json:"summary"`
+	Description string                      `json:"description,omitempty"`
+	Tags        []string                    `json:"tags,omitempty"`
+	Parameters  []OpenAPIParameter          `json:"parameters,omitempty"`
+	RequestBody *OpenAPIRequestBody         `json:"requestBody,omitempty"`
+	Responses   map[string]*OpenAPIResponse `json:"responses"`
 }
 
 type OpenAPIParameter struct {
-	Name        string        `json:"name"`
-	In          string        `json:"in"`
-	Description string        `json:"description,omitempty"`
-	Required    bool          `json:"required,omitempty"`
+	Name        string         `json:"name"`
+	In          string         `json:"in"`
+	Description string         `json:"description,omitempty"`
+	Required    bool           `json:"required,omitempty"`
 	Schema      *OpenAPISchema `json:"schema,omitempty"`
 }
 
@@ -79,15 +79,15 @@ type OpenAPIResponse struct {
 }
 
 type OpenAPISchema struct {
-	Type        string                      `json:"type,omitempty"`
-	Format      string                      `json:"format,omitempty"`
-	Description string                      `json:"description,omitempty"`
-	Properties  map[string]*OpenAPISchema   `json:"properties,omitempty"`
-	Items       *OpenAPISchema              `json:"items,omitempty"`
-	Required    []string                    `json:"required,omitempty"`
-	Enum        []string                    `json:"enum,omitempty"`
-	Example     interface{}                 `json:"example,omitempty"`
-	Ref         string                      `json:"$ref,omitempty"`
+	Type        string                    `json:"type,omitempty"`
+	Format      string                    `json:"format,omitempty"`
+	Description string                    `json:"description,omitempty"`
+	Properties  map[string]*OpenAPISchema `json:"properties,omitempty"`
+	Items       *OpenAPISchema            `json:"items,omitempty"`
+	Required    []string                  `json:"required,omitempty"`
+	Enum        []string                  `json:"enum,omitempty"`
+	Example     any                       `json:"example,omitempty"`
+	Ref         string                    `json:"$ref,omitempty"`
 }
 
 type OpenAPIComponents struct {
@@ -424,8 +424,8 @@ func (g *OpenAPIGenerator) buildOTLPEndpoint(spec *OpenAPISpec) {
 				Description: "OTLP metrics payload",
 				Required:    true,
 				Content: map[string]*OpenAPIMediaType{
-					"application/json":         {Schema: &OpenAPISchema{Type: "object", Description: "OTLP JSON-encoded metrics"}},
-					"application/x-protobuf":   {Schema: &OpenAPISchema{Type: "string", Format: "binary"}},
+					"application/json":       {Schema: &OpenAPISchema{Type: "object", Description: "OTLP JSON-encoded metrics"}},
+					"application/x-protobuf": {Schema: &OpenAPISchema{Type: "string", Format: "binary"}},
 				},
 			},
 			Responses: map[string]*OpenAPIResponse{

@@ -15,18 +15,18 @@ import (
 
 // Federation enables querying across multiple Chronicle instances.
 type Federation struct {
-	local    *DB
-	remotes  map[string]*RemoteInstance
-	mu       sync.RWMutex
-	client   *http.Client
-	config   FederationConfig
+	local   *DB
+	remotes map[string]*RemoteInstance
+	mu      sync.RWMutex
+	client  *http.Client
+	config  FederationConfig
 }
 
 // RemoteInstance represents a remote Chronicle instance.
 type RemoteInstance struct {
 	Name     string
 	URL      string
-	Priority int  // Lower is higher priority
+	Priority int // Lower is higher priority
 	Healthy  bool
 	LastPing time.Time
 }

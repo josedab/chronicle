@@ -126,13 +126,13 @@ const (
 
 // Re-export constructor functions.
 var (
-	DefaultRaftConfig          = raft.DefaultRaftConfig
-	DefaultRaftEdgeConfig      = raft.DefaultRaftEdgeConfig
-	NewRaftHealthChecker       = raft.NewRaftHealthChecker
-	NewRaftLatencyTracker      = raft.NewRaftLatencyTracker
-	NewRaftClusterTopology     = raft.NewRaftClusterTopology
-	NewRaftLog                 = raft.NewRaftLog
-	NewRaftTransport           = raft.NewRaftTransport
+	DefaultRaftConfig             = raft.DefaultRaftConfig
+	DefaultRaftEdgeConfig         = raft.DefaultRaftEdgeConfig
+	NewRaftHealthChecker          = raft.NewRaftHealthChecker
+	NewRaftLatencyTracker         = raft.NewRaftLatencyTracker
+	NewRaftClusterTopology        = raft.NewRaftClusterTopology
+	NewRaftLog                    = raft.NewRaftLog
+	NewRaftTransport              = raft.NewRaftTransport
 	DefaultSnapshotManagerConfig  = raft.DefaultSnapshotManagerConfig
 	NewSnapshotManager            = raft.NewSnapshotManager
 	DefaultSnapshotTransferConfig = raft.DefaultSnapshotTransferConfig

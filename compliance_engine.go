@@ -15,11 +15,11 @@ import (
 type ComplianceStandard string
 
 const (
-	ComplianceGDPR    ComplianceStandard = "GDPR"
-	ComplianceHIPAA   ComplianceStandard = "HIPAA"
-	ComplianceSOC2    ComplianceStandard = "SOC2"
-	CompliancePCIDSS  ComplianceStandard = "PCI-DSS"
-	ComplianceCCPA    ComplianceStandard = "CCPA"
+	ComplianceGDPR   ComplianceStandard = "GDPR"
+	ComplianceHIPAA  ComplianceStandard = "HIPAA"
+	ComplianceSOC2   ComplianceStandard = "SOC2"
+	CompliancePCIDSS ComplianceStandard = "PCI-DSS"
+	ComplianceCCPA   ComplianceStandard = "CCPA"
 )
 
 // ComplianceEngine manages compliance controls for stored data.
@@ -183,8 +183,8 @@ type ComplianceCheck struct {
 
 // DataResidencyRule defines where data may be stored.
 type DataResidencyRule struct {
-	MetricPattern  string   `json:"metric_pattern"`
-	AllowedRegions []string `json:"allowed_regions"`
+	MetricPattern  string             `json:"metric_pattern"`
+	AllowedRegions []string           `json:"allowed_regions"`
 	Standard       ComplianceStandard `json:"standard"`
 }
 
@@ -198,10 +198,10 @@ type ResidencyViolation struct {
 
 // FieldEncryptor provides field-level AES-GCM encryption.
 type FieldEncryptor struct {
-	mu        sync.RWMutex
-	aead      cipher.AEAD
-	keyID     string
-	fields    map[string]bool // fields requiring encryption
+	mu     sync.RWMutex
+	aead   cipher.AEAD
+	keyID  string
+	fields map[string]bool // fields requiring encryption
 }
 
 // NewFieldEncryptor creates a field encryptor with a 32-byte AES key.

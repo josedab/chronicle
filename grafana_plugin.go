@@ -73,10 +73,10 @@ func DefaultGrafanaDatasourcePluginConfig() GrafanaDatasourcePluginConfig {
 
 // GrafanaVariable defines a template variable query.
 type GrafanaVariable struct {
-	Name   string `json:"name"`
-	Query  string `json:"query"`
-	Type   string `json:"type"` // "query", "custom", "constant"
-	Multi  bool   `json:"multi"`
+	Name  string `json:"name"`
+	Query string `json:"query"`
+	Type  string `json:"type"` // "query", "custom", "constant"
+	Multi bool   `json:"multi"`
 }
 
 // GrafanaAnnotationQuery defines an annotation query.

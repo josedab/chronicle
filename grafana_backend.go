@@ -40,6 +40,10 @@ type GrafanaBackendConfig struct {
 
 	// CacheDuration for metric metadata
 	CacheDuration time.Duration `json:"cache_duration"`
+
+	// AllowedOrigins restricts CORS to these origins.
+	// An empty list defaults to same-origin only (no wildcard).
+	AllowedOrigins []string `json:"allowed_origins"`
 }
 
 // DefaultGrafanaBackendConfig returns default configuration.
@@ -58,10 +62,10 @@ func DefaultGrafanaBackendConfig() GrafanaBackendConfig {
 
 // GrafanaBackend provides Grafana datasource backend functionality.
 type GrafanaBackend struct {
-	db       *DB
-	config   GrafanaBackendConfig
-	server   *http.Server
-	hub      *StreamHub
+	db     *DB
+	config GrafanaBackendConfig
+	server *http.Server
+	hub    *StreamHub
 
 	// Alert management
 	alertMgr   *AlertManager
@@ -94,9 +98,9 @@ type GrafanaQuery struct {
 
 // GrafanaQueryRequest is the Grafana query request format.
 type GrafanaQueryRequest struct {
-	From    string          `json:"from"`
-	To      string          `json:"to"`
-	Queries []GrafanaQuery  `json:"queries"`
+	From    string         `json:"from"`
+	To      string         `json:"to"`
+	Queries []GrafanaQuery `json:"queries"`
 }
 
 // GrafanaQueryResponse is the Grafana query response format.
@@ -106,9 +110,9 @@ type GrafanaQueryResponse struct {
 
 // GrafanaQueryResult is a single query result.
 type GrafanaQueryResult struct {
-	RefID  string              `json:"refId"`
-	Frames []GrafanaDataFrame  `json:"frames"`
-	Error  string              `json:"error,omitempty"`
+	RefID  string             `json:"refId"`
+	Frames []GrafanaDataFrame `json:"frames"`
+	Error  string             `json:"error,omitempty"`
 }
 
 // GrafanaDataFrame is a Grafana data frame.
@@ -119,8 +123,8 @@ type GrafanaDataFrame struct {
 
 // GrafanaFrameSchema describes the frame structure.
 type GrafanaFrameSchema struct {
-	RefID  string              `json:"refId,omitempty"`
-	Name   string              `json:"name,omitempty"`
+	RefID  string               `json:"refId,omitempty"`
+	Name   string               `json:"name,omitempty"`
 	Fields []GrafanaFieldSchema `json:"fields"`
 }
 
@@ -133,19 +137,19 @@ type GrafanaFieldSchema struct {
 
 // GrafanaFrameData contains the actual data.
 type GrafanaFrameData struct {
-	Values [][]interface{} `json:"values"`
+	Values [][]any `json:"values"`
 }
 
 // GrafanaAnnotation represents a Grafana annotation.
 type GrafanaAnnotation struct {
-	ID          int64             `json:"id"`
-	DashboardID int64             `json:"dashboardId"`
-	PanelID     int64             `json:"panelId"`
-	Time        int64             `json:"time"`
-	TimeEnd     int64             `json:"timeEnd,omitempty"`
-	Text        string            `json:"text"`
-	Tags        []string          `json:"tags,omitempty"`
-	Data        map[string]interface{} `json:"data,omitempty"`
+	ID          int64          `json:"id"`
+	DashboardID int64          `json:"dashboardId"`
+	PanelID     int64          `json:"panelId"`
+	Time        int64          `json:"time"`
+	TimeEnd     int64          `json:"timeEnd,omitempty"`
+	Text        string         `json:"text"`
+	Tags        []string       `json:"tags,omitempty"`
+	Data        map[string]any `json:"data,omitempty"`
 }
 
 // GrafanaMetricFindQuery represents a metric find request.
@@ -216,8 +220,19 @@ func (g *GrafanaBackend) Stop() error {
 }
 
 func (g *GrafanaBackend) corsMiddleware(next http.Handler) http.Handler {
+	allowed := g.config.AllowedOrigins
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if len(allowed) == 0 {
+			// No origins configured: allow same-origin only (no header set).
+		} else {
+			for _, o := range allowed {
+				if o == origin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
+			}
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Grafana-Org-Id")
 
@@ -231,7 +246,7 @@ func (g *GrafanaBackend) corsMiddleware(next http.Handler) http.Handler {
 }
 
 func (g *GrafanaBackend) handleRoot(w http.ResponseWriter, r *http.Request) {
-	g.writeJSON(w, map[string]interface{}{
+	g.writeJSON(w, map[string]any{
 		"status":  "ok",
 		"name":    "Chronicle Grafana Datasource",
 		"version": "1.0.0",
@@ -339,8 +354,8 @@ func (g *GrafanaBackend) executeQuery(query GrafanaQuery, from, to int64) Grafan
 }
 
 func (g *GrafanaBackend) buildDataFrame(refID, metric string, points []Point) GrafanaDataFrame {
-	times := make([]interface{}, len(points))
-	values := make([]interface{}, len(points))
+	times := make([]any, len(points))
+	values := make([]any, len(points))
 
 	for i, pt := range points {
 		// Convert nanoseconds to milliseconds for Grafana
@@ -358,7 +373,7 @@ func (g *GrafanaBackend) buildDataFrame(refID, metric string, points []Point) Gr
 			},
 		},
 		Data: GrafanaFrameData{
-			Values: [][]interface{}{times, values},
+			Values: [][]any{times, values},
 		},
 	}
 }
@@ -964,21 +979,21 @@ func (g *GrafanaBackend) downsamplePoints(points []Point, maxPoints int) []Point
 	return result
 }
 
-func (g *GrafanaBackend) writeJSON(w http.ResponseWriter, data interface{}) {
+func (g *GrafanaBackend) writeJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
 
 // GrafanaAlertRule represents a Grafana alerting rule.
 type GrafanaAlertRule struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Query       GrafanaQuery       `json:"query"`
-	Condition   string             `json:"condition"`
-	Threshold   float64            `json:"threshold"`
-	For         string             `json:"for"`
-	Labels      map[string]string  `json:"labels,omitempty"`
-	Annotations map[string]string  `json:"annotations,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Query       GrafanaQuery      `json:"query"`
+	Condition   string            `json:"condition"`
+	Threshold   float64           `json:"threshold"`
+	For         string            `json:"for"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // GrafanaAlertState represents alert state.

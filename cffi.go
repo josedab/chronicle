@@ -412,7 +412,7 @@ func chronicle_stats(db C.chronicle_db_t) *C.char {
 
 	// Build stats from available methods
 	metrics := dbPtr.Metrics()
-	stats := map[string]interface{}{
+	stats := map[string]any{
 		"metric_count": len(metrics),
 	}
 	statsJSON, err := json.Marshal(stats)
