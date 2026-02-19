@@ -9,6 +9,8 @@
 package chronicle
 
 import (
+	"context"
+
 	cq "github.com/chronicle-db/chronicle/internal/continuousquery"
 )
 
@@ -117,27 +119,37 @@ func (w *dbPointWriter) WritePoint(p cq.Point) error {
 // streamHubBus adapts *StreamHub to cq.StreamBus.
 type streamHubBus struct {
 	hub *StreamHub
+	ctx context.Context
 }
 
 // streamSubAdapter adapts *Subscription to cq.StreamSubscription.
 type streamSubAdapter struct {
 	sub *Subscription
+	ctx context.Context
 }
 
 func (a *streamSubAdapter) C() <-chan cq.Point {
 	// The channel types are identical in layout; use a goroutine to bridge.
 	ch := make(chan cq.Point, cap(a.sub.ch))
-	go func() {
+	go func(ctx context.Context) {
 		defer close(ch)
-		for p := range a.sub.ch {
-			ch <- cq.Point{
-				Metric:    p.Metric,
-				Timestamp: p.Timestamp,
-				Value:     p.Value,
-				Tags:      p.Tags,
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case p, ok := <-a.sub.ch:
+				if !ok {
+					return
+				}
+				ch <- cq.Point{
+					Metric:    p.Metric,
+					Timestamp: p.Timestamp,
+					Value:     p.Value,
+					Tags:      p.Tags,
+				}
 			}
 		}
-	}()
+	}(a.ctx)
 	return ch
 }
 
@@ -150,7 +162,7 @@ func (b *streamHubBus) Subscribe(topic string, tags map[string]string) cq.Stream
 	if sub == nil {
 		return nil
 	}
-	return &streamSubAdapter{sub: sub}
+	return &streamSubAdapter{sub: sub, ctx: b.ctx}
 }
 
 func (b *streamHubBus) Publish(p cq.Point) {
@@ -173,7 +185,7 @@ func NewContinuousQueryEngine(db *DB, hub *StreamHub, config ContinuousQueryConf
 
 	var bus cq.StreamBus
 	if hub != nil {
-		bus = &streamHubBus{hub: hub}
+		bus = &streamHubBus{hub: hub, ctx: context.Background()}
 	}
 
 	return cq.NewContinuousQueryEngine(pw, bus, config)
