@@ -102,7 +102,7 @@ func NewBackupManager(db *DB, config BackupConfig) (*BackupManager, error) {
 }
 
 // FullBackup performs a complete database backup.
-func (bm *BackupManager) FullBackup() (*BackupResult, error) {
+func (bm *BackupManager) FullBackup(ctx context.Context) (*BackupResult, error) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
@@ -123,7 +123,7 @@ func (bm *BackupManager) FullBackup() (*BackupResult, error) {
 	if bm.config.DestinationPath != "" {
 		bytesWritten, err = bm.writeFullBackupToFile(filePath)
 	} else if bm.config.StorageBackend != nil {
-		bytesWritten, err = bm.writeFullBackupToBackend(context.TODO(), filename)
+		bytesWritten, err = bm.writeFullBackupToBackend(ctx, filename)
 	}
 
 	if err != nil {
@@ -151,7 +151,7 @@ func (bm *BackupManager) FullBackup() (*BackupResult, error) {
 		return nil, err
 	}
 
-	bm.enforceRetention(context.TODO())
+	bm.enforceRetention(ctx)
 
 	return &BackupResult{
 		Record:    record,
@@ -161,7 +161,7 @@ func (bm *BackupManager) FullBackup() (*BackupResult, error) {
 }
 
 // IncrementalBackup performs a delta backup since the last backup.
-func (bm *BackupManager) IncrementalBackup() (*BackupResult, error) {
+func (bm *BackupManager) IncrementalBackup(ctx context.Context) (*BackupResult, error) {
 	if !bm.config.IncrementalEnabled {
 		return nil, errors.New("incremental backups not enabled")
 	}
@@ -192,7 +192,7 @@ func (bm *BackupManager) IncrementalBackup() (*BackupResult, error) {
 	if bm.config.DestinationPath != "" {
 		bytesWritten, err = bm.writeIncrementalBackupToFile(filePath, walStart, walEnd)
 	} else if bm.config.StorageBackend != nil {
-		bytesWritten, err = bm.writeIncrementalBackupToBackend(context.TODO(), filename, walStart, walEnd)
+		bytesWritten, err = bm.writeIncrementalBackupToBackend(ctx, filename, walStart, walEnd)
 	}
 
 	if err != nil {
@@ -219,7 +219,7 @@ func (bm *BackupManager) IncrementalBackup() (*BackupResult, error) {
 		return nil, err
 	}
 
-	bm.enforceRetention(context.TODO())
+	bm.enforceRetention(ctx)
 
 	return &BackupResult{
 		Record:    record,
@@ -229,7 +229,7 @@ func (bm *BackupManager) IncrementalBackup() (*BackupResult, error) {
 }
 
 // Restore restores the database from a backup.
-func (bm *BackupManager) Restore(backupID string) error {
+func (bm *BackupManager) Restore(ctx context.Context, backupID string) error {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
@@ -247,14 +247,14 @@ func (bm *BackupManager) Restore(backupID string) error {
 	}
 
 	if record.Type == "incremental" {
-		return bm.restoreIncremental(context.TODO(), record)
+		return bm.restoreIncremental(ctx, record)
 	}
 
-	return bm.restoreFull(context.TODO(), record)
+	return bm.restoreFull(ctx, record)
 }
 
 // RestoreLatest restores from the most recent backup.
-func (bm *BackupManager) RestoreLatest() error {
+func (bm *BackupManager) RestoreLatest(ctx context.Context) error {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
@@ -286,14 +286,14 @@ func (bm *BackupManager) RestoreLatest() error {
 	}
 
 	// Restore full backup first
-	if err := bm.restoreFull(context.TODO(), fullBackup); err != nil {
+	if err := bm.restoreFull(ctx, fullBackup); err != nil {
 		return err
 	}
 
 	// Apply incrementals in order (oldest first)
 	for i := len(incrementals) - 1; i >= 0; i-- {
 		if incrementals[i].Timestamp.After(fullBackup.Timestamp) {
-			if err := bm.restoreIncremental(context.TODO(), incrementals[i]); err != nil {
+			if err := bm.restoreIncremental(ctx, incrementals[i]); err != nil {
 				return err
 			}
 		}

@@ -51,7 +51,7 @@ func TestBackupManager_IncrementalWithoutFull(t *testing.T) {
 		IncrementalEnabled: true,
 	})
 
-	_, err := bm.IncrementalBackup()
+	_, err := bm.IncrementalBackup(context.Background())
 	if err == nil {
 		t.Error("expected error for incremental without full backup")
 	}
@@ -65,7 +65,7 @@ func TestBackupManager_IncrementalDisabled(t *testing.T) {
 		IncrementalEnabled: false,
 	})
 
-	_, err := bm.IncrementalBackup()
+	_, err := bm.IncrementalBackup(context.Background())
 	if err == nil {
 		t.Error("expected error when incremental disabled")
 	}
@@ -78,7 +78,7 @@ func TestBackupManager_RestoreLatest_NoBackups(t *testing.T) {
 		DestinationPath: tmpDir,
 	})
 
-	err := bm.RestoreLatest()
+	err := bm.RestoreLatest(context.Background())
 	if err == nil {
 		t.Error("expected error when no backups available")
 	}
@@ -91,7 +91,7 @@ func TestBackupManager_Restore_NotFound(t *testing.T) {
 		DestinationPath: tmpDir,
 	})
 
-	err := bm.Restore("nonexistent")
+	err := bm.Restore(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent backup")
 	}
