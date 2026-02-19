@@ -89,6 +89,8 @@ Sample output:
 2025-02-24T22:50:00Z  value=22.50  tags=map[room:living]
 ```
 
+→ **[Full Getting Started Guide](docs/GETTING_STARTED.md)** — 10-minute tutorial covering install, write, query, retention, and HTTP API.
+
 ## Core API
 
 These are the essential types and functions for most use cases:
@@ -246,7 +248,11 @@ When `HTTPEnabled: true`, the following endpoints are available:
 | `/admin` | GET | Admin UI dashboard |
 | `/api/v1/prom/write` | POST | Prometheus remote write |
 
-## Project Structure
+## Project Layout
+
+With 600+ files in the root package, use the **[Code Map](docs/CODE_MAP.md)** to navigate by domain (core, query, storage, integrations, etc.).
+
+### Directory Overview
 
 ```
 chronicle/
@@ -338,6 +344,9 @@ For the complete development workflow (debugging, profiling, benchmarking, and m
 ### Other Commands
 
 ```bash
+# One-command setup for new contributors
+make quickstart
+
 # Install development tools
 make setup
 
