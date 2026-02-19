@@ -52,7 +52,11 @@ func (m *EdgeMesh) Start() error {
 	}
 
 	for _, seed := range m.config.Seeds {
-		go m.connectPeer(seed)
+		m.wg.Add(1)
+		go func(addr string) {
+			defer m.wg.Done()
+			m.connectPeer(addr)
+		}(seed)
 	}
 
 	m.wg.Add(3)
