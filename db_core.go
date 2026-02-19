@@ -90,7 +90,7 @@ func (lm *lifecycleManager) stop() {
 	defer lm.mu.Unlock()
 
 	if lm.httpServer != nil {
-		_ = lm.httpServer.Close()
+		_ = lm.httpServer.Close() //nolint:errcheck // best-effort cleanup during shutdown
 		lm.httpServer = nil
 	}
 	if lm.replicator != nil {
@@ -212,15 +212,15 @@ func (db *DB) Close() error {
 	db.mu.Lock()
 	if err := persistIndex(db.file, db.index); err != nil {
 		db.mu.Unlock()
-		_ = db.file.Close()
-		_ = db.wal.Close()
+		_ = db.file.Close() //nolint:errcheck // cleanup on error path
+		_ = db.wal.Close()  //nolint:errcheck // cleanup on error path
 		return err
 	}
 	db.mu.Unlock()
 
 	if err := db.file.Sync(); err != nil {
-		_ = db.file.Close()
-		_ = db.wal.Close()
+		_ = db.file.Close() //nolint:errcheck // cleanup on error path
+		_ = db.wal.Close()  //nolint:errcheck // cleanup on error path
 		return err
 	}
 
@@ -228,13 +228,13 @@ func (db *DB) Close() error {
 	if db.dataStore != nil {
 		if _, ok := db.dataStore.(*FileDataStore); !ok {
 			// Backend-based storage - close it separately
-			_ = db.dataStore.Close()
+			_ = db.dataStore.Close() //nolint:errcheck // best-effort cleanup during Close
 		}
 		// FileDataStore shares the file handle, so don't close it separately
 	}
 
 	if err := db.file.Close(); err != nil {
-		_ = db.wal.Close()
+		_ = db.wal.Close() //nolint:errcheck // cleanup on error path
 		return err
 	}
 
