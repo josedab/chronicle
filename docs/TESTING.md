@@ -97,6 +97,65 @@ result, _ := db.Execute(&Query{
 result, _ := db.Execute(&Query{Metric: "cpu"})
 ```
 
+## Test File Template
+
+Use this pattern when creating a new test file. It follows Chronicle conventions:
+table-driven tests, `t.Run` subtests, and the shared `setupTestDB` helper.
+
+```go
+package chronicle
+
+import (
+	"testing"
+	"time"
+)
+
+func TestMyFeature(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	tests := []struct {
+		name    string
+		input   Point
+		wantErr bool
+	}{
+		{
+			name: "basic write",
+			input: Point{
+				Metric:    "cpu.usage",
+				Tags:      map[string]string{"host": "server1"},
+				Value:     42.0,
+				Timestamp: time.Now().UnixNano(),
+			},
+		},
+		{
+			name: "missing metric",
+			input: Point{
+				Value:     1.0,
+				Timestamp: time.Now().UnixNano(),
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := db.Write(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Write() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+```
+
+**Key conventions:**
+- File: `<feature>_test.go` in `package chronicle` (not `_test` suffix)
+- Use `setupTestDB(t)` — auto cleanup via `t.TempDir()`
+- Use `writeTestPoints(t, db, metric, count, start)` for bulk data
+- Use `assertPointCount(t, db, metric, expected)` for verification
+- Call `db.Flush()` before querying (see [Common Pitfalls](#common-pitfalls))
+
 ## Test File Conventions
 
 - Test files use `package chronicle` (not `_test` suffix) for access to internals
