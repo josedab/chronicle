@@ -192,13 +192,13 @@ func (e *CDCEngine) Subscribe(filter CDCFilter) (*CDCSubscription, error) {
 		cancel:  cancel,
 	}
 
-	// Cleanup goroutine
-	go func() {
+	// Cleanup goroutine: remove subscription when its context is cancelled.
+	go func(ctx context.Context, subID string) {
 		<-ctx.Done()
 		e.mu.Lock()
-		delete(e.subscribers, id)
+		delete(e.subscribers, subID)
 		e.mu.Unlock()
-	}()
+	}(ctx, id)
 
 	e.subscribers[id] = sub
 	return sub, nil
