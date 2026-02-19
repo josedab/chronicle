@@ -38,10 +38,23 @@ Thank you for your interest in contributing to Chronicle! This document provides
    - **pre-commit**: runs `go vet` and fast tests (~15s) before each commit
    - **commit-msg**: enforces [Conventional Commits](https://www.conventionalcommits.org/) format
 
-   > **Alternative**: If your team uses the Python `pre-commit` framework, you can use
-   > `.pre-commit-config.yaml` instead: `pip install pre-commit && pre-commit install`.
+   > **Note on `.pre-commit-config.yaml`**: If you see this file in the repo, it's an
+   > optional alternative for teams that use the Python `pre-commit` framework
+   > (`pip install pre-commit && pre-commit install`). **The canonical setup is
+   > `make install-hooks`** — it requires no extra tooling and is what CI expects.
 
 ## Development Workflow
+
+### Quick Lint Check
+
+Before pushing, run `make lint` to check if your code passes all linters:
+
+```bash
+make lint          # go vet + golangci-lint (dry-run, no changes)
+make lint-fix      # auto-fix fixable lint issues + reformat
+```
+
+`make lint` runs the same checks as CI. If it passes locally, lint will pass in the pipeline.
 
 ### Running Tests
 
@@ -167,6 +180,10 @@ Feature requests are welcome! Please describe:
 ## First-Time Contributors
 
 Looking for your first contribution? See **[Good First Issues](docs/GOOD_FIRST_ISSUES.md)** for 20 well-scoped tasks ranging from documentation to small features.
+
+### Project Layout
+
+The root package has 600+ Go files. See **[docs/CODE_MAP.md](docs/CODE_MAP.md)** for a domain-grouped navigation map of every file.
 
 ### Architecture Quick Reference
 
