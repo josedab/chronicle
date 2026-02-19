@@ -311,13 +311,13 @@ func (e *MigrationEngine) loop() {
 		case <-e.stopCh:
 			return
 		case <-ticker.C:
-			plans := e.PlanMigrations()
+			plans := e.PlanMigrations(context.TODO())
 			sem := make(chan struct{}, e.config.MaxConcurrentMigrations)
 			for _, p := range plans {
 				sem <- struct{}{}
 				go func(plan *MigrationPlan) {
 					defer func() { <-sem }()
-					result, _ := e.ExecuteMigration(plan)
+					result, _ := e.ExecuteMigration(context.TODO(), plan)
 					if result != nil {
 						e.mu.Lock()
 						e.history = append(e.history, result)
@@ -330,7 +330,7 @@ func (e *MigrationEngine) loop() {
 }
 
 // PlanMigrations determines which partitions should be migrated between tiers.
-func (e *MigrationEngine) PlanMigrations() []*MigrationPlan {
+func (e *MigrationEngine) PlanMigrations(ctx context.Context) []*MigrationPlan {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
@@ -358,7 +358,7 @@ func (e *MigrationEngine) PlanMigrations() []*MigrationPlan {
 		if src.Backend == nil {
 			continue
 		}
-		keys, err := src.Backend.List(context.Background(), "")
+		keys, err := src.Backend.List(ctx, "")
 		if err != nil {
 			continue
 		}
@@ -383,7 +383,7 @@ func (e *MigrationEngine) PlanMigrations() []*MigrationPlan {
 }
 
 // ExecuteMigration performs a single partition migration between tiers.
-func (e *MigrationEngine) ExecuteMigration(plan *MigrationPlan) (*MigrationResult, error) {
+func (e *MigrationEngine) ExecuteMigration(ctx context.Context, plan *MigrationPlan) (*MigrationResult, error) {
 	start := time.Now()
 	result := &MigrationResult{
 		Plan: plan,
@@ -408,8 +408,6 @@ func (e *MigrationEngine) ExecuteMigration(plan *MigrationPlan) (*MigrationResul
 		result.CompletedAt = time.Now()
 		return result, fmt.Errorf("target tier %s not found", plan.TargetTier)
 	}
-
-	ctx := context.Background()
 
 	data, err := src.Backend.Read(ctx, plan.PartitionKey)
 	if err != nil {
@@ -538,7 +536,7 @@ func NewCostOptimizer(tiers []*StorageTierConfig, tracker *AccessTracker, config
 const bytesPerGB = 1 << 30
 
 // CalculateCurrentCost computes the current monthly storage cost across all tiers.
-func (o *CostOptimizer) CalculateCurrentCost() *CostReport {
+func (o *CostOptimizer) CalculateCurrentCost(ctx context.Context) *CostReport {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
@@ -546,7 +544,6 @@ func (o *CostOptimizer) CalculateCurrentCost() *CostReport {
 		ByTier:           make(map[StorageTierLevel]TierCostDetail),
 		DataDistribution: make(map[StorageTierLevel]int64),
 	}
-	ctx := context.Background()
 
 	for _, tier := range o.tiers {
 		if tier.Backend == nil {
@@ -601,7 +598,7 @@ func (o *CostOptimizer) RecommendOptimizations() []*OptimizationRecommendation {
 	}
 
 	// Check if budget is exceeded.
-	report := o.calculateCostInternal()
+	report := o.calculateCostInternal(context.TODO())
 	if report.TotalMonthly > o.config.BudgetPerMonth {
 		recs = append(recs, &OptimizationRecommendation{
 			Type:               "budget_alert",
@@ -615,12 +612,11 @@ func (o *CostOptimizer) RecommendOptimizations() []*OptimizationRecommendation {
 	return recs
 }
 
-func (o *CostOptimizer) calculateCostInternal() *CostReport {
+func (o *CostOptimizer) calculateCostInternal(ctx context.Context) *CostReport {
 	report := &CostReport{
 		ByTier:           make(map[StorageTierLevel]TierCostDetail),
 		DataDistribution: make(map[StorageTierLevel]int64),
 	}
-	ctx := context.Background()
 	for _, tier := range o.tiers {
 		if tier.Backend == nil {
 			continue
@@ -655,7 +651,7 @@ func (o *CostOptimizer) ProjectCost(days int) *CostProjection {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	report := o.calculateCostInternal()
+	report := o.calculateCostInternal(context.TODO())
 	dailyCost := report.TotalMonthly / 30.0
 
 	proj := &CostProjection{
@@ -860,14 +856,13 @@ func (b *AdaptiveTieredBackend) Close() error {
 }
 
 // Stats returns runtime statistics for the adaptive tiered backend.
-func (b *AdaptiveTieredBackend) Stats() *TieredStorageStats {
+func (b *AdaptiveTieredBackend) Stats(ctx context.Context) *TieredStorageStats {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
 	stats := &TieredStorageStats{
 		PartitionsByTier: make(map[StorageTierLevel]int),
 	}
-	ctx := context.Background()
 	for _, t := range b.tiers {
 		keys, err := t.Backend.List(ctx, "")
 		if err != nil {
@@ -876,10 +871,10 @@ func (b *AdaptiveTieredBackend) Stats() *TieredStorageStats {
 		stats.PartitionsByTier[t.Level] = len(keys)
 		stats.TotalPartitions += len(keys)
 	}
-	stats.CostReport = b.cost.CalculateCurrentCost()
+	stats.CostReport = b.cost.CalculateCurrentCost(ctx)
 	history := b.migration.GetMigrationHistory()
 	stats.MigrationsCompleted = len(history)
-	pending := b.migration.PlanMigrations()
+	pending := b.migration.PlanMigrations(ctx)
 	stats.MigrationsPending = len(pending)
 	return stats
 }
@@ -904,9 +899,9 @@ type MigrationDashboardSummary struct {
 }
 
 // GenerateCostDashboard creates a full cost dashboard from the tiered backend.
-func (b *AdaptiveTieredBackend) GenerateCostDashboard() *CostDashboard {
+func (b *AdaptiveTieredBackend) GenerateCostDashboard(ctx context.Context) *CostDashboard {
 	dashboard := &CostDashboard{
-		CurrentCost:      b.cost.CalculateCurrentCost(),
+		CurrentCost:      b.cost.CalculateCurrentCost(ctx),
 		Recommendations:  b.cost.RecommendOptimizations(),
 		TierDistribution: make(map[string]int),
 		GeneratedAt:      time.Now(),
@@ -919,7 +914,6 @@ func (b *AdaptiveTieredBackend) GenerateCostDashboard() *CostDashboard {
 	}
 
 	// Tier distribution
-	ctx := context.Background()
 	for _, t := range b.tiers {
 		keys, err := t.Backend.List(ctx, "")
 		if err == nil {
@@ -930,7 +924,7 @@ func (b *AdaptiveTieredBackend) GenerateCostDashboard() *CostDashboard {
 	// Migration summary
 	history := b.migration.GetMigrationHistory()
 	dashboard.MigrationSummary.Completed = len(history)
-	dashboard.MigrationSummary.Pending = len(b.migration.PlanMigrations())
+	dashboard.MigrationSummary.Pending = len(b.migration.PlanMigrations(ctx))
 
 	var totalMoved int64
 	var totalDuration time.Duration
@@ -992,7 +986,7 @@ func (b *AdaptiveTieredBackend) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		dashboard := b.GenerateCostDashboard()
+		dashboard := b.GenerateCostDashboard(r.Context())
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(dashboard)
 	})
@@ -1002,7 +996,7 @@ func (b *AdaptiveTieredBackend) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(b.Stats())
+		json.NewEncoder(w).Encode(b.Stats(r.Context()))
 	})
 	mux.HandleFunc("/api/v1/tiered/migrations", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -1011,7 +1005,7 @@ func (b *AdaptiveTieredBackend) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"pending":   b.migration.PlanMigrations(),
+			"pending":   b.migration.PlanMigrations(r.Context()),
 			"completed": b.migration.GetMigrationHistory(),
 		})
 	})
@@ -1021,6 +1015,6 @@ func (b *AdaptiveTieredBackend) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(b.cost.CalculateCurrentCost())
+		json.NewEncoder(w).Encode(b.cost.CalculateCurrentCost(r.Context()))
 	})
 }

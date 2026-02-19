@@ -621,7 +621,7 @@ func TestCostOptimizer_NoTiers(t *testing.T) {
 	tracker := NewAccessTracker(DefaultAccessTrackerConfig())
 	opt := NewCostOptimizer(nil, tracker, DefaultCostOptimizerConfig())
 
-	report := opt.CalculateCurrentCost()
+	report := opt.CalculateCurrentCost(context.Background())
 	if report == nil {
 		t.Fatal("expected non-nil report")
 	}

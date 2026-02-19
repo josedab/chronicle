@@ -81,7 +81,7 @@ func TestMigrationEngine_PlanMigrations(t *testing.T) {
 	cfg.DryRun = true
 	engine := NewMigrationEngine(tiers, tracker, cfg)
 
-	plans := engine.PlanMigrations()
+	plans := engine.PlanMigrations(context.Background())
 	if len(plans) == 0 {
 		t.Errorf("expected migration plans for cold data")
 	}
@@ -104,7 +104,7 @@ func TestCostOptimizer_CalculateCost(t *testing.T) {
 	tracker := NewAccessTracker(DefaultAccessTrackerConfig())
 	optimizer := NewCostOptimizer(tiers, tracker, DefaultCostOptimizerConfig())
 
-	report := optimizer.CalculateCurrentCost()
+	report := optimizer.CalculateCurrentCost(ctx)
 	if report == nil {
 		t.Fatal("expected non-nil report")
 	}
@@ -246,7 +246,7 @@ func TestCostDashboardGeneration(t *testing.T) {
 	backend.Write(ctx, "test-data-1", []byte("hello"))
 	backend.Write(ctx, "test-data-2", []byte("world"))
 
-	dashboard := backend.GenerateCostDashboard()
+	dashboard := backend.GenerateCostDashboard(ctx)
 	if dashboard == nil {
 		t.Fatal("dashboard should not be nil")
 	}
