@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run check-versions doctor help
+.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -129,6 +129,10 @@ lint: ## Run linters
 	$(GO) vet ./...
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
 
+lint-ci: ## Run linters matching exact CI configuration
+	$(GO) vet ./...
+	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --timeout=5m
+
 lint-fix: ## Auto-fix all fixable lint issues
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fix
 	gofmt -s -w .
@@ -169,6 +173,21 @@ dev: preflight ## Run development HTTP server (quick-start)
 	$(GO) run ./examples/http-server
 
 run: dev ## Alias for make dev
+
+watch: ## Watch .go files and run tests on change (TDD mode)
+	@if command -v reflex >/dev/null 2>&1; then \
+		echo "Watching for .go file changes (reflex)... Press Ctrl+C to stop"; \
+		reflex -r '\.go$$' -s -- make test-fast; \
+	elif command -v fswatch >/dev/null 2>&1; then \
+		echo "Watching for .go file changes (fswatch)... Press Ctrl+C to stop"; \
+		fswatch -o --include '\.go$$' --exclude '.*' . | xargs -n1 -I{} make test-fast; \
+	else \
+		echo "No file watcher found. Install one of:"; \
+		echo "  go install github.com/cespare/reflex@latest   (recommended)"; \
+		echo "  brew install fswatch                          (macOS)"; \
+		echo "  sudo apt-get install inotify-tools            (Linux)"; \
+		exit 1; \
+	fi
 
 vuln: ## Check for vulnerabilities
 	govulncheck ./...
