@@ -13,32 +13,32 @@ import (
 
 // ChronicleClusterSpec is the desired state for a ChronicleCluster CRD.
 type ChronicleClusterSpec struct {
-	Replicas         int                  `json:"replicas"`
-	Version          string               `json:"version"`
-	Image            string               `json:"image"`
-	Resources        K8sResourceSpec      `json:"resources"`
-	Storage          K8sStorageSpec       `json:"storage"`
-	Backup           K8sBackupSpec        `json:"backup"`
-	Monitoring       K8sMonitoringSpec    `json:"monitoring"`
-	AutoScaling      K8sAutoScalingSpec   `json:"auto_scaling"`
-	Config           map[string]string    `json:"config,omitempty"`
-	UpdateStrategy   ClusterUpdateStrategy `json:"update_strategy"`
-	ServiceType      string               `json:"service_type"`
-	Affinity         *NodeAffinity        `json:"affinity,omitempty"`
-	Tolerations      []Toleration         `json:"tolerations,omitempty"`
+	Replicas       int                   `json:"replicas"`
+	Version        string                `json:"version"`
+	Image          string                `json:"image"`
+	Resources      K8sResourceSpec       `json:"resources"`
+	Storage        K8sStorageSpec        `json:"storage"`
+	Backup         K8sBackupSpec         `json:"backup"`
+	Monitoring     K8sMonitoringSpec     `json:"monitoring"`
+	AutoScaling    K8sAutoScalingSpec    `json:"auto_scaling"`
+	Config         map[string]string     `json:"config,omitempty"`
+	UpdateStrategy ClusterUpdateStrategy `json:"update_strategy"`
+	ServiceType    string                `json:"service_type"`
+	Affinity       *NodeAffinity         `json:"affinity,omitempty"`
+	Tolerations    []Toleration          `json:"tolerations,omitempty"`
 }
 
 // ChronicleClusterStatus is the observed state of a ChronicleCluster.
 type ChronicleClusterStatus struct {
-	Phase              ClusterPhase      `json:"phase"`
-	ReadyReplicas      int               `json:"ready_replicas"`
-	AvailableReplicas  int               `json:"available_replicas"`
-	CurrentVersion     string            `json:"current_version"`
-	Conditions         []ClusterCondition `json:"conditions"`
-	LastReconcile      time.Time         `json:"last_reconcile"`
-	LastBackup         time.Time         `json:"last_backup,omitempty"`
-	StorageUsedBytes   int64             `json:"storage_used_bytes"`
-	EndpointURL        string            `json:"endpoint_url,omitempty"`
+	Phase             ClusterPhase       `json:"phase"`
+	ReadyReplicas     int                `json:"ready_replicas"`
+	AvailableReplicas int                `json:"available_replicas"`
+	CurrentVersion    string             `json:"current_version"`
+	Conditions        []ClusterCondition `json:"conditions"`
+	LastReconcile     time.Time          `json:"last_reconcile"`
+	LastBackup        time.Time          `json:"last_backup,omitempty"`
+	StorageUsedBytes  int64              `json:"storage_used_bytes"`
+	EndpointURL       string             `json:"endpoint_url,omitempty"`
 }
 
 // ChronicleCluster is the full CRD object.
@@ -109,22 +109,22 @@ type ReconcileAction struct {
 type ReconcileActionType string
 
 const (
-	ActionCreate       ReconcileActionType = "create"
-	ActionUpdate       ReconcileActionType = "update"
-	ActionDelete       ReconcileActionType = "delete"
-	ActionScale        ReconcileActionType = "scale"
-	ActionUpgrade      ReconcileActionType = "upgrade"
-	ActionBackup       ReconcileActionType = "backup"
-	ActionRestore      ReconcileActionType = "restore"
-	ActionHealthCheck  ReconcileActionType = "health_check"
+	ActionCreate      ReconcileActionType = "create"
+	ActionUpdate      ReconcileActionType = "update"
+	ActionDelete      ReconcileActionType = "delete"
+	ActionScale       ReconcileActionType = "scale"
+	ActionUpgrade     ReconcileActionType = "upgrade"
+	ActionBackup      ReconcileActionType = "backup"
+	ActionRestore     ReconcileActionType = "restore"
+	ActionHealthCheck ReconcileActionType = "health_check"
 )
 
 // CRDReconcileResult is the outcome of a CRD reconciliation loop.
 type CRDReconcileResult struct {
-	Actions     []ReconcileAction `json:"actions"`
-	Requeue     bool              `json:"requeue"`
-	RequeueAfter time.Duration   `json:"requeue_after,omitempty"`
-	Error       string            `json:"error,omitempty"`
+	Actions      []ReconcileAction `json:"actions"`
+	Requeue      bool              `json:"requeue"`
+	RequeueAfter time.Duration     `json:"requeue_after,omitempty"`
+	Error        string            `json:"error,omitempty"`
 }
 
 // ClusterReconciler implements the reconciliation loop for ChronicleCluster.
@@ -267,8 +267,8 @@ func (cr *ClusterReconciler) History(namespace, name string) []CRDReconcileResul
 
 // HelmChartConfig configures Helm chart generation.
 type HelmChartConfig struct {
-	ReleaseName string `json:"release_name"`
-	Namespace   string `json:"namespace"`
+	ReleaseName  string `json:"release_name"`
+	Namespace    string `json:"namespace"`
 	ChartVersion string `json:"chart_version"`
 }
 
@@ -278,14 +278,14 @@ func GenerateCRDHelmValues(cluster *ChronicleCluster) ([]byte, error) {
 		return nil, errors.New("k8s_operator: nil cluster")
 	}
 
-	values := map[string]interface{}{
+	values := map[string]any{
 		"replicaCount": cluster.Spec.Replicas,
-		"image": map[string]interface{}{
+		"image": map[string]any{
 			"repository": cluster.Spec.Image,
 			"tag":        cluster.Spec.Version,
 			"pullPolicy": "IfNotPresent",
 		},
-		"resources": map[string]interface{}{
+		"resources": map[string]any{
 			"limits": map[string]string{
 				"cpu":    cluster.Spec.Resources.CPULimit,
 				"memory": cluster.Spec.Resources.MemoryLimit,
@@ -295,24 +295,24 @@ func GenerateCRDHelmValues(cluster *ChronicleCluster) ([]byte, error) {
 				"memory": cluster.Spec.Resources.MemoryRequest,
 			},
 		},
-		"persistence": map[string]interface{}{
+		"persistence": map[string]any{
 			"enabled":      true,
 			"storageClass": cluster.Spec.Storage.StorageClass,
 			"size":         cluster.Spec.Storage.Size,
 			"accessMode":   cluster.Spec.Storage.AccessMode,
 		},
-		"service": map[string]interface{}{
+		"service": map[string]any{
 			"type": cluster.Spec.ServiceType,
 		},
-		"monitoring": map[string]interface{}{
+		"monitoring": map[string]any{
 			"enabled":        cluster.Spec.Monitoring.Enabled,
 			"serviceMonitor": cluster.Spec.Monitoring.Enabled,
 		},
-		"backup": map[string]interface{}{
+		"backup": map[string]any{
 			"enabled":  cluster.Spec.Backup.Enabled,
 			"schedule": cluster.Spec.Backup.Schedule,
 		},
-		"updateStrategy": map[string]interface{}{
+		"updateStrategy": map[string]any{
 			"type":           cluster.Spec.UpdateStrategy.Type,
 			"maxUnavailable": cluster.Spec.UpdateStrategy.MaxUnavailable,
 		},

@@ -53,82 +53,82 @@ func DefaultSaaSFleetConfig() SaaSFleetConfig {
 type AgentState string
 
 const (
-	AgentOnline      AgentState = "online"
-	AgentOffline     AgentState = "offline"
-	AgentUpgrading   AgentState = "upgrading"
-	AgentDegraded    AgentState = "degraded"
+	AgentOnline         AgentState = "online"
+	AgentOffline        AgentState = "offline"
+	AgentUpgrading      AgentState = "upgrading"
+	AgentDegraded       AgentState = "degraded"
 	AgentDecommissioned AgentState = "decommissioned"
 )
 
 // FleetAgent represents a Chronicle instance in the fleet.
 type FleetAgent struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Version        string            `json:"version"`
-	State          AgentState        `json:"state"`
-	Addr           string            `json:"addr"`
-	Region         string            `json:"region,omitempty"`
-	Tags           map[string]string `json:"tags,omitempty"`
-	Config         map[string]string `json:"config,omitempty"`
-	RegisteredAt   time.Time         `json:"registered_at"`
-	LastHeartbeat  time.Time         `json:"last_heartbeat"`
-	Usage          AgentUsage        `json:"usage"`
-	SystemInfo     AgentSystemInfo   `json:"system_info"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Version       string            `json:"version"`
+	State         AgentState        `json:"state"`
+	Addr          string            `json:"addr"`
+	Region        string            `json:"region,omitempty"`
+	Tags          map[string]string `json:"tags,omitempty"`
+	Config        map[string]string `json:"config,omitempty"`
+	RegisteredAt  time.Time         `json:"registered_at"`
+	LastHeartbeat time.Time         `json:"last_heartbeat"`
+	Usage         AgentUsage        `json:"usage"`
+	SystemInfo    AgentSystemInfo   `json:"system_info"`
 }
 
 // AgentUsage tracks resource usage for a fleet agent.
 type AgentUsage struct {
-	PointsWritten  int64     `json:"points_written"`
-	QueriesRun     int64     `json:"queries_run"`
-	StorageBytes   int64     `json:"storage_bytes"`
-	MetricCount    int       `json:"metric_count"`
-	UptimeSeconds  int64     `json:"uptime_seconds"`
-	CPUPercent     float64   `json:"cpu_percent"`
-	MemoryPercent  float64   `json:"memory_percent"`
-	ReportedAt     time.Time `json:"reported_at"`
+	PointsWritten int64     `json:"points_written"`
+	QueriesRun    int64     `json:"queries_run"`
+	StorageBytes  int64     `json:"storage_bytes"`
+	MetricCount   int       `json:"metric_count"`
+	UptimeSeconds int64     `json:"uptime_seconds"`
+	CPUPercent    float64   `json:"cpu_percent"`
+	MemoryPercent float64   `json:"memory_percent"`
+	ReportedAt    time.Time `json:"reported_at"`
 }
 
 // AgentSystemInfo provides system details for a fleet agent.
 type AgentSystemInfo struct {
-	OS         string `json:"os"`
-	Arch       string `json:"arch"`
-	GoVersion  string `json:"go_version"`
-	NumCPU     int    `json:"num_cpu"`
-	MemoryMB   int64  `json:"memory_mb"`
+	OS        string `json:"os"`
+	Arch      string `json:"arch"`
+	GoVersion string `json:"go_version"`
+	NumCPU    int    `json:"num_cpu"`
+	MemoryMB  int64  `json:"memory_mb"`
 }
 
 // FleetUpgradeRequest defines an upgrade to push to agents.
 type FleetUpgradeRequest struct {
-	TargetVersion string   `json:"target_version"`
-	AgentIDs      []string `json:"agent_ids,omitempty"` // Empty = all agents
-	Region        string   `json:"region,omitempty"`    // Filter by region
-	Strategy      string   `json:"strategy"`            // "rolling", "canary", "all-at-once"
-	CanaryPercent float64  `json:"canary_percent,omitempty"`
+	TargetVersion string    `json:"target_version"`
+	AgentIDs      []string  `json:"agent_ids,omitempty"` // Empty = all agents
+	Region        string    `json:"region,omitempty"`    // Filter by region
+	Strategy      string    `json:"strategy"`            // "rolling", "canary", "all-at-once"
+	CanaryPercent float64   `json:"canary_percent,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 
 // FleetUpgradeStatus tracks an upgrade rollout.
 type FleetUpgradeStatus struct {
-	ID              string    `json:"id"`
-	Request         FleetUpgradeRequest `json:"request"`
-	State           string    `json:"state"` // "pending", "in_progress", "completed", "failed", "rolled_back"
-	TotalAgents     int       `json:"total_agents"`
-	UpgradedAgents  int       `json:"upgraded_agents"`
-	FailedAgents    int       `json:"failed_agents"`
-	StartedAt       time.Time `json:"started_at"`
-	CompletedAt     time.Time `json:"completed_at,omitempty"`
+	ID             string              `json:"id"`
+	Request        FleetUpgradeRequest `json:"request"`
+	State          string              `json:"state"` // "pending", "in_progress", "completed", "failed", "rolled_back"
+	TotalAgents    int                 `json:"total_agents"`
+	UpgradedAgents int                 `json:"upgraded_agents"`
+	FailedAgents   int                 `json:"failed_agents"`
+	StartedAt      time.Time           `json:"started_at"`
+	CompletedAt    time.Time           `json:"completed_at,omitempty"`
 }
 
 // FleetStats contains fleet-wide statistics.
 type SaaSFleetStats struct {
-	TotalAgents     int            `json:"total_agents"`
-	OnlineAgents    int            `json:"online_agents"`
-	OfflineAgents   int            `json:"offline_agents"`
-	TotalPoints     int64          `json:"total_points"`
-	TotalQueries    int64          `json:"total_queries"`
-	TotalStorageGB  float64        `json:"total_storage_gb"`
-	VersionDistro   map[string]int `json:"version_distribution"`
-	RegionDistro    map[string]int `json:"region_distribution"`
+	TotalAgents    int            `json:"total_agents"`
+	OnlineAgents   int            `json:"online_agents"`
+	OfflineAgents  int            `json:"offline_agents"`
+	TotalPoints    int64          `json:"total_points"`
+	TotalQueries   int64          `json:"total_queries"`
+	TotalStorageGB float64        `json:"total_storage_gb"`
+	VersionDistro  map[string]int `json:"version_distribution"`
+	RegionDistro   map[string]int `json:"region_distribution"`
 }
 
 // ConfigUpdate defines a configuration change to push to agents.
@@ -478,10 +478,10 @@ func (fm *SaaSFleetManager) ExportFleetReport() ([]byte, error) {
 	agents := fm.ListAgents("")
 	upgrades := fm.ListUpgrades()
 
-	report := map[string]interface{}{
-		"stats":    stats,
-		"agents":   agents,
-		"upgrades": upgrades,
+	report := map[string]any{
+		"stats":        stats,
+		"agents":       agents,
+		"upgrades":     upgrades,
 		"generated_at": time.Now(),
 	}
 

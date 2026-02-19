@@ -34,7 +34,7 @@ func TestChronicleProviderSchema(t *testing.T) {
 func TestTerraformProvider_CreateRead(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	state, err := p.Create(TFResourceInstance, map[string]interface{}{
+	state, err := p.Create(TFResourceInstance, map[string]any{
 		"name":     "prod-db",
 		"data_dir": "/var/chronicle",
 	})
@@ -61,7 +61,7 @@ func TestTerraformProvider_CreateMissingRequired(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
 	// Missing 'name' which is required
-	_, err := p.Create(TFResourceInstance, map[string]interface{}{
+	_, err := p.Create(TFResourceInstance, map[string]any{
 		"data_dir": "/var/data",
 	})
 	if err == nil {
@@ -79,7 +79,7 @@ func TestTerraformProvider_CreateNilAttrs(t *testing.T) {
 
 func TestTerraformProvider_CreateUnknownType(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
-	_, err := p.Create("unknown_type", map[string]interface{}{"name": "x"})
+	_, err := p.Create("unknown_type", map[string]any{"name": "x"})
 	if err == nil {
 		t.Error("expected error for unknown type")
 	}
@@ -88,12 +88,12 @@ func TestTerraformProvider_CreateUnknownType(t *testing.T) {
 func TestTerraformProvider_Update(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	state, _ := p.Create(TFResourceInstance, map[string]interface{}{
+	state, _ := p.Create(TFResourceInstance, map[string]any{
 		"name":     "dev-db",
 		"data_dir": "/tmp/chronicle",
 	})
 
-	updated, err := p.Update(state.ID, map[string]interface{}{
+	updated, err := p.Update(state.ID, map[string]any{
 		"name": "staging-db",
 	})
 	if err != nil {
@@ -110,7 +110,7 @@ func TestTerraformProvider_Update(t *testing.T) {
 
 func TestTerraformProvider_UpdateNotFound(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
-	_, err := p.Update("nonexistent", map[string]interface{}{"name": "x"})
+	_, err := p.Update("nonexistent", map[string]any{"name": "x"})
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -119,7 +119,7 @@ func TestTerraformProvider_UpdateNotFound(t *testing.T) {
 func TestTerraformProvider_Delete(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	state, _ := p.Create(TFResourceInstance, map[string]interface{}{
+	state, _ := p.Create(TFResourceInstance, map[string]any{
 		"name":     "temp",
 		"data_dir": "/tmp/temp",
 	})
@@ -146,13 +146,13 @@ func TestTerraformProvider_DeleteNotFound(t *testing.T) {
 func TestTerraformProvider_List(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	p.Create(TFResourceInstance, map[string]interface{}{
+	p.Create(TFResourceInstance, map[string]any{
 		"name": "db1", "data_dir": "/d1",
 	})
-	p.Create(TFResourceInstance, map[string]interface{}{
+	p.Create(TFResourceInstance, map[string]any{
 		"name": "db2", "data_dir": "/d2",
 	})
-	p.Create(TFResourceRetentionPolicy, map[string]interface{}{
+	p.Create(TFResourceRetentionPolicy, map[string]any{
 		"name": "p1", "metric_pattern": "cpu.*", "retention_duration": "720h",
 	})
 
@@ -170,11 +170,11 @@ func TestTerraformProvider_List(t *testing.T) {
 func TestTerraformProvider_Plan_NoOp(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	state, _ := p.Create(TFResourceInstance, map[string]interface{}{
+	state, _ := p.Create(TFResourceInstance, map[string]any{
 		"name": "db1", "data_dir": "/d1",
 	})
 
-	plan, err := p.Plan(state.ID, map[string]interface{}{
+	plan, err := p.Plan(state.ID, map[string]any{
 		"name": "db1", "data_dir": "/d1",
 	})
 	if err != nil {
@@ -188,11 +188,11 @@ func TestTerraformProvider_Plan_NoOp(t *testing.T) {
 func TestTerraformProvider_Plan_Update(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	state, _ := p.Create(TFResourceInstance, map[string]interface{}{
+	state, _ := p.Create(TFResourceInstance, map[string]any{
 		"name": "db1", "data_dir": "/d1",
 	})
 
-	plan, err := p.Plan(state.ID, map[string]interface{}{
+	plan, err := p.Plan(state.ID, map[string]any{
 		"name": "db2",
 	})
 	if err != nil {
@@ -209,7 +209,7 @@ func TestTerraformProvider_Plan_Update(t *testing.T) {
 func TestTerraformProvider_Plan_Create(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	plan, err := p.Plan("nonexistent", map[string]interface{}{
+	plan, err := p.Plan("nonexistent", map[string]any{
 		"_type": string(TFResourceInstance),
 		"name":  "new-db",
 	})
@@ -227,7 +227,7 @@ func TestTerraformProvider_ResourceCount(t *testing.T) {
 		t.Error("expected 0")
 	}
 
-	p.Create(TFResourceAlertRule, map[string]interface{}{
+	p.Create(TFResourceAlertRule, map[string]any{
 		"name": "a1", "metric": "cpu", "condition": "> 90", "duration": "5m",
 	})
 	if p.ResourceCount() != 1 {
@@ -259,12 +259,12 @@ func TestDefaultTFProviderConfig(t *testing.T) {
 func TestTerraformProvider_UpdateProtectsComputed(t *testing.T) {
 	p := NewTerraformProvider(DefaultTFProviderConfig())
 
-	state, _ := p.Create(TFResourceInstance, map[string]interface{}{
+	state, _ := p.Create(TFResourceInstance, map[string]any{
 		"name": "db1", "data_dir": "/d1",
 	})
 	originalID := state.Attributes["id"]
 
-	updated, _ := p.Update(state.ID, map[string]interface{}{
+	updated, _ := p.Update(state.ID, map[string]any{
 		"id": "hacked-id",
 	})
 

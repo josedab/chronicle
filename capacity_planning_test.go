@@ -102,7 +102,7 @@ func TestTimeToExhaustion(t *testing.T) {
 		usage := ResourceUsage{
 			Timestamp:    now.Add(time.Duration(-100+i) * time.Hour),
 			StorageBytes: int64(5000000 + i*50000), // Fast growth
-			StorageLimit: 10000000,                  // Limit will be hit
+			StorageLimit: 10000000,                 // Limit will be hit
 			MemoryBytes:  1000000,
 			PointsCount:  10000,
 			SeriesCount:  100,
@@ -138,17 +138,17 @@ func TestRecommendationGeneration(t *testing.T) {
 	now := time.Now()
 	for i := 0; i < 10; i++ {
 		usage := ResourceUsage{
-			Timestamp:    now.Add(time.Duration(-10+i) * time.Hour),
-			StorageBytes: 8500000, // 85% utilization
-			StorageLimit: 10000000,
-			MemoryBytes:  4500000, // 90% utilization
-			MemoryLimit:  5000000,
-			SeriesCount:  8000,    // 80% of limit
-			SeriesLimit:  10000,
-			PointsCount:  100000000,
-			PartitionCount: 5,      // 20M points per partition
-			QueryRate:    50,
-			WriteRate:    1000,
+			Timestamp:      now.Add(time.Duration(-10+i) * time.Hour),
+			StorageBytes:   8500000, // 85% utilization
+			StorageLimit:   10000000,
+			MemoryBytes:    4500000, // 90% utilization
+			MemoryLimit:    5000000,
+			SeriesCount:    8000, // 80% of limit
+			SeriesLimit:    10000,
+			PointsCount:    100000000,
+			PartitionCount: 5, // 20M points per partition
+			QueryRate:      50,
+			WriteRate:      1000,
 		}
 		engine.historyMu.Lock()
 		engine.usageHistory = append(engine.usageHistory, usage)
@@ -201,7 +201,7 @@ func TestAlerts(t *testing.T) {
 	engine.historyMu.Lock()
 	engine.usageHistory = []ResourceUsage{{
 		Timestamp:    time.Now(),
-		StorageBytes: 9000000,  // 90% utilization
+		StorageBytes: 9000000, // 90% utilization
 		StorageLimit: 10000000,
 		MemoryBytes:  4500000,
 		MemoryLimit:  5000000,
@@ -243,10 +243,10 @@ func TestAlertAcknowledge(t *testing.T) {
 	// Add an alert manually
 	engine.alertsMu.Lock()
 	engine.alerts["test_alert"] = &CapacityAlert{
-		ID:       "test_alert",
-		Severity: "warning",
-		Metric:   "test",
-		Message:  "Test alert",
+		ID:        "test_alert",
+		Severity:  "warning",
+		Metric:    "test",
+		Message:   "Test alert",
 		Triggered: time.Now(),
 	}
 	engine.alertsMu.Unlock()
@@ -400,14 +400,14 @@ func TestLinearRegression(t *testing.T) {
 	values := make([]float64, 100)
 	timestamps := make([]time.Time, 100)
 	start := time.Now().Add(-100 * time.Hour)
-	
+
 	for i := 0; i < 100; i++ {
 		values[i] = float64(100 + i*10) // y = 100 + 10x
 		timestamps[i] = start.Add(time.Duration(i) * time.Hour)
 	}
 
 	forecast := engine.forecastMetric("test", values, timestamps, 0)
-	
+
 	if forecast == nil {
 		t.Fatal("forecast should not be nil")
 	}
@@ -438,14 +438,14 @@ func TestStableTrend(t *testing.T) {
 	values := make([]float64, 100)
 	timestamps := make([]time.Time, 100)
 	start := time.Now().Add(-100 * time.Hour)
-	
+
 	for i := 0; i < 100; i++ {
 		values[i] = 100 + math.Sin(float64(i)*0.1)*5 // Small variation around 100
 		timestamps[i] = start.Add(time.Duration(i) * time.Hour)
 	}
 
 	forecast := engine.forecastMetric("test", values, timestamps, 0)
-	
+
 	if forecast == nil {
 		t.Fatal("forecast should not be nil")
 	}
@@ -471,14 +471,14 @@ func TestDownwardTrend(t *testing.T) {
 	values := make([]float64, 100)
 	timestamps := make([]time.Time, 100)
 	start := time.Now().Add(-100 * time.Hour)
-	
+
 	for i := 0; i < 100; i++ {
 		values[i] = float64(1000 - i*10) // Decreasing
 		timestamps[i] = start.Add(time.Duration(i) * time.Hour)
 	}
 
 	forecast := engine.forecastMetric("test", values, timestamps, 0)
-	
+
 	if forecast == nil {
 		t.Fatal("forecast should not be nil")
 	}
@@ -504,14 +504,14 @@ func TestAutoTune(t *testing.T) {
 	now := time.Now()
 	for i := 0; i < 10; i++ {
 		usage := ResourceUsage{
-			Timestamp:    now.Add(time.Duration(-10+i) * time.Hour),
-			StorageBytes: 8500000,
-			StorageLimit: 10000000,
-			MemoryBytes:  4500000,
-			MemoryLimit:  5000000,
-			PointsCount:  100000000,
+			Timestamp:      now.Add(time.Duration(-10+i) * time.Hour),
+			StorageBytes:   8500000,
+			StorageLimit:   10000000,
+			MemoryBytes:    4500000,
+			MemoryLimit:    5000000,
+			PointsCount:    100000000,
 			PartitionCount: 5,
-			QueryRate:    50,
+			QueryRate:      50,
 		}
 		engine.historyMu.Lock()
 		engine.usageHistory = append(engine.usageHistory, usage)

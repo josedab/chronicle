@@ -45,13 +45,13 @@ func TestCrossCloudAddRemoveEndpoints(t *testing.T) {
 	engine := newTestCrossCloudEngine(t)
 
 	ep := CloudEndpoint{
-		ID:        "aws-us-east-1",
-		Provider:  CloudAWS,
-		Region:    "us-east-1",
-		Bucket:    "chronicle-hot",
-		CostPerGB: 0.023,
+		ID:         "aws-us-east-1",
+		Provider:   CloudAWS,
+		Region:     "us-east-1",
+		Bucket:     "chronicle-hot",
+		CostPerGB:  0.023,
 		EgressCost: 0.09,
-		Available: true,
+		Available:  true,
 	}
 
 	if err := engine.AddEndpoint(ep); err != nil {

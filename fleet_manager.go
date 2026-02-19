@@ -72,25 +72,25 @@ type EdgeNode struct {
 
 // NodeResources describes the resource usage of an edge node.
 type NodeResources struct {
-	CPUCores       int     `json:"cpu_cores"`
-	MemoryMB       int64   `json:"memory_mb"`
-	StorageMB      int64   `json:"storage_mb"`
-	CPUUtilization float64 `json:"cpu_utilization"`
-	MemUtilization float64 `json:"mem_utilization"`
+	CPUCores        int     `json:"cpu_cores"`
+	MemoryMB        int64   `json:"memory_mb"`
+	StorageMB       int64   `json:"storage_mb"`
+	CPUUtilization  float64 `json:"cpu_utilization"`
+	MemUtilization  float64 `json:"mem_utilization"`
 	DiskUtilization float64 `json:"disk_utilization"`
-	PointsStored   int64   `json:"points_stored"`
-	MetricsCount   int     `json:"metrics_count"`
+	PointsStored    int64   `json:"points_stored"`
+	MetricsCount    int     `json:"metrics_count"`
 }
 
 // FleetCommand is a command sent from the control plane to edge nodes.
 type FleetCommand struct {
-	ID        string          `json:"id"`
+	ID        string           `json:"id"`
 	Type      FleetCommandType `json:"type"`
-	Target    string          `json:"target"` // node ID or "*" for all
-	Payload   json.RawMessage `json:"payload,omitempty"`
-	IssuedAt  time.Time       `json:"issued_at"`
-	ExpiresAt time.Time       `json:"expires_at"`
-	Status    CommandStatus   `json:"status"`
+	Target    string           `json:"target"` // node ID or "*" for all
+	Payload   json.RawMessage  `json:"payload,omitempty"`
+	IssuedAt  time.Time        `json:"issued_at"`
+	ExpiresAt time.Time        `json:"expires_at"`
+	Status    CommandStatus    `json:"status"`
 }
 
 // FleetCommandType identifies the type of fleet command.
@@ -119,15 +119,15 @@ const (
 
 // FleetStats provides aggregate fleet statistics.
 type FleetStats struct {
-	TotalNodes      int            `json:"total_nodes"`
-	OnlineNodes     int            `json:"online_nodes"`
-	DegradedNodes   int            `json:"degraded_nodes"`
-	OfflineNodes    int            `json:"offline_nodes"`
-	TotalPointsStored int64       `json:"total_points_stored"`
-	TotalMetrics    int            `json:"total_metrics"`
-	Regions         map[string]int `json:"regions"`
-	PendingCommands int            `json:"pending_commands"`
-	LastUpdated     time.Time      `json:"last_updated"`
+	TotalNodes        int            `json:"total_nodes"`
+	OnlineNodes       int            `json:"online_nodes"`
+	DegradedNodes     int            `json:"degraded_nodes"`
+	OfflineNodes      int            `json:"offline_nodes"`
+	TotalPointsStored int64          `json:"total_points_stored"`
+	TotalMetrics      int            `json:"total_metrics"`
+	Regions           map[string]int `json:"regions"`
+	PendingCommands   int            `json:"pending_commands"`
+	LastUpdated       time.Time      `json:"last_updated"`
 }
 
 // FleetManager is the control plane for managing distributed Chronicle edge nodes.
@@ -137,9 +137,9 @@ type FleetStats struct {
 type FleetManager struct {
 	config FleetConfig
 
-	mu       sync.RWMutex
-	nodes    map[string]*EdgeNode
-	commands []FleetCommand
+	mu        sync.RWMutex
+	nodes     map[string]*EdgeNode
+	commands  []FleetCommand
 	nextCmdID int64
 
 	onNodeStatusChange func(node *EdgeNode, oldStatus, newStatus NodeStatus)

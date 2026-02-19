@@ -18,9 +18,9 @@ const (
 
 // TerraformProviderSchema defines the Chronicle Terraform provider schema.
 type TerraformProviderSchema struct {
-	Provider  TFProviderConfig    `json:"provider"`
-	Resources []TFResourceSchema  `json:"resource_schemas"`
-	Version   string              `json:"version"`
+	Provider  TFProviderConfig   `json:"provider"`
+	Resources []TFResourceSchema `json:"resource_schemas"`
+	Version   string             `json:"version"`
 }
 
 // TFProviderConfig defines provider-level configuration.
@@ -41,8 +41,8 @@ func DefaultTFProviderConfig() TFProviderConfig {
 // TFResourceSchema describes a Terraform resource.
 type TFResourceSchema struct {
 	Type        TerraformResourceType `json:"type"`
-	Description string                 `json:"description"`
-	Attributes  []TFAttribute          `json:"attributes"`
+	Description string                `json:"description"`
+	Attributes  []TFAttribute         `json:"attributes"`
 }
 
 // TFAttribute describes a resource attribute.
@@ -132,11 +132,11 @@ type TerraformState struct {
 
 // TFResourceState represents the state of a single resource.
 type TFResourceState struct {
-	Type       TerraformResourceType  `json:"type"`
-	ID         string                 `json:"id"`
-	Attributes map[string]interface{} `json:"attributes"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
+	Type       TerraformResourceType `json:"type"`
+	ID         string                `json:"id"`
+	Attributes map[string]any        `json:"attributes"`
+	CreatedAt  time.Time             `json:"created_at"`
+	UpdatedAt  time.Time             `json:"updated_at"`
 }
 
 // NewTerraformState creates a new state store.
@@ -163,7 +163,7 @@ func NewTerraformProvider(config TFProviderConfig) *TerraformProvider {
 }
 
 // Create creates a new resource.
-func (p *TerraformProvider) Create(resType TerraformResourceType, attrs map[string]interface{}) (*TFResourceState, error) {
+func (p *TerraformProvider) Create(resType TerraformResourceType, attrs map[string]any) (*TFResourceState, error) {
 	if attrs == nil {
 		return nil, fmt.Errorf("terraform: attributes required")
 	}
@@ -220,7 +220,7 @@ func (p *TerraformProvider) Read(id string) (*TFResourceState, error) {
 }
 
 // Update updates a resource's attributes.
-func (p *TerraformProvider) Update(id string, attrs map[string]interface{}) (*TFResourceState, error) {
+func (p *TerraformProvider) Update(id string, attrs map[string]any) (*TFResourceState, error) {
 	p.state.mu.Lock()
 	defer p.state.mu.Unlock()
 
@@ -267,13 +267,13 @@ func (p *TerraformProvider) List(resType TerraformResourceType) []*TFResourceSta
 }
 
 // Plan computes a diff between desired and actual state.
-func (p *TerraformProvider) Plan(id string, desired map[string]interface{}) (*TFPlan, error) {
+func (p *TerraformProvider) Plan(id string, desired map[string]any) (*TFPlan, error) {
 	current, err := p.Read(id)
 	if err != nil {
 		return &TFPlan{
-			Action:   TFPlanCreate,
-			Type:     TerraformResourceType(desired["_type"].(string)),
-			Desired:  desired,
+			Action:  TFPlanCreate,
+			Type:    TerraformResourceType(desired["_type"].(string)),
+			Desired: desired,
 		}, nil
 	}
 
@@ -319,14 +319,14 @@ type TFPlan struct {
 	Action  TFPlanAction          `json:"action"`
 	Type    TerraformResourceType `json:"type"`
 	Changes []TFChange            `json:"changes,omitempty"`
-	Desired map[string]interface{} `json:"desired,omitempty"`
+	Desired map[string]any        `json:"desired,omitempty"`
 }
 
 // TFChange describes a single attribute change.
 type TFChange struct {
-	Attribute string      `json:"attribute"`
-	OldValue  interface{} `json:"old_value"`
-	NewValue  interface{} `json:"new_value"`
+	Attribute string `json:"attribute"`
+	OldValue  any    `json:"old_value"`
+	NewValue  any    `json:"new_value"`
 }
 
 // MarshalJSON implements JSON marshaling for TerraformProviderSchema.

@@ -337,7 +337,7 @@ func TestCloudSaaSFederatedQuery(t *testing.T) {
 		t.Fatalf("federated query failed: %v", err)
 	}
 
-	resultMap, ok := result.(map[string]interface{})
+	resultMap, ok := result.(map[string]any)
 	if !ok {
 		t.Fatal("expected map result")
 	}

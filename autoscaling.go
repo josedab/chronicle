@@ -98,11 +98,11 @@ const (
 
 // MetricSeries stores time-series data for a metric.
 type MetricSeries struct {
-	Name       string         `json:"name"`
-	Unit       string         `json:"unit"`
-	Values     []float64      `json:"values"`
-	Timestamps []int64        `json:"timestamps"`
-	Stats      *MetricStats   `json:"stats"`
+	Name       string       `json:"name"`
+	Unit       string       `json:"unit"`
+	Values     []float64    `json:"values"`
+	Timestamps []int64      `json:"timestamps"`
+	Stats      *MetricStats `json:"stats"`
 }
 
 // MetricStats contains statistical summaries.
@@ -118,29 +118,29 @@ type MetricStats struct {
 
 // UsagePatterns captures workload behavior patterns.
 type UsagePatterns struct {
-	DailyPattern     []float64 `json:"daily_pattern"`      // 24-hour pattern
-	WeeklyPattern    []float64 `json:"weekly_pattern"`     // 7-day pattern
-	Seasonality      float64   `json:"seasonality"`        // Seasonality strength
-	Trend            float64   `json:"trend"`              // Growth/decline trend
-	Spikiness        float64   `json:"spikiness"`          // Spike frequency
-	PeakHours        []int     `json:"peak_hours"`         // Peak usage hours
-	LowHours         []int     `json:"low_hours"`          // Low usage hours
+	DailyPattern  []float64 `json:"daily_pattern"`  // 24-hour pattern
+	WeeklyPattern []float64 `json:"weekly_pattern"` // 7-day pattern
+	Seasonality   float64   `json:"seasonality"`    // Seasonality strength
+	Trend         float64   `json:"trend"`          // Growth/decline trend
+	Spikiness     float64   `json:"spikiness"`      // Spike frequency
+	PeakHours     []int     `json:"peak_hours"`     // Peak usage hours
+	LowHours      []int     `json:"low_hours"`      // Low usage hours
 }
 
 // ScalingRecommendation represents a scaling recommendation.
 type ScalingRecommendation struct {
-	WorkloadName   string              `json:"workload_name"`
-	Namespace      string              `json:"namespace"`
-	Timestamp      time.Time           `json:"timestamp"`
-	ValidUntil     time.Time           `json:"valid_until"`
-	Action         ScalingAction       `json:"action"`
-	Confidence     float64             `json:"confidence"`
-	Reason         string              `json:"reason"`
-	CurrentState   *ResourceState      `json:"current_state"`
-	TargetState    *ResourceState      `json:"target_state"`
-	HPAConfig      *HPARecommendation  `json:"hpa_config,omitempty"`
-	VPAConfig      *VPARecommendation  `json:"vpa_config,omitempty"`
-	PredictedLoad  []PredictedValue    `json:"predicted_load"`
+	WorkloadName  string             `json:"workload_name"`
+	Namespace     string             `json:"namespace"`
+	Timestamp     time.Time          `json:"timestamp"`
+	ValidUntil    time.Time          `json:"valid_until"`
+	Action        ScalingAction      `json:"action"`
+	Confidence    float64            `json:"confidence"`
+	Reason        string             `json:"reason"`
+	CurrentState  *ResourceState     `json:"current_state"`
+	TargetState   *ResourceState     `json:"target_state"`
+	HPAConfig     *HPARecommendation `json:"hpa_config,omitempty"`
+	VPAConfig     *VPARecommendation `json:"vpa_config,omitempty"`
+	PredictedLoad []PredictedValue   `json:"predicted_load"`
 }
 
 // ScalingAction identifies the recommended action.
@@ -155,23 +155,23 @@ const (
 
 // ResourceState represents current/target resource state.
 type ResourceState struct {
-	Replicas      int32             `json:"replicas"`
-	CPURequest    string            `json:"cpu_request"`
-	CPULimit      string            `json:"cpu_limit"`
-	MemoryRequest string            `json:"memory_request"`
-	MemoryLimit   string            `json:"memory_limit"`
+	Replicas      int32              `json:"replicas"`
+	CPURequest    string             `json:"cpu_request"`
+	CPULimit      string             `json:"cpu_limit"`
+	MemoryRequest string             `json:"memory_request"`
+	MemoryLimit   string             `json:"memory_limit"`
 	Utilization   map[string]float64 `json:"utilization"`
 }
 
 // HPARecommendation contains HPA configuration recommendations.
 type HPARecommendation struct {
-	MinReplicas                    int32             `json:"min_replicas"`
-	MaxReplicas                    int32             `json:"max_replicas"`
-	TargetCPUUtilization           int32             `json:"target_cpu_utilization"`
-	TargetMemoryUtilization        int32             `json:"target_memory_utilization,omitempty"`
-	CustomMetrics                  []CustomMetricHPA `json:"custom_metrics,omitempty"`
-	ScaleUpStabilizationWindow     int32             `json:"scale_up_stabilization_window"`
-	ScaleDownStabilizationWindow   int32             `json:"scale_down_stabilization_window"`
+	MinReplicas                  int32             `json:"min_replicas"`
+	MaxReplicas                  int32             `json:"max_replicas"`
+	TargetCPUUtilization         int32             `json:"target_cpu_utilization"`
+	TargetMemoryUtilization      int32             `json:"target_memory_utilization,omitempty"`
+	CustomMetrics                []CustomMetricHPA `json:"custom_metrics,omitempty"`
+	ScaleUpStabilizationWindow   int32             `json:"scale_up_stabilization_window"`
+	ScaleDownStabilizationWindow int32             `json:"scale_down_stabilization_window"`
 }
 
 // CustomMetricHPA defines custom metric for HPA.
@@ -183,13 +183,13 @@ type CustomMetricHPA struct {
 
 // VPARecommendation contains VPA configuration recommendations.
 type VPARecommendation struct {
-	UpdateMode   string            `json:"update_mode"`
+	UpdateMode        string            `json:"update_mode"`
 	ContainerPolicies []ContainerPolicy `json:"container_policies"`
 }
 
 // ContainerPolicy defines resource policy for a container.
 type ContainerPolicy struct {
-	ContainerName string `json:"container_name"`
+	ContainerName string       `json:"container_name"`
 	MinAllowed    ResourceList `json:"min_allowed"`
 	MaxAllowed    ResourceList `json:"max_allowed"`
 	Recommended   ResourceList `json:"recommended"`
@@ -203,20 +203,20 @@ type ResourceList struct {
 
 // PredictedValue represents a predicted future value.
 type PredictedValue struct {
-	Timestamp  int64   `json:"timestamp"`
-	Value      float64 `json:"value"`
-	Lower      float64 `json:"lower"`
-	Upper      float64 `json:"upper"`
+	Timestamp int64   `json:"timestamp"`
+	Value     float64 `json:"value"`
+	Lower     float64 `json:"lower"`
+	Upper     float64 `json:"upper"`
 }
 
 // PredictionRecord tracks prediction accuracy.
 type PredictionRecord struct {
-	WorkloadName  string    `json:"workload_name"`
-	PredictedAt   time.Time `json:"predicted_at"`
-	PredictedFor  time.Time `json:"predicted_for"`
-	Predicted     float64   `json:"predicted"`
-	Actual        float64   `json:"actual"`
-	Error         float64   `json:"error"`
+	WorkloadName string    `json:"workload_name"`
+	PredictedAt  time.Time `json:"predicted_at"`
+	PredictedFor time.Time `json:"predicted_for"`
+	Predicted    float64   `json:"predicted"`
+	Actual       float64   `json:"actual"`
+	Error        float64   `json:"error"`
 }
 
 // NewAutoScalingEngine creates a new auto-scaling hints engine.
@@ -551,7 +551,7 @@ func (e *AutoScalingEngine) generateVPAConfig(workload *WorkloadProfile) *VPARec
 	}
 
 	// Convert percentages to resource units (simplified)
-	recommendedCPU := fmt.Sprintf("%dm", int(cpuP90*10))   // millicores
+	recommendedCPU := fmt.Sprintf("%dm", int(cpuP90*10))  // millicores
 	recommendedMem := fmt.Sprintf("%dMi", int(memP90*10)) // MiB
 
 	return &VPARecommendation{
@@ -615,11 +615,11 @@ func (e *AutoScalingEngine) ExportPrometheusRules() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	var rules []map[string]interface{}
+	var rules []map[string]any
 
 	for _, rec := range e.recommendations {
 		if rec.Action == ScalingActionScaleUp {
-			rules = append(rules, map[string]interface{}{
+			rules = append(rules, map[string]any{
 				"alert": fmt.Sprintf("ScaleUpRecommended_%s", rec.WorkloadName),
 				"expr":  fmt.Sprintf(`avg(container_cpu_usage_seconds_total{namespace="%s",pod=~"%s.*"}) > %.2f`, rec.Namespace, rec.WorkloadName, e.config.ScaleUpThreshold/100),
 				"for":   "5m",
@@ -635,8 +635,8 @@ func (e *AutoScalingEngine) ExportPrometheusRules() string {
 		}
 	}
 
-	data, _ := json.MarshalIndent(map[string]interface{}{
-		"groups": []map[string]interface{}{
+	data, _ := json.MarshalIndent(map[string]any{
+		"groups": []map[string]any{
 			{
 				"name":  "chronicle-autoscaling",
 				"rules": rules,

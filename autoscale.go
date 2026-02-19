@@ -111,18 +111,18 @@ type ScaleDecision struct {
 
 // AutoscaleSnapshot represents the current state of all tuned parameters.
 type AutoscaleSnapshot struct {
-	Timestamp             time.Time       `json:"timestamp"`
-	BufferPoolSize        int             `json:"buffer_pool_size"`
-	WriteWorkers          int             `json:"write_workers"`
-	CompactionWorkers     int             `json:"compaction_workers"`
-	WriteRatePerSec       float64         `json:"write_rate_per_sec"`
-	QueryRatePerSec       float64         `json:"query_rate_per_sec"`
-	MemoryUtilization     float64         `json:"memory_utilization"`
-	StorageUtilization    float64         `json:"storage_utilization"`
-	PendingDecisions      int             `json:"pending_decisions"`
-	TotalScaleUps         int64           `json:"total_scale_ups"`
-	TotalScaleDowns       int64           `json:"total_scale_downs"`
-	RecentDecisions       []ScaleDecision `json:"recent_decisions,omitempty"`
+	Timestamp          time.Time       `json:"timestamp"`
+	BufferPoolSize     int             `json:"buffer_pool_size"`
+	WriteWorkers       int             `json:"write_workers"`
+	CompactionWorkers  int             `json:"compaction_workers"`
+	WriteRatePerSec    float64         `json:"write_rate_per_sec"`
+	QueryRatePerSec    float64         `json:"query_rate_per_sec"`
+	MemoryUtilization  float64         `json:"memory_utilization"`
+	StorageUtilization float64         `json:"storage_utilization"`
+	PendingDecisions   int             `json:"pending_decisions"`
+	TotalScaleUps      int64           `json:"total_scale_ups"`
+	TotalScaleDowns    int64           `json:"total_scale_downs"`
+	RecentDecisions    []ScaleDecision `json:"recent_decisions,omitempty"`
 }
 
 // InternalMetricSample holds a single observation of an internal metric.

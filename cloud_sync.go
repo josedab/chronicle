@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -200,12 +200,12 @@ func DefaultCloudSyncConfig() CloudSyncConfig {
 
 // CloudSync manages edge-to-cloud synchronization.
 type CloudSync struct {
-	config    CloudSyncConfig
-	db        *DB
-	mu        sync.RWMutex
-	client    HTTPDoer
-	retryer   *Retryer
-	cb        *CircuitBreaker
+	config  CloudSyncConfig
+	db      *DB
+	mu      sync.RWMutex
+	client  HTTPDoer
+	retryer *Retryer
+	cb      *CircuitBreaker
 
 	// Sync state
 	lastSyncTime   time.Time
@@ -272,19 +272,19 @@ type SyncStats struct {
 
 // SyncCheckpoint tracks sync progress for resumability.
 type SyncCheckpoint struct {
-	LastSyncedTimestamp int64             `json:"last_synced_timestamp"`
-	PendingBatches      []string          `json:"pending_batches"`
-	MetricOffsets       map[string]int64  `json:"metric_offsets"`
-	Version             int               `json:"version"`
-	Checksum            string            `json:"checksum"`
+	LastSyncedTimestamp int64            `json:"last_synced_timestamp"`
+	PendingBatches      []string         `json:"pending_batches"`
+	MetricOffsets       map[string]int64 `json:"metric_offsets"`
+	Version             int              `json:"version"`
+	Checksum            string           `json:"checksum"`
 }
 
 // SyncRequest represents a sync operation request.
 type SyncRequest struct {
-	Points      []Point
-	Timestamp   int64
-	Priority    int
-	ResultChan  chan *SyncResult
+	Points     []Point
+	Timestamp  int64
+	Priority   int
+	ResultChan chan *SyncResult
 }
 
 // SyncResult contains the result of a sync operation.
@@ -299,9 +299,9 @@ type SyncResult struct {
 
 // OfflineQueue manages data storage when cloud is unavailable.
 type OfflineQueue struct {
-	path      string
-	maxSize   int64
-	mu        sync.Mutex
+	path        string
+	maxSize     int64
+	mu          sync.Mutex
 	currentSize int64
 }
 
@@ -451,7 +451,7 @@ func (cs *CloudSync) performSync() {
 	if cs.db != nil {
 		points, err = cs.getUnsyncedPoints()
 		if err != nil {
-			log.Printf("chronicle: cloud sync get points error: %v", err)
+			slog.Error("cloud sync get points error", "err", err)
 			cs.mu.Lock()
 			cs.lastSyncStatus = SyncStatusError
 			cs.mu.Unlock()
@@ -643,12 +643,12 @@ func (cs *CloudSync) preparePayload(points []Point) ([]byte, error) {
 
 // SyncManifest contains metadata about a sync batch.
 type SyncManifest struct {
-	Version   int          `json:"version"`
-	Timestamp int64        `json:"timestamp"`
-	Format    string       `json:"format"`
-	Points    []Point      `json:"points"`
-	EdgeID    string       `json:"edge_id"`
-	Checksum  string       `json:"checksum,omitempty"`
+	Version   int     `json:"version"`
+	Timestamp int64   `json:"timestamp"`
+	Format    string  `json:"format"`
+	Points    []Point `json:"points"`
+	EdgeID    string  `json:"edge_id"`
+	Checksum  string  `json:"checksum,omitempty"`
 }
 
 func (cs *CloudSync) getEdgeID() string {
@@ -664,7 +664,7 @@ func (cs *CloudSync) sendToCloud(payload []byte) error {
 	ctx, cancel := context.WithTimeout(cs.ctx, 30*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, 
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		cs.config.CloudEndpoint+"/api/v1/sync/upload", bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -710,7 +710,7 @@ func (cs *CloudSync) queueOffline(points []Point) {
 
 	// Check size limit
 	if cs.offlineQueue.currentSize >= cs.offlineQueue.maxSize {
-		log.Printf("chronicle: offline queue full, dropping %d points", len(points))
+		slog.Warn("offline queue full, dropping points", "count", len(points))
 		return
 	}
 
@@ -720,12 +720,12 @@ func (cs *CloudSync) queueOffline(points []Point) {
 
 	data, err := json.Marshal(points)
 	if err != nil {
-		log.Printf("chronicle: offline queue marshal error: %v", err)
+		slog.Error("offline queue marshal error", "err", err)
 		return
 	}
 
 	if err := os.WriteFile(filepath, data, 0644); err != nil {
-		log.Printf("chronicle: offline queue write error: %v", err)
+		slog.Error("offline queue write error", "err", err)
 		return
 	}
 
@@ -798,7 +798,7 @@ func (cs *CloudSync) loadCheckpoint() {
 
 	// Verify checksum
 	if !cs.verifyCheckpoint(&checkpoint) {
-		log.Printf("chronicle: checkpoint checksum mismatch, starting fresh")
+		slog.Warn("checkpoint checksum mismatch, starting fresh")
 		return
 	}
 
@@ -950,11 +950,11 @@ func (cs *CloudSync) PullFromCloud() (*CloudPullResult, error) {
 
 // CloudPullResult contains data pulled from cloud.
 type CloudPullResult struct {
-	AlertRules      []AlertRule             `json:"alert_rules,omitempty"`
-	RecordingRules  []RecordingRuleConfig   `json:"recording_rules,omitempty"`
-	Schemas         []MetricSchema          `json:"schemas,omitempty"`
-	Configuration   map[string]interface{}  `json:"configuration,omitempty"`
-	Timestamp       int64                   `json:"timestamp"`
+	AlertRules     []AlertRule           `json:"alert_rules,omitempty"`
+	RecordingRules []RecordingRuleConfig `json:"recording_rules,omitempty"`
+	Schemas        []MetricSchema        `json:"schemas,omitempty"`
+	Configuration  map[string]any        `json:"configuration,omitempty"`
+	Timestamp      int64                 `json:"timestamp"`
 }
 
 // RecordingRuleConfig holds recording rule configuration for sync.

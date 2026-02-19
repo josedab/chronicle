@@ -62,9 +62,9 @@ type DeltaSyncConfig struct {
 	BandwidthLimitBps int64 `json:"bandwidth_limit_bps"`
 
 	// RetryConfig for failed syncs.
-	MaxRetries       int           `json:"max_retries"`
-	RetryBackoff     time.Duration `json:"retry_backoff"`
-	MaxRetryBackoff  time.Duration `json:"max_retry_backoff"`
+	MaxRetries      int           `json:"max_retries"`
+	RetryBackoff    time.Duration `json:"retry_backoff"`
+	MaxRetryBackoff time.Duration `json:"max_retry_backoff"`
 
 	// FilterMetrics syncs only these metrics (empty=all).
 	FilterMetrics []string `json:"filter_metrics,omitempty"`
@@ -159,19 +159,19 @@ type DeltaSyncManager struct {
 
 // DeltaSyncStats contains sync statistics.
 type DeltaSyncStats struct {
-	PointsSynced          int64     `json:"points_synced"`
-	BytesSynced           int64     `json:"bytes_synced"`
-	BytesSaved            int64     `json:"bytes_saved"` // Savings from delta encoding
-	SyncAttempts          int64     `json:"sync_attempts"`
-	SuccessfulSyncs       int64     `json:"successful_syncs"`
-	FailedSyncs           int64     `json:"failed_syncs"`
-	ConflictsResolved     int64     `json:"conflicts_resolved"`
-	LastSyncTime          time.Time `json:"last_sync_time"`
-	LastError             string    `json:"last_error,omitempty"`
-	QueuedPoints          int64     `json:"queued_points"`
-	QueuedBytes           int64     `json:"queued_bytes"`
-	AverageSyncLatencyMs  float64   `json:"average_sync_latency_ms"`
-	CompressionRatio      float64   `json:"compression_ratio"`
+	PointsSynced         int64     `json:"points_synced"`
+	BytesSynced          int64     `json:"bytes_synced"`
+	BytesSaved           int64     `json:"bytes_saved"` // Savings from delta encoding
+	SyncAttempts         int64     `json:"sync_attempts"`
+	SuccessfulSyncs      int64     `json:"successful_syncs"`
+	FailedSyncs          int64     `json:"failed_syncs"`
+	ConflictsResolved    int64     `json:"conflicts_resolved"`
+	LastSyncTime         time.Time `json:"last_sync_time"`
+	LastError            string    `json:"last_error,omitempty"`
+	QueuedPoints         int64     `json:"queued_points"`
+	QueuedBytes          int64     `json:"queued_bytes"`
+	AverageSyncLatencyMs float64   `json:"average_sync_latency_ms"`
+	CompressionRatio     float64   `json:"compression_ratio"`
 }
 
 // VectorClock implements a vector clock for conflict detection.
@@ -643,7 +643,7 @@ func (m *DeltaSyncManager) deltaEncode(points []Point) []Point {
 	for i := 1; i < len(points); i++ {
 		encoded[i] = Point{
 			Metric:    points[i].Metric,
-			Value:     points[i].Value - points[i-1].Value, // Delta value
+			Value:     points[i].Value - points[i-1].Value,         // Delta value
 			Timestamp: points[i].Timestamp - points[i-1].Timestamp, // Delta timestamp
 			Tags:      points[i].Tags,
 		}
@@ -732,9 +732,9 @@ func (m *DeltaSyncManager) sendBatch(batch DeltaBatch) error {
 			lastErr = err
 			time.Sleep(backoff)
 			backoff = backoff * 2
-		if backoff > m.config.MaxRetryBackoff {
-			backoff = m.config.MaxRetryBackoff
-		}
+			if backoff > m.config.MaxRetryBackoff {
+				backoff = m.config.MaxRetryBackoff
+			}
 			continue
 		}
 		resp.Body.Close()
@@ -1086,9 +1086,9 @@ func (m *DeltaSyncManager) GetVectorClock() map[string]uint64 {
 
 // DeltaPullResponse is the response from cloud pull.
 type DeltaPullResponse struct {
-	Batches     []DeltaBatch `json:"batches"`
+	Batches     []DeltaBatch      `json:"batches"`
 	VectorClock map[string]uint64 `json:"vector_clock"`
-	HasMore     bool         `json:"has_more"`
+	HasMore     bool              `json:"has_more"`
 }
 
 // --- Delta Encoding Utilities ---

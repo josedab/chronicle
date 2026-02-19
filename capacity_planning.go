@@ -46,13 +46,13 @@ func DefaultCapacityPlanningConfig() CapacityPlanningConfig {
 	return CapacityPlanningConfig{
 		Enabled:                   true,
 		MetricsCollectionInterval: 1 * time.Minute,
-		ForecastHorizon:          7 * 24 * time.Hour, // 7 days
-		HistoryWindow:            30 * 24 * time.Hour, // 30 days
-		RecommendationInterval:   1 * time.Hour,
-		AutoTuneEnabled:          false,
-		SafetyMargin:             0.2,
-		AlertThreshold:           0.8,
-		MinDataPoints:            100,
+		ForecastHorizon:           7 * 24 * time.Hour,  // 7 days
+		HistoryWindow:             30 * 24 * time.Hour, // 30 days
+		RecommendationInterval:    1 * time.Hour,
+		AutoTuneEnabled:           false,
+		SafetyMargin:              0.2,
+		AlertThreshold:            0.8,
+		MinDataPoints:             100,
 	}
 }
 
@@ -67,30 +67,30 @@ type CapacityMetric struct {
 
 // ResourceUsage represents current resource utilization.
 type ResourceUsage struct {
-	Timestamp      time.Time            `json:"timestamp"`
-	StorageBytes   int64                `json:"storage_bytes"`
-	StorageLimit   int64                `json:"storage_limit,omitempty"`
-	MemoryBytes    int64                `json:"memory_bytes"`
-	MemoryLimit    int64                `json:"memory_limit,omitempty"`
-	PointsCount    int64                `json:"points_count"`
-	PointsLimit    int64                `json:"points_limit,omitempty"`
-	SeriesCount    int64                `json:"series_count"`
-	SeriesLimit    int64                `json:"series_limit,omitempty"`
-	QueryRate      float64              `json:"query_rate"`      // queries/sec
-	WriteRate      float64              `json:"write_rate"`      // points/sec
-	PartitionCount int                  `json:"partition_count"`
-	CustomMetrics  map[string]float64   `json:"custom_metrics,omitempty"`
+	Timestamp      time.Time          `json:"timestamp"`
+	StorageBytes   int64              `json:"storage_bytes"`
+	StorageLimit   int64              `json:"storage_limit,omitempty"`
+	MemoryBytes    int64              `json:"memory_bytes"`
+	MemoryLimit    int64              `json:"memory_limit,omitempty"`
+	PointsCount    int64              `json:"points_count"`
+	PointsLimit    int64              `json:"points_limit,omitempty"`
+	SeriesCount    int64              `json:"series_count"`
+	SeriesLimit    int64              `json:"series_limit,omitempty"`
+	QueryRate      float64            `json:"query_rate"` // queries/sec
+	WriteRate      float64            `json:"write_rate"` // points/sec
+	PartitionCount int                `json:"partition_count"`
+	CustomMetrics  map[string]float64 `json:"custom_metrics,omitempty"`
 }
 
 // CapacityForecast represents a predicted future state.
 type CapacityForecast struct {
-	Metric          string          `json:"metric"`
-	ForecastTime    time.Time       `json:"forecast_time"`
-	PredictedValue  float64         `json:"predicted_value"`
-	LowerBound      float64         `json:"lower_bound"`
-	UpperBound      float64         `json:"upper_bound"`
-	Confidence      float64         `json:"confidence"`
-	Trend           TrendDirection  `json:"trend"`
+	Metric           string         `json:"metric"`
+	ForecastTime     time.Time      `json:"forecast_time"`
+	PredictedValue   float64        `json:"predicted_value"`
+	LowerBound       float64        `json:"lower_bound"`
+	UpperBound       float64        `json:"upper_bound"`
+	Confidence       float64        `json:"confidence"`
+	Trend            TrendDirection `json:"trend"`
 	TimeToExhaustion *time.Duration `json:"time_to_exhaustion,omitempty"`
 }
 
@@ -98,27 +98,27 @@ type CapacityForecast struct {
 type TrendDirection string
 
 const (
-	TrendUp       TrendDirection = "up"
-	TrendDown     TrendDirection = "down"
-	TrendStable   TrendDirection = "stable"
-	TrendUnknown  TrendDirection = "unknown"
+	TrendUp      TrendDirection = "up"
+	TrendDown    TrendDirection = "down"
+	TrendStable  TrendDirection = "stable"
+	TrendUnknown TrendDirection = "unknown"
 )
 
 // CapacityRecommendation represents a suggested action.
 type CapacityRecommendation struct {
-	ID          string                `json:"id"`
-	Priority    RecommendationPriority `json:"priority"`
-	Category    RecommendationCategory `json:"category"`
-	Title       string                `json:"title"`
-	Description string                `json:"description"`
-	Metric      string                `json:"metric"`
-	CurrentValue float64              `json:"current_value"`
-	SuggestedValue float64            `json:"suggested_value"`
-	Impact      string                `json:"impact"`
-	Effort      string                `json:"effort"`
-	AutoApply   bool                  `json:"auto_apply"`
-	AppliedAt   *time.Time            `json:"applied_at,omitempty"`
-	CreatedAt   time.Time             `json:"created_at"`
+	ID             string                 `json:"id"`
+	Priority       RecommendationPriority `json:"priority"`
+	Category       RecommendationCategory `json:"category"`
+	Title          string                 `json:"title"`
+	Description    string                 `json:"description"`
+	Metric         string                 `json:"metric"`
+	CurrentValue   float64                `json:"current_value"`
+	SuggestedValue float64                `json:"suggested_value"`
+	Impact         string                 `json:"impact"`
+	Effort         string                 `json:"effort"`
+	AutoApply      bool                   `json:"auto_apply"`
+	AppliedAt      *time.Time             `json:"applied_at,omitempty"`
+	CreatedAt      time.Time              `json:"created_at"`
 }
 
 // RecommendationPriority indicates urgency.
@@ -135,40 +135,40 @@ const (
 type RecommendationCategory string
 
 const (
-	CategoryStorage    RecommendationCategory = "storage"
-	CategoryRetention  RecommendationCategory = "retention"
-	CategoryPartition  RecommendationCategory = "partition"
-	CategoryDownsample RecommendationCategory = "downsample"
+	CategoryStorage     RecommendationCategory = "storage"
+	CategoryRetention   RecommendationCategory = "retention"
+	CategoryPartition   RecommendationCategory = "partition"
+	CategoryDownsample  RecommendationCategory = "downsample"
 	CategoryCompression RecommendationCategory = "compression"
-	CategoryMemory     RecommendationCategory = "memory"
-	CategoryQuery      RecommendationCategory = "query"
+	CategoryMemory      RecommendationCategory = "memory"
+	CategoryQuery       RecommendationCategory = "query"
 )
 
 // CapacityAlert represents a capacity-related alert.
 type CapacityAlert struct {
-	ID          string         `json:"id"`
-	Severity    string         `json:"severity"`
-	Metric      string         `json:"metric"`
-	Message     string         `json:"message"`
-	Value       float64        `json:"value"`
-	Threshold   float64        `json:"threshold"`
-	Triggered   time.Time      `json:"triggered"`
-	Resolved    *time.Time     `json:"resolved,omitempty"`
-	Acknowledged bool          `json:"acknowledged"`
+	ID           string     `json:"id"`
+	Severity     string     `json:"severity"`
+	Metric       string     `json:"metric"`
+	Message      string     `json:"message"`
+	Value        float64    `json:"value"`
+	Threshold    float64    `json:"threshold"`
+	Triggered    time.Time  `json:"triggered"`
+	Resolved     *time.Time `json:"resolved,omitempty"`
+	Acknowledged bool       `json:"acknowledged"`
 }
 
 // CapacityPlanningEngine provides predictive capacity planning.
 type CapacityPlanningEngine struct {
-	db       *DB
-	config   CapacityPlanningConfig
+	db     *DB
+	config CapacityPlanningConfig
 
 	// Usage history
-	usageHistory   []ResourceUsage
-	historyMu      sync.RWMutex
+	usageHistory []ResourceUsage
+	historyMu    sync.RWMutex
 
 	// Forecasts
-	forecasts   map[string]*CapacityForecast
-	forecastMu  sync.RWMutex
+	forecasts  map[string]*CapacityForecast
+	forecastMu sync.RWMutex
 
 	// Recommendations
 	recommendations   []*CapacityRecommendation
@@ -179,7 +179,7 @@ type CapacityPlanningEngine struct {
 	alertsMu sync.RWMutex
 
 	// Callbacks
-	onAlert func(*CapacityAlert)
+	onAlert          func(*CapacityAlert)
 	onRecommendation func(*CapacityRecommendation)
 
 	ctx    context.Context
@@ -187,10 +187,10 @@ type CapacityPlanningEngine struct {
 	wg     sync.WaitGroup
 
 	// Stats
-	collectionsRun int64
-	forecastsGenerated int64
+	collectionsRun           int64
+	forecastsGenerated       int64
 	recommendationsGenerated int64
-	autoTunesApplied int64
+	autoTunesApplied         int64
 }
 
 // NewCapacityPlanningEngine creates a new capacity planning engine.
@@ -231,7 +231,7 @@ func (e *CapacityPlanningEngine) CollectMetrics() (*ResourceUsage, error) {
 			usage.StorageBytes = size
 		}
 	}
-	
+
 	// Use estimates for other metrics based on collected history
 	e.historyMu.RLock()
 	if len(e.usageHistory) > 0 {
@@ -251,7 +251,7 @@ func (e *CapacityPlanningEngine) CollectMetrics() (*ResourceUsage, error) {
 	// Store in history
 	e.historyMu.Lock()
 	e.usageHistory = append(e.usageHistory, *usage)
-	
+
 	// Trim history to window
 	cutoff := time.Now().Add(-e.config.HistoryWindow)
 	for len(e.usageHistory) > 0 && e.usageHistory[0].Timestamp.Before(cutoff) {
@@ -334,7 +334,7 @@ func (e *CapacityPlanningEngine) forecastMetric(name string, values []float64, t
 
 	// Use simple linear regression for forecasting
 	n := float64(len(values))
-	
+
 	// Convert timestamps to hours from start
 	start := timestamps[0]
 	x := make([]float64, len(timestamps))
@@ -374,7 +374,7 @@ func (e *CapacityPlanningEngine) forecastMetric(name string, values []float64, t
 
 	// Calculate prediction interval
 	stdError := math.Sqrt(ssRes / (n - 2))
-	marginOfError := 1.96 * stdError * math.Sqrt(1 + 1/n + math.Pow(forecastX-sumX/n, 2)/(sumXX-sumX*sumX/n))
+	marginOfError := 1.96 * stdError * math.Sqrt(1+1/n+math.Pow(forecastX-sumX/n, 2)/(sumXX-sumX*sumX/n))
 
 	// Determine trend
 	var trend TrendDirection
@@ -433,17 +433,17 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	if forecast, ok := forecasts["storage"]; ok && forecast != nil {
 		if forecast.TimeToExhaustion != nil && *forecast.TimeToExhaustion < 7*24*time.Hour {
 			rec := &CapacityRecommendation{
-				ID:          generateID(),
-				Priority:    PriorityHigh,
-				Category:    CategoryStorage,
-				Title:       "Storage Exhaustion Warning",
-				Description: fmt.Sprintf("Storage projected to be exhausted in %v. Consider increasing storage limit or adjusting retention.", forecast.TimeToExhaustion),
-				Metric:      "storage",
-				CurrentValue: float64(current.StorageBytes),
+				ID:             generateID(),
+				Priority:       PriorityHigh,
+				Category:       CategoryStorage,
+				Title:          "Storage Exhaustion Warning",
+				Description:    fmt.Sprintf("Storage projected to be exhausted in %v. Consider increasing storage limit or adjusting retention.", forecast.TimeToExhaustion),
+				Metric:         "storage",
+				CurrentValue:   float64(current.StorageBytes),
 				SuggestedValue: float64(current.StorageBytes) * (1 + e.config.SafetyMargin),
-				Impact:      "Prevents data loss and write failures",
-				Effort:      "low",
-				CreatedAt:   time.Now(),
+				Impact:         "Prevents data loss and write failures",
+				Effort:         "low",
+				CreatedAt:      time.Now(),
 			}
 			recommendations = append(recommendations, rec)
 		}
@@ -454,18 +454,18 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 		utilization := float64(current.StorageBytes) / float64(current.StorageLimit)
 		if utilization > 0.8 {
 			rec := &CapacityRecommendation{
-				ID:          generateID(),
-				Priority:    PriorityMedium,
-				Category:    CategoryRetention,
-				Title:       "Adjust Retention Policy",
-				Description: fmt.Sprintf("Storage utilization is %.1f%%. Consider reducing retention period or enabling more aggressive downsampling.", utilization*100),
-				Metric:      "storage_utilization",
-				CurrentValue: utilization,
+				ID:             generateID(),
+				Priority:       PriorityMedium,
+				Category:       CategoryRetention,
+				Title:          "Adjust Retention Policy",
+				Description:    fmt.Sprintf("Storage utilization is %.1f%%. Consider reducing retention period or enabling more aggressive downsampling.", utilization*100),
+				Metric:         "storage_utilization",
+				CurrentValue:   utilization,
 				SuggestedValue: 0.7,
-				Impact:      "Reduces storage usage while maintaining data availability",
-				Effort:      "medium",
-				AutoApply:   e.config.AutoTuneEnabled,
-				CreatedAt:   time.Now(),
+				Impact:         "Reduces storage usage while maintaining data availability",
+				Effort:         "medium",
+				AutoApply:      e.config.AutoTuneEnabled,
+				CreatedAt:      time.Now(),
 			}
 			recommendations = append(recommendations, rec)
 		}
@@ -476,17 +476,17 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 		utilization := float64(current.SeriesCount) / float64(current.SeriesLimit)
 		if utilization > 0.7 {
 			rec := &CapacityRecommendation{
-				ID:          generateID(),
-				Priority:    PriorityMedium,
-				Category:    CategoryQuery,
-				Title:       "High Series Cardinality",
-				Description: fmt.Sprintf("Series count is %.1f%% of limit. Consider reviewing tag usage or increasing cardinality limits.", utilization*100),
-				Metric:      "series_utilization",
-				CurrentValue: float64(current.SeriesCount),
+				ID:             generateID(),
+				Priority:       PriorityMedium,
+				Category:       CategoryQuery,
+				Title:          "High Series Cardinality",
+				Description:    fmt.Sprintf("Series count is %.1f%% of limit. Consider reviewing tag usage or increasing cardinality limits.", utilization*100),
+				Metric:         "series_utilization",
+				CurrentValue:   float64(current.SeriesCount),
 				SuggestedValue: float64(current.SeriesLimit) * 0.5,
-				Impact:      "Improves query performance and reduces memory usage",
-				Effort:      "high",
-				CreatedAt:   time.Now(),
+				Impact:         "Improves query performance and reduces memory usage",
+				Effort:         "high",
+				CreatedAt:      time.Now(),
 			}
 			recommendations = append(recommendations, rec)
 		}
@@ -496,18 +496,18 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	avgPointsPerPartition := float64(current.PointsCount) / float64(max(current.PartitionCount, 1))
 	if avgPointsPerPartition > 10000000 { // 10M points per partition
 		rec := &CapacityRecommendation{
-			ID:          generateID(),
-			Priority:    PriorityLow,
-			Category:    CategoryPartition,
-			Title:       "Consider Partition Splitting",
-			Description: fmt.Sprintf("Average %.0f points per partition. Consider reducing partition time window for better query performance.", avgPointsPerPartition),
-			Metric:      "points_per_partition",
-			CurrentValue: avgPointsPerPartition,
+			ID:             generateID(),
+			Priority:       PriorityLow,
+			Category:       CategoryPartition,
+			Title:          "Consider Partition Splitting",
+			Description:    fmt.Sprintf("Average %.0f points per partition. Consider reducing partition time window for better query performance.", avgPointsPerPartition),
+			Metric:         "points_per_partition",
+			CurrentValue:   avgPointsPerPartition,
 			SuggestedValue: 5000000,
-			Impact:      "Improves query latency for time-bounded queries",
-			Effort:      "medium",
-			AutoApply:   e.config.AutoTuneEnabled,
-			CreatedAt:   time.Now(),
+			Impact:         "Improves query latency for time-bounded queries",
+			Effort:         "medium",
+			AutoApply:      e.config.AutoTuneEnabled,
+			CreatedAt:      time.Now(),
 		}
 		recommendations = append(recommendations, rec)
 	}
@@ -517,17 +517,17 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 		utilization := float64(current.MemoryBytes) / float64(current.MemoryLimit)
 		if utilization > 0.85 {
 			rec := &CapacityRecommendation{
-				ID:          generateID(),
-				Priority:    PriorityCritical,
-				Category:    CategoryMemory,
-				Title:       "Memory Pressure Warning",
-				Description: fmt.Sprintf("Memory utilization is %.1f%%. Risk of OOM. Increase memory limit or reduce cache sizes.", utilization*100),
-				Metric:      "memory_utilization",
-				CurrentValue: float64(current.MemoryBytes),
+				ID:             generateID(),
+				Priority:       PriorityCritical,
+				Category:       CategoryMemory,
+				Title:          "Memory Pressure Warning",
+				Description:    fmt.Sprintf("Memory utilization is %.1f%%. Risk of OOM. Increase memory limit or reduce cache sizes.", utilization*100),
+				Metric:         "memory_utilization",
+				CurrentValue:   float64(current.MemoryBytes),
 				SuggestedValue: float64(current.MemoryLimit) * 0.7,
-				Impact:      "Prevents OOM crashes and performance degradation",
-				Effort:      "low",
-				CreatedAt:   time.Now(),
+				Impact:         "Prevents OOM crashes and performance degradation",
+				Effort:         "low",
+				CreatedAt:      time.Now(),
 			}
 			recommendations = append(recommendations, rec)
 		}
@@ -536,18 +536,18 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	// Downsampling recommendations based on query patterns
 	if forecast, ok := forecasts["query_rate"]; ok && forecast != nil && forecast.Trend == TrendUp {
 		rec := &CapacityRecommendation{
-			ID:          generateID(),
-			Priority:    PriorityLow,
-			Category:    CategoryDownsample,
-			Title:       "Enable Additional Downsampling",
-			Description: "Query rate is increasing. Consider enabling additional downsampling tiers for faster dashboard queries.",
-			Metric:      "query_rate",
-			CurrentValue: current.QueryRate,
+			ID:             generateID(),
+			Priority:       PriorityLow,
+			Category:       CategoryDownsample,
+			Title:          "Enable Additional Downsampling",
+			Description:    "Query rate is increasing. Consider enabling additional downsampling tiers for faster dashboard queries.",
+			Metric:         "query_rate",
+			CurrentValue:   current.QueryRate,
 			SuggestedValue: current.QueryRate * 0.8,
-			Impact:      "Reduces query latency and database load",
-			Effort:      "medium",
-			AutoApply:   e.config.AutoTuneEnabled,
-			CreatedAt:   time.Now(),
+			Impact:         "Reduces query latency and database load",
+			Effort:         "medium",
+			AutoApply:      e.config.AutoTuneEnabled,
+			CreatedAt:      time.Now(),
 		}
 		recommendations = append(recommendations, rec)
 	}
@@ -884,12 +884,12 @@ func (e *CapacityPlanningEngine) Close() error {
 // ExportReport exports a capacity planning report.
 func (e *CapacityPlanningEngine) ExportReport() ([]byte, error) {
 	report := struct {
-		GeneratedAt      time.Time                 `json:"generated_at"`
-		CurrentUsage     *ResourceUsage            `json:"current_usage,omitempty"`
-		Forecasts        map[string]*CapacityForecast `json:"forecasts"`
-		Recommendations  []*CapacityRecommendation `json:"recommendations"`
-		ActiveAlerts     []*CapacityAlert          `json:"active_alerts"`
-		Stats            CapacityPlanningStats     `json:"stats"`
+		GeneratedAt     time.Time                    `json:"generated_at"`
+		CurrentUsage    *ResourceUsage               `json:"current_usage,omitempty"`
+		Forecasts       map[string]*CapacityForecast `json:"forecasts"`
+		Recommendations []*CapacityRecommendation    `json:"recommendations"`
+		ActiveAlerts    []*CapacityAlert             `json:"active_alerts"`
+		Stats           CapacityPlanningStats        `json:"stats"`
 	}{
 		GeneratedAt:     time.Now(),
 		Forecasts:       e.GetForecasts(),

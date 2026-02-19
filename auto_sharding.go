@@ -938,7 +938,7 @@ func (e *AutoShardingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"metric":  metric,
 			"tags":    tags,
 			"node_id": node.ID,

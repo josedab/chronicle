@@ -35,11 +35,11 @@ func DefaultSaaSControlPlaneConfig() SaaSControlPlaneConfig {
 		Enabled:    false,
 		MaxTenants: 1000,
 		DefaultQuota: TenantQuota{
-			MaxWritesPerSecond: 10000,
+			MaxWritesPerSecond:  10000,
 			MaxQueriesPerSecond: 100,
-			MaxStorageBytes:    10 * 1024 * 1024 * 1024, // 10GB
-			MaxMetrics:         10000,
-			MaxRetentionDays:   30,
+			MaxStorageBytes:     10 * 1024 * 1024 * 1024, // 10GB
+			MaxMetrics:          10000,
+			MaxRetentionDays:    30,
 		},
 		MeteringInterval:   time.Minute,
 		EnableRBAC:         true,
@@ -59,15 +59,15 @@ type TenantQuota struct {
 
 // SaaSTenant represents a tenant in the control plane.
 type SaaSTenant struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Status        TenantStatus      `json:"status"`
-	Quota         TenantQuota       `json:"quota"`
-	APIKey        string            `json:"api_key"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
-	Usage         TenantUsage       `json:"usage"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Status    TenantStatus      `json:"status"`
+	Quota     TenantQuota       `json:"quota"`
+	APIKey    string            `json:"api_key"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	Usage     TenantUsage       `json:"usage"`
 }
 
 // TenantUsage tracks resource consumption.
@@ -306,7 +306,7 @@ func (cp *SaaSControlPlane) CheckQuota(tenantID string) error {
 }
 
 // GetUsageSummary returns aggregated usage across all tenants.
-func (cp *SaaSControlPlane) GetUsageSummary() map[string]interface{} {
+func (cp *SaaSControlPlane) GetUsageSummary() map[string]any {
 	cp.mu.RLock()
 	defer cp.mu.RUnlock()
 
@@ -323,11 +323,11 @@ func (cp *SaaSControlPlane) GetUsageSummary() map[string]interface{} {
 		totalStorage += t.Usage.StorageBytesUsed
 	}
 
-	return map[string]interface{}{
-		"total_tenants":     len(cp.tenants),
-		"active_tenants":    activeTenants,
-		"total_writes":      totalWrites,
-		"total_queries":     totalQueries,
+	return map[string]any{
+		"total_tenants":       len(cp.tenants),
+		"active_tenants":      activeTenants,
+		"total_writes":        totalWrites,
+		"total_queries":       totalQueries,
 		"total_storage_bytes": totalStorage,
 	}
 }

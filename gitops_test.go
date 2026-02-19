@@ -184,7 +184,7 @@ func TestGitOpsEngineStartStop(t *testing.T) {
 	engine.Stop()
 }
 
-func gitopsMustMarshal(v interface{}) json.RawMessage {
+func gitopsMustMarshal(v any) json.RawMessage {
 	data, _ := json.Marshal(v)
 	return data
 }
