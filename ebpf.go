@@ -11,6 +11,10 @@ import (
 )
 
 // EXPERIMENTAL: This API is unstable and may change without notice.
+// NOTE: Real eBPF kernel instrumentation is not yet implemented. The collector falls back
+// to reading /proc for CPU, memory, disk, and network metrics. BPF program loading is a
+// placeholder that always reports "eBPF not available."
+//
 // EBPFConfig configures the eBPF collector.
 type EBPFConfig struct {
 	// Enabled enables eBPF collection.
@@ -95,12 +99,12 @@ type EBPFCollector struct {
 
 // EBPFEvent represents an eBPF-collected event.
 type EBPFEvent struct {
-	Type      EventType          `json:"type"`
-	Timestamp time.Time          `json:"timestamp"`
-	PID       int                `json:"pid,omitempty"`
-	Comm      string             `json:"comm,omitempty"`
-	CPU       int                `json:"cpu,omitempty"`
-	Data      map[string]any     `json:"data"`
+	Type      EventType      `json:"type"`
+	Timestamp time.Time      `json:"timestamp"`
+	PID       int            `json:"pid,omitempty"`
+	Comm      string         `json:"comm,omitempty"`
+	CPU       int            `json:"cpu,omitempty"`
+	Data      map[string]any `json:"data"`
 }
 
 // EventType identifies the type of eBPF event.
@@ -508,20 +512,20 @@ func (c *MemoryCollector) Collect() ([]EBPFEvent, error) {
 			Type:      EventTypeMemory,
 			Timestamp: now,
 			Data: map[string]any{
-				"alloc":          memStats.Alloc,
-				"total_alloc":    memStats.TotalAlloc,
-				"sys":            memStats.Sys,
-				"heap_alloc":     memStats.HeapAlloc,
-				"heap_sys":       memStats.HeapSys,
-				"heap_idle":      memStats.HeapIdle,
-				"heap_inuse":     memStats.HeapInuse,
-				"heap_released":  memStats.HeapReleased,
-				"heap_objects":   memStats.HeapObjects,
-				"stack_inuse":    memStats.StackInuse,
-				"stack_sys":      memStats.StackSys,
+				"alloc":           memStats.Alloc,
+				"total_alloc":     memStats.TotalAlloc,
+				"sys":             memStats.Sys,
+				"heap_alloc":      memStats.HeapAlloc,
+				"heap_sys":        memStats.HeapSys,
+				"heap_idle":       memStats.HeapIdle,
+				"heap_inuse":      memStats.HeapInuse,
+				"heap_released":   memStats.HeapReleased,
+				"heap_objects":    memStats.HeapObjects,
+				"stack_inuse":     memStats.StackInuse,
+				"stack_sys":       memStats.StackSys,
 				"gc_cpu_fraction": memStats.GCCPUFraction,
-				"num_gc":         memStats.NumGC,
-				"pause_total_ns": memStats.PauseTotalNs,
+				"num_gc":          memStats.NumGC,
+				"pause_total_ns":  memStats.PauseTotalNs,
 			},
 		},
 	}
@@ -685,9 +689,9 @@ func (c *ProcessCollector) Collect() ([]EBPFEvent, error) {
 		PID:       pid,
 		Comm:      os.Args[0],
 		Data: map[string]any{
-			"memory_alloc":  memStats.Alloc,
-			"goroutines":    runtime.NumGoroutine(),
-			"gc_cpu_frac":   memStats.GCCPUFraction,
+			"memory_alloc": memStats.Alloc,
+			"goroutines":   runtime.NumGoroutine(),
+			"gc_cpu_frac":  memStats.GCCPUFraction,
 		},
 	})
 
@@ -800,13 +804,13 @@ func (m *SystemMetrics) GetCPUUsage(duration time.Duration) ([]CPUUsage, error) 
 
 // CPUUsage represents CPU usage at a point in time.
 type CPUUsage struct {
-	Timestamp  time.Time `json:"timestamp"`
-	CPU        int       `json:"cpu"`
-	UserPct    float64   `json:"user_pct"`
-	SystemPct  float64   `json:"system_pct"`
-	IdlePct    float64   `json:"idle_pct"`
-	IOWaitPct  float64   `json:"iowait_pct"`
-	StealPct   float64   `json:"steal_pct"`
+	Timestamp time.Time `json:"timestamp"`
+	CPU       int       `json:"cpu"`
+	UserPct   float64   `json:"user_pct"`
+	SystemPct float64   `json:"system_pct"`
+	IdlePct   float64   `json:"idle_pct"`
+	IOWaitPct float64   `json:"iowait_pct"`
+	StealPct  float64   `json:"steal_pct"`
 }
 
 // GetMemoryUsage returns recent memory usage.
@@ -910,16 +914,16 @@ func (m *SystemMetrics) GetNetworkIO(duration time.Duration) ([]NetworkIO, error
 
 // NetworkIO represents network I/O at a point in time.
 type NetworkIO struct {
-	Timestamp    time.Time `json:"timestamp"`
-	Interface    string    `json:"interface"`
-	RxBytesPS    float64   `json:"rx_bytes_ps"`
-	TxBytesPS    float64   `json:"tx_bytes_ps"`
-	RxPacketsPS  float64   `json:"rx_packets_ps"`
-	TxPacketsPS  float64   `json:"tx_packets_ps"`
-	RxErrors     uint64    `json:"rx_errors"`
-	TxErrors     uint64    `json:"tx_errors"`
-	RxDropped    uint64    `json:"rx_dropped"`
-	TxDropped    uint64    `json:"tx_dropped"`
+	Timestamp   time.Time `json:"timestamp"`
+	Interface   string    `json:"interface"`
+	RxBytesPS   float64   `json:"rx_bytes_ps"`
+	TxBytesPS   float64   `json:"tx_bytes_ps"`
+	RxPacketsPS float64   `json:"rx_packets_ps"`
+	TxPacketsPS float64   `json:"tx_packets_ps"`
+	RxErrors    uint64    `json:"rx_errors"`
+	TxErrors    uint64    `json:"tx_errors"`
+	RxDropped   uint64    `json:"rx_dropped"`
+	TxDropped   uint64    `json:"tx_dropped"`
 }
 
 // Stats returns collector statistics.

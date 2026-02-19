@@ -17,7 +17,7 @@ import (
 var db *chronicle.DB
 
 func main() {
-	js.Global().Set("chronicle", js.ValueOf(map[string]interface{}{
+	js.Global().Set("chronicle", js.ValueOf(map[string]any{
 		"open":       js.FuncOf(jsOpen),
 		"close":      js.FuncOf(jsClose),
 		"write":      js.FuncOf(jsWrite),
@@ -32,7 +32,7 @@ func main() {
 
 // jsOpen opens a Chronicle database.
 // chronicle.open(path: string, config?: object): Promise<void>
-func jsOpen(this js.Value, args []js.Value) interface{} {
+func jsOpen(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return wrapError("path is required")
 	}
@@ -52,7 +52,7 @@ func jsOpen(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	return promisify(func() (interface{}, error) {
+	return promisify(func() (any, error) {
 		var err error
 		db, err = chronicle.Open(path, cfg)
 		return nil, err
@@ -61,8 +61,8 @@ func jsOpen(this js.Value, args []js.Value) interface{} {
 
 // jsClose closes the database.
 // chronicle.close(): Promise<void>
-func jsClose(this js.Value, args []js.Value) interface{} {
-	return promisify(func() (interface{}, error) {
+func jsClose(this js.Value, args []js.Value) any {
+	return promisify(func() (any, error) {
 		if db == nil {
 			return nil, nil
 		}
@@ -74,7 +74,7 @@ func jsClose(this js.Value, args []js.Value) interface{} {
 
 // jsWrite writes a single point.
 // chronicle.write(metric: string, value: number, tags?: object): Promise<void>
-func jsWrite(this js.Value, args []js.Value) interface{} {
+func jsWrite(this js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return wrapError("metric and value are required")
 	}
@@ -92,7 +92,7 @@ func jsWrite(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	return promisify(func() (interface{}, error) {
+	return promisify(func() (any, error) {
 		if db == nil {
 			return nil, jsError("database not open")
 		}
@@ -107,7 +107,7 @@ func jsWrite(this js.Value, args []js.Value) interface{} {
 
 // jsWriteBatch writes multiple points.
 // chronicle.writeBatch(points: Array<{metric: string, value: number, tags?: object, timestamp?: number}>): Promise<void>
-func jsWriteBatch(this js.Value, args []js.Value) interface{} {
+func jsWriteBatch(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return wrapError("points array is required")
 	}
@@ -117,7 +117,7 @@ func jsWriteBatch(this js.Value, args []js.Value) interface{} {
 		return wrapError("points must be an array")
 	}
 
-	return promisify(func() (interface{}, error) {
+	return promisify(func() (any, error) {
 		if db == nil {
 			return nil, jsError("database not open")
 		}
@@ -152,14 +152,14 @@ func jsWriteBatch(this js.Value, args []js.Value) interface{} {
 
 // jsQuery runs a SQL-like query.
 // chronicle.query(sql: string): Promise<Array<{metric, tags, value, timestamp}>>
-func jsQuery(this js.Value, args []js.Value) interface{} {
+func jsQuery(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return wrapError("query string is required")
 	}
 
 	sql := args[0].String()
 
-	return promisify(func() (interface{}, error) {
+	return promisify(func() (any, error) {
 		if db == nil {
 			return nil, jsError("database not open")
 		}
@@ -181,14 +181,14 @@ func jsQuery(this js.Value, args []js.Value) interface{} {
 
 // jsExecute runs a query object.
 // chronicle.execute(query: object): Promise<Array<{metric, tags, value, timestamp}>>
-func jsExecute(this js.Value, args []js.Value) interface{} {
+func jsExecute(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return wrapError("query object is required")
 	}
 
 	queryObj := args[0]
 
-	return promisify(func() (interface{}, error) {
+	return promisify(func() (any, error) {
 		if db == nil {
 			return nil, jsError("database not open")
 		}
@@ -225,14 +225,14 @@ func jsExecute(this js.Value, args []js.Value) interface{} {
 	})
 }
 
-func pointsToJS(points []chronicle.Point) interface{} {
-	arr := make([]interface{}, len(points))
+func pointsToJS(points []chronicle.Point) any {
+	arr := make([]any, len(points))
 	for i, p := range points {
-		tags := make(map[string]interface{})
+		tags := make(map[string]any)
 		for k, v := range p.Tags {
 			tags[k] = v
 		}
-		arr[i] = map[string]interface{}{
+		arr[i] = map[string]any{
 			"metric":    p.Metric,
 			"value":     p.Value,
 			"timestamp": p.Timestamp,
@@ -242,8 +242,8 @@ func pointsToJS(points []chronicle.Point) interface{} {
 	return arr
 }
 
-func promisify(fn func() (interface{}, error)) js.Value {
-	handler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+func promisify(fn func() (any, error)) js.Value {
+	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		resolve := args[0]
 		reject := args[1]
 
@@ -262,19 +262,19 @@ func promisify(fn func() (interface{}, error)) js.Value {
 	return js.Global().Get("Promise").New(handler)
 }
 
-func toJS(v interface{}) js.Value {
+func toJS(v any) js.Value {
 	if v == nil {
 		return js.Undefined()
 	}
 
 	switch val := v.(type) {
-	case []interface{}:
+	case []any:
 		arr := js.Global().Get("Array").New(len(val))
 		for i, item := range val {
 			arr.SetIndex(i, toJS(item))
 		}
 		return arr
-	case map[string]interface{}:
+	case map[string]any:
 		obj := js.Global().Get("Object").New()
 		for k, item := range val {
 			obj.Set(k, toJS(item))

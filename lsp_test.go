@@ -161,7 +161,7 @@ func TestLSPServer_ValidateQuery(t *testing.T) {
 
 	// Valid query should produce warnings/hints, not errors
 	diagnostics := server.validateQuery("SELECT mean(value) FROM cpu")
-	
+
 	hasError := false
 	for _, d := range diagnostics {
 		if d.Severity == DiagnosticSeverityError {

@@ -14,6 +14,9 @@ import (
 )
 
 // EXPERIMENTAL: This API is unstable and may change without notice.
+// NOTE: This is a placeholder integration. Cloudflare Workers API calls (D1, R2, KV)
+// are stubbed and require a real Cloudflare account with valid API credentials.
+//
 // WorkersRuntimeConfig configures Chronicle for Cloudflare Workers environment.
 type WorkersRuntimeConfig struct {
 	// D1DatabaseID is the Cloudflare D1 database binding ID.
@@ -83,16 +86,16 @@ type WorkersRuntime struct {
 
 // WorkersMetrics tracks runtime metrics.
 type WorkersMetrics struct {
-	D1Queries     int64 `json:"d1_queries"`
-	D1Writes      int64 `json:"d1_writes"`
-	R2Reads       int64 `json:"r2_reads"`
-	R2Writes      int64 `json:"r2_writes"`
-	KVReads       int64 `json:"kv_reads"`
-	KVWrites      int64 `json:"kv_writes"`
-	CacheHits     int64 `json:"cache_hits"`
-	CacheMisses   int64 `json:"cache_misses"`
+	D1Queries      int64 `json:"d1_queries"`
+	D1Writes       int64 `json:"d1_writes"`
+	R2Reads        int64 `json:"r2_reads"`
+	R2Writes       int64 `json:"r2_writes"`
+	KVReads        int64 `json:"kv_reads"`
+	KVWrites       int64 `json:"kv_writes"`
+	CacheHits      int64 `json:"cache_hits"`
+	CacheMisses    int64 `json:"cache_misses"`
 	TotalLatencyMs int64 `json:"total_latency_ms"`
-	RequestCount  int64 `json:"request_count"`
+	RequestCount   int64 `json:"request_count"`
 }
 
 // NewWorkersRuntime creates a new Workers runtime instance.
@@ -317,20 +320,20 @@ type D1Error struct {
 
 // D1QueryResult represents D1 query results.
 type D1QueryResult struct {
-	Results []map[string]interface{} `json:"results"`
-	Success bool                     `json:"success"`
-	Meta    D1Meta                   `json:"meta"`
+	Results []map[string]any `json:"results"`
+	Success bool             `json:"success"`
+	Meta    D1Meta           `json:"meta"`
 }
 
 // D1Meta contains query metadata.
 type D1Meta struct {
-	Duration      float64 `json:"duration"`
-	ChangedDB     bool    `json:"changed_db"`
-	Changes       int     `json:"changes"`
-	LastRowID     int64   `json:"last_row_id"`
-	RowsRead      int     `json:"rows_read"`
-	RowsWritten   int     `json:"rows_written"`
-	ServedByLeader bool   `json:"served_by_leader"`
+	Duration       float64 `json:"duration"`
+	ChangedDB      bool    `json:"changed_db"`
+	Changes        int     `json:"changes"`
+	LastRowID      int64   `json:"last_row_id"`
+	RowsRead       int     `json:"rows_read"`
+	RowsWritten    int     `json:"rows_written"`
+	ServedByLeader bool    `json:"served_by_leader"`
 }
 
 // Initialize creates the required tables in D1.
@@ -545,7 +548,7 @@ func (d *D1Backend) query(ctx context.Context, sql string) (*D1QueryResult, erro
 	}
 
 	if len(results) == 0 {
-		return &D1QueryResult{Results: []map[string]interface{}{}}, nil
+		return &D1QueryResult{Results: []map[string]any{}}, nil
 	}
 
 	return &results[0], nil
@@ -950,7 +953,7 @@ func (h *WorkersHandler) handleWrite(ctx context.Context, w http.ResponseWriter,
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"written": len(req.Points),
 	})
@@ -1029,7 +1032,7 @@ func aggregatePoints(points []Point, agg *Aggregation, groupBy []string) []Point
 		}
 
 		aggValue := computeAggregation(groupPoints, agg.Function)
-		
+
 		// Parse window start from key
 		var windowStart int64
 		fmt.Sscanf(key, "%d", &windowStart)

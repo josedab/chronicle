@@ -133,24 +133,24 @@ type WASMPluginInfo struct {
 
 // WASMPlugin holds the runtime state for a single plugin.
 type WASMPlugin struct {
-	config   WASMPluginConfig
-	state    WASMPluginState
-	module   WASMModule
-	instance WASMInstance
-	loadedAt time.Time
-	lastExec time.Time
-	execCount int64
-	errorCount int64
+	config      WASMPluginConfig
+	state       WASMPluginState
+	module      WASMModule
+	instance    WASMInstance
+	loadedAt    time.Time
+	lastExec    time.Time
+	execCount   int64
+	errorCount  int64
 	totalExecNs int64
-	mu       sync.Mutex
+	mu          sync.Mutex
 }
 
 // WASMRuntimeConfig configures the plugin runtime host.
 type WASMRuntimeConfig struct {
-	MaxPlugins      int
-	DefaultMemoryMB int
+	MaxPlugins       int
+	DefaultMemoryMB  int
 	DefaultTimeoutMs int64
-	EnableSandbox   bool
+	EnableSandbox    bool
 }
 
 // DefaultWASMRuntimeConfig returns production defaults.

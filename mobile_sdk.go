@@ -12,22 +12,22 @@ import (
 
 // MobileSDKConfig configures the cross-platform mobile SDK framework.
 type MobileSDKConfig struct {
-	Enabled              bool          `json:"enabled"`
-	MaxOfflineQueueSize  int           `json:"max_offline_queue_size"`
-	SyncInterval         time.Duration `json:"sync_interval"`
-	BatchSize            int           `json:"batch_size"`
-	CompressionEnabled   bool          `json:"compression_enabled"`
-	RetryMaxAttempts     int           `json:"retry_max_attempts"`
-	RetryBackoff         time.Duration `json:"retry_backoff"`
-	MaxConnectedDevices  int           `json:"max_connected_devices"`
-	ConflictResolution   MobileConflictStrategy `json:"conflict_resolution"`
+	Enabled             bool                   `json:"enabled"`
+	MaxOfflineQueueSize int                    `json:"max_offline_queue_size"`
+	SyncInterval        time.Duration          `json:"sync_interval"`
+	BatchSize           int                    `json:"batch_size"`
+	CompressionEnabled  bool                   `json:"compression_enabled"`
+	RetryMaxAttempts    int                    `json:"retry_max_attempts"`
+	RetryBackoff        time.Duration          `json:"retry_backoff"`
+	MaxConnectedDevices int                    `json:"max_connected_devices"`
+	ConflictResolution  MobileConflictStrategy `json:"conflict_resolution"`
 }
 
 // ConflictStrategy defines how sync conflicts are resolved.
 type MobileConflictStrategy string
 
 const (
-	MobileConflictLastWrite MobileConflictStrategy = "last_write_wins"
+	MobileConflictLastWrite  MobileConflictStrategy = "last_write_wins"
 	MobileConflictServerWins MobileConflictStrategy = "server_wins"
 	MobileConflictClientWins MobileConflictStrategy = "client_wins"
 	MobileConflictMerge      MobileConflictStrategy = "merge"
@@ -52,11 +52,11 @@ func DefaultMobileSDKConfig() MobileSDKConfig {
 type MobileDevicePlatform string
 
 const (
-	PlatformIOS          MobileDevicePlatform = "ios"
-	PlatformAndroid      MobileDevicePlatform = "android"
-	PlatformReactNative  MobileDevicePlatform = "react_native"
-	PlatformFlutter      MobileDevicePlatform = "flutter"
-	PlatformWeb          MobileDevicePlatform = "web"
+	PlatformIOS         MobileDevicePlatform = "ios"
+	PlatformAndroid     MobileDevicePlatform = "android"
+	PlatformReactNative MobileDevicePlatform = "react_native"
+	PlatformFlutter     MobileDevicePlatform = "flutter"
+	PlatformWeb         MobileDevicePlatform = "web"
 )
 
 // MobileDeviceState tracks a connected device state.
@@ -87,34 +87,34 @@ type MobileDevice struct {
 
 // SyncRequest is a sync batch from a mobile device.
 type MobileSyncRequest struct {
-	DeviceID    string    `json:"device_id"`
-	Points      []Point   `json:"points"`
-	Timestamp   time.Time `json:"timestamp"`
-	Compressed  bool      `json:"compressed"`
-	SeqNumber   int64     `json:"seq_number"`
+	DeviceID   string    `json:"device_id"`
+	Points     []Point   `json:"points"`
+	Timestamp  time.Time `json:"timestamp"`
+	Compressed bool      `json:"compressed"`
+	SeqNumber  int64     `json:"seq_number"`
 }
 
 // SyncResponse is the server's response to a sync request.
 type SyncResponse struct {
-	DeviceID      string    `json:"device_id"`
-	Accepted      int       `json:"accepted"`
-	Rejected      int       `json:"rejected"`
-	Conflicts     int       `json:"conflicts"`
-	ServerTime    time.Time `json:"server_time"`
+	DeviceID      string        `json:"device_id"`
+	Accepted      int           `json:"accepted"`
+	Rejected      int           `json:"rejected"`
+	Conflicts     int           `json:"conflicts"`
+	ServerTime    time.Time     `json:"server_time"`
 	NextSyncAfter time.Duration `json:"next_sync_after"`
 }
 
 // MobileSDKStats contains SDK framework statistics.
 type MobileSDKStats struct {
-	ConnectedDevices int               `json:"connected_devices"`
-	OnlineDevices    int               `json:"online_devices"`
-	TotalPointsSynced int64            `json:"total_points_synced"`
-	TotalSyncRequests int64            `json:"total_sync_requests"`
-	FailedSyncs      int64             `json:"failed_syncs"`
-	PlatformBreakdown map[string]int   `json:"platform_breakdown"`
-	AvgSyncLatency   time.Duration     `json:"avg_sync_latency"`
-	ServerVersion    string            `json:"server_version"`
-	ServerPlatform   string            `json:"server_platform"`
+	ConnectedDevices  int            `json:"connected_devices"`
+	OnlineDevices     int            `json:"online_devices"`
+	TotalPointsSynced int64          `json:"total_points_synced"`
+	TotalSyncRequests int64          `json:"total_sync_requests"`
+	FailedSyncs       int64          `json:"failed_syncs"`
+	PlatformBreakdown map[string]int `json:"platform_breakdown"`
+	AvgSyncLatency    time.Duration  `json:"avg_sync_latency"`
+	ServerVersion     string         `json:"server_version"`
+	ServerPlatform    string         `json:"server_platform"`
 }
 
 // MobileSDK manages cross-platform mobile SDK connections and synchronization.
@@ -122,12 +122,12 @@ type MobileSDK struct {
 	db     *DB
 	config MobileSDKConfig
 
-	devices       map[string]*MobileDevice
-	syncRequests  int64
-	failedSyncs   int64
-	totalSynced   int64
-	totalSyncNs   int64
-	syncCount     int64
+	devices      map[string]*MobileDevice
+	syncRequests int64
+	failedSyncs  int64
+	totalSynced  int64
+	totalSyncNs  int64
+	syncCount    int64
 
 	mu sync.RWMutex
 }

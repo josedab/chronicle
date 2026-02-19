@@ -150,10 +150,10 @@ func TestD1Backend(t *testing.T) {
 	// Create a mock D1 server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		resp := D1Response{
 			Success: true,
-			Result: json.RawMessage(`[{"results": [], "success": true, "meta": {"duration": 0.5}}]`),
+			Result:  json.RawMessage(`[{"results": [], "success": true, "meta": {"duration": 0.5}}]`),
 		}
 		json.NewEncoder(w).Encode(resp)
 	}))
@@ -203,10 +203,10 @@ func TestR2Backend(t *testing.T) {
 func TestKVBackend(t *testing.T) {
 	// Create a mock KV server
 	kvStore := make(map[string][]byte)
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Path[len("/storage/kv/namespaces/test-ns/values/"):]
-		
+
 		switch r.Method {
 		case http.MethodGet:
 			if data, ok := kvStore[key]; ok {
@@ -245,12 +245,12 @@ func TestKVBackend(t *testing.T) {
 func TestWorkersCache(t *testing.T) {
 	// Create mock KV
 	kvStore := make(map[string][]byte)
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Extract key after the namespace path
 		pathParts := r.URL.Path
 		key := pathParts[len("/accounts/test-account/storage/kv/namespaces/test-ns/values/"):]
-		
+
 		switch r.Method {
 		case http.MethodGet:
 			if data, ok := kvStore[key]; ok {
@@ -329,33 +329,33 @@ func TestComputeAggregationEmpty(t *testing.T) {
 
 func TestMatchesTags(t *testing.T) {
 	tests := []struct {
-		name       string
-		pointTags  map[string]string
-		queryTags  map[string]string
+		name        string
+		pointTags   map[string]string
+		queryTags   map[string]string
 		shouldMatch bool
 	}{
 		{
-			name:       "exact match",
-			pointTags:  map[string]string{"host": "server1", "region": "us-west"},
-			queryTags:  map[string]string{"host": "server1"},
+			name:        "exact match",
+			pointTags:   map[string]string{"host": "server1", "region": "us-west"},
+			queryTags:   map[string]string{"host": "server1"},
 			shouldMatch: true,
 		},
 		{
-			name:       "no match",
-			pointTags:  map[string]string{"host": "server1"},
-			queryTags:  map[string]string{"host": "server2"},
+			name:        "no match",
+			pointTags:   map[string]string{"host": "server1"},
+			queryTags:   map[string]string{"host": "server2"},
 			shouldMatch: false,
 		},
 		{
-			name:       "empty query",
-			pointTags:  map[string]string{"host": "server1"},
-			queryTags:  map[string]string{},
+			name:        "empty query",
+			pointTags:   map[string]string{"host": "server1"},
+			queryTags:   map[string]string{},
 			shouldMatch: true,
 		},
 		{
-			name:       "missing tag",
-			pointTags:  map[string]string{"host": "server1"},
-			queryTags:  map[string]string{"region": "us-west"},
+			name:        "missing tag",
+			pointTags:   map[string]string{"host": "server1"},
+			queryTags:   map[string]string{"region": "us-west"},
 			shouldMatch: false,
 		},
 	}

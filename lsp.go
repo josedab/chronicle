@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"sort"
 	"strings"
@@ -22,8 +22,8 @@ type LSPServer struct {
 	shutdown    bool
 
 	// Document management
-	documents     map[string]*TextDocument
-	documentMu    sync.RWMutex
+	documents  map[string]*TextDocument
+	documentMu sync.RWMutex
 
 	// Schema cache for completions
 	schemaCache   *SchemaCache
@@ -95,11 +95,11 @@ type Location struct {
 
 // Diagnostic represents a diagnostic message.
 type Diagnostic struct {
-	Range    Range            `json:"range"`
+	Range    Range              `json:"range"`
 	Severity DiagnosticSeverity `json:"severity"`
-	Code     string           `json:"code,omitempty"`
-	Source   string           `json:"source,omitempty"`
-	Message  string           `json:"message"`
+	Code     string             `json:"code,omitempty"`
+	Source   string             `json:"source,omitempty"`
+	Message  string             `json:"message"`
 }
 
 // DiagnosticSeverity indicates the severity level.
@@ -114,28 +114,28 @@ const (
 
 // CompletionItem represents a completion suggestion.
 type CompletionItem struct {
-	Label         string               `json:"label"`
-	Kind          CompletionItemKind   `json:"kind"`
-	Detail        string               `json:"detail,omitempty"`
-	Documentation string               `json:"documentation,omitempty"`
-	InsertText    string               `json:"insertText,omitempty"`
-	InsertTextFormat int               `json:"insertTextFormat,omitempty"`
-	SortText      string               `json:"sortText,omitempty"`
+	Label            string             `json:"label"`
+	Kind             CompletionItemKind `json:"kind"`
+	Detail           string             `json:"detail,omitempty"`
+	Documentation    string             `json:"documentation,omitempty"`
+	InsertText       string             `json:"insertText,omitempty"`
+	InsertTextFormat int                `json:"insertTextFormat,omitempty"`
+	SortText         string             `json:"sortText,omitempty"`
 }
 
 // CompletionItemKind indicates the type of completion.
 type CompletionItemKind int
 
 const (
-	CompletionItemKindText          CompletionItemKind = 1
-	CompletionItemKindMethod        CompletionItemKind = 2
-	CompletionItemKindFunction      CompletionItemKind = 3
-	CompletionItemKindField         CompletionItemKind = 4
-	CompletionItemKindVariable      CompletionItemKind = 6
-	CompletionItemKindKeyword       CompletionItemKind = 14
-	CompletionItemKindSnippet       CompletionItemKind = 15
-	CompletionItemKindValue         CompletionItemKind = 12
-	CompletionItemKindOperator      CompletionItemKind = 24
+	CompletionItemKindText     CompletionItemKind = 1
+	CompletionItemKindMethod   CompletionItemKind = 2
+	CompletionItemKindFunction CompletionItemKind = 3
+	CompletionItemKindField    CompletionItemKind = 4
+	CompletionItemKindVariable CompletionItemKind = 6
+	CompletionItemKindKeyword  CompletionItemKind = 14
+	CompletionItemKindSnippet  CompletionItemKind = 15
+	CompletionItemKindValue    CompletionItemKind = 12
+	CompletionItemKindOperator CompletionItemKind = 24
 )
 
 // Hover represents hover information.
@@ -170,17 +170,17 @@ type FunctionInfo struct {
 // LSP Message types
 type lspMessage struct {
 	JSONRPC string          `json:"jsonrpc"`
-	ID      interface{}     `json:"id,omitempty"`
+	ID      any             `json:"id,omitempty"`
 	Method  string          `json:"method,omitempty"`
 	Params  json.RawMessage `json:"params,omitempty"`
-	Result  interface{}     `json:"result,omitempty"`
+	Result  any             `json:"result,omitempty"`
 	Error   *lspError       `json:"error,omitempty"`
 }
 
 type lspError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // NewLSPServer creates a new LSP server.
@@ -188,9 +188,9 @@ func NewLSPServer(db *DB, config LSPConfig) *LSPServer {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &LSPServer{
-		db:          db,
-		config:      config,
-		documents:   make(map[string]*TextDocument),
+		db:        db,
+		config:    config,
+		documents: make(map[string]*TextDocument),
 		schemaCache: &SchemaCache{
 			Tags:      make(map[string][]string),
 			TagValues: make(map[string][]string),
@@ -217,7 +217,7 @@ func (s *LSPServer) Start() error {
 				case <-s.ctx.Done():
 					return
 				default:
-					log.Printf("chronicle: LSP accept error: %v", err)
+					slog.Error("LSP accept error", "err", err)
 					continue
 				}
 			}
@@ -225,7 +225,7 @@ func (s *LSPServer) Start() error {
 		}
 	}()
 
-	log.Printf("chronicle: LSP server started on port %d", s.config.Port)
+	slog.Info("LSP server started", "port", s.config.Port)
 	return nil
 }
 
@@ -292,16 +292,16 @@ func (s *LSPServer) handleInitialize(msg *lspMessage) *lspMessage {
 	s.initialized = true
 	s.mu.Unlock()
 
-	capabilities := map[string]interface{}{
-		"capabilities": map[string]interface{}{
+	capabilities := map[string]any{
+		"capabilities": map[string]any{
 			"textDocumentSync": 1, // Full sync
-			"completionProvider": map[string]interface{}{
+			"completionProvider": map[string]any{
 				"triggerCharacters": []string{".", " ", "(", ","},
 				"resolveProvider":   false,
 			},
-			"hoverProvider":             s.config.EnableHover,
+			"hoverProvider":              s.config.EnableHover,
 			"documentFormattingProvider": s.config.EnableFormatting,
-			"diagnosticProvider": map[string]interface{}{
+			"diagnosticProvider": map[string]any{
 				"interFileDependencies": false,
 				"workspaceDiagnostics":  false,
 			},
@@ -767,7 +767,7 @@ func isWordChar(c byte) bool {
 
 func (s *LSPServer) handleFormatting(msg *lspMessage) *lspMessage {
 	if !s.config.EnableFormatting {
-		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: []interface{}{}}
+		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: []any{}}
 	}
 
 	var params struct {
@@ -776,7 +776,7 @@ func (s *LSPServer) handleFormatting(msg *lspMessage) *lspMessage {
 		} `json:"textDocument"`
 	}
 	if err := json.Unmarshal(msg.Params, &params); err != nil {
-		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: []interface{}{}}
+		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: []any{}}
 	}
 
 	s.documentMu.RLock()
@@ -784,12 +784,12 @@ func (s *LSPServer) handleFormatting(msg *lspMessage) *lspMessage {
 	s.documentMu.RUnlock()
 
 	if !ok {
-		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: []interface{}{}}
+		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: []any{}}
 	}
 
 	formatted := s.formatQuery(doc.Content)
 
-	edits := []map[string]interface{}{
+	edits := []map[string]any{
 		{
 			"range": Range{
 				Start: Position{Line: 0, Character: 0},
@@ -873,7 +873,7 @@ func (s *LSPServer) handleDiagnostic(msg *lspMessage) *lspMessage {
 		} `json:"textDocument"`
 	}
 	if err := json.Unmarshal(msg.Params, &params); err != nil {
-		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: map[string]interface{}{"items": []Diagnostic{}}}
+		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: map[string]any{"items": []Diagnostic{}}}
 	}
 
 	s.documentMu.RLock()
@@ -881,7 +881,7 @@ func (s *LSPServer) handleDiagnostic(msg *lspMessage) *lspMessage {
 	s.documentMu.RUnlock()
 
 	if !ok {
-		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: map[string]interface{}{"items": []Diagnostic{}}}
+		return &lspMessage{JSONRPC: "2.0", ID: msg.ID, Result: map[string]any{"items": []Diagnostic{}}}
 	}
 
 	diagnostics := s.validateQuery(doc.Content)
@@ -889,7 +889,7 @@ func (s *LSPServer) handleDiagnostic(msg *lspMessage) *lspMessage {
 	return &lspMessage{
 		JSONRPC: "2.0",
 		ID:      msg.ID,
-		Result:  map[string]interface{}{"items": diagnostics},
+		Result:  map[string]any{"items": diagnostics},
 	}
 }
 
@@ -969,7 +969,7 @@ func (s *LSPServer) publishDiagnostics(uri string) {
 	notification := &lspMessage{
 		JSONRPC: "2.0",
 		Method:  "textDocument/publishDiagnostics",
-		Params:  json.RawMessage(mustMarshal(map[string]interface{}{
+		Params: json.RawMessage(mustMarshal(map[string]any{
 			"uri":         uri,
 			"version":     doc.Version,
 			"diagnostics": diagnostics,
@@ -1041,7 +1041,7 @@ func (s *LSPServer) updateSchemaCache() {
 	}
 }
 
-func mustMarshal(v interface{}) []byte {
+func mustMarshal(v any) []byte {
 	data, _ := json.Marshal(v)
 	return data
 }

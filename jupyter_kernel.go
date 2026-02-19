@@ -60,24 +60,24 @@ func DefaultJupyterKernelConfig() *JupyterKernelConfig {
 
 // KernelConnection contains ZMQ connection info (simplified for embedded use)
 type KernelConnection struct {
-	Transport  string `json:"transport"`
-	IP         string `json:"ip"`
-	ShellPort  int    `json:"shell_port"`
-	IOPubPort  int    `json:"iopub_port"`
-	StdinPort  int    `json:"stdin_port"`
-	HBPort     int    `json:"hb_port"`
-	ControlPort int   `json:"control_port"`
+	Transport       string `json:"transport"`
+	IP              string `json:"ip"`
+	ShellPort       int    `json:"shell_port"`
+	IOPubPort       int    `json:"iopub_port"`
+	StdinPort       int    `json:"stdin_port"`
+	HBPort          int    `json:"hb_port"`
+	ControlPort     int    `json:"control_port"`
 	SignatureScheme string `json:"signature_scheme"`
-	Key        string `json:"key"`
+	Key             string `json:"key"`
 }
 
 // JupyterMessage represents a Jupyter protocol message
 type JupyterMessage struct {
-	Header       MessageHeader     `json:"header"`
-	ParentHeader MessageHeader     `json:"parent_header"`
-	Metadata     map[string]interface{} `json:"metadata"`
-	Content      map[string]interface{} `json:"content"`
-	Buffers      [][]byte          `json:"buffers,omitempty"`
+	Header       MessageHeader  `json:"header"`
+	ParentHeader MessageHeader  `json:"parent_header"`
+	Metadata     map[string]any `json:"metadata"`
+	Content      map[string]any `json:"content"`
+	Buffers      [][]byte       `json:"buffers,omitempty"`
 }
 
 // MessageHeader contains message header info
@@ -98,7 +98,7 @@ type JupyterKernel struct {
 	// Execution state
 	executionCount int64
 	session        string
-	variables      map[string]interface{}
+	variables      map[string]any
 	varMu          sync.RWMutex
 
 	// Magic commands
@@ -124,18 +124,18 @@ type MagicHandler func(kernel *JupyterKernel, args string) (*ExecutionResult, er
 
 // JupyterOutput represents kernel output
 type JupyterOutput struct {
-	Type    string      `json:"type"` // stream, display_data, execute_result, error
-	Name    string      `json:"name,omitempty"` // stdout, stderr
-	Data    interface{} `json:"data"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Type     string         `json:"type"`           // stream, display_data, execute_result, error
+	Name     string         `json:"name,omitempty"` // stdout, stderr
+	Data     any            `json:"data"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // ExecutionResult represents code execution result
 type ExecutionResult struct {
-	Data     map[string]interface{} `json:"data"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-	Success  bool                   `json:"success"`
-	Error    *ErrorInfo             `json:"error,omitempty"`
+	Data     map[string]any `json:"data"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Success  bool           `json:"success"`
+	Error    *ErrorInfo     `json:"error,omitempty"`
 }
 
 // ErrorInfo contains error details
@@ -157,7 +157,7 @@ func NewJupyterKernel(db *DB, config *JupyterKernelConfig) (*JupyterKernel, erro
 		db:        db,
 		config:    config,
 		session:   generateSessionID(),
-		variables: make(map[string]interface{}),
+		variables: make(map[string]any),
 		magics:    make(map[string]MagicHandler),
 		handlers:  make(map[string]func(*JupyterMessage) *JupyterMessage),
 		outputs:   make(chan JupyterOutput, 100),
@@ -297,7 +297,7 @@ func (k *JupyterKernel) evaluateExpression(expr string) *ExecutionResult {
 		val := k.getVariable(expr)
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": fmt.Sprintf("%v", val),
 			},
 		}
@@ -371,7 +371,7 @@ func (k *JupyterKernel) formatQueryResult(points []Point) *ExecutionResult {
 	if len(points) == 0 {
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": "No results",
 			},
 		}
@@ -395,9 +395,9 @@ func (k *JupyterKernel) formatQueryResult(points []Point) *ExecutionResult {
 	sb.WriteString("└──────────────────────┴────────────────┴────────────┘\n")
 
 	// Build JSON representation for visualization
-	jsonData := make([]map[string]interface{}, len(points))
+	jsonData := make([]map[string]any, len(points))
 	for i, p := range points {
-		jsonData[i] = map[string]interface{}{
+		jsonData[i] = map[string]any{
 			"timestamp": p.Timestamp,
 			"series":    p.Metric,
 			"value":     p.Value,
@@ -407,7 +407,7 @@ func (k *JupyterKernel) formatQueryResult(points []Point) *ExecutionResult {
 
 	return &ExecutionResult{
 		Success: true,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"text/plain":       sb.String(),
 			"application/json": string(jsonBytes),
 		},
@@ -426,7 +426,7 @@ func (k *JupyterKernel) executeShow(cmd string) *ExecutionResult {
 		}
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": sb.String(),
 			},
 		}
@@ -443,7 +443,7 @@ func (k *JupyterKernel) executeShow(cmd string) *ExecutionResult {
 		}
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": sb.String(),
 			},
 		}
@@ -482,7 +482,7 @@ func (k *JupyterKernel) executeDescribe(cmd string) *ExecutionResult {
 	if len(points) == 0 {
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": fmt.Sprintf("Series '%s' is empty or doesn't exist", series),
 			},
 		}
@@ -527,7 +527,7 @@ func (k *JupyterKernel) executeDescribe(cmd string) *ExecutionResult {
 
 	return &ExecutionResult{
 		Success: true,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"text/plain": sb.String(),
 		},
 	}
@@ -547,13 +547,13 @@ func (k *JupyterKernel) executeInsert(cmd string) *ExecutionResult {
 
 // Variable management
 
-func (k *JupyterKernel) setVariable(name string, value interface{}) {
+func (k *JupyterKernel) setVariable(name string, value any) {
 	k.varMu.Lock()
 	defer k.varMu.Unlock()
 	k.variables[name] = value
 }
 
-func (k *JupyterKernel) getVariable(name string) interface{} {
+func (k *JupyterKernel) getVariable(name string) any {
 	k.varMu.RLock()
 	defer k.varMu.RUnlock()
 	return k.variables[name]
@@ -587,7 +587,7 @@ func (k *JupyterKernel) registerDefaultMagics() {
 
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": sb.String(),
 			},
 		}, nil
@@ -603,7 +603,7 @@ func (k *JupyterKernel) registerDefaultMagics() {
 		}
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": sb.String(),
 			},
 		}, nil
@@ -617,13 +617,13 @@ func (k *JupyterKernel) registerDefaultMagics() {
 	// %stats - show database stats
 	k.magics["stats"] = func(kernel *JupyterKernel, args string) (*ExecutionResult, error) {
 		// Build basic stats from available methods
-		stats := map[string]interface{}{
+		stats := map[string]any{
 			"metrics": kernel.db.Metrics(),
 		}
 		data, _ := json.MarshalIndent(stats, "", "  ")
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain":       string(data),
 				"application/json": string(data),
 			},
@@ -655,7 +655,7 @@ func (k *JupyterKernel) registerDefaultMagics() {
 
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": fmt.Sprintf("Written point to %s", point.Metric),
 			},
 		}, nil
@@ -685,7 +685,7 @@ func (k *JupyterKernel) registerDefaultMagics() {
 		if len(points) == 0 {
 			return &ExecutionResult{
 				Success: true,
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"text/plain": "No data to plot",
 				},
 			}, nil
@@ -697,8 +697,8 @@ func (k *JupyterKernel) registerDefaultMagics() {
 
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
-				"text/plain":               fmt.Sprintf("Plot of %s (%d points)", series, len(points)),
+			Data: map[string]any{
+				"text/plain":                       fmt.Sprintf("Plot of %s (%d points)", series, len(points)),
 				"application/vnd.vegalite.v4+json": string(vegaJSON),
 			},
 		}, nil
@@ -729,7 +729,7 @@ Variables:
 `
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": help,
 			},
 		}, nil
@@ -742,7 +742,7 @@ Variables:
 		elapsed := time.Since(start)
 
 		if result.Data == nil {
-			result.Data = make(map[string]interface{})
+			result.Data = make(map[string]any)
 		}
 
 		existingText := ""
@@ -758,12 +758,12 @@ Variables:
 	// %clear - clear variables
 	k.magics["clear"] = func(kernel *JupyterKernel, args string) (*ExecutionResult, error) {
 		kernel.varMu.Lock()
-		kernel.variables = make(map[string]interface{})
+		kernel.variables = make(map[string]any)
 		kernel.varMu.Unlock()
 
 		return &ExecutionResult{
 			Success: true,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"text/plain": "Variables cleared",
 			},
 		}, nil
@@ -787,12 +787,12 @@ func (k *JupyterKernel) handleKernelInfo(msg *JupyterMessage) *JupyterMessage {
 			Version:     "5.3",
 		},
 		ParentHeader: msg.Header,
-		Content: map[string]interface{}{
-			"status": "ok",
-			"protocol_version": "5.3",
-			"implementation": "chronicle",
+		Content: map[string]any{
+			"status":                 "ok",
+			"protocol_version":       "5.3",
+			"implementation":         "chronicle",
 			"implementation_version": "1.0.0",
-			"language_info": map[string]interface{}{
+			"language_info": map[string]any{
 				"name":           k.config.Language,
 				"version":        "1.0",
 				"mimetype":       "text/x-chronicle",
@@ -823,7 +823,7 @@ func (k *JupyterKernel) handleExecuteRequest(msg *JupyterMessage) *JupyterMessag
 			Version:     "5.3",
 		},
 		ParentHeader: msg.Header,
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"status":          status,
 			"execution_count": atomic.LoadInt64(&k.executionCount),
 		},
@@ -852,7 +852,7 @@ func (k *JupyterKernel) handleComplete(msg *JupyterMessage) *JupyterMessage {
 			Version:     "5.3",
 		},
 		ParentHeader: msg.Header,
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"status":       "ok",
 			"matches":      matches,
 			"cursor_start": int(cursorPos) - len(getLastWord(code[:int(cursorPos)])),
@@ -921,7 +921,7 @@ func (k *JupyterKernel) handleIsComplete(msg *JupyterMessage) *JupyterMessage {
 			Version:     "5.3",
 		},
 		ParentHeader: msg.Header,
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"status": status,
 		},
 	}
@@ -938,7 +938,7 @@ func (k *JupyterKernel) handleShutdown(msg *JupyterMessage) *JupyterMessage {
 			Version:     "5.3",
 		},
 		ParentHeader: msg.Header,
-		Content: map[string]interface{}{
+		Content: map[string]any{
 			"status":  "ok",
 			"restart": restart,
 		},
@@ -981,8 +981,8 @@ func (k *JupyterKernel) Close() error {
 }
 
 // GetKernelSpec returns the kernel specification
-func (k *JupyterKernel) GetKernelSpec() map[string]interface{} {
-	return map[string]interface{}{
+func (k *JupyterKernel) GetKernelSpec() map[string]any {
+	return map[string]any{
 		"argv":         []string{"chronicle", "kernel", "--connection-file", "{connection_file}"},
 		"display_name": k.config.DisplayName,
 		"language":     k.config.Language,
@@ -1022,33 +1022,33 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-func generateVegaSpec(points []Point, title string) map[string]interface{} {
-	data := make([]map[string]interface{}, len(points))
+func generateVegaSpec(points []Point, title string) map[string]any {
+	data := make([]map[string]any, len(points))
 	for i, p := range points {
-		data[i] = map[string]interface{}{
+		data[i] = map[string]any{
 			"time":  time.Unix(0, p.Timestamp).Format(time.RFC3339),
 			"value": p.Value,
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"$schema":     "https://vega.github.io/schema/vega-lite/v4.json",
 		"title":       title,
 		"description": fmt.Sprintf("Time series plot of %s", title),
-		"data": map[string]interface{}{
+		"data": map[string]any{
 			"values": data,
 		},
 		"mark": "line",
-		"encoding": map[string]interface{}{
-			"x": map[string]interface{}{
-				"field":     "time",
-				"type":      "temporal",
-				"title":     "Time",
+		"encoding": map[string]any{
+			"x": map[string]any{
+				"field": "time",
+				"type":  "temporal",
+				"title": "Time",
 			},
-			"y": map[string]interface{}{
-				"field":     "value",
-				"type":      "quantitative",
-				"title":     "Value",
+			"y": map[string]any{
+				"field": "value",
+				"type":  "quantitative",
+				"title": "Value",
 			},
 		},
 		"width":  600,

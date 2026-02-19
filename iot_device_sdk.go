@@ -108,14 +108,14 @@ type IoTDevice struct {
 
 // DeviceCapabilities describes what a device can do.
 type DeviceCapabilities struct {
-	Protocols       []ProtocolType `json:"protocols"`
-	MaxSampleRate   int            `json:"max_sample_rate"`
-	HasGPS          bool           `json:"has_gps"`
-	HasAccelerometer bool          `json:"has_accelerometer"`
-	HasTemperature  bool           `json:"has_temperature"`
-	MemoryMB        int            `json:"memory_mb"`
-	StorageMB       int            `json:"storage_mb"`
-	BatteryPowered  bool           `json:"battery_powered"`
+	Protocols        []ProtocolType `json:"protocols"`
+	MaxSampleRate    int            `json:"max_sample_rate"`
+	HasGPS           bool           `json:"has_gps"`
+	HasAccelerometer bool           `json:"has_accelerometer"`
+	HasTemperature   bool           `json:"has_temperature"`
+	MemoryMB         int            `json:"memory_mb"`
+	StorageMB        int            `json:"storage_mb"`
+	BatteryPowered   bool           `json:"battery_powered"`
 }
 
 // DeviceLocation represents the geographic location of a device.
@@ -183,22 +183,22 @@ type OTAUpdate struct {
 
 // DeviceCommand represents a command sent to a device.
 type DeviceCommand struct {
-	ID       string                 `json:"id"`
-	DeviceID string                 `json:"device_id"`
-	Command  string                 `json:"command"`
-	Payload  map[string]interface{} `json:"payload"`
-	IssuedAt time.Time              `json:"issued_at"`
-	ExpiresAt time.Time             `json:"expires_at"`
-	Status   string                 `json:"status"`
-	Result   *CommandResult         `json:"result"`
+	ID        string         `json:"id"`
+	DeviceID  string         `json:"device_id"`
+	Command   string         `json:"command"`
+	Payload   map[string]any `json:"payload"`
+	IssuedAt  time.Time      `json:"issued_at"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	Status    string         `json:"status"`
+	Result    *CommandResult `json:"result"`
 }
 
 // CommandResult holds the result of a device command execution.
 type CommandResult struct {
-	Success    bool                   `json:"success"`
-	Response   map[string]interface{} `json:"response"`
-	ExecutedAt time.Time              `json:"executed_at"`
-	Error      string                 `json:"error"`
+	Success    bool           `json:"success"`
+	Response   map[string]any `json:"response"`
+	ExecutedAt time.Time      `json:"executed_at"`
+	Error      string         `json:"error"`
 }
 
 // SchemaDetectionResult holds the result of automatic schema detection.
@@ -540,7 +540,7 @@ func (sdk *IoTDeviceSDK) GetOTAUpdate(updateID string) (*OTAUpdate, error) {
 }
 
 // SendCommand sends a command to a device.
-func (sdk *IoTDeviceSDK) SendCommand(deviceID, command string, payload map[string]interface{}) (*DeviceCommand, error) {
+func (sdk *IoTDeviceSDK) SendCommand(deviceID, command string, payload map[string]any) (*DeviceCommand, error) {
 	sdk.mu.Lock()
 	defer sdk.mu.Unlock()
 
@@ -602,12 +602,12 @@ func (sdk *IoTDeviceSDK) Stats() IoTDeviceSDKStats {
 	defer sdk.mu.RUnlock()
 
 	stats := IoTDeviceSDKStats{
-		TotalDevices:      len(sdk.devices),
-		DevicesByPlatform: make(map[DevicePlatform]int),
-		DevicesByStatus:   make(map[DeviceStatus]int),
+		TotalDevices:         len(sdk.devices),
+		DevicesByPlatform:    make(map[DevicePlatform]int),
+		DevicesByStatus:      make(map[DeviceStatus]int),
 		TotalTelemetryPoints: sdk.telemetryCount,
-		QueuedEntries:     len(sdk.offlineQueue),
-		TotalGroups:       len(sdk.groups),
+		QueuedEntries:        len(sdk.offlineQueue),
+		TotalGroups:          len(sdk.groups),
 	}
 
 	for _, d := range sdk.devices {
@@ -726,7 +726,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"ingested": count})
+		json.NewEncoder(w).Encode(map[string]any{"ingested": count})
 	})
 
 	mux.HandleFunc("/api/v1/iot/groups", func(w http.ResponseWriter, r *http.Request) {
@@ -817,7 +817,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"flushed": count})
+		json.NewEncoder(w).Encode(map[string]any{"flushed": count})
 	})
 
 	mux.HandleFunc("/api/v1/iot/ota", func(w http.ResponseWriter, r *http.Request) {
@@ -870,9 +870,9 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		var req struct {
-			DeviceID string                 `json:"device_id"`
-			Command  string                 `json:"command"`
-			Payload  map[string]interface{} `json:"payload"`
+			DeviceID string         `json:"device_id"`
+			Command  string         `json:"command"`
+			Payload  map[string]any `json:"payload"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)
