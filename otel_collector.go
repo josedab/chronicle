@@ -516,6 +516,7 @@ type OTelCollectorReceiver struct {
 	db      *DB
 	config  OTelCollectorReceiverConfig
 	server  *http.Server
+	wg      sync.WaitGroup
 	stats   ReceiverStats
 	statsMu sync.RWMutex
 }
@@ -573,7 +574,9 @@ func (r *OTelCollectorReceiver) Start() error {
 		Handler: mux,
 	}
 
+	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		var err error
 		if r.config.TLSEnabled {
 			err = r.server.ListenAndServeTLS(r.config.TLSCertFile, r.config.TLSKeyFile)
@@ -591,7 +594,9 @@ func (r *OTelCollectorReceiver) Start() error {
 // Stop gracefully shuts down the receiver.
 func (r *OTelCollectorReceiver) Stop(ctx context.Context) error {
 	if r.server != nil {
-		return r.server.Shutdown(ctx)
+		err := r.server.Shutdown(ctx)
+		r.wg.Wait()
+		return err
 	}
 	return nil
 }
