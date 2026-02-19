@@ -1,3 +1,7 @@
+// Package encoding provides column-oriented encoding for Chronicle's storage layer.
+//
+//nolint:errcheck // binary.Write to bytes.Buffer is guaranteed to succeed;
+// bytes.Buffer.Write never returns an error per the Go documentation.
 package encoding
 
 import (
