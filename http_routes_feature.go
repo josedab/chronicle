@@ -108,7 +108,7 @@ func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"predictions": forecast.Predictions,
 		"anomalies":   forecast.Anomalies,
 		"rmse":        forecast.RMSE,
@@ -138,7 +138,7 @@ func handleHistogram(db *DB, w http.ResponseWriter, r *http.Request) {
 		}
 
 		h := results[len(results)-1].Histogram
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"name":    name,
 			"count":   h.Count,
 			"sum":     h.Sum,

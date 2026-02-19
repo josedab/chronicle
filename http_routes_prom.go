@@ -188,8 +188,8 @@ func promError(w http.ResponseWriter, errorType, message string) {
 	jsonError(w, http.StatusBadRequest, errorType, message)
 }
 
-func promResponse(result *Result, metric string, isRange bool) map[string]interface{} {
-	data := make([]map[string]interface{}, 0)
+func promResponse(result *Result, metric string, isRange bool) map[string]any {
+	data := make([]map[string]any, 0)
 
 	// Group points by tags
 	groups := make(map[string][]Point)
@@ -209,14 +209,14 @@ func promResponse(result *Result, metric string, isRange bool) map[string]interf
 			labels[k] = v
 		}
 
-		entry := map[string]interface{}{
+		entry := map[string]any{
 			"metric": labels,
 		}
 
 		if isRange {
-			values := make([][]interface{}, len(points))
+			values := make([][]any, len(points))
 			for i, p := range points {
-				values[i] = []interface{}{
+				values[i] = []any{
 					float64(p.Timestamp) / 1e9,
 					strconv.FormatFloat(p.Value, 'f', -1, 64),
 				}
@@ -225,7 +225,7 @@ func promResponse(result *Result, metric string, isRange bool) map[string]interf
 		} else {
 			if len(points) > 0 {
 				p := points[len(points)-1]
-				entry["value"] = []interface{}{
+				entry["value"] = []any{
 					float64(p.Timestamp) / 1e9,
 					strconv.FormatFloat(p.Value, 'f', -1, 64),
 				}
@@ -240,9 +240,9 @@ func promResponse(result *Result, metric string, isRange bool) map[string]interf
 		resultType = "matrix"
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"status": "success",
-		"data": map[string]interface{}{
+		"data": map[string]any{
 			"resultType": resultType,
 			"result":     data,
 		},
