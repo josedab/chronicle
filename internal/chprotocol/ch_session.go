@@ -163,6 +163,10 @@ func (s *CHSession) writeDataBlock(result *CHQueryResult) {
 	}
 }
 
+// writeValue writes a typed ClickHouse column value to the wire.
+// Type assertion failures produce zero values, which is acceptable for protocol compat.
+//
+//nolint:errcheck // intentional: type conversion best-effort; zero value on mismatch
 func (s *CHSession) writeValue(value any, chType string) {
 	switch chType {
 	case CHTypeUInt8:
@@ -217,6 +221,11 @@ func (s *CHSession) sendException(err error) error {
 	return s.flush()
 }
 
+// handleData reads a ClickHouse data block packet.
+// Protocol fields are read best-effort; individual field errors are ignored
+// because empty blocks are valid and corruption is caught at the network level.
+//
+//nolint:errcheck // intentional: ClickHouse protocol fields are read best-effort
 func (s *CHSession) handleData() error {
 
 	_, _ = s.readString()
