@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor help
+.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt clean clean-all bench benchmark check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -7,6 +7,8 @@ MIN_GO_VERSION := 1.24
 all: lint test build ## Run lint, test, and build
 
 quickstart: setup install-hooks doctor ## One-command setup for new contributors
+	@echo "Downloading Go module dependencies..."
+	@$(GO) mod download
 	@echo ""
 	@echo "════════════════════════════════════════════════"
 	@echo "  ✓ Ready! Run 'make dev' to start."
@@ -146,9 +148,22 @@ bench: ## Run benchmarks
 	$(GO) test -bench=. -benchmem ./...
 
 benchmark: ## Run benchmarks and save results for comparison
+	@if [ -f benchmark-results.txt ]; then \
+		mv benchmark-results.txt benchmark-results.txt.prev; \
+	fi
 	$(GO) test -bench=. -benchmem -count=5 -short -run=^$$ ./... | tee benchmark-results.txt
 	@echo "✓ Results saved to benchmark-results.txt"
-	@echo "  Compare with: benchstat old.txt benchmark-results.txt"
+	@if [ -f benchmark-results.txt.prev ]; then \
+		if command -v benchstat >/dev/null 2>&1; then \
+			echo ""; \
+			echo "═══ Comparison with previous run ═══"; \
+			benchstat benchmark-results.txt.prev benchmark-results.txt; \
+		else \
+			echo "  Install benchstat for auto-comparison: go install golang.org/x/perf/cmd/benchstat@latest"; \
+		fi; \
+	else \
+		echo "  Run again to compare: benchstat benchmark-results.txt.prev benchmark-results.txt"; \
+	fi
 
 clean: ## Clean build artifacts
 	rm -f coverage.out coverage.html benchmark-results.txt
@@ -193,6 +208,8 @@ vuln: ## Check for vulnerabilities
 	govulncheck ./...
 
 setup: ## Install development tools
+	@echo "Downloading Go module dependencies..."
+	@$(GO) mod download
 	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
 	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
@@ -367,6 +384,48 @@ check-versions: ## Check for Go version drift across config files
 		echo ""; \
 		echo "⚠ Version drift detected. .mise.toml is the source of truth."; \
 	fi
+
+test-changed: ## Run tests only for modified Go files
+	@CHANGED=$$(git diff --name-only HEAD 2>/dev/null | grep '\.go$$' || true); \
+	STAGED=$$(git diff --cached --name-only 2>/dev/null | grep '\.go$$' || true); \
+	ALL_CHANGED=$$(echo "$$CHANGED"; echo "$$STAGED" | sort -u | grep -v '^$$' || true); \
+	if [ -z "$$ALL_CHANGED" ]; then \
+		echo "No modified .go files found"; exit 0; \
+	fi; \
+	PKGS=$$(echo "$$ALL_CHANGED" | xargs -I{} dirname {} | sort -u | sed 's|^|./|'); \
+	echo "Testing packages with changes:"; \
+	echo "$$PKGS" | while read pkg; do echo "  → $$pkg"; done; \
+	echo ""; \
+	$(GO) test -count=1 $$PKGS
+
+check-file-size: ## Warn about Go files exceeding 800 lines
+	@echo "Checking for large Go files (>800 lines)..."
+	@FOUND=0; \
+	for f in $$(find . -name '*.go' -not -path './vendor/*' -not -name '*_test.go' | sort); do \
+		LINES=$$(wc -l < "$$f" | tr -d ' '); \
+		if [ "$$LINES" -gt 800 ]; then \
+			echo "  ⚠ $$f: $$LINES lines"; \
+			FOUND=$$((FOUND + 1)); \
+		fi; \
+	done; \
+	if [ "$$FOUND" -gt 0 ]; then \
+		echo ""; \
+		echo "$$FOUND file(s) exceed 800 lines. Consider refactoring."; \
+	else \
+		echo "✓ All Go files are under 800 lines"; \
+	fi
+
+new-test: ## Scaffold a new test file (usage: make new-test FILE=my_feature)
+ifndef FILE
+	$(error FILE is required. Usage: make new-test FILE=my_feature)
+endif
+	@if [ -f "$(FILE)_test.go" ]; then \
+		echo "ERROR: $(FILE)_test.go already exists"; exit 1; \
+	fi
+	@BASE=$$(basename "$(FILE)"); \
+	FUNC_NAME=$$(echo "$$BASE" | awk -F_ '{for(i=1;i<=NF;i++){$$i=toupper(substr($$i,1,1)) substr($$i,2)}}1' OFS=''); \
+	printf 'package chronicle\n\nimport (\n\t"testing"\n)\n\nfunc Test'"$$FUNC_NAME"'(t *testing.T) {\n\tdb := setupTestDB(t)\n\tdefer db.Close()\n\n\ttests := []struct {\n\t\tname    string\n\t\twantErr bool\n\t}{\n\t\t{name: "basic", wantErr: false},\n\t}\n\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_ = db // TODO: implement test\n\t\t\tif tt.wantErr {\n\t\t\t\tt.Error("expected error")\n\t\t\t}\n\t\t})\n\t}\n}\n' > $(FILE)_test.go
+	@echo "✓ Created $(FILE)_test.go with table-driven test scaffold"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
