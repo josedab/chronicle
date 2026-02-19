@@ -221,7 +221,11 @@ func (e *StreamReplayEngine) runReplay(ctx context.Context, sessionID string) {
 		if session.Speed > 0 && lastTS > 0 && p.Timestamp > lastTS {
 			delay := time.Duration(float64(p.Timestamp-lastTS) / session.Speed)
 			if delay > 0 && delay < time.Minute {
-				time.Sleep(delay)
+				select {
+				case <-time.After(delay):
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 		lastTS = p.Timestamp
