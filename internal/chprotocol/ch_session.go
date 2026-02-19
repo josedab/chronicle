@@ -1,3 +1,8 @@
+// Package chprotocol implements the ClickHouse native protocol session handling.
+//
+//nolint:errcheck // Protocol handshake reads consume fixed fields from the wire;
+// individual read errors are caught by the underlying reader's error state
+// and surfaced on the next checked I/O operation.
 package chprotocol
 
 import (
