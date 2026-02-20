@@ -159,6 +159,37 @@ Feature requests are welcome! Please describe:
 - Your proposed solution
 - Any alternatives you've considered
 
+## First-Time Contributors
+
+Looking for your first contribution? See **[Good First Issues](docs/GOOD_FIRST_ISSUES.md)** for 20 well-scoped tasks ranging from documentation to small features.
+
+### Architecture Quick Reference
+
+```
+chronicle/
+├── db_core.go          ← DB struct, Open(), Close(), lifecycle
+├── db_write.go         ← Write(), WriteBatch(), WriteContext()
+├── query.go            ← Execute(), Query struct, Result struct
+├── config.go           ← Config, Validate(), DefaultConfig()
+├── wal.go              ← Write-ahead log (crash recovery)
+├── btree.go            ← Partition index
+├── buffer.go           ← Write buffer (batching)
+├── partition_core.go   ← Partition data structure
+├── partition_query.go  ← Query execution within partitions
+├── feature_manager.go  ← Lazy feature initialization
+├── feature_registry.go ← Plugin-style feature management (new)
+├── http_server.go      ← HTTP API server
+├── promql.go           ← PromQL parser
+├── internal/           ← Private implementation packages
+├── cmd/chronicle/      ← CLI tool
+└── examples/           ← Example applications
+```
+
+**Key concepts**:
+- Data flows: Point → WriteBuffer → WAL → Partition → BTree index
+- Queries: Query → BTree lookup → Partition scan → Aggregation → Result
+- Features use lazy init via `sync.Once` (see `feature_manager.go`)
+
 ## Code of Conduct
 
 Please be respectful and constructive in all interactions. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
