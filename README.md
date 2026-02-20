@@ -271,6 +271,8 @@ chronicle/
 The main `chronicle` package provides the public API. Internal packages under `internal/`
 contain implementation details that should not be imported directly.
 
+For a detailed package organization map and restructuring plan, see [docs/PACKAGES.md](docs/PACKAGES.md).
+
 ## Documentation
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — 10-minute tutorial from install to query
@@ -284,6 +286,7 @@ contain implementation details that should not be imported directly.
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Benchmarks](docs/BENCHMARKS.md)
 - [FAQ / Troubleshooting](docs/FAQ.md)
+- [Migration Guide](docs/MIGRATION.md)
 
 ## Development
 

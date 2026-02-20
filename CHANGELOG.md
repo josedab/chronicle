@@ -71,9 +71,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - No unsafe package usage
 - AES-256-GCM encryption at rest (opt-in)
 
-## [0.1.0] - TBD
+## [0.1.0] - 2026-02-20
 
-Initial public release.
+### Added
+- Initial public release with core embedded time-series database
+- Single-file storage with append-only partitions and Gorilla compression
+- SQL-like query parser, PromQL subset, and CQL query language
+- Pluggable storage backends (file, memory, S3, tiered)
+- WAL-based crash recovery
+- Context-aware API: WriteContext, WriteBatchContext, ExecuteContext
+- HTTP API with Influx line protocol and Prometheus remote write
+- OpenTelemetry OTLP receiver
+- Grafana data source plugin scaffold
+- Encryption at rest (AES-256-GCM)
+- Schema registry, alerting engine, multi-tenancy
+- Time-series forecasting and anomaly detection
+- Comprehensive documentation site and 6 example projects
+
+### Changed
+- Migrated all `interface{}` to `any` for modern Go idioms
+- FeatureManager now uses lazy initialization (sync.Once) for non-core features
+- Write buffer Drain() uses slice swap instead of copy for better performance
+- Query path pre-allocates result slices and skips redundant sort
+- WAL batches writes instead of flushing per-write
+- CORS middleware now requires explicit allowed origins (no more wildcard)
+
+### Deprecated
+- materialized_views.go V1 (use MaterializedViewV2Engine)
+- stream_dsl.go V1 (use StreamDSLV2Engine)
+- adaptive_compression.go V1 (use BanditCompressor V3)
+- adaptive_compression_v2.go V2 (use BanditCompressor V3)
+
+### Security
+- Fixed CORS wildcard origin in query console and Grafana backend
+- Added SLSA provenance attestation for releases
+- Added SBOM (SPDX) generation for supply chain transparency
+- Strengthened golangci-lint with gosec, errorlint, and additional linters
+- Added benchmark regression CI for performance monitoring
 
 ---
 
