@@ -28,6 +28,11 @@ linters:
     - dupword
     - tenv
     - gci
+    # Complexity linters
+    - goconst
+    - gocyclo
+    - funlen
+    - nestif
 
 linters-settings:
   errcheck:
@@ -57,6 +62,18 @@ linters-settings:
       - standard
       - default
       - prefix(github.com/chronicle-db/chronicle)
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+    ignore-tests: true
+  gocyclo:
+    min-complexity: 30
+  funlen:
+    lines: 150
+    statements: 80
+    ignore-comments: true
+  nestif:
+    min-complexity: 8
 
 issues:
   exclude-use-default: false
@@ -70,3 +87,7 @@ issues:
         - prealloc
         - tenv
         - dupword
+        - goconst
+        - funlen
+        - gocyclo
+        - nestif
