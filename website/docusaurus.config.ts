@@ -100,6 +100,7 @@ const config: Config = {
           position: 'left',
         },
         {to: '/blog', label: 'Blog', position: 'left'},
+        {to: '/playground', label: 'Playground', position: 'left'},
         {
           href: 'https://pkg.go.dev/github.com/chronicle-db/chronicle',
           label: 'GoDoc',

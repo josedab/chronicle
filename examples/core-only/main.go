@@ -1,6 +1,6 @@
 // Core-only example — the simplest possible Chronicle program.
 //
-// Demonstrates: Open, Write, Flush, Execute, Close.
+// Demonstrates: Open, WriteContext, Flush, ExecuteContext, Close.
 // No optional features, no HTTP, no advanced config.
 //
 // Run:
@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -24,10 +25,14 @@ func main() {
 	}
 	defer db.Close()
 
-	// Write some data points
+	// Use a context with timeout for all operations
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Write some data points (context-aware)
 	now := time.Now().UnixNano()
 	for i := range 5 {
-		err := db.Write(chronicle.Point{
+		err := db.WriteContext(ctx, chronicle.Point{
 			Metric:    "cpu",
 			Value:     40.0 + float64(i)*5.0,
 			Timestamp: now + int64(i)*int64(time.Second),
@@ -41,8 +46,8 @@ func main() {
 	// Flush writes to storage so queries can find them
 	db.Flush()
 
-	// Query all points
-	result, err := db.Execute(&chronicle.Query{Metric: "cpu"})
+	// Query all points (context-aware)
+	result, err := db.ExecuteContext(ctx, &chronicle.Query{Metric: "cpu"})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,7 +58,7 @@ func main() {
 	}
 
 	// Query with aggregation
-	result, err = db.Execute(&chronicle.Query{
+	result, err = db.ExecuteContext(ctx, &chronicle.Query{
 		Metric: "cpu",
 		Aggregation: &chronicle.Aggregation{
 			Function: chronicle.AggMean,

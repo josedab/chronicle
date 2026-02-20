@@ -79,9 +79,9 @@ func main() {
 		// Example 2: Rate calculation (using AggRate)
 		log.Println("\n2. Rate: http_requests_total over 5 minutes")
 		result, err = db.Execute(&chronicle.Query{
-			Metric: "http_requests_total",
-			Start:  time.Now().Add(-5 * time.Minute).UnixNano(),
-			End:    time.Now().UnixNano(),
+			Metric:  "http_requests_total",
+			Start:   time.Now().Add(-5 * time.Minute).UnixNano(),
+			End:     time.Now().UnixNano(),
 			GroupBy: []string{"handler"},
 			Aggregation: &chronicle.Aggregation{
 				Function: chronicle.AggRate,
