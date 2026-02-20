@@ -2,7 +2,6 @@ module github.com/chronicle-db/chronicle/examples/prometheus-compatible
 
 go 1.24.0
 
-toolchain go1.24.4
 
 require github.com/chronicle-db/chronicle v0.0.0
 
