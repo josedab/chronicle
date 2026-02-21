@@ -1,9 +1,12 @@
 package chronicle
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -375,5 +378,164 @@ func (p *AnomalyPipeline) Stats() AnomalyPipelineStats {
 		TotalAnomalies: p.totalAnomalies,
 		ActiveMetrics:  len(p.baselines),
 		Running:        p.running,
+	}
+}
+
+// DetectPoint runs anomaly detection on a single point and returns
+// any detected anomaly. Returns nil if the point is normal.
+func (p *AnomalyPipeline) DetectPoint(pt Point) *PipelineAnomaly {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	b, exists := p.baselines[pt.Metric]
+	if !exists {
+		b = &metricBaseline{
+			values: make([]float64, 0, p.config.WindowSize),
+		}
+		p.baselines[pt.Metric] = b
+	}
+
+	p.updateBaseline(b, pt.Value)
+	p.totalProcessed++
+
+	if b.count < int64(p.config.MinDataPoints) {
+		return nil
+	}
+
+	var isAnomaly bool
+	var score float64
+
+	// Z-score detection
+	if b.stddev > 0 {
+		zscore := math.Abs(pt.Value-b.mean) / b.stddev
+		if zscore > p.config.ZScoreThreshold {
+			isAnomaly = true
+			score = zscore
+		}
+	}
+
+	// IQR detection
+	if !isAnomaly {
+		iqr := b.q3 - b.q1
+		lower := b.q1 - p.config.IQRMultiplier*iqr
+		upper := b.q3 + p.config.IQRMultiplier*iqr
+		if pt.Value < lower || pt.Value > upper {
+			isAnomaly = true
+			if b.stddev > 0 {
+				score = math.Abs(pt.Value-b.mean) / b.stddev
+			} else {
+				score = math.Abs(pt.Value - b.mean)
+			}
+		}
+	}
+
+	if !isAnomaly {
+		return nil
+	}
+
+	anomalyType, method := p.classifyAnomaly(pt.Value, b.mean, score)
+	anomaly := PipelineAnomaly{
+		ID:        fmt.Sprintf("detect-%d", time.Now().UnixNano()),
+		Metric:    pt.Metric,
+		Tags:      pt.Tags,
+		Timestamp: time.Now(),
+		Value:     pt.Value,
+		Expected:  b.mean,
+		Score:     score,
+		Type:      anomalyType,
+		Method:    method,
+		Severity:  classifyAnomalySeverity(score),
+	}
+
+	p.anomalies = append(p.anomalies, anomaly)
+	p.totalAnomalies++
+
+	return &anomaly
+}
+
+// SendWebhook sends an anomaly alert to the configured webhook URL.
+func (p *AnomalyPipeline) SendWebhook(anomaly *PipelineAnomaly) error {
+	if p.config.AlertWebhookURL == "" {
+		return nil
+	}
+
+	payload, err := json.Marshal(anomaly)
+	if err != nil {
+		return fmt.Errorf("marshal anomaly: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.AlertWebhookURL, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create webhook request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Chronicle-Anomaly-Pipeline/0.1")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("send webhook: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("webhook returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// RegisterHTTPHandlers registers anomaly pipeline HTTP endpoints on the given mux.
+func (p *AnomalyPipeline) RegisterHTTPHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/anomalies/detect", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var pt Point
+		if err := json.NewDecoder(r.Body).Decode(&pt); err != nil {
+			http.Error(w, "invalid point: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		anomaly := p.DetectPoint(pt)
+		w.Header().Set("Content-Type", "application/json")
+		if anomaly == nil {
+			json.NewEncoder(w).Encode(map[string]any{"anomaly": false})
+		} else {
+			json.NewEncoder(w).Encode(map[string]any{"anomaly": true, "detail": anomaly})
+		}
+	})
+
+	mux.HandleFunc("/api/v1/anomalies/config", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(p.config)
+		case http.MethodPut:
+			var cfg AnomalyPipelineConfig
+			if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+				http.Error(w, "invalid config: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			p.mu.Lock()
+			p.config = cfg
+			p.mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func classifyAnomalySeverity(score float64) string {
+	switch {
+	case score >= 5.0:
+		return "critical"
+	case score >= 3.5:
+		return "warning"
+	default:
+		return "info"
 	}
 }
