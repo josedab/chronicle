@@ -8,6 +8,21 @@ import (
 	"time"
 )
 
+// httpRouteRegistrar is implemented by features that register their own HTTP handlers.
+type httpRouteRegistrar interface {
+	RegisterHTTPHandlers(mux *http.ServeMux)
+}
+
+// registerFeatureRoutes registers HTTP handlers for features that implement httpRouteRegistrar.
+// It safely skips nil features.
+func registerFeatureRoutes(mux *http.ServeMux, registrars ...httpRouteRegistrar) {
+	for _, r := range registrars {
+		if r != nil {
+			r.RegisterHTTPHandlers(mux)
+		}
+	}
+}
+
 // setupNextGenRoutes configures next-generation feature endpoints
 func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	// CQL query endpoint
@@ -271,184 +286,46 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		}))
 	}
 
-	// Embeddable Dashboard
-	if db.features != nil && db.features.Dashboard() != nil {
-		db.features.Dashboard().RegisterHTTPHandlers(mux)
-	}
-
-	// ETL Pipeline Manager
-	if db.features != nil && db.features.ETLManager() != nil {
-		db.features.ETLManager().RegisterHTTPHandlers(mux)
-	}
-
-	// Cloud Sync Fabric
-	if db.features != nil && db.features.CloudSyncFabric() != nil {
-		db.features.CloudSyncFabric().RegisterHTTPHandlers(mux)
-	}
-
-	// Data Mesh Federation
-	if db.features != nil && db.features.DataMesh() != nil {
-		db.features.DataMesh().RegisterHTTPHandlers(mux)
-	}
-
-	// Foundation Model
-	if db.features != nil && db.features.FoundationModel() != nil {
-		db.features.FoundationModel().RegisterHTTPHandlers(mux)
-	}
-
-	// Data Contracts
-	if db.features != nil && db.features.DataContracts() != nil {
-		db.features.DataContracts().RegisterHTTPHandlers(mux)
-	}
-
-	// Query Cache
-	if db.features != nil && db.features.QueryCache() != nil {
-		db.features.QueryCache().RegisterHTTPHandlers(mux)
-	}
-
-	// SQL Pipelines
-	if db.features != nil && db.features.SQLPipelines() != nil {
-		db.features.SQLPipelines().RegisterHTTPHandlers(mux)
-	}
-
-	// Multi-Model Store
-	if db.features != nil && db.features.MultiModelStore() != nil {
-		db.features.MultiModelStore().RegisterHTTPHandlers(mux)
-	}
-
-	// Adaptive Optimizer
-	if db.features != nil && db.features.AdaptiveOptimizer() != nil {
-		db.features.AdaptiveOptimizer().RegisterHTTPHandlers(mux)
-	}
-
-	// Compliance Automation
-	if db.features != nil && db.features.ComplianceAutomation() != nil {
-		db.features.ComplianceAutomation().RegisterHTTPHandlers(mux)
-	}
-
-	// Schema Designer
-	if db.features != nil && db.features.SchemaDesigner() != nil {
-		db.features.SchemaDesigner().RegisterHTTPHandlers(mux)
-	}
-
-	// Mobile SDK
-	if db.features != nil && db.features.MobileSDK() != nil {
-		db.features.MobileSDK().RegisterHTTPHandlers(mux)
-	}
-
-	// Stream Processing Engine
-	if db.features != nil && db.features.StreamProcessing() != nil {
-		db.features.StreamProcessing().RegisterHTTPHandlers(mux)
-	}
-
-	// Time-Travel Debug Engine
-	if db.features != nil && db.features.TimeTravelDebug() != nil {
-		db.features.TimeTravelDebug().RegisterHTTPHandlers(mux)
-	}
-
-	// Auto-Sharding Engine
-	if db.features != nil && db.features.AutoSharding() != nil {
-		db.features.AutoSharding().RegisterHTTPHandlers(mux)
-	}
-
-	// Root Cause Analysis Engine
-	if db.features != nil && db.features.RootCauseAnalysis() != nil {
-		db.features.RootCauseAnalysis().RegisterHTTPHandlers(mux)
-	}
-
-	// Cross-Cloud Tiering Engine
-	if db.features != nil && db.features.CrossCloudTiering() != nil {
-		db.features.CrossCloudTiering().RegisterHTTPHandlers(mux)
-	}
-
-	// Declarative Alerting Engine
-	if db.features != nil && db.features.DeclarativeAlerting() != nil {
-		db.features.DeclarativeAlerting().RegisterHTTPHandlers(mux)
-	}
-
-	// Metrics Catalog
-	if db.features != nil && db.features.MetricsCatalog() != nil {
-		db.features.MetricsCatalog().RegisterHTTPHandlers(mux)
-	}
-
-	// Compression Advisor
-	if db.features != nil && db.features.CompressionAdvisor() != nil {
-		db.features.CompressionAdvisor().RegisterHTTPHandlers(mux)
-	}
-
-	// Time-Series Diff & Merge Engine
-	if db.features != nil && db.features.TSDiffMerge() != nil {
-		db.features.TSDiffMerge().RegisterHTTPHandlers(mux)
-	}
-
-	// Compliance Packs Engine
-	if db.features != nil && db.features.CompliancePacks() != nil {
-		db.features.CompliancePacks().RegisterHTTPHandlers(mux)
-	}
-
-	// Blockchain Audit Trail
-	if db.features != nil && db.features.BlockchainAudit() != nil {
-		db.features.BlockchainAudit().RegisterHTTPHandlers(mux)
-	}
-
-	// Chronicle Studio IDE
-	if db.features != nil && db.features.ChronicleStudio() != nil {
-		db.features.ChronicleStudio().RegisterHTTPHandlers(mux)
-	}
-
-	// IoT Device SDK
-	if db.features != nil && db.features.IoTDeviceSDK() != nil {
-		db.features.IoTDeviceSDK().RegisterHTTPHandlers(mux)
-	}
-
-	// Multi-Region Replication
-	if db.features != nil && db.features.MultiRegionReplication() != nil {
-		db.features.MultiRegionReplication().RegisterHTTPHandlers(mux)
-	}
-
-	// Universal SDK Generator
-	if db.features != nil && db.features.UniversalSDK() != nil {
-		db.features.UniversalSDK().RegisterHTTPHandlers(mux)
-	}
-
-	// Studio Enhanced IDE
-	if db.features != nil && db.features.StudioEnhanced() != nil {
-		db.features.StudioEnhanced().RegisterHTTPHandlers(mux)
-	}
-
-	// Schema Inference
-	if db.features != nil && db.features.SchemaInference() != nil {
-		db.features.SchemaInference().RegisterHTTPHandlers(mux)
-	}
-
-	// Cloud SaaS
-	if db.features != nil && db.features.CloudSaaS() != nil {
-		db.features.CloudSaaS().RegisterHTTPHandlers(mux)
-	}
-
-	// Stream DSL V2
-	if db.features != nil && db.features.StreamDSLV2() != nil {
-		db.features.StreamDSLV2().RegisterHTTPHandlers(mux)
-	}
-
-	// Anomaly Explainability
-	if db.features != nil && db.features.AnomalyExplainability() != nil {
-		db.features.AnomalyExplainability().RegisterHTTPHandlers(mux)
-	}
-
-	// Hardware-Accelerated Query Engine
-	if db.features != nil && db.features.HWAcceleratedQuery() != nil {
-		db.features.HWAcceleratedQuery().RegisterHTTPHandlers(mux)
-	}
-
-	// Plugin Marketplace
-	if db.features != nil && db.features.Marketplace() != nil {
-		db.features.Marketplace().RegisterHTTPHandlers(mux)
-	}
-
-	// Regulatory Compliance
-	if db.features != nil && db.features.RegulatoryCompliance() != nil {
-		db.features.RegulatoryCompliance().RegisterHTTPHandlers(mux)
+	// Register features that implement httpRouteRegistrar via consolidated helper.
+	if db.features != nil {
+		registerFeatureRoutes(mux,
+			db.features.Dashboard(),
+			db.features.ETLManager(),
+			db.features.CloudSyncFabric(),
+			db.features.DataMesh(),
+			db.features.FoundationModel(),
+			db.features.DataContracts(),
+			db.features.QueryCache(),
+			db.features.SQLPipelines(),
+			db.features.MultiModelStore(),
+			db.features.AdaptiveOptimizer(),
+			db.features.ComplianceAutomation(),
+			db.features.SchemaDesigner(),
+			db.features.MobileSDK(),
+			db.features.StreamProcessing(),
+			db.features.TimeTravelDebug(),
+			db.features.AutoSharding(),
+			db.features.RootCauseAnalysis(),
+			db.features.CrossCloudTiering(),
+			db.features.DeclarativeAlerting(),
+			db.features.MetricsCatalog(),
+			db.features.CompressionAdvisor(),
+			db.features.TSDiffMerge(),
+			db.features.CompliancePacks(),
+			db.features.BlockchainAudit(),
+			db.features.ChronicleStudio(),
+			db.features.IoTDeviceSDK(),
+			db.features.MultiRegionReplication(),
+			db.features.UniversalSDK(),
+			db.features.StudioEnhanced(),
+			db.features.SchemaInference(),
+			db.features.CloudSaaS(),
+			db.features.StreamDSLV2(),
+			db.features.AnomalyExplainability(),
+			db.features.HWAcceleratedQuery(),
+			db.features.Marketplace(),
+			db.features.RegulatoryCompliance(),
+		)
 	}
 }
 
