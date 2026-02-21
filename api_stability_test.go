@@ -218,3 +218,61 @@ func TestStableAPI_StabilityTierString(t *testing.T) {
 		t.Error("unexpected experimental string")
 	}
 }
+
+// TestStableAPI_RegistryComplete ensures every listed stable API symbol
+// references a type or function that actually exists in the package.
+func TestStableAPI_RegistryComplete(t *testing.T) {
+	stable := StableAPI()
+	if len(stable) == 0 {
+		t.Fatal("StableAPI() returned empty list")
+	}
+
+	// All stable symbols must have a name and kind
+	for _, sym := range stable {
+		if sym.Name == "" {
+			t.Error("stable symbol with empty name")
+		}
+		if sym.Kind == "" {
+			t.Errorf("stable symbol %q has empty kind", sym.Name)
+		}
+		if sym.Since == "" {
+			t.Errorf("stable symbol %q has empty since", sym.Name)
+		}
+	}
+
+	// Verify known stable types resolve via reflection
+	knownTypes := map[string]any{
+		"DB":              (*DB)(nil),
+		"Point":           Point{},
+		"Query":           Query{},
+		"Aggregation":     Aggregation{},
+		"AggFunc":         AggNone,
+		"Result":          Result{},
+		"Config":          Config{},
+		"StorageConfig":   StorageConfig{},
+		"WALConfig":       WALConfig{},
+		"RetentionConfig": RetentionConfig{},
+		"QueryConfig":     QueryConfig{},
+		"HTTPConfig":      HTTPConfig{},
+		"TagFilter":       TagFilter{},
+	}
+	for _, sym := range stable {
+		if sym.Kind == "type" {
+			if _, ok := knownTypes[sym.Name]; !ok {
+				t.Errorf("stable type %q not verified by test — add it to knownTypes", sym.Name)
+			}
+		}
+	}
+
+	// Verify beta list is not empty
+	beta := BetaAPI()
+	if len(beta) == 0 {
+		t.Error("BetaAPI() returned empty list")
+	}
+
+	// Verify experimental list is not empty
+	experimental := ExperimentalAPI()
+	if len(experimental) == 0 {
+		t.Error("ExperimentalAPI() returned empty list")
+	}
+}

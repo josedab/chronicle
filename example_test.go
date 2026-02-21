@@ -193,3 +193,61 @@ func ExampleDB_Execute_tagFilter() {
 	fmt.Printf("Kitchen points: %d\n", len(result.Points))
 	// Output: Kitchen points: 1
 }
+
+func ExampleConfig_Validate() {
+	cfg := chronicle.DefaultConfig("/tmp/data.db")
+
+	// Valid config passes
+	if err := cfg.Validate(); err != nil {
+		panic(err)
+	}
+
+	// Invalid config returns descriptive errors
+	bad := chronicle.Config{} // missing Path and StorageBackend
+	if err := bad.Validate(); err != nil {
+		fmt.Println("Validation error:", err)
+	}
+	// Output: Validation error: either Path or StorageBackend must be set
+}
+
+func ExamplePromQLParser() {
+	parser := &chronicle.PromQLParser{}
+
+	// Parse a PromQL selector with label matchers
+	query, err := parser.Parse(`http_requests_total{method="GET",status="200"}`)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Metric: %s\n", query.Metric)
+	fmt.Printf("Labels: %d\n", len(query.Labels))
+	// Output:
+	// Metric: http_requests_total
+	// Labels: 2
+}
+
+func ExampleDB_Execute_tagFilterRegex() {
+	dir, _ := os.MkdirTemp("", "chronicle-regex-*")
+	defer os.RemoveAll(dir)
+	dbPath := filepath.Join(dir, "regex.db")
+
+	db, _ := chronicle.Open(dbPath, chronicle.DefaultConfig(dbPath))
+	defer db.Close()
+
+	now := time.Now().UnixNano()
+	_ = db.Write(chronicle.Point{Metric: "http", Tags: map[string]string{"method": "GET"}, Value: 1, Timestamp: now})
+	_ = db.Write(chronicle.Point{Metric: "http", Tags: map[string]string{"method": "POST"}, Value: 1, Timestamp: now + 1})
+	_ = db.Write(chronicle.Point{Metric: "http", Tags: map[string]string{"method": "DELETE"}, Value: 1, Timestamp: now + 2})
+	_ = db.Flush()
+
+	// Use regex filter to match GET or POST
+	result, _ := db.Execute(&chronicle.Query{
+		Metric: "http",
+		TagFilters: []chronicle.TagFilter{
+			{Key: "method", Op: chronicle.TagOpRegex, Values: []string{"GET|POST"}},
+		},
+	})
+
+	fmt.Printf("Matched: %d\n", len(result.Points))
+	// Output: Matched: 2
+}
