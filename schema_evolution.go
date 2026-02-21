@@ -662,7 +662,15 @@ func (e *SchemaMigrationEngine) executeMigration(mig *SchemaEvolutionMigration) 
 		e.mu.Unlock()
 
 		// Throttle to keep write impact ≤5%
-		time.Sleep(time.Millisecond)
+		select {
+		case <-time.After(time.Millisecond):
+		case <-e.stopCh:
+			e.mu.Lock()
+			mig.State = MigrationFailed
+			mig.Error = "engine stopped"
+			e.mu.Unlock()
+			return
+		}
 	}
 
 	now := time.Now()
