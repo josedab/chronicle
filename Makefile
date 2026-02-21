@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race help
+.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -121,12 +121,33 @@ cover: ## Print coverage summary to terminal (warns if below 70%)
 cover-report: ## Per-package coverage report (use -html for HTML output)
 	@./scripts/coverage.sh
 
+test-cover-pkg: ## Per-package coverage for a specific package (usage: make test-cover-pkg PKG=./internal/...)
+ifndef PKG
+	$(error PKG is required. Usage: make test-cover-pkg PKG=./internal/query/...)
+endif
+	@echo "Running coverage for $(PKG)..."
+	@$(GO) test -short -coverprofile=coverage.out -covermode=atomic $(PKG)
+	@$(GO) tool cover -func=coverage.out
+	@rm -f coverage.out
+
 vet: ## Run go vet
 	$(GO) vet ./...
 
 check: preflight fmt-check vet test-fast ## Quick pre-commit validation (preflight + fmt + vet + fast tests)
 
-check-all: check lint check-file-size check-todos check-versions ## Comprehensive pre-push validation (check + lint + file sizes + TODOs + versions)
+check-all: check lint check-file-size check-todos check-versions check-generate ## Comprehensive pre-push validation (check + lint + file sizes + TODOs + versions + generated code)
+
+generate: ## Run code generation (go generate + feature accessors)
+	$(GO) generate ./...
+	@echo "✓ Code generation complete"
+
+check-generate: generate ## Verify generated code is up-to-date
+	@if [ -n "$$(git diff --name-only)" ]; then \
+		echo "ERROR: Generated code is out of date. Run 'make generate' and commit the result."; \
+		git diff --name-only; \
+		exit 1; \
+	fi
+	@echo "✓ Generated code is up-to-date"
 
 quickcheck: ## Full pre-push validation (vet + all short tests)
 	$(GO) vet ./...
