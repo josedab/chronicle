@@ -631,4 +631,105 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 			"state": e.GetState().String(),
 		})
 	})
+
+	mux.HandleFunc("/api/v1/replication/snapshot", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		snapshot := e.CreateSnapshot()
+		writeJSON(w, snapshot)
+	})
+
+	mux.HandleFunc("/api/v1/replication/apply-snapshot", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var snapshot MRSnapshot
+		if err := json.NewDecoder(r.Body).Decode(&snapshot); err != nil {
+			http.Error(w, "invalid snapshot: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := e.ApplySnapshot(snapshot); err != nil {
+			http.Error(w, "apply snapshot: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]string{"status": "applied"})
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot-based Sync
+// ---------------------------------------------------------------------------
+
+// MRSnapshot represents a point-in-time snapshot of the replication state
+// for bootstrapping new peers or recovering from failure.
+type MRSnapshot struct {
+	SourceRegion string           `json:"source_region"`
+	CreatedAt    time.Time        `json:"created_at"`
+	VectorClock  MRVectorClock    `json:"vector_clock"`
+	EventCount   int              `json:"event_count"`
+	Events       []MRReplicationEvent `json:"events"`
+	PeerStates   map[string]string    `json:"peer_states"`
+}
+
+// CreateSnapshot captures the current replication state for transfer to a new peer.
+func (e *MultiRegionReplicationEngine) CreateSnapshot() MRSnapshot {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	events := make([]MRReplicationEvent, len(e.eventLog))
+	copy(events, e.eventLog)
+
+	vc := make(MRVectorClock, len(e.vectorClock))
+	for k, v := range e.vectorClock {
+		vc[k] = v
+	}
+
+	peerStates := make(map[string]string, len(e.peers))
+	for id, peer := range e.peers {
+		peerStates[id] = peer.State.String()
+	}
+
+	return MRSnapshot{
+		SourceRegion: e.config.RegionName,
+		CreatedAt:    time.Now(),
+		VectorClock:  vc,
+		EventCount:   len(events),
+		Events:       events,
+		PeerStates:   peerStates,
+	}
+}
+
+// ApplySnapshot applies a snapshot from a source peer to bootstrap replication state.
+func (e *MultiRegionReplicationEngine) ApplySnapshot(snapshot MRSnapshot) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Merge vector clock (take max of each component)
+	for nodeID, ts := range snapshot.VectorClock {
+		if existing, ok := e.vectorClock[nodeID]; !ok || ts > existing {
+			e.vectorClock[nodeID] = ts
+		}
+	}
+
+	// Append events we don't already have
+	existingIDs := make(map[string]bool, len(e.eventLog))
+	for _, ev := range e.eventLog {
+		existingIDs[ev.ID] = true
+	}
+	for _, ev := range snapshot.Events {
+		if !existingIDs[ev.ID] {
+			e.eventLog = append(e.eventLog, ev)
+			e.totalEventsReplicated++
+		}
+	}
+
+	// Update state
+	if e.state == MRInitializing {
+		e.state = MRActive
+	}
+
+	return nil
 }
