@@ -69,6 +69,8 @@ func (a StreamAction) String() string {
 type StreamPredicate func(p *Point) bool
 
 // StreamRule defines a stream processing rule.
+//
+// Deprecated: Use [StreamDSLV2Engine] instead.
 type StreamRule struct {
 	Name         string
 	Trigger      StreamTriggerOp
@@ -89,6 +91,8 @@ type windowEntry struct {
 }
 
 // StreamRuleBuilder provides a fluent API for constructing rules.
+//
+// Deprecated: Use [StreamDSLV2Engine] instead.
 type StreamRuleBuilder struct {
 	rule *StreamRule
 }
@@ -192,6 +196,8 @@ func (b *StreamRuleBuilder) Build() *StreamRule {
 }
 
 // StreamProcessor evaluates rules against incoming data.
+//
+// Deprecated: Use [StreamDSLV2Engine] instead.
 type StreamProcessor struct {
 	mu       sync.RWMutex
 	rules    []*StreamRule
@@ -211,6 +217,8 @@ type StreamProcessorStats struct {
 }
 
 // NewStreamProcessor creates a new stream processor.
+//
+// Deprecated: Use [NewStreamDSLV2Engine] instead.
 func NewStreamProcessor() *StreamProcessor {
 	return &StreamProcessor{
 		rules: make([]*StreamRule, 0),

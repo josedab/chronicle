@@ -186,6 +186,8 @@ func RecommendCodec(p ColumnProfile) CodecRecommendation {
 
 // WorkloadLearner tracks codec performance per column over time and improves selection.
 //
+// Deprecated: Use [AdaptiveCompressorV3] (BanditCompressor) instead.
+//
 // 🔬 BETA: API may evolve between minor versions with migration guidance.
 // See api_stability.go for stability classifications.
 type WorkloadLearner struct {
@@ -208,6 +210,8 @@ type codecTrialResult struct {
 }
 
 // NewWorkloadLearner creates a new workload learner.
+//
+// Deprecated: Use [NewAdaptiveCompressorV3] instead.
 func NewWorkloadLearner() *WorkloadLearner {
 	return &WorkloadLearner{
 		profiles: make(map[string]*learnedProfile),
