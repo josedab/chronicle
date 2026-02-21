@@ -179,7 +179,7 @@ For the full API surface, see the [Go reference](https://pkg.go.dev/github.com/c
 └──────────────────────────────────────────────────────────────┘
 ```
 
-For a detailed walkthrough, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+→ **[Full Architecture Guide](docs/ARCHITECTURE.md)** — detailed walkthrough of data flow, partitioning, and storage backends.
 
 ## API Maturity
 
