@@ -139,11 +139,11 @@ func NewOTelCollectorExporter(config OTelCollectorConfig) (*OTelCollectorExporte
 // Start begins the exporter background processing.
 func (e *OTelCollectorExporter) Start(ctx context.Context) error {
 	e.wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer e.wg.Done()
 		<-ctx.Done()
 		e.Stop()
-	}()
+	}(ctx)
 	return nil
 }
 
@@ -564,7 +564,7 @@ func NewOTelCollectorReceiver(db *DB, config OTelCollectorReceiverConfig) *OTelC
 }
 
 // Start begins listening for OTel Collector data.
-func (r *OTelCollectorReceiver) Start() error {
+func (r *OTelCollectorReceiver) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/otel-collector/ingest", r.handleMetrics)
 	mux.HandleFunc("/api/v1/otel-collector/health", r.handleHealth)
@@ -575,7 +575,7 @@ func (r *OTelCollectorReceiver) Start() error {
 	}
 
 	r.wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer r.wg.Done()
 		var err error
 		if r.config.TLSEnabled {
@@ -586,7 +586,13 @@ func (r *OTelCollectorReceiver) Start() error {
 		if err != nil && err != http.ErrServerClosed {
 			// Log error
 		}
-	}()
+	}(ctx)
+
+	// Shut down the server when the parent context is cancelled.
+	go func(ctx context.Context) {
+		<-ctx.Done()
+		r.Stop(context.Background())
+	}(ctx)
 
 	return nil
 }

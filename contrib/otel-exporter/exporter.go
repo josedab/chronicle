@@ -163,7 +163,11 @@ func (e *Exporter) send(ctx context.Context, points []Point) error {
 		resp, err := e.client.Do(req)
 		if err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(i+1) * time.Second)
+			select {
+			case <-time.After(time.Duration(i+1) * time.Second):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 			continue
 		}
 		resp.Body.Close()
