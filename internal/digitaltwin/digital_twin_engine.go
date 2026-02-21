@@ -322,7 +322,12 @@ func (e *DigitalTwinEngine) flushBatch(batch []*TwinUpdate) {
 			if err == nil {
 				break
 			}
-			time.Sleep(e.config.RetryDelay)
+			select {
+			case <-time.After(e.config.RetryDelay):
+			case <-ctx.Done():
+				err = ctx.Err()
+				break
+			}
 		}
 		cancel()
 
