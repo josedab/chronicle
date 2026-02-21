@@ -80,6 +80,10 @@ jobs:
         with:
           version: latest
 
+      - name: Check for large files (warning)
+        run: make check-file-size
+        continue-on-error: true
+
   benchmark:
     name: Benchmarks
     runs-on: ubuntu-latest
