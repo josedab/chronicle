@@ -152,3 +152,94 @@ func TestSplitPromQLArgs(t *testing.T) {
 		}
 	}
 }
+
+func TestPromQLBinaryExprParsing(t *testing.T) {
+	parser := NewPromQLCompleteParser()
+	tests := []struct {
+		expr string
+		op   PromQLBinaryOp
+	}{
+		{"cpu_usage + memory_usage", PromQLBinAdd},
+		{"requests_total - errors_total", PromQLBinSub},
+		{"rate_a * rate_b", PromQLBinMul},
+		{"bytes_total / ops_total", PromQLBinDiv},
+		{"latency > threshold", PromQLBinGreaterThan},
+		{"metric_a == metric_b", PromQLBinEqual},
+		{"active and healthy", PromQLBinAnd},
+		{"up or down", PromQLBinOr},
+		{"alerts unless silenced", PromQLBinUnless},
+	}
+	for _, tt := range tests {
+		q, err := parser.ParseComplete(tt.expr)
+		if err != nil {
+			t.Errorf("ParseComplete(%q) error: %v", tt.expr, err)
+			continue
+		}
+		if q.BinaryExpr == nil {
+			t.Errorf("ParseComplete(%q): expected BinaryExpr, got nil", tt.expr)
+			continue
+		}
+		if q.BinaryExpr.Op != tt.op {
+			t.Errorf("ParseComplete(%q): op = %v, want %v", tt.expr, q.BinaryExpr.Op, tt.op)
+		}
+	}
+}
+
+func TestApplyBinaryOp(t *testing.T) {
+	left := []float64{10, 20, 30}
+	right := []float64{1, 2, 3}
+
+	result := ApplyBinaryOp(PromQLBinAdd, left, right)
+	if len(result) != 3 || result[0] != 11 || result[1] != 22 || result[2] != 33 {
+		t.Errorf("Add: got %v", result)
+	}
+
+	result = ApplyBinaryOp(PromQLBinDiv, left, right)
+	if len(result) != 3 || result[0] != 10 || result[1] != 10 || result[2] != 10 {
+		t.Errorf("Div: got %v", result)
+	}
+
+	result = ApplyBinaryOp(PromQLBinGreaterThan, left, right)
+	if len(result) != 3 || result[0] != 10 || result[1] != 20 || result[2] != 30 {
+		t.Errorf("GreaterThan: got %v", result)
+	}
+
+	// Division by zero
+	result = ApplyBinaryOp(PromQLBinDiv, []float64{1}, []float64{0})
+	if len(result) != 1 || !math.IsNaN(result[0]) {
+		t.Errorf("DivByZero: got %v, want NaN", result)
+	}
+}
+
+func TestPromQLRegexMatcherConversion(t *testing.T) {
+	parser := &PromQLParser{}
+	q, err := parser.Parse(`http_requests{method=~"GET|POST"}`)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+	cq := q.ToChronicleQuery(0, 1000)
+	if len(cq.TagFilters) != 1 {
+		t.Fatalf("expected 1 TagFilter, got %d", len(cq.TagFilters))
+	}
+	if cq.TagFilters[0].Op != TagOpRegex {
+		t.Errorf("expected TagOpRegex, got %v", cq.TagFilters[0].Op)
+	}
+	if cq.TagFilters[0].Values[0] != "GET|POST" {
+		t.Errorf("expected regex value GET|POST, got %s", cq.TagFilters[0].Values[0])
+	}
+}
+
+func TestPromQLNotRegexMatcherConversion(t *testing.T) {
+	parser := &PromQLParser{}
+	q, err := parser.Parse(`http_requests{status!~"5.."}`)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+	cq := q.ToChronicleQuery(0, 1000)
+	if len(cq.TagFilters) != 1 {
+		t.Fatalf("expected 1 TagFilter, got %d", len(cq.TagFilters))
+	}
+	if cq.TagFilters[0].Op != TagOpNotRegex {
+		t.Errorf("expected TagOpNotRegex, got %v", cq.TagFilters[0].Op)
+	}
+}

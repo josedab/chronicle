@@ -26,6 +26,7 @@ type PromQLQuery struct {
 	Labels      map[string]LabelMatcher
 	RangeWindow time.Duration
 	Aggregation *PromQLAggregation
+	BinaryExpr  *PromQLBinaryExpr
 }
 
 // LabelMatcher defines a label matching operation.
@@ -117,8 +118,16 @@ func (p *PromQLParser) Parse(expr string) (*PromQLQuery, error) {
 
 	// Check for aggregation function
 	for _, aggName := range []string{"sum", "avg", "min", "max", "count", "stddev", "rate"} {
-		if strings.HasPrefix(strings.ToLower(expr), aggName) {
-			return p.parseAggregation(expr, aggName)
+		lower := strings.ToLower(expr)
+		if strings.HasPrefix(lower, aggName) {
+			after := lower[len(aggName):]
+			// Match if followed by '(', whitespace, 'by', or 'without'
+			if len(after) == 0 {
+				continue
+			}
+			if after[0] == '(' || after[0] == ' ' || after[0] == '\t' {
+				return p.parseAggregation(expr, aggName)
+			}
 		}
 	}
 
@@ -418,11 +427,18 @@ func (q *PromQLQuery) ToChronicleQuery(start, end int64) *Query {
 				Op:     TagOpNotEq,
 				Values: []string{v.Value},
 			})
-		case LabelMatchRegex, LabelMatchNotRegex:
-			// Regex matchers are not directly supported in Chronicle.
-			// For basic prefix/suffix patterns, we could potentially translate,
-			// but for now we skip regex matchers (they won't filter results).
-			// Users should be aware that regex filters are ignored.
+		case LabelMatchRegex:
+			cq.TagFilters = append(cq.TagFilters, TagFilter{
+				Key:    k,
+				Op:     TagOpRegex,
+				Values: []string{v.Value},
+			})
+		case LabelMatchNotRegex:
+			cq.TagFilters = append(cq.TagFilters, TagFilter{
+				Key:    k,
+				Op:     TagOpNotRegex,
+				Values: []string{v.Value},
+			})
 		}
 	}
 
