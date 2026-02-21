@@ -9,6 +9,7 @@ import (
 )
 
 func TestIntegration_SemanticSearchWithData(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	// Write test data with patterns
@@ -75,6 +76,7 @@ func TestIntegration_SemanticSearchWithData(t *testing.T) {
 }
 
 func TestIntegration_CapacityPlanningWithData(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	// Write increasing data over time
@@ -150,6 +152,7 @@ func TestIntegration_CapacityPlanningWithData(t *testing.T) {
 }
 
 func TestIntegration_QueryBuilderWithIndex(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	// Write data with various tags
@@ -206,6 +209,7 @@ func TestIntegration_QueryBuilderWithIndex(t *testing.T) {
 }
 
 func TestIntegration_NLDashboardWithQueries(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	// Write test data
@@ -254,6 +258,7 @@ func TestIntegration_NLDashboardWithQueries(t *testing.T) {
 }
 
 func TestIntegration_ZKQueryWithCommitment(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	// Write test data
@@ -330,6 +335,7 @@ func TestIntegration_ZKQueryWithCommitment(t *testing.T) {
 }
 
 func TestIntegration_CollaborativeQuerySession(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	config := DefaultCollaborativeQueryConfig()
@@ -381,6 +387,7 @@ func TestIntegration_CollaborativeQuerySession(t *testing.T) {
 }
 
 func TestIntegration_DigitalTwinSync(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	config := DefaultDigitalTwinConfig()
@@ -419,6 +426,7 @@ func TestIntegration_DigitalTwinSync(t *testing.T) {
 }
 
 func TestIntegration_FederatedLearning(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	config := DefaultFederatedLearningConfig()
@@ -473,6 +481,7 @@ func TestIntegration_FederatedLearning(t *testing.T) {
 }
 
 func TestIntegration_AutoRemediation(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 
 	config := DefaultAutoRemediationConfig()
@@ -540,6 +549,7 @@ func TestIntegration_AutoRemediation(t *testing.T) {
 }
 
 func TestIntegration_PluginMarketplace(t *testing.T) {
+	t.Parallel()
 	config := DefaultPluginMarketplaceConfig()
 	config.PluginsDir = t.TempDir() + "/plugins"
 	config.CacheDir = t.TempDir() + "/cache"
