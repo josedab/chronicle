@@ -32,6 +32,10 @@ type LSPServer struct {
 	// Context for shutdown
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Debounce timer for diagnostics
+	diagnosticTimer   *time.Timer
+	diagnosticTimerMu sync.Mutex
 }
 
 // LSPConfig configures the LSP server.
@@ -374,10 +378,15 @@ func (s *LSPServer) handleDidChange(msg *lspMessage) {
 
 	// Debounced diagnostics
 	if s.config.EnableDiagnostics {
-		go func() {
-			time.Sleep(s.config.DiagnosticDelay)
-			s.publishDiagnostics(params.TextDocument.URI)
-		}()
+		s.diagnosticTimerMu.Lock()
+		if s.diagnosticTimer != nil {
+			s.diagnosticTimer.Stop()
+		}
+		uri := params.TextDocument.URI
+		s.diagnosticTimer = time.AfterFunc(s.config.DiagnosticDelay, func() {
+			s.publishDiagnostics(uri)
+		})
+		s.diagnosticTimerMu.Unlock()
 	}
 }
 
