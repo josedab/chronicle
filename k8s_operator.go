@@ -1,5 +1,9 @@
 package chronicle
 
+// STUB: The K8s operator types are defined but the operator does not communicate
+// with a real Kubernetes API server. Reconciliation is in-memory only.
+// See FEATURE_MATURITY.md for details.
+
 import (
 	"context"
 	"encoding/json"
