@@ -29,6 +29,7 @@ type DB struct {
 
 	// Feature management (optional features)
 	features *FeatureManager
+	registry *FeatureRegistry
 
 	// Legacy direct references for backward compatibility
 	// These delegate to features manager

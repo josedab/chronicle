@@ -96,6 +96,9 @@ func setLegacyReferences(db *DB) {
 	db.exemplarStore = db.features.ExemplarStore()
 	db.histogramStore = db.features.HistogramStore()
 	db.cardinalityTracker = db.features.CardinalityTracker()
+
+	// Initialize the feature registry
+	db.registry = NewFeatureRegistry()
 }
 
 func closeOpenResources(db *DB) {

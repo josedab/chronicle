@@ -4,6 +4,12 @@ import (
 	"fmt"
 )
 
+// Registry returns the plugin-style feature registry.
+// New features should register here instead of being added to FeatureManager.
+func (db *DB) Registry() *FeatureRegistry {
+	return db.registry
+}
+
 // CQLEngine returns the CQL query engine.
 func (db *DB) CQLEngine() *CQLEngine {
 	if db.features == nil {
@@ -20,7 +26,9 @@ func (db *DB) Observability() *ObservabilitySuite {
 	return db.features.Observability()
 }
 
-// MaterializedViews returns the materialized view engine.
+// MaterializedViews returns the V1 materialized view engine.
+//
+// Deprecated: Use [DB.MaterializedViewsV2] instead.
 func (db *DB) MaterializedViews() *MaterializedViewEngine {
 	if db.features == nil {
 		return nil
