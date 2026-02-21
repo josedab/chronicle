@@ -14,6 +14,7 @@ import (
 )
 
 func TestHTTPWriteJSON(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -40,6 +41,7 @@ func TestHTTPWriteJSON(t *testing.T) {
 }
 
 func TestHTTPWriteLineProtocol(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -61,6 +63,7 @@ func TestHTTPWriteLineProtocol(t *testing.T) {
 }
 
 func TestHTTPWriteGzipped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -87,6 +90,7 @@ func TestHTTPWriteGzipped(t *testing.T) {
 }
 
 func TestHTTPWriteMethodNotAllowed(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -107,6 +111,7 @@ func TestHTTPWriteMethodNotAllowed(t *testing.T) {
 }
 
 func TestHTTPQuery(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -142,6 +147,7 @@ func TestHTTPQuery(t *testing.T) {
 }
 
 func TestHTTPQueryWithAggregation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -182,6 +188,7 @@ func TestHTTPQueryWithAggregation(t *testing.T) {
 }
 
 func TestHTTPQueryWithSQL(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -208,6 +215,7 @@ func TestHTTPQueryWithSQL(t *testing.T) {
 }
 
 func TestHTTPPrometheusWriteDisabled(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -229,6 +237,7 @@ func TestHTTPPrometheusWriteDisabled(t *testing.T) {
 }
 
 func TestParseLineProtocol(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -288,6 +297,7 @@ func TestParseLineProtocol(t *testing.T) {
 }
 
 func TestParseMeasurementTags(t *testing.T) {
+	t.Parallel()
 	metric, tags := parseMeasurementTags("cpu,host=server01,region=us-west")
 	if metric != "cpu" {
 		t.Errorf("expected metric 'cpu', got '%s'", metric)
@@ -301,6 +311,7 @@ func TestParseMeasurementTags(t *testing.T) {
 }
 
 func TestParseFieldSet(t *testing.T) {
+	t.Parallel()
 	key, value, err := parseFieldSet("value=1.5")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -329,6 +340,7 @@ func TestParseFieldSet(t *testing.T) {
 }
 
 func TestHTTPBodySizeLimit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -353,6 +365,7 @@ func TestHTTPBodySizeLimit(t *testing.T) {
 }
 
 func TestHTTPEmptyBody(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -373,6 +386,7 @@ func TestHTTPEmptyBody(t *testing.T) {
 }
 
 func TestHTTPHealth(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -401,6 +415,7 @@ func TestHTTPHealth(t *testing.T) {
 }
 
 func TestHTTPPromQueryInstant(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -435,6 +450,7 @@ func TestHTTPPromQueryInstant(t *testing.T) {
 }
 
 func TestHTTPPromQueryRange(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -466,6 +482,7 @@ func TestHTTPPromQueryRange(t *testing.T) {
 }
 
 func TestHTTPSchemas(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -518,6 +535,7 @@ func TestHTTPSchemas(t *testing.T) {
 }
 
 func TestHTTPAlerts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -538,6 +556,7 @@ func TestHTTPAlerts(t *testing.T) {
 }
 
 func TestHTTPRules(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cfg := DefaultConfig(dir + "/test.db")
 	cfg.HTTP.HTTPEnabled = true
@@ -575,6 +594,7 @@ func TestHTTPRules(t *testing.T) {
 }
 
 func TestRateLimiter_Basic(t *testing.T) {
+	t.Parallel()
 	rl := newRateLimiter(5, time.Second)
 
 	// First 5 requests should succeed
@@ -596,6 +616,7 @@ func TestRateLimiter_Basic(t *testing.T) {
 }
 
 func TestRateLimiter_WindowReset(t *testing.T) {
+	t.Parallel()
 	rl := newRateLimiter(2, 50*time.Millisecond)
 
 	// Use up the limit
@@ -617,6 +638,7 @@ func TestRateLimiter_WindowReset(t *testing.T) {
 }
 
 func TestGetClientIP(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		remoteAddr string
@@ -679,6 +701,7 @@ func TestGetClientIP(t *testing.T) {
 }
 
 func TestRateLimitMiddleware(t *testing.T) {
+	t.Parallel()
 	rl := newRateLimiter(2, time.Second)
 
 	handler := rateLimitMiddleware(rl, func(w http.ResponseWriter, r *http.Request) {
@@ -710,6 +733,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 }
 
 func TestAuthenticator_Disabled(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(nil)
 	if auth.enabled {
 		t.Error("authenticator should be disabled with nil config")
@@ -722,6 +746,7 @@ func TestAuthenticator_Disabled(t *testing.T) {
 }
 
 func TestAuthenticator_Enabled(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled:      true,
 		APIKeys:      []string{"key1", "key2"},
@@ -747,6 +772,7 @@ func TestAuthenticator_Enabled(t *testing.T) {
 }
 
 func TestExtractAPIKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		headers map[string]string
@@ -801,6 +827,7 @@ func TestExtractAPIKey(t *testing.T) {
 }
 
 func TestIsWriteOperation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		method string
 		path   string
@@ -829,6 +856,7 @@ func TestIsWriteOperation(t *testing.T) {
 }
 
 func TestAuthMiddleware_NoAuth(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(nil)
 	called := false
 	handler := authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
@@ -849,6 +877,7 @@ func TestAuthMiddleware_NoAuth(t *testing.T) {
 }
 
 func TestAuthMiddleware_ExcludedPath(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled: true,
 		APIKeys: []string{"secret"},
@@ -870,6 +899,7 @@ func TestAuthMiddleware_ExcludedPath(t *testing.T) {
 }
 
 func TestAuthMiddleware_MissingKey(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled: true,
 		APIKeys: []string{"secret"},
@@ -891,6 +921,7 @@ func TestAuthMiddleware_MissingKey(t *testing.T) {
 }
 
 func TestAuthMiddleware_InvalidKey(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled: true,
 		APIKeys: []string{"secret"},
@@ -910,6 +941,7 @@ func TestAuthMiddleware_InvalidKey(t *testing.T) {
 }
 
 func TestAuthMiddleware_ValidKey(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled: true,
 		APIKeys: []string{"secret"},
@@ -934,6 +966,7 @@ func TestAuthMiddleware_ValidKey(t *testing.T) {
 }
 
 func TestAuthMiddleware_ReadOnlyKey_ReadOp(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled:      true,
 		ReadOnlyKeys: []string{"readonly"},
@@ -955,6 +988,7 @@ func TestAuthMiddleware_ReadOnlyKey_ReadOp(t *testing.T) {
 }
 
 func TestAuthMiddleware_ReadOnlyKey_WriteOp(t *testing.T) {
+	t.Parallel()
 	auth := newAuthenticator(&AuthConfig{
 		Enabled:      true,
 		ReadOnlyKeys: []string{"readonly"},
@@ -1068,6 +1102,7 @@ func (m *mockSchemaManager) ListSchemas() []MetricSchema {
 // Tests using mock implementations
 
 func TestMockQueryExecutor_Success(t *testing.T) {
+	t.Parallel()
 	mock := &mockQueryExecutor{
 		result: &Result{
 			Points: []Point{
@@ -1092,6 +1127,7 @@ func TestMockQueryExecutor_Success(t *testing.T) {
 }
 
 func TestMockQueryExecutor_Error(t *testing.T) {
+	t.Parallel()
 	mock := &mockQueryExecutor{
 		err: fmt.Errorf("query failed"),
 	}
@@ -1106,6 +1142,7 @@ func TestMockQueryExecutor_Error(t *testing.T) {
 }
 
 func TestMockQueryExecutor_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	mock := &mockQueryExecutor{
 		result: &Result{},
 	}
@@ -1120,6 +1157,7 @@ func TestMockQueryExecutor_ContextCancellation(t *testing.T) {
 }
 
 func TestMockDataWriter_WriteBatch(t *testing.T) {
+	t.Parallel()
 	mock := &mockDataWriter{}
 
 	// Verify it implements the interface
@@ -1140,6 +1178,7 @@ func TestMockDataWriter_WriteBatch(t *testing.T) {
 }
 
 func TestMockDataWriter_WriteError(t *testing.T) {
+	t.Parallel()
 	mock := &mockDataWriter{
 		err: fmt.Errorf("write failed"),
 	}
@@ -1154,6 +1193,7 @@ func TestMockDataWriter_WriteError(t *testing.T) {
 }
 
 func TestMockMetricLister(t *testing.T) {
+	t.Parallel()
 	mock := &mockMetricLister{
 		metrics: []string{"cpu", "memory", "disk"},
 	}
@@ -1168,6 +1208,7 @@ func TestMockMetricLister(t *testing.T) {
 }
 
 func TestMockSchemaManager_RegisterAndGet(t *testing.T) {
+	t.Parallel()
 	mock := newMockSchemaManager()
 
 	// Verify it implements the interface
@@ -1200,6 +1241,7 @@ func TestMockSchemaManager_RegisterAndGet(t *testing.T) {
 }
 
 func TestMockSchemaManager_ListSchemas(t *testing.T) {
+	t.Parallel()
 	mock := newMockSchemaManager()
 
 	_ = mock.RegisterSchema(MetricSchema{Name: "cpu"})
