@@ -70,6 +70,26 @@ go test -race ./...
 go test -cover ./...
 ```
 
+### Performance Tips
+
+The Makefile sets `GOFLAGS ?= -race` by default, so `make test` always runs with
+the race detector enabled. This is safer but slower. Use these shortcuts for faster
+iteration:
+
+```bash
+make test-short     # Short tests without race detector (fastest full-suite run)
+make test-race      # Short tests WITH race detector (~45s, best pre-push check)
+make test-fast      # Internal packages only (~5s, TDD loop)
+make test-verbose TEST=TestMyThing  # Single test with verbose output
+```
+
+To override `GOFLAGS` for any target:
+
+```bash
+GOFLAGS="" make test          # Full tests, no race detector
+GOFLAGS="-race -v" make test  # Full tests, race + verbose
+```
+
 ### Code Style
 
 We use standard Go formatting and linting:
