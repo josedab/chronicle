@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt clean clean-all bench benchmark profile-cpu profile-mem check quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos help
+.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -35,8 +35,17 @@ build: ## Build the package
 test: ## Run tests with race detector
 	$(GO) test $(GOFLAGS) -count=1 ./...
 
+test-verbose: ## Run a single test verbosely (usage: make test-verbose TEST=TestMyThing)
+ifndef TEST
+	$(error TEST is required. Usage: make test-verbose TEST=TestMyThing)
+endif
+	$(GO) test -run $(TEST) -count=1 -v .
+
 test-short: ## Run short tests only (fast iteration)
 	$(GO) test -short ./...
+
+test-race: ## Short tests with race detector (~45s)
+	$(GO) test -race -short -count=1 ./...
 
 test-fast: ## Run only internal package tests (fastest feedback)
 	$(GO) test ./internal/...
@@ -115,7 +124,9 @@ cover-report: ## Per-package coverage report (use -html for HTML output)
 vet: ## Run go vet
 	$(GO) vet ./...
 
-check: preflight vet test-fast ## Quick pre-commit validation (preflight + vet + fast tests)
+check: preflight fmt-check vet test-fast ## Quick pre-commit validation (preflight + fmt + vet + fast tests)
+
+check-all: check lint check-file-size check-todos check-versions ## Comprehensive pre-push validation (check + lint + file sizes + TODOs + versions)
 
 quickcheck: ## Full pre-push validation (vet + all short tests)
 	$(GO) vet ./...
@@ -152,6 +163,15 @@ lint-changed: ## Lint only modified files (fast iteration)
 fmt: ## Format code
 	gofmt -s -w .
 	goimports -w .
+
+fmt-check: ## Check if code is formatted (dry-run, no changes)
+	@UNFORMATTED=$$(gofmt -l .); \
+	if [ -n "$$UNFORMATTED" ]; then \
+		echo "The following files need formatting (run 'make fmt'):"; \
+		echo "$$UNFORMATTED"; \
+		exit 1; \
+	fi
+	@echo "✓ All files are properly formatted"
 
 bench: ## Run benchmarks
 	$(GO) test -bench=. -benchmem ./...
@@ -447,7 +467,7 @@ endif
 	fi
 	@BASE=$$(basename "$(FILE)"); \
 	FUNC_NAME=$$(echo "$$BASE" | awk -F_ '{for(i=1;i<=NF;i++){$$i=toupper(substr($$i,1,1)) substr($$i,2)}}1' OFS=''); \
-	printf 'package chronicle\n\nimport (\n\t"testing"\n)\n\nfunc Test'"$$FUNC_NAME"'(t *testing.T) {\n\tdb := setupTestDB(t)\n\tdefer db.Close()\n\n\ttests := []struct {\n\t\tname    string\n\t\twantErr bool\n\t}{\n\t\t{name: "basic", wantErr: false},\n\t}\n\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_ = db // TODO: implement test\n\t\t\tif tt.wantErr {\n\t\t\t\tt.Error("expected error")\n\t\t\t}\n\t\t})\n\t}\n}\n' > $(FILE)_test.go
+	printf 'package chronicle\n\nimport (\n\t"testing"\n)\n\nfunc Test'"$$FUNC_NAME"'(t *testing.T) {\n\tdb := setupTestDB(t)\n\n\ttests := []struct {\n\t\tname    string\n\t\twantErr bool\n\t}{\n\t\t{name: "basic", wantErr: false},\n\t}\n\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\t_ = db // TODO: implement test\n\t\t\tif tt.wantErr {\n\t\t\t\tt.Error("expected error")\n\t\t\t}\n\t\t})\n\t}\n}\n' > $(FILE)_test.go
 	@echo "✓ Created $(FILE)_test.go with table-driven test scaffold"
 
 check-todos: ## Surface technical debt markers (TODO/FIXME/HACK/XXX)
@@ -464,6 +484,22 @@ check-todos: ## Surface technical debt markers (TODO/FIXME/HACK/XXX)
 	fi
 
 deps-check: ## Check for untidy or outdated dependencies
+
+check-goroutine-leaks: ## Find go func() calls without context in production code
+	@echo "Scanning production code for bare 'go func()' calls..."
+	@RESULTS=$$(grep -rn 'go func()' --include='*.go' . | grep -v '_test.go' | grep -v vendor | grep -v '.git' || true); \
+	COUNT=$$(echo "$$RESULTS" | grep -c . 2>/dev/null || echo 0); \
+	if [ -z "$$RESULTS" ]; then COUNT=0; fi; \
+	echo "Found $$COUNT bare go func() call(s)"; \
+	echo ""; \
+	if [ "$$COUNT" -gt 0 ]; then \
+		echo "$$RESULTS"; \
+		echo ""; \
+		echo "Tip: prefer 'go func(ctx context.Context) { ... }(ctx)' to enable"; \
+		echo "graceful shutdown and prevent goroutine leaks."; \
+	else \
+		echo "✓ No bare go func() calls found"; \
+	fi
 	@echo "Checking if go.mod is tidy..."
 	@if $(GO) mod tidy -diff > /dev/null 2>&1; then \
 		echo "  ✓ go.mod is tidy"; \
