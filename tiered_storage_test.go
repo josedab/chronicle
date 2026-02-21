@@ -138,7 +138,7 @@ func TestCostOptimizer_Recommendations(t *testing.T) {
 	cfg.BudgetPerMonth = 0.0 // zero budget so any cost triggers budget_alert
 	optimizer := NewCostOptimizer(tiers, tracker, cfg)
 
-	recs := optimizer.RecommendOptimizations()
+	recs := optimizer.RecommendOptimizations(context.Background())
 	// Either downgrade rec (cold partitions) or budget alert should appear.
 	foundRec := false
 	for _, r := range recs {

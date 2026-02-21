@@ -300,6 +300,13 @@ func (e *MigrationEngine) Stop() {
 }
 
 func (e *MigrationEngine) loop() {
+	// Derive a context that cancels when the engine stops.
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-e.stopCh
+		cancel()
+	}()
+
 	interval := e.config.CheckInterval
 	if interval <= 0 {
 		interval = 5 * time.Minute
@@ -308,16 +315,16 @@ func (e *MigrationEngine) loop() {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-e.stopCh:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			plans := e.PlanMigrations(context.TODO())
+			plans := e.PlanMigrations(ctx)
 			sem := make(chan struct{}, e.config.MaxConcurrentMigrations)
 			for _, p := range plans {
 				sem <- struct{}{}
 				go func(plan *MigrationPlan) {
 					defer func() { <-sem }()
-					result, _ := e.ExecuteMigration(context.TODO(), plan)
+					result, _ := e.ExecuteMigration(ctx, plan)
 					if result != nil {
 						e.mu.Lock()
 						e.history = append(e.history, result)
@@ -576,7 +583,7 @@ func (o *CostOptimizer) CalculateCurrentCost(ctx context.Context) *CostReport {
 }
 
 // RecommendOptimizations returns cost optimisation recommendations.
-func (o *CostOptimizer) RecommendOptimizations() []*OptimizationRecommendation {
+func (o *CostOptimizer) RecommendOptimizations(ctx context.Context) []*OptimizationRecommendation {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
@@ -598,7 +605,7 @@ func (o *CostOptimizer) RecommendOptimizations() []*OptimizationRecommendation {
 	}
 
 	// Check if budget is exceeded.
-	report := o.calculateCostInternal(context.TODO())
+	report := o.calculateCostInternal(ctx)
 	if report.TotalMonthly > o.config.BudgetPerMonth {
 		recs = append(recs, &OptimizationRecommendation{
 			Type:               "budget_alert",
@@ -647,11 +654,11 @@ func (o *CostOptimizer) calculateCostInternal(ctx context.Context) *CostReport {
 }
 
 // ProjectCost projects storage cost over the given number of days.
-func (o *CostOptimizer) ProjectCost(days int) *CostProjection {
+func (o *CostOptimizer) ProjectCost(ctx context.Context, days int) *CostProjection {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	report := o.calculateCostInternal(context.TODO())
+	report := o.calculateCostInternal(ctx)
 	dailyCost := report.TotalMonthly / 30.0
 
 	proj := &CostProjection{
@@ -902,14 +909,14 @@ type MigrationDashboardSummary struct {
 func (b *AdaptiveTieredBackend) GenerateCostDashboard(ctx context.Context) *CostDashboard {
 	dashboard := &CostDashboard{
 		CurrentCost:      b.cost.CalculateCurrentCost(ctx),
-		Recommendations:  b.cost.RecommendOptimizations(),
+		Recommendations:  b.cost.RecommendOptimizations(ctx),
 		TierDistribution: make(map[string]int),
 		GeneratedAt:      time.Now(),
 	}
 
 	// Generate 3, 6, 12 month projections
 	for _, months := range []int{3, 6, 12} {
-		proj := b.cost.ProjectCost(months * 30)
+		proj := b.cost.ProjectCost(ctx, months*30)
 		dashboard.Projections = append(dashboard.Projections, proj)
 	}
 
