@@ -375,5 +375,28 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("Auth.APIKeys must not be empty when Auth is enabled"))
 	}
 
+	// Cross-field validation
+	if c.Retention.RetentionDuration > 0 && c.Storage.PartitionDuration > 0 &&
+		c.Retention.RetentionDuration < c.Storage.PartitionDuration {
+		errs = append(errs, fmt.Errorf("Retention.RetentionDuration (%v) must be >= Storage.PartitionDuration (%v)",
+			c.Retention.RetentionDuration, c.Storage.PartitionDuration))
+	}
+
+	if c.Retention.CompactionInterval > 0 && c.Storage.PartitionDuration > 0 &&
+		c.Retention.CompactionInterval > c.Storage.PartitionDuration {
+		errs = append(errs, fmt.Errorf("Retention.CompactionInterval (%v) should not exceed Storage.PartitionDuration (%v)",
+			c.Retention.CompactionInterval, c.Storage.PartitionDuration))
+	}
+
+	if c.Replication != nil && c.Replication.Enabled {
+		if c.Replication.TargetURL == "" {
+			errs = append(errs, fmt.Errorf("Replication.TargetURL must be set when replication is enabled"))
+		}
+	}
+
+	if c.Encryption != nil && c.Encryption.Enabled && len(c.Encryption.Key) == 0 && c.Encryption.KeyPassword == "" {
+		errs = append(errs, fmt.Errorf("Encryption.Key or Encryption.KeyPassword must be set when encryption is enabled"))
+	}
+
 	return errors.Join(errs...)
 }

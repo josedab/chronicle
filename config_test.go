@@ -448,3 +448,61 @@ func TestConfig_Validate_LegacyFields(t *testing.T) {
 		t.Errorf("config with legacy fields should validate after normalization, got: %v", err)
 	}
 }
+
+func TestConfig_Validate_RetentionShorterThanPartition(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Retention.RetentionDuration = 30 * time.Minute
+	cfg.Storage.PartitionDuration = time.Hour
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error when RetentionDuration < PartitionDuration")
+	}
+	if !strings.Contains(err.Error(), "RetentionDuration") {
+		t.Errorf("expected RetentionDuration error, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_CompactionExceedsPartition(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Retention.CompactionInterval = 2 * time.Hour
+	cfg.Storage.PartitionDuration = time.Hour
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error when CompactionInterval > PartitionDuration")
+	}
+	if !strings.Contains(err.Error(), "CompactionInterval") {
+		t.Errorf("expected CompactionInterval error, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_ReplicationNoURL(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Replication = &ReplicationConfig{Enabled: true}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error when replication enabled without TargetURL")
+	}
+	if !strings.Contains(err.Error(), "TargetURL") {
+		t.Errorf("expected TargetURL error, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_EncryptionNoKey(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Encryption = &EncryptionConfig{Enabled: true}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error when encryption enabled without key")
+	}
+	if !strings.Contains(err.Error(), "Encryption") {
+		t.Errorf("expected encryption error, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_EncryptionWithPassword(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Encryption = &EncryptionConfig{Enabled: true, KeyPassword: "secret"}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("encryption with password should be valid, got: %v", err)
+	}
+}
