@@ -2,13 +2,17 @@
   "name": "Chronicle Development",
   "image": "mcr.microsoft.com/devcontainers/go:1.24",
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {}
   },
   "customizations": {
     "vscode": {
       "extensions": [
         "golang.go",
-        "GitHub.copilot"
+        "GitHub.copilot",
+        "editorconfig.editorconfig",
+        "streetsidesoftware.code-spell-checker",
+        "yzhang.markdown-all-in-one"
       ],
       "settings": {
         "go.lintTool": "golangci-lint",
@@ -16,5 +20,6 @@
       }
     }
   },
-  "postCreateCommand": "go mod download && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+  "forwardPorts": [8080, 8086, 3000],
+  "postCreateCommand": "make setup && make install-hooks"
 }
