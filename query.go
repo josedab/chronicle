@@ -47,9 +47,11 @@ const (
 type TagOp int
 
 const (
-	TagOpEq    TagOp = iota // Exact match (tag == value)
-	TagOpNotEq              // Exclusion (tag != value)
-	TagOpIn                 // Set membership (tag in [values...])
+	TagOpEq       TagOp = iota // Exact match (tag == value)
+	TagOpNotEq                 // Exclusion (tag != value)
+	TagOpIn                    // Set membership (tag in [values...])
+	TagOpRegex                 // Regex match (tag =~ pattern)
+	TagOpNotRegex              // Negated regex match (tag !~ pattern)
 )
 
 // TagFilter restricts query results to series whose tag Key satisfies

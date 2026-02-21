@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -61,6 +62,21 @@ func matchSeriesTagFilters(seriesTags map[string]string, filters []TagFilter) bo
 			}
 			if !matched {
 				return false
+			}
+		case TagOpRegex:
+			if len(filter.Values) == 0 {
+				return false
+			}
+			re, err := regexp.Compile(filter.Values[0])
+			if err != nil || !re.MatchString(value) {
+				return false
+			}
+		case TagOpNotRegex:
+			if len(filter.Values) > 0 {
+				re, err := regexp.Compile(filter.Values[0])
+				if err == nil && re.MatchString(value) {
+					return false
+				}
 			}
 		default:
 			return false
