@@ -95,7 +95,6 @@ func TestRelabelEngine_MetricFilter(t *testing.T) {
 
 func TestCardinalityCircuitBreaker(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	tracker := NewCardinalityTracker(db, DefaultCardinalityConfig())
 	cb := NewCardinalityCircuitBreaker(tracker, 10) // Max 10 series/sec

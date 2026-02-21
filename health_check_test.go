@@ -6,7 +6,6 @@ import (
 
 func TestHealthCheckEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewHealthCheckEngine(db, DefaultHealthCheckConfig())
 	e.Start()

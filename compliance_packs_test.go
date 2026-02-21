@@ -23,7 +23,6 @@ func TestDefaultCompliancePacksConfig(t *testing.T) {
 
 func TestNewCompliancePacksEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultCompliancePacksConfig()
 	engine := NewCompliancePacksEngine(db, cfg)
@@ -37,7 +36,6 @@ func TestNewCompliancePacksEngine(t *testing.T) {
 
 func TestCompliancePacksInitAllStandards(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 
@@ -72,7 +70,6 @@ func TestCompliancePacksInitAllStandards(t *testing.T) {
 
 func TestCompliancePacksEnableDisable(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 
@@ -116,7 +113,6 @@ func TestCompliancePacksEnableDisable(t *testing.T) {
 
 func TestCompliancePacksValidate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 	_ = engine.EnablePack(ComplianceHIPAA)
@@ -153,7 +149,6 @@ func TestCompliancePacksValidate(t *testing.T) {
 
 func TestCompliancePacksAuditLogging(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 
@@ -200,7 +195,6 @@ func TestCompliancePacksAuditLogging(t *testing.T) {
 
 func TestCompliancePacksDataClassification(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 
@@ -252,7 +246,6 @@ func TestCompliancePacksDataClassification(t *testing.T) {
 
 func TestCompliancePacksGenerateReport(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 	_ = engine.EnablePack(ComplianceGDPR)
@@ -274,7 +267,6 @@ func TestCompliancePacksGenerateReport(t *testing.T) {
 
 func TestCompliancePacksRequirementChecking(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 
@@ -305,7 +297,6 @@ func TestCompliancePacksRequirementChecking(t *testing.T) {
 
 func TestCompliancePacksListPacks(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 	packs := engine.ListPacks()
@@ -316,7 +307,6 @@ func TestCompliancePacksListPacks(t *testing.T) {
 
 func TestCompliancePacksStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 
@@ -357,7 +347,6 @@ func TestCompliancePacksStats(t *testing.T) {
 
 func TestCompliancePacksAuditLogOnEnableDisable(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewCompliancePacksEngine(db, DefaultCompliancePacksConfig())
 

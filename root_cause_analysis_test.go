@@ -39,7 +39,6 @@ func TestDefaultRootCauseAnalysisConfig(t *testing.T) {
 
 func TestRCANewEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRootCauseAnalysisConfig()
 	engine := NewRootCauseAnalysisEngine(db, cfg)
@@ -57,7 +56,6 @@ func TestRCANewEngine(t *testing.T) {
 
 func TestRCAIngestMetricValue(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 	now := time.Now()
@@ -123,7 +121,6 @@ func TestRCAPearsonCorrelation(t *testing.T) {
 
 func TestRCAGrangerCausalityTest(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 
@@ -158,7 +155,6 @@ func TestRCAGrangerCausalityTest(t *testing.T) {
 
 func TestRCABuildCausalGraph(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRootCauseAnalysisConfig()
 	cfg.MinConfidence = 0.1
@@ -190,7 +186,6 @@ func TestRCABuildCausalGraph(t *testing.T) {
 
 func TestRCAAnalyzeIncident(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRootCauseAnalysisConfig()
 	cfg.MinConfidence = 0.1
@@ -233,7 +228,6 @@ func TestRCAAnalyzeIncident(t *testing.T) {
 
 func TestRCAAnalyzeIncidentNoMetrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 
@@ -245,7 +239,6 @@ func TestRCAAnalyzeIncidentNoMetrics(t *testing.T) {
 
 func TestRCAPropagationPath(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 
@@ -283,7 +276,6 @@ func TestRCAPropagationPath(t *testing.T) {
 
 func TestRCAExplanation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 
@@ -325,7 +317,6 @@ func TestRCAExplanation(t *testing.T) {
 
 func TestRCAStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRootCauseAnalysisConfig()
 	cfg.MinConfidence = 0.1
@@ -356,7 +347,6 @@ func TestRCAStats(t *testing.T) {
 
 func TestRCAListAndGetIncidents(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 
@@ -385,7 +375,6 @@ func TestRCAListAndGetIncidents(t *testing.T) {
 
 func TestRCAFeedback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 
@@ -409,7 +398,6 @@ func TestRCAFeedback(t *testing.T) {
 
 func TestRCARegisterHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRootCauseAnalysisEngine(db, DefaultRootCauseAnalysisConfig())
 	mux := http.NewServeMux()

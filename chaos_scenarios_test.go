@@ -6,7 +6,6 @@ import (
 
 func TestResilienceScenarioRunner_DefaultScenarios(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 	runner.RegisterDefaultFaults(42)
@@ -27,7 +26,6 @@ func TestResilienceScenarioRunner_DefaultScenarios(t *testing.T) {
 
 func TestResilienceScenarioRunner_IOLog(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 	runner.RegisterDefaultFaults(42)
@@ -52,7 +50,6 @@ func TestResilienceScenarioRunner_IOLog(t *testing.T) {
 
 func TestResilienceScenarioRunner_UnknownFault(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 
@@ -71,7 +68,6 @@ func TestResilienceScenarioRunner_UnknownFault(t *testing.T) {
 
 func TestResilienceScenarioRunner_UnknownAction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 
@@ -90,7 +86,6 @@ func TestResilienceScenarioRunner_UnknownAction(t *testing.T) {
 
 func TestResilienceScenarioRunner_WaitStep(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 
@@ -109,7 +104,6 @@ func TestResilienceScenarioRunner_WaitStep(t *testing.T) {
 
 func TestResilienceScenarioRunner_GetResults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 	runner.RegisterDefaultFaults(42)
@@ -131,7 +125,6 @@ func TestResilienceScenarioRunner_GetResults(t *testing.T) {
 
 func TestResilienceScenarioRunner_Assertions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 
@@ -157,7 +150,6 @@ func TestResilienceScenarioRunner_Assertions(t *testing.T) {
 
 func TestResilienceScenarioRunner_CustomMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 
@@ -182,7 +174,6 @@ func TestResilienceScenarioRunner_CustomMetric(t *testing.T) {
 
 func TestResilienceScenarioRunner_UnknownAssertionType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 

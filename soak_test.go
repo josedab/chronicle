@@ -26,7 +26,6 @@ func TestSoak_ContinuousWriteQuery(t *testing.T) {
 	}
 
 	db := setupTestDB(t)
-	defer db.Close()
 
 	t.Logf("Starting soak test for %s", duration)
 
@@ -151,7 +150,6 @@ func TestSoak_DataIntegrity(t *testing.T) {
 	}
 
 	db := setupTestDB(t)
-	defer db.Close()
 
 	const cycles = 50
 	const pointsPerCycle = 100

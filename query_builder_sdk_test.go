@@ -12,7 +12,6 @@ import (
 
 func TestVisualQueryBuilder(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultVisualQueryBuilderConfig()
 	builder := NewVisualQueryBuilder(db, config)
@@ -59,7 +58,6 @@ func TestVisualQueryBuilder(t *testing.T) {
 
 func TestQueryValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultVisualQueryBuilderConfig()
 	builder := NewVisualQueryBuilder(db, config)
@@ -115,7 +113,6 @@ func TestQueryValidation(t *testing.T) {
 
 func TestSQLGeneration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -193,7 +190,6 @@ func TestSQLGeneration(t *testing.T) {
 
 func TestPromQLGeneration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -251,7 +247,6 @@ func TestPromQLGeneration(t *testing.T) {
 
 func TestAutocomplete(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -298,7 +293,6 @@ func TestAutocomplete(t *testing.T) {
 
 func TestGetSchema(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -326,7 +320,6 @@ func TestGetSchema(t *testing.T) {
 
 func TestParseFromSQL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -380,7 +373,6 @@ func TestParseFromSQL(t *testing.T) {
 
 func TestHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -486,7 +478,6 @@ func TestHTTPHandlers(t *testing.T) {
 
 func TestInternalQueryGeneration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 
@@ -550,7 +541,6 @@ func TestRelativeDurationParsing(t *testing.T) {
 
 func TestComponentCreation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	builder := NewVisualQueryBuilder(db, DefaultVisualQueryBuilderConfig())
 

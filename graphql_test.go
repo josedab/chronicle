@@ -46,7 +46,6 @@ func TestGraphQLServer_Execute_InvalidSelectionSet(t *testing.T) {
 
 func TestGraphQLServer_Execute_MetricsQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some data
 	db.WriteBatch([]Point{
@@ -81,7 +80,6 @@ func TestGraphQLServer_Execute_MetricsQuery(t *testing.T) {
 
 func TestGraphQLServer_Execute_StatsQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 
@@ -122,7 +120,6 @@ func TestGraphQLServer_Execute_UnknownField(t *testing.T) {
 
 func TestGraphQLServer_Execute_Mutation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 
@@ -137,7 +134,6 @@ func TestGraphQLServer_Execute_Mutation(t *testing.T) {
 
 func TestGraphQLServer_Execute_UnknownMutation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 
@@ -152,7 +148,6 @@ func TestGraphQLServer_Execute_UnknownMutation(t *testing.T) {
 
 func TestGraphQLServer_Handler_POST(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 	handler := server.Handler()
@@ -176,7 +171,6 @@ func TestGraphQLServer_Handler_POST(t *testing.T) {
 
 func TestGraphQLServer_Handler_GET(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 	handler := server.Handler()
@@ -255,7 +249,6 @@ func TestGraphQLServer_ServePlayground(t *testing.T) {
 
 func TestGraphQLServer_Subscribe(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 
@@ -434,7 +427,6 @@ func TestGraphQLServer_Execute_SubscriptionError(t *testing.T) {
 
 func TestGraphQLServer_Execute_ConfigQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewGraphQLServer(db)
 

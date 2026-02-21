@@ -111,7 +111,6 @@ func TestContinuousAggEngine(t *testing.T) {
 
 func TestContinuousAggCheckpointRoundTrip(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
 	engine.Start()
@@ -187,7 +186,6 @@ func TestContinuousAggCheckpointRoundTrip(t *testing.T) {
 
 func TestContinuousAggWatermark(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
 	_ = engine.Create(ContinuousAggDefinition{
@@ -210,7 +208,6 @@ func TestContinuousAggWatermark(t *testing.T) {
 
 func TestContinuousAggDeduplication(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
 	_ = engine.Create(ContinuousAggDefinition{

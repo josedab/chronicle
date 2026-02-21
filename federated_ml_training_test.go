@@ -7,7 +7,6 @@ import (
 
 func TestFederatedMLTrainerInitialize(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	trainer := NewFederatedMLTrainer(db, DefaultFederatedMLConfig())
 	trainer.InitializeModel(10)

@@ -8,7 +8,6 @@ import (
 
 func TestCloudSyncFabricLifecycle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	csf := NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 
@@ -38,7 +37,6 @@ func TestCloudSyncFabricLifecycle(t *testing.T) {
 
 func TestCloudSyncFabricConnectors(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	csf := NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 
@@ -84,7 +82,6 @@ func TestCloudSyncFabricConnectors(t *testing.T) {
 
 func TestCloudSyncFabricMaxConnectors(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudSyncFabricConfig()
 	config.MaxConnectors = 2
@@ -101,7 +98,6 @@ func TestCloudSyncFabricMaxConnectors(t *testing.T) {
 
 func TestCloudSyncFabricBatchQueue(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	csf := NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 
@@ -410,7 +406,6 @@ func TestGeoTopology(t *testing.T) {
 
 func TestCloudSyncFabricMerkle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	csf := NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 
@@ -435,7 +430,6 @@ func TestCloudSyncFabricMerkle(t *testing.T) {
 
 func TestCloudSyncFabricStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	csf := NewCloudSyncFabric(db, DefaultCloudSyncFabricConfig())
 	stats := csf.Stats()

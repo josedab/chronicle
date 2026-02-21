@@ -11,7 +11,6 @@ import (
 
 func TestAlertBuilder_CreateRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -46,7 +45,6 @@ func TestAlertBuilder_CreateRule(t *testing.T) {
 
 func TestAlertBuilder_CreateRule_Validation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -80,7 +78,6 @@ func TestAlertBuilder_CreateRule_Validation(t *testing.T) {
 
 func TestAlertBuilder_GetRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -112,7 +109,6 @@ func TestAlertBuilder_GetRule(t *testing.T) {
 
 func TestAlertBuilder_UpdateRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -150,7 +146,6 @@ func TestAlertBuilder_UpdateRule(t *testing.T) {
 
 func TestAlertBuilder_DeleteRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -178,7 +173,6 @@ func TestAlertBuilder_DeleteRule(t *testing.T) {
 
 func TestAlertBuilder_ListRules(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -201,7 +195,6 @@ func TestAlertBuilder_ListRules(t *testing.T) {
 
 func TestAlertBuilder_EnableDisableRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -240,7 +233,6 @@ func TestAlertBuilder_EnableDisableRule(t *testing.T) {
 
 func TestAlertBuilder_PreviewRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some test data
 	now := time.Now().UnixNano()
@@ -268,7 +260,6 @@ func TestAlertBuilder_PreviewRule(t *testing.T) {
 
 func TestAlertBuilder_EvaluateRule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write data
 	now := time.Now().UnixNano()
@@ -298,7 +289,6 @@ func TestAlertBuilder_EvaluateRule(t *testing.T) {
 
 func TestAlertBuilder_EvaluateRule_Disabled(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -324,7 +314,6 @@ func TestAlertBuilder_EvaluateRule_Disabled(t *testing.T) {
 
 func TestAlertBuilder_ConditionTemplates(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -346,7 +335,6 @@ func TestAlertBuilder_ConditionTemplates(t *testing.T) {
 
 func TestAlertBuilder_AggregationCondition(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write data
 	now := time.Now().UnixNano()
@@ -385,7 +373,6 @@ func TestAlertBuilder_AggregationCondition(t *testing.T) {
 
 func TestAlertBuilder_ValidateExpression(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -418,7 +405,6 @@ func TestAlertBuilder_ValidateExpression(t *testing.T) {
 
 func TestAlertBuilder_ExportImport(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -459,7 +445,6 @@ func TestAlertBuilder_ExportImport(t *testing.T) {
 
 func TestAlertBuilder_Triggers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -478,7 +463,6 @@ func TestAlertBuilder_Triggers(t *testing.T) {
 
 func TestAlertBuilder_HTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -521,7 +505,6 @@ func TestAlertBuilder_HTTPHandlers(t *testing.T) {
 
 func TestAlertBuilder_HTTPMetrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some metrics
 	now := time.Now().UnixNano()
@@ -543,7 +526,6 @@ func TestAlertBuilder_HTTPMetrics(t *testing.T) {
 
 func TestAlertBuilder_HTTPTemplates(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -567,7 +549,6 @@ func TestAlertBuilder_HTTPTemplates(t *testing.T) {
 
 func TestAlertBuilder_HTTPValidate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ab := NewAlertBuilder(db, DefaultAlertBuilderConfig())
 
@@ -593,7 +574,6 @@ func TestAlertBuilder_HTTPValidate(t *testing.T) {
 
 func TestAlertBuilder_MaxRulesLimit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAlertBuilderConfig()
 	config.MaxRulesPerUser = 2

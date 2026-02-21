@@ -26,7 +26,6 @@ func TestRateControllerConfig(t *testing.T) {
 
 func TestRateControllerAllow(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRateControllerEngine(db, DefaultRateControllerConfig())
 
@@ -45,7 +44,6 @@ func TestRateControllerAllow(t *testing.T) {
 
 func TestRateControllerThrottle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRateControllerConfig()
 	cfg.BurstSize = 5
@@ -76,7 +74,6 @@ func TestRateControllerThrottle(t *testing.T) {
 
 func TestRateControllerBurst(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRateControllerConfig()
 	cfg.BurstSize = 10
@@ -104,7 +101,6 @@ func TestRateControllerBurst(t *testing.T) {
 
 func TestRateControllerPerMetricLimit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultRateControllerConfig()
 	cfg.BurstSize = 100
@@ -140,7 +136,6 @@ func TestRateControllerPerMetricLimit(t *testing.T) {
 
 func TestRateControllerSetMetricLimit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRateControllerEngine(db, DefaultRateControllerConfig())
 
@@ -155,7 +150,6 @@ func TestRateControllerSetMetricLimit(t *testing.T) {
 
 func TestRateControllerStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRateControllerEngine(db, DefaultRateControllerConfig())
 
@@ -174,7 +168,6 @@ func TestRateControllerStats(t *testing.T) {
 
 func TestRateControllerGetMetricRate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewRateControllerEngine(db, DefaultRateControllerConfig())
 

@@ -6,7 +6,6 @@ import (
 
 func TestDataMaskingEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultDataMaskingConfig()
 	engine := NewDataMaskingEngine(db, cfg)

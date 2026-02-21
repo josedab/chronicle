@@ -11,7 +11,6 @@ import (
 
 func TestAdminUI_APISearch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "cpu_usage", Value: 42.5, Timestamp: time.Now().UnixNano()}})
 
@@ -68,7 +67,6 @@ func TestAdminUI_APISearch(t *testing.T) {
 
 func TestAdminUI_APISearch_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -93,7 +91,6 @@ func TestAdminUI_APISearch_Empty(t *testing.T) {
 
 func TestAdminUI_APIAutocomplete(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.Write(Point{Metric: "cpu", Value: 50, Timestamp: time.Now().UnixNano()})
 	db.Write(Point{Metric: "memory", Value: 70, Timestamp: time.Now().UnixNano()})
@@ -121,7 +118,6 @@ func TestAdminUI_APIAutocomplete(t *testing.T) {
 
 func TestAdminUI_APISavedQueries(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

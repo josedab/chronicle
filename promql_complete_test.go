@@ -247,7 +247,6 @@ func TestPromQLNotRegexMatcherConversion(t *testing.T) {
 
 func TestPromQLEvaluatorEndToEnd(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write real time-series data
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)

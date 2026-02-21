@@ -7,7 +7,6 @@ import (
 
 func TestProfileStore_Write(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -33,7 +32,6 @@ func TestProfileStore_Write(t *testing.T) {
 
 func TestProfileStore_WriteValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -58,7 +56,6 @@ func TestProfileStore_WriteValidation(t *testing.T) {
 
 func TestProfileStore_Query(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -85,7 +82,6 @@ func TestProfileStore_Query(t *testing.T) {
 
 func TestProfileStore_QueryByLabels(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -112,7 +108,6 @@ func TestProfileStore_QueryByLabels(t *testing.T) {
 
 func TestProfileStore_QueryByType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -134,7 +129,6 @@ func TestProfileStore_QueryByType(t *testing.T) {
 
 func TestProfileStore_GetProfile(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -164,7 +158,6 @@ func TestProfileStore_GetProfile(t *testing.T) {
 
 func TestProfileStore_Compression(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultProfileConfig()
 	cfg.CompressionEnabled = true
@@ -194,7 +187,6 @@ func TestProfileStore_Compression(t *testing.T) {
 
 func TestProfileStore_MetricCorrelation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ps := NewProfileStore(db, DefaultProfileConfig())
 
@@ -244,7 +236,6 @@ func TestProfileStore_MetricCorrelation(t *testing.T) {
 
 func TestProfileStore_Retention(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultProfileConfig()
 	cfg.RetentionDuration = time.Hour
@@ -274,7 +265,6 @@ func TestProfileStore_Retention(t *testing.T) {
 
 func TestProfileStore_MaxProfiles(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultProfileConfig()
 	cfg.MaxProfiles = 5

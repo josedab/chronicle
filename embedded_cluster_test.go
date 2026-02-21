@@ -260,7 +260,6 @@ func TestEmbeddedClusterReplication(t *testing.T) {
 
 func TestWriteConsistencyLevels(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultEmbeddedClusterConfig()
 	ec := NewEmbeddedCluster(db, cfg)

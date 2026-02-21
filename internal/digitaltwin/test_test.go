@@ -12,7 +12,6 @@ import (
 
 func TestDigitalTwinEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false // Disable background loops for testing
@@ -29,7 +28,6 @@ func TestDigitalTwinEngine(t *testing.T) {
 
 func TestAddConnection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -81,7 +79,6 @@ func TestAddConnection(t *testing.T) {
 
 func TestRemoveConnection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -117,7 +114,6 @@ func TestRemoveConnection(t *testing.T) {
 
 func TestAddMapping(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -166,7 +162,6 @@ func TestAddMapping(t *testing.T) {
 
 func TestMappingWithInvalidConnection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -189,7 +184,6 @@ func TestMappingWithInvalidConnection(t *testing.T) {
 
 func TestRemoveMapping(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -234,7 +228,6 @@ func TestRemoveMapping(t *testing.T) {
 
 func TestPushMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -282,7 +275,6 @@ func TestPushMetric(t *testing.T) {
 
 func TestPushMetricWithTransform(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -446,7 +438,6 @@ func TestTagsMatch(t *testing.T) {
 
 func TestTwinCallbacks(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false
@@ -664,7 +655,6 @@ func TestCustomAdapter(t *testing.T) {
 
 func TestPlatformCreation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false

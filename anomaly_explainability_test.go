@@ -12,7 +12,6 @@ import (
 
 func TestNewAnomalyExplainabilityEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -48,7 +47,6 @@ func TestNewAnomalyExplainabilityEngine(t *testing.T) {
 
 func TestAnomalyExplainabilityExplain(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -92,7 +90,6 @@ func TestAnomalyExplainabilityExplain(t *testing.T) {
 
 func TestAnomalyExplainabilityWithContext(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -137,7 +134,6 @@ func TestAnomalyExplainabilityWithContext(t *testing.T) {
 
 func TestAnomalyExplainabilityContributingFactors(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -169,7 +165,6 @@ func TestAnomalyExplainabilityContributingFactors(t *testing.T) {
 
 func TestAnomalyExplainabilityHistoricalComparisons(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -201,7 +196,6 @@ func TestAnomalyExplainabilityHistoricalComparisons(t *testing.T) {
 
 func TestAnomalyExplainabilityRecommendations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -252,7 +246,6 @@ func TestAnomalyExplainabilityRecommendations(t *testing.T) {
 
 func TestAnomalyExplainabilityBuildPrompt(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ctx := ExplainabilityContext{
 		AnomalyMetric:  "cpu_usage",
@@ -305,7 +298,6 @@ func TestAnomalyExplainabilityBuildPrompt(t *testing.T) {
 
 func TestAnomalyExplainabilityLocalExplanation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	config.ExplanationDepth = ExplainExpert
@@ -356,7 +348,6 @@ func TestAnomalyExplainabilityLocalExplanation(t *testing.T) {
 
 func TestAnomalyExplainabilityCache(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	config.CacheExplanations = true
@@ -406,7 +397,6 @@ func TestAnomalyExplainabilityCache(t *testing.T) {
 
 func TestAnomalyExplainabilityStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)
@@ -469,7 +459,6 @@ func TestAnomalyExplainabilityStats(t *testing.T) {
 
 func TestAnomalyExplainabilityHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyExplainabilityConfig()
 	engine := NewAnomalyExplainabilityEngine(db, config)

@@ -9,7 +9,6 @@ import (
 
 func TestForecastV2Predict(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	start := time.Now().Add(-24 * time.Hour)
 	writeTestPoints(t, db, "forecast_v2_cpu", 20, start)
@@ -46,7 +45,6 @@ func TestForecastV2Predict(t *testing.T) {
 
 func TestForecastV2EmptyData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultForecastV2Config()
 	engine := NewForecastV2Engine(db, cfg)
@@ -59,7 +57,6 @@ func TestForecastV2EmptyData(t *testing.T) {
 
 func TestForecastV2EmptyMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultForecastV2Config()
 	engine := NewForecastV2Engine(db, cfg)
@@ -72,7 +69,6 @@ func TestForecastV2EmptyMetric(t *testing.T) {
 
 func TestForecastV2DetectChangepoints(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultForecastV2Config()
 	cfg.ChangepointThreshold = 0.01
@@ -96,7 +92,6 @@ func TestForecastV2DetectChangepoints(t *testing.T) {
 
 func TestForecastV2DetectChangepointsShortData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultForecastV2Config()
 	engine := NewForecastV2Engine(db, cfg)
@@ -109,7 +104,6 @@ func TestForecastV2DetectChangepointsShortData(t *testing.T) {
 
 func TestForecastV2Stats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	start := time.Now().Add(-24 * time.Hour)
 	writeTestPoints(t, db, "forecast_v2_stats_metric", 10, start)
@@ -135,7 +129,6 @@ func TestForecastV2Stats(t *testing.T) {
 
 func TestForecastV2StartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultForecastV2Config()
 	engine := NewForecastV2Engine(db, cfg)
@@ -169,7 +162,6 @@ func TestForecastV2DefaultConfig(t *testing.T) {
 
 func TestForecastV2HTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultForecastV2Config()
 	engine := NewForecastV2Engine(db, cfg)

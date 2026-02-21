@@ -19,7 +19,6 @@ func TestBenchRunnerConfig(t *testing.T) {
 
 func TestBenchRunSuiteWrite(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultBenchRunnerConfig()
 	cfg.WriteCount = 50 // small for tests
@@ -45,7 +44,6 @@ func TestBenchRunSuiteWrite(t *testing.T) {
 
 func TestBenchRunSuiteQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultBenchRunnerConfig()
 	cfg.QueryCount = 10 // small for tests
@@ -65,7 +63,6 @@ func TestBenchRunSuiteQuery(t *testing.T) {
 
 func TestBenchRunSuiteRunAll(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultBenchRunnerConfig()
 	cfg.WriteCount = 20
@@ -86,7 +83,6 @@ func TestBenchRunSuiteRunAll(t *testing.T) {
 
 func TestBenchRunnerEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultBenchRunnerConfig()
 	cfg.WriteCount = 20
@@ -137,7 +133,6 @@ func TestBenchRunnerEngine(t *testing.T) {
 
 func TestBenchRunnerStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewBenchRunnerEngine(db, DefaultBenchRunnerConfig())
 	e.Start()

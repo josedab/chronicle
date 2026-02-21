@@ -8,7 +8,6 @@ import (
 
 func TestWALSnapshotCreateAndList(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	engine := NewWALSnapshotEngine(db, cfg)
@@ -32,7 +31,6 @@ func TestWALSnapshotCreateAndList(t *testing.T) {
 
 func TestWALSnapshotMaxCap(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	cfg.MaxSnapshots = 3
@@ -52,7 +50,6 @@ func TestWALSnapshotMaxCap(t *testing.T) {
 
 func TestWALSnapshotRecoveryPlan(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	engine := NewWALSnapshotEngine(db, cfg)
@@ -77,7 +74,6 @@ func TestWALSnapshotRecoveryPlan(t *testing.T) {
 
 func TestWALSnapshotCompact(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	cfg.CompactAfterSnapshot = false
@@ -95,7 +91,6 @@ func TestWALSnapshotCompact(t *testing.T) {
 
 func TestWALSnapshotStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	engine := NewWALSnapshotEngine(db, cfg)
@@ -117,7 +112,6 @@ func TestWALSnapshotStartStop(t *testing.T) {
 
 func TestWALSnapshotStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	engine := NewWALSnapshotEngine(db, cfg)
@@ -144,7 +138,6 @@ func TestWALSnapshotStats(t *testing.T) {
 
 func TestWALSnapshotHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWALSnapshotConfig()
 	engine := NewWALSnapshotEngine(db, cfg)

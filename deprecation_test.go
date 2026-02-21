@@ -4,7 +4,6 @@ import "testing"
 
 func TestDeprecationEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	t.Run("default deprecated symbols", func(t *testing.T) {
 		e := NewDeprecationEngine(db, DefaultDeprecationConfig())

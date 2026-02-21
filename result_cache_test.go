@@ -20,7 +20,6 @@ func TestResultCacheConfig(t *testing.T) {
 
 func TestResultCachePutGet(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewResultCacheEngine(db, DefaultResultCacheConfig())
 
@@ -62,7 +61,6 @@ func TestResultCachePutGet(t *testing.T) {
 
 func TestResultCacheTTLExpiry(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultResultCacheConfig()
 	cfg.TTL = 50 * time.Millisecond
@@ -85,7 +83,6 @@ func TestResultCacheTTLExpiry(t *testing.T) {
 
 func TestResultCacheInvalidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewResultCacheEngine(db, DefaultResultCacheConfig())
 
@@ -108,7 +105,6 @@ func TestResultCacheInvalidation(t *testing.T) {
 
 func TestResultCacheLRUEviction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultResultCacheConfig()
 	cfg.MaxEntries = 3
@@ -142,7 +138,6 @@ func TestResultCacheLRUEviction(t *testing.T) {
 
 func TestResultCacheClear(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewResultCacheEngine(db, DefaultResultCacheConfig())
 
@@ -161,7 +156,6 @@ func TestResultCacheClear(t *testing.T) {
 
 func TestResultCacheStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewResultCacheEngine(db, DefaultResultCacheConfig())
 
@@ -184,7 +178,6 @@ func TestResultCacheStats(t *testing.T) {
 
 func TestResultCacheStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewResultCacheEngine(db, DefaultResultCacheConfig())
 	e.Start()

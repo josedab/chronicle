@@ -201,7 +201,6 @@ func TestDefaultOTelCollectorReceiverConfig(t *testing.T) {
 
 func TestNewOTelCollectorReceiver(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultOTelCollectorReceiverConfig()
 	receiver := NewOTelCollectorReceiver(db, config)
@@ -213,7 +212,6 @@ func TestNewOTelCollectorReceiver(t *testing.T) {
 
 func TestOTelCollectorReceiver_Stats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultOTelCollectorReceiverConfig()
 	receiver := NewOTelCollectorReceiver(db, config)

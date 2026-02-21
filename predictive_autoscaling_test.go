@@ -8,7 +8,6 @@ import (
 
 func TestPredictiveAutoscalerBasic(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultPredictiveAutoscalingConfig()
 	scaler := NewPredictiveAutoscaler(db, config)
@@ -38,7 +37,6 @@ func TestPredictiveAutoscalerBasic(t *testing.T) {
 
 func TestPredictiveAutoscalerInsufficientData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	scaler := NewPredictiveAutoscaler(db, DefaultPredictiveAutoscalingConfig())
 
@@ -53,7 +51,6 @@ func TestPredictiveAutoscalerInsufficientData(t *testing.T) {
 
 func TestPredictiveAutoscalerForecast(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	scaler := NewPredictiveAutoscaler(db, DefaultPredictiveAutoscalingConfig())
 
@@ -78,7 +75,6 @@ func TestPredictiveAutoscalerForecast(t *testing.T) {
 
 func TestPredictiveAutoscalerCallback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultPredictiveAutoscalingConfig()
 	config.ScaleUpThreshold = 0.01 // Very low threshold to trigger scale-up
@@ -105,7 +101,6 @@ func TestPredictiveAutoscalerCallback(t *testing.T) {
 
 func TestPredictiveAutoscalerStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	scaler := NewPredictiveAutoscaler(db, DefaultPredictiveAutoscalingConfig())
 	stats := scaler.Stats()
@@ -116,7 +111,6 @@ func TestPredictiveAutoscalerStats(t *testing.T) {
 
 func TestPredictiveAutoscalerStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultPredictiveAutoscalingConfig()
 	config.Enabled = true
@@ -129,7 +123,6 @@ func TestPredictiveAutoscalerStartStop(t *testing.T) {
 
 func TestPredictiveAutoscalerHPAMetrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	scaler := NewPredictiveAutoscaler(db, DefaultPredictiveAutoscalingConfig())
 	metrics := scaler.HPAMetrics()
@@ -140,7 +133,6 @@ func TestPredictiveAutoscalerHPAMetrics(t *testing.T) {
 
 func TestPredictiveAutoscalerHistory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	scaler := NewPredictiveAutoscaler(db, DefaultPredictiveAutoscalingConfig())
 

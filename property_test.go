@@ -10,7 +10,6 @@ import (
 // Property: any valid point written can be read back.
 func TestProperty_WriteReadRoundtrip(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	const iterations = 500
 	now := time.Now().UnixNano()
@@ -49,7 +48,6 @@ func TestProperty_WriteReadRoundtrip(t *testing.T) {
 // Property: queries never return points outside the requested time range.
 func TestProperty_QueryTimeRangeContainment(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	const totalPoints = 200
 	now := time.Now().UnixNano()
@@ -100,7 +98,6 @@ func TestProperty_QueryTimeRangeContainment(t *testing.T) {
 // Property: aggregated results respect the query limit.
 func TestProperty_QueryLimitRespected(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now().UnixNano()
 	for i := 0; i < 100; i++ {
@@ -123,7 +120,6 @@ func TestProperty_QueryLimitRespected(t *testing.T) {
 // Property: Point values are preserved exactly (no floating-point corruption).
 func TestProperty_ValuePreservation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	specialValues := []float64{
 		0, -0, 1, -1,
@@ -188,7 +184,6 @@ func TestProperty_PersistenceAcrossRestart(t *testing.T) {
 // Property: concurrent writes from multiple goroutines don't lose data.
 func TestProperty_ConcurrentWriteSafety(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	const goroutines = 8
 	const pointsPerGoroutine = 100

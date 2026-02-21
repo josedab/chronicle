@@ -8,7 +8,6 @@ import (
 
 func TestVectorStore_Write(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	vs := NewVectorStore(db, DefaultVectorConfig())
 
@@ -33,7 +32,6 @@ func TestVectorStore_Write(t *testing.T) {
 
 func TestVectorStore_WriteValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	vs := NewVectorStore(db, DefaultVectorConfig())
 
@@ -64,7 +62,6 @@ func TestVectorStore_WriteValidation(t *testing.T) {
 
 func TestVectorStore_DimensionConsistency(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	vs := NewVectorStore(db, DefaultVectorConfig())
 
@@ -88,7 +85,6 @@ func TestVectorStore_DimensionConsistency(t *testing.T) {
 
 func TestVectorStore_Search(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	vs := NewVectorStore(db, DefaultVectorConfig())
 
@@ -127,7 +123,6 @@ func TestVectorStore_Search(t *testing.T) {
 
 func TestVectorStore_SearchWithFilter(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	vs := NewVectorStore(db, DefaultVectorConfig())
 
@@ -163,7 +158,6 @@ func TestVectorStore_SearchWithFilter(t *testing.T) {
 
 func TestVectorStore_Query(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	vs := NewVectorStore(db, DefaultVectorConfig())
 
@@ -189,7 +183,6 @@ func TestVectorStore_Query(t *testing.T) {
 
 func TestVectorStore_DistanceMetrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Test cosine
 	cfg := DefaultVectorConfig()
@@ -221,7 +214,6 @@ func TestVectorStore_DistanceMetrics(t *testing.T) {
 
 func TestVectorStore_Normalization(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultVectorConfig()
 	cfg.NormalizeVectors = true
@@ -302,7 +294,6 @@ func TestVectorMathFunctions(t *testing.T) {
 
 func TestVectorStore_MaxVectorsLimit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultVectorConfig()
 	cfg.MaxVectorsPerSeries = 5

@@ -7,7 +7,6 @@ import (
 
 func TestConfigReloadEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewConfigReloadEngine(db, DefaultConfigReloadConfig())
 	e.Start()

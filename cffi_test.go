@@ -77,7 +77,6 @@ func TestStringToAggFunc(t *testing.T) {
 
 func TestHandleRegistry(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Register handle
 	handle := registerHandle(db)

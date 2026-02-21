@@ -10,7 +10,6 @@ import (
 
 func TestAdminUI_APIAlerts(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -54,7 +53,6 @@ func TestAdminUI_APIAlerts(t *testing.T) {
 
 func TestAdminUI_APIAuditLog(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -75,7 +73,6 @@ func TestAdminUI_APIAuditLog(t *testing.T) {
 
 func TestAdminUI_APIAlertHistory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

@@ -6,7 +6,6 @@ import (
 
 func TestMetricMetadataStoreEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewMetricMetadataStoreEngine(db, DefaultMetricMetadataStoreConfig())
 	e.Start()

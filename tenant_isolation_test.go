@@ -9,7 +9,6 @@ import (
 
 func TestTenantIsolationCreateAndList(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -43,7 +42,6 @@ func TestTenantIsolationCreateAndList(t *testing.T) {
 
 func TestTenantIsolationDelete(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -65,7 +63,6 @@ func TestTenantIsolationDelete(t *testing.T) {
 
 func TestTenantIsolationDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -78,7 +75,6 @@ func TestTenantIsolationDuplicate(t *testing.T) {
 
 func TestTenantIsolationMaxTenants(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	cfg.MaxTenants = 2
@@ -99,7 +95,6 @@ func TestTenantIsolationMaxTenants(t *testing.T) {
 
 func TestTenantIsolationCheckQuotaAllows(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -126,7 +121,6 @@ func TestTenantIsolationCheckQuotaAllows(t *testing.T) {
 
 func TestTenantIsolationCheckQuotaRejects(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -170,7 +164,6 @@ func TestTenantIsolationCheckQuotaRejects(t *testing.T) {
 
 func TestTenantIsolationRecordUsage(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -201,7 +194,6 @@ func TestTenantIsolationRecordUsage(t *testing.T) {
 
 func TestTenantIsolationResetQuotas(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -224,7 +216,6 @@ func TestTenantIsolationResetQuotas(t *testing.T) {
 
 func TestTenantIsolationStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -243,7 +234,6 @@ func TestTenantIsolationStats(t *testing.T) {
 
 func TestTenantIsolationStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)
@@ -264,7 +254,6 @@ func TestTenantIsolationStartStop(t *testing.T) {
 
 func TestTenantIsolationHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantIsolationConfig()
 	engine := NewTenantIsolationEngine(db, cfg)

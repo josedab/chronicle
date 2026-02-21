@@ -6,7 +6,6 @@ import (
 
 func TestChaosRecoveryEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	t.Run("default scenarios loaded", func(t *testing.T) {
 		e := NewChaosRecoveryEngine(db, DefaultChaosRecoveryConfig())

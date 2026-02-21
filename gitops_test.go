@@ -10,7 +10,6 @@ import (
 
 func TestGitOpsEngineApply(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewGitOpsEngine(db, DefaultGitOpsConfig())
 

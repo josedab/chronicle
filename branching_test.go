@@ -7,7 +7,6 @@ import (
 
 func TestBranchManager_CreateBranch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -39,7 +38,6 @@ func TestBranchManager_CreateBranch(t *testing.T) {
 
 func TestBranchManager_Checkout(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -83,7 +81,6 @@ func TestBranchManager_Checkout(t *testing.T) {
 
 func TestBranchManager_Write(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -126,7 +123,6 @@ func TestBranchManager_Write(t *testing.T) {
 
 func TestBranchManager_Merge(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -182,7 +178,6 @@ func TestBranchManager_Merge(t *testing.T) {
 
 func TestBranchManager_MergeWithConflict(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -247,7 +242,6 @@ func TestBranchManager_MergeWithConflict(t *testing.T) {
 
 func TestBranchManager_Snapshot(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -285,7 +279,6 @@ func TestBranchManager_Snapshot(t *testing.T) {
 
 func TestBranchManager_RestoreSnapshot(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -328,7 +321,6 @@ func TestBranchManager_RestoreSnapshot(t *testing.T) {
 
 func TestBranchManager_Diff(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -373,7 +365,6 @@ func TestBranchManager_Diff(t *testing.T) {
 
 func TestBranchManager_DeleteBranch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -406,7 +397,6 @@ func TestBranchManager_DeleteBranch(t *testing.T) {
 
 func TestBranchManager_Commit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -436,7 +426,6 @@ func TestBranchManager_Commit(t *testing.T) {
 
 func TestBranchManager_Rebase(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -479,7 +468,6 @@ func TestBranchManager_Rebase(t *testing.T) {
 
 func TestBranchManager_GetBranch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -502,7 +490,6 @@ func TestBranchManager_GetBranch(t *testing.T) {
 
 func TestBranchManager_MaxBranches(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultBranchConfig()
 	config.MaxBranches = 3
@@ -528,7 +515,6 @@ func TestBranchManager_MaxBranches(t *testing.T) {
 
 func TestBranchManager_Log(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -549,7 +535,6 @@ func TestBranchManager_Log(t *testing.T) {
 
 func TestBranchManager_ConcurrentAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -580,7 +565,6 @@ func TestBranchManager_ConcurrentAccess(t *testing.T) {
 
 func TestBranchManager_ListBranches(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -602,7 +586,6 @@ func TestBranchManager_ListBranches(t *testing.T) {
 
 func TestBranchManager_CurrentBranch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -634,7 +617,6 @@ func TestBranchConfig_Default(t *testing.T) {
 
 func TestBranchManager_Tag(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -666,7 +648,6 @@ func TestBranchManager_Tag(t *testing.T) {
 
 func TestBranchManager_ExportImport(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 
@@ -701,7 +682,6 @@ func TestBranchManager_ExportImport(t *testing.T) {
 
 func TestBranchManager_DeleteSnapshot(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bm := NewBranchManager(db, DefaultBranchConfig())
 

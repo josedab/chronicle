@@ -7,7 +7,6 @@ import (
 
 func TestDataRehydrationEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultDataRehydrationConfig()
 	engine := NewDataRehydrationEngine(db, cfg)

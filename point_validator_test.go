@@ -9,7 +9,6 @@ import (
 
 func TestPointValidatorEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewPointValidatorEngine(db, DefaultPointValidatorConfig())
 	e.Start()

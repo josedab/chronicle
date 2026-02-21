@@ -7,7 +7,6 @@ import (
 
 func TestStorageStatsCollect(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewStorageStatsEngine(db, DefaultStorageStatsConfig())
 
@@ -24,7 +23,6 @@ func TestStorageStatsCollect(t *testing.T) {
 
 func TestStorageStatsHistory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewStorageStatsEngine(db, DefaultStorageStatsConfig())
 
@@ -46,7 +44,6 @@ func TestStorageStatsHistory(t *testing.T) {
 
 func TestStorageStatsGrowthRate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewStorageStatsEngine(db, DefaultStorageStatsConfig())
 
@@ -71,7 +68,6 @@ func TestStorageStatsGrowthRate(t *testing.T) {
 
 func TestStorageStatsGrowthRateNoData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewStorageStatsEngine(db, DefaultStorageStatsConfig())
 
@@ -83,7 +79,6 @@ func TestStorageStatsGrowthRateNoData(t *testing.T) {
 
 func TestStorageStatsOverview(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewStorageStatsEngine(db, DefaultStorageStatsConfig())
 

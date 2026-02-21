@@ -19,7 +19,6 @@ func TestWebhookConfig(t *testing.T) {
 
 func TestWebhookRegisterUnregister(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewWebhookEngine(db, DefaultWebhookConfig())
 
@@ -75,7 +74,6 @@ func TestWebhookRegisterUnregister(t *testing.T) {
 
 func TestWebhookEmit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewWebhookEngine(db, DefaultWebhookConfig())
 
@@ -143,7 +141,6 @@ func TestWebhookEmit(t *testing.T) {
 
 func TestWebhookListDeliveries(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewWebhookEngine(db, DefaultWebhookConfig())
 	_, _ = e.Register(WebhookEndpoint{
@@ -178,7 +175,6 @@ func TestWebhookListDeliveries(t *testing.T) {
 
 func TestWebhookStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewWebhookEngine(db, DefaultWebhookConfig())
 	_, _ = e.Register(WebhookEndpoint{
@@ -199,7 +195,6 @@ func TestWebhookStats(t *testing.T) {
 
 func TestWebhookStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewWebhookEngine(db, DefaultWebhookConfig())
 	e.Start()
@@ -209,7 +204,6 @@ func TestWebhookStartStop(t *testing.T) {
 
 func TestWebhookMaxEndpoints(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWebhookConfig()
 	cfg.MaxWebhooks = 2

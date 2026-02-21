@@ -11,7 +11,6 @@ import (
 
 func TestNewFederation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 	if fed == nil {
@@ -28,7 +27,6 @@ func TestNewFederation(t *testing.T) {
 
 func TestFederation_AddRemote(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 
@@ -48,7 +46,6 @@ func TestFederation_AddRemote(t *testing.T) {
 
 func TestFederation_AddRemote_Validation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 
@@ -72,7 +69,6 @@ func TestFederation_AddRemote_Validation(t *testing.T) {
 
 func TestFederation_RemoveRemote(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 	fed.AddRemote("test", "http://localhost:8080", 1)
@@ -87,7 +83,6 @@ func TestFederation_RemoveRemote(t *testing.T) {
 
 func TestFederation_ListRemotes_Priority(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 	fed.AddRemote("low", "http://localhost:8081", 10)
@@ -113,7 +108,6 @@ func TestFederation_ListRemotes_Priority(t *testing.T) {
 
 func TestFederation_Query_LocalOnly(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some data
 	db.Write(Point{Metric: "cpu", Value: 1.0, Timestamp: time.Now().UnixNano()})
@@ -138,7 +132,6 @@ func TestFederation_Query_LocalOnly(t *testing.T) {
 
 func TestFederation_Query_WithRemote(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create a mock remote server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -177,7 +170,6 @@ func TestFederation_Query_WithRemote(t *testing.T) {
 
 func TestFederation_CheckHealth(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create healthy mock server
 	healthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +202,6 @@ func TestFederation_CheckHealth(t *testing.T) {
 
 func TestFederation_Metrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write data and force flush
 	db.Write(Point{Metric: "local_metric", Value: 1.0, Timestamp: time.Now().UnixNano()})
@@ -276,7 +267,6 @@ func TestDefaultFederationConfig(t *testing.T) {
 
 func TestFederation_DeduplicatePoints(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 
@@ -296,7 +286,6 @@ func TestFederation_DeduplicatePoints(t *testing.T) {
 
 func TestFederation_DeduplicatePoints_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 
@@ -313,7 +302,6 @@ func TestFederation_DeduplicatePoints_Empty(t *testing.T) {
 
 func TestFederation_MarkHealthy(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	fed := NewFederation(db, DefaultFederationConfig())
 	fed.AddRemote("test", "http://localhost:8080", 1)
@@ -346,7 +334,6 @@ func TestFederation_MergeStrategy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := setupTestDB(t)
-			defer db.Close()
 
 			config := DefaultFederationConfig()
 			config.MergeStrategy = tt.strategy

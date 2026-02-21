@@ -7,7 +7,6 @@ import (
 
 func TestUsageMeteringEngine_RecordWrite(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cp := NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
 	cp.ProvisionTenant("t1", "Test Tenant")
@@ -31,7 +30,6 @@ func TestUsageMeteringEngine_RecordWrite(t *testing.T) {
 
 func TestUsageMeteringEngine_UpdateStorage(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cp := NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
 	cp.ProvisionTenant("t1", "Test")
@@ -48,7 +46,6 @@ func TestUsageMeteringEngine_UpdateStorage(t *testing.T) {
 
 func TestUsageMeteringEngine_FlushPeriod(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cp := NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
 	cp.ProvisionTenant("t1", "Test")
@@ -67,7 +64,6 @@ func TestUsageMeteringEngine_FlushPeriod(t *testing.T) {
 
 func TestUsageMeteringEngine_GetAllUsage(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cp := NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
 	cp.ProvisionTenant("t1", "Tenant 1")
@@ -85,7 +81,6 @@ func TestUsageMeteringEngine_GetAllUsage(t *testing.T) {
 
 func TestUsageMeteringEngine_PruneOldRecords(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cp := NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
 	engine := NewUsageMeteringEngine(cp, UsageMeteringConfig{

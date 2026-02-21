@@ -383,7 +383,6 @@ func TestMultiChannelRouter(t *testing.T) {
 
 func TestAnomalyPostWriteHook(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAnomalyDetectionV2Config()
 	engine := NewAnomalyDetectionV2Engine(db, cfg)
@@ -411,7 +410,6 @@ func TestAnomalyPostWriteHook(t *testing.T) {
 
 func TestAnomalyWithRouter(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAnomalyDetectionV2Config()
 	cfg.MinDataPoints = 3
@@ -441,7 +439,6 @@ func TestAnomalyWithRouter(t *testing.T) {
 
 func TestAnomalyFullPipelineIntegration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAnomalyDetectionV2Config()
 	cfg.MinDataPoints = 5

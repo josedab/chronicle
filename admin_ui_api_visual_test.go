@@ -11,7 +11,6 @@ import (
 
 func TestAdminUI_APISparkline(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now()
 	for i := 0; i < 10; i++ {
@@ -41,7 +40,6 @@ func TestAdminUI_APISparkline(t *testing.T) {
 
 func TestAdminUI_APICompare(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now()
 	for i := 0; i < 5; i++ {
@@ -72,7 +70,6 @@ func TestAdminUI_APICompare(t *testing.T) {
 
 func TestAdminUI_APIFavorites(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -106,7 +103,6 @@ func TestAdminUI_APIFavorites(t *testing.T) {
 
 func TestAdminUI_APIRecent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

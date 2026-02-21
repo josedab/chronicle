@@ -6,7 +6,6 @@ import (
 
 func TestPlaygroundExecuteQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultPlaygroundConfig()
 	pg := NewPlayground(db, config)
@@ -82,7 +81,6 @@ func TestPlaygroundDefaultConfig(t *testing.T) {
 
 func TestPlaygroundCQLFallback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pg := NewPlayground(db, DefaultPlaygroundConfig())
 

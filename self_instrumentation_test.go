@@ -4,7 +4,6 @@ import "testing"
 
 func TestSelfInstrumentationEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	t.Run("record and collect", func(t *testing.T) {
 		e := NewSelfInstrumentationEngine(db, DefaultSelfInstrumentationConfig())

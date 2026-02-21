@@ -8,7 +8,6 @@ import (
 
 func TestQueryPlannerBasic(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some data to create partitions
 	for i := 0; i < 100; i++ {
@@ -47,7 +46,6 @@ func TestQueryPlannerBasic(t *testing.T) {
 
 func TestQueryPlannerExplain(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.Write(Point{Metric: "mem", Value: 42, Timestamp: time.Now().UnixNano()})
 
@@ -71,7 +69,6 @@ func TestQueryPlannerExplain(t *testing.T) {
 
 func TestQueryPlannerPartitionPruning(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planner := NewQueryPlanner(db, DefaultQueryPlannerConfig())
 	planner.RefreshStats()
@@ -94,7 +91,6 @@ func TestQueryPlannerPartitionPruning(t *testing.T) {
 
 func TestQueryPlannerNilQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planner := NewQueryPlanner(db, DefaultQueryPlannerConfig())
 	_, err := planner.Plan(context.Background(), nil)
@@ -105,7 +101,6 @@ func TestQueryPlannerNilQuery(t *testing.T) {
 
 func TestQueryPlannerStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultQueryPlannerConfig()
 	config.StatsRefreshInterval = 50 * time.Millisecond
@@ -118,7 +113,6 @@ func TestQueryPlannerStartStop(t *testing.T) {
 
 func TestQueryPlannerStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planner := NewQueryPlanner(db, DefaultQueryPlannerConfig())
 	planner.RefreshStats()
@@ -138,7 +132,6 @@ func TestQueryPlannerStats(t *testing.T) {
 
 func TestQueryPlannerWithAggregation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.Write(Point{Metric: "cpu", Value: 50, Timestamp: time.Now().UnixNano()})
 

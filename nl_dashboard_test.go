@@ -9,7 +9,6 @@ import (
 
 func TestNLDashboardEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultNLDashboardConfig()
 	engine := NewNLDashboardEngine(db, config)
@@ -23,7 +22,6 @@ func TestNLDashboardEngine(t *testing.T) {
 
 func TestGenerateDashboard(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultNLDashboardConfig()
 	engine := NewNLDashboardEngine(db, config)
@@ -90,7 +88,6 @@ func TestGenerateDashboard(t *testing.T) {
 
 func TestPanelTypeDetection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultNLDashboardConfig()
 	engine := NewNLDashboardEngine(db, config)
@@ -130,7 +127,6 @@ func TestPanelTypeDetection(t *testing.T) {
 
 func TestTitleExtraction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -156,7 +152,6 @@ func TestTitleExtraction(t *testing.T) {
 
 func TestTagExtraction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -191,7 +186,6 @@ func TestTagExtraction(t *testing.T) {
 
 func TestTimeRangeExtraction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -217,7 +211,6 @@ func TestTimeRangeExtraction(t *testing.T) {
 
 func TestVariableExtraction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -250,7 +243,6 @@ func TestVariableExtraction(t *testing.T) {
 
 func TestMetricExtraction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -284,7 +276,6 @@ func TestMetricExtraction(t *testing.T) {
 
 func TestGroupByExtraction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -317,7 +308,6 @@ func TestGroupByExtraction(t *testing.T) {
 
 func TestToGrafanaJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -351,7 +341,6 @@ func TestToGrafanaJSON(t *testing.T) {
 
 func TestGrafanaJSONPanels(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -382,7 +371,6 @@ func TestGrafanaJSONPanels(t *testing.T) {
 
 func TestGetDashboard(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -406,7 +394,6 @@ func TestGetDashboard(t *testing.T) {
 
 func TestListDashboards(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -423,7 +410,6 @@ func TestListDashboards(t *testing.T) {
 
 func TestFeedback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultNLDashboardConfig()
 	config.EnableFeedback = true
@@ -448,7 +434,6 @@ func TestFeedback(t *testing.T) {
 
 func TestNLDashboardStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -467,7 +452,6 @@ func TestNLDashboardStats(t *testing.T) {
 
 func TestComplexDashboard(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 
@@ -507,7 +491,6 @@ func TestComplexDashboard(t *testing.T) {
 
 func TestPanelGridPositioning(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultNLDashboardConfig()
 	config.MaxPanelsPerRow = 3
@@ -531,7 +514,6 @@ func TestPanelGridPositioning(t *testing.T) {
 
 func TestAggregationDetection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNLDashboardEngine(db, DefaultNLDashboardConfig())
 

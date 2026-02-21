@@ -63,7 +63,6 @@ func TestConsistentHashRingDistribution(t *testing.T) {
 
 func TestEdgeMeshCreation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultEdgeMeshConfig()
 	config.Enabled = true
@@ -89,7 +88,6 @@ func TestEdgeMeshCreation(t *testing.T) {
 
 func TestEdgeMeshAutoNodeID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultEdgeMeshConfig()
 	config.Enabled = true

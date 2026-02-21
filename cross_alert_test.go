@@ -16,7 +16,6 @@ func TestCrossAlertConfig(t *testing.T) {
 
 func TestCrossAlertAddAndListRules(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewCrossAlertEngine(db, DefaultCrossAlertConfig())
 
@@ -66,7 +65,6 @@ func TestCrossAlertAddAndListRules(t *testing.T) {
 
 func TestCrossAlertEvaluate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewCrossAlertEngine(db, DefaultCrossAlertConfig())
 
@@ -162,7 +160,6 @@ func TestCrossAlertEvaluate(t *testing.T) {
 
 func TestCrossAlertStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewCrossAlertEngine(db, DefaultCrossAlertConfig())
 	e.Start()
@@ -172,7 +169,6 @@ func TestCrossAlertStartStop(t *testing.T) {
 
 func TestCrossAlertMaxRules(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultCrossAlertConfig()
 	cfg.MaxRules = 2

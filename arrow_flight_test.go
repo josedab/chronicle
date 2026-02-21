@@ -58,7 +58,6 @@ func TestArrowType_String(t *testing.T) {
 
 func TestArrowFlightServer_Creation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultArrowFlightConfig()
 	server := NewArrowFlightServer(db, config)
@@ -73,7 +72,6 @@ func TestArrowFlightServer_Creation(t *testing.T) {
 
 func TestArrowFlightServer_StartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultArrowFlightConfig()
 	config.Enabled = true
@@ -95,7 +93,6 @@ func TestArrowFlightServer_StartStop(t *testing.T) {
 
 func TestArrowFlightServer_DisabledNoStart(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultArrowFlightConfig()
 	config.Enabled = false
@@ -110,7 +107,6 @@ func TestArrowFlightServer_DisabledNoStart(t *testing.T) {
 
 func TestPointsToRecordBatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewArrowFlightServer(db, DefaultArrowFlightConfig())
 
@@ -146,7 +142,6 @@ func TestPointsToRecordBatch(t *testing.T) {
 
 func TestRecordBatchToPoints(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewArrowFlightServer(db, DefaultArrowFlightConfig())
 
@@ -183,7 +178,6 @@ func TestRecordBatchToPoints(t *testing.T) {
 
 func TestRecordBatchToPoints_MissingMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewArrowFlightServer(db, DefaultArrowFlightConfig())
 
@@ -202,7 +196,6 @@ func TestRecordBatchToPoints_MissingMetric(t *testing.T) {
 
 func TestFlightQuery_Conversion(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewArrowFlightServer(db, DefaultArrowFlightConfig())
 
@@ -235,7 +228,6 @@ func TestFlightQuery_Conversion(t *testing.T) {
 
 func TestFlightQuery_DefaultTimes(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewArrowFlightServer(db, DefaultArrowFlightConfig())
 
@@ -452,7 +444,6 @@ func TestDeserializeFromIPC_Invalid(t *testing.T) {
 
 func TestArrowFlightServer_ClientServer(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	_ = db.Write(Point{

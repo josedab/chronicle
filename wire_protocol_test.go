@@ -43,7 +43,6 @@ func TestWireFrameDecodeTooShort(t *testing.T) {
 
 func TestWireProtocolEngineStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWireProtocolConfig()
 	cfg.ListenAddr = "127.0.0.1:0"
@@ -70,7 +69,6 @@ func TestWireProtocolEngineStartStop(t *testing.T) {
 
 func TestWireProtocolStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWireProtocolConfig()
 	cfg.ListenAddr = "127.0.0.1:0"
@@ -90,7 +88,6 @@ func TestWireProtocolStats(t *testing.T) {
 
 func TestWireProtocolDispatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWireProtocolConfig()
 	engine := NewWireProtocolEngine(db, cfg)
@@ -121,7 +118,6 @@ func TestWireProtocolDispatch(t *testing.T) {
 
 func TestWireProtocolHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWireProtocolConfig()
 	engine := NewWireProtocolEngine(db, cfg)

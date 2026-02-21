@@ -73,7 +73,6 @@ func TestAPIStability_StabilityTierString(t *testing.T) {
 // TestAPIStability_CoreAPISurface verifies the core API contract hasn't changed.
 func TestAPIStability_CoreAPISurface(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Verify core stable types are usable
 	p := Point{Metric: "api.test", Value: 42.0, Tags: map[string]string{"env": "test"}}

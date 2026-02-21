@@ -7,7 +7,6 @@ import (
 
 func TestConnectionPoolAcquireRelease(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewConnectionPoolEngine(db, DefaultConnectionPoolConfig())
 
@@ -38,7 +37,6 @@ func TestConnectionPoolAcquireRelease(t *testing.T) {
 
 func TestConnectionPoolMaxSize(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultConnectionPoolConfig()
 	cfg.MaxSize = 2
@@ -61,7 +59,6 @@ func TestConnectionPoolMaxSize(t *testing.T) {
 
 func TestConnectionPoolHealthCheck(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultConnectionPoolConfig()
 	cfg.MaxIdleTime = 1 * time.Millisecond
@@ -84,7 +81,6 @@ func TestConnectionPoolHealthCheck(t *testing.T) {
 
 func TestConnectionPoolIdleReuse(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewConnectionPoolEngine(db, DefaultConnectionPoolConfig())
 
@@ -112,7 +108,6 @@ func TestConnectionPoolIdleReuse(t *testing.T) {
 
 func TestConnectionPoolStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewConnectionPoolEngine(db, DefaultConnectionPoolConfig())
 

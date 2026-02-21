@@ -8,7 +8,6 @@ import (
 
 func TestCapacityPlanningEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false // Disable background loops for testing
@@ -30,7 +29,6 @@ func TestCapacityPlanningEngine(t *testing.T) {
 
 func TestForecastGeneration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -87,7 +85,6 @@ func TestForecastGeneration(t *testing.T) {
 
 func TestTimeToExhaustion(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -125,7 +122,6 @@ func TestTimeToExhaustion(t *testing.T) {
 
 func TestRecommendationGeneration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -183,7 +179,6 @@ func TestRecommendationGeneration(t *testing.T) {
 
 func TestAlerts(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -232,7 +227,6 @@ func TestAlerts(t *testing.T) {
 
 func TestAlertAcknowledge(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -274,7 +268,6 @@ func TestAlertAcknowledge(t *testing.T) {
 
 func TestRecommendationDismiss(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -309,7 +302,6 @@ func TestRecommendationDismiss(t *testing.T) {
 
 func TestUsageHistory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -338,7 +330,6 @@ func TestUsageHistory(t *testing.T) {
 
 func TestExportReport(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -367,7 +358,6 @@ func TestExportReport(t *testing.T) {
 
 func TestCapacityStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -387,7 +377,6 @@ func TestCapacityStats(t *testing.T) {
 
 func TestLinearRegression(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -425,7 +414,6 @@ func TestLinearRegression(t *testing.T) {
 
 func TestStableTrend(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -458,7 +446,6 @@ func TestStableTrend(t *testing.T) {
 
 func TestDownwardTrend(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -490,7 +477,6 @@ func TestDownwardTrend(t *testing.T) {
 
 func TestAutoTune(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false
@@ -528,7 +514,6 @@ func TestAutoTune(t *testing.T) {
 
 func TestCallbacks(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCapacityPlanningConfig()
 	config.Enabled = false

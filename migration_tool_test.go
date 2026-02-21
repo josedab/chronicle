@@ -7,7 +7,6 @@ import (
 
 func TestImportEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	t.Run("import influx line protocol", func(t *testing.T) {
 		e := NewImportEngine(db, DefaultImportConfig())

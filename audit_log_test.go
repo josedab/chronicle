@@ -6,7 +6,6 @@ import (
 
 func TestAuditLogEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewAuditLogEngine(db, DefaultAuditLogConfig())
 	e.Start()

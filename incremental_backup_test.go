@@ -6,7 +6,6 @@ import (
 
 func TestIncrementalBackupEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultIncrementalBackupConfig()
 	engine := NewIncrementalBackupEngine(db, cfg)

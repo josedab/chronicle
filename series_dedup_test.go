@@ -7,7 +7,6 @@ import (
 
 func TestSeriesDedupCheckDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewSeriesDedupEngine(db, DefaultSeriesDedupConfig())
 
@@ -24,7 +23,6 @@ func TestSeriesDedupCheckDuplicate(t *testing.T) {
 
 func TestSeriesDedupNearDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultSeriesDedupConfig()
 	cfg.DeduplicateWindow = 10 * time.Second
@@ -44,7 +42,6 @@ func TestSeriesDedupNearDuplicate(t *testing.T) {
 
 func TestSeriesDedupBatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewSeriesDedupEngine(db, DefaultSeriesDedupConfig())
 
@@ -64,7 +61,6 @@ func TestSeriesDedupBatch(t *testing.T) {
 
 func TestSeriesDedupNonDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewSeriesDedupEngine(db, DefaultSeriesDedupConfig())
 
@@ -82,7 +78,6 @@ func TestSeriesDedupNonDuplicate(t *testing.T) {
 
 func TestSeriesDedupStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewSeriesDedupEngine(db, DefaultSeriesDedupConfig())
 

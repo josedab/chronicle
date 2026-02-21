@@ -9,7 +9,6 @@ import (
 
 func TestTSRAGEmbedPattern(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	rag := NewTSRAGEngine(db, DefaultTSRAGConfig())
 
@@ -32,7 +31,6 @@ func TestTSRAGEmbedPattern(t *testing.T) {
 
 func TestTSRAGRetrieve(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultTSRAGConfig()
 	config.SimilarityThreshold = 0.0 // Accept all for testing
@@ -56,7 +54,6 @@ func TestTSRAGRetrieve(t *testing.T) {
 
 func TestTSRAGAsk(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	rag := NewTSRAGEngine(db, DefaultTSRAGConfig())
 
@@ -77,7 +74,6 @@ func TestTSRAGAsk(t *testing.T) {
 
 func TestTSRAGConversation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	rag := NewTSRAGEngine(db, DefaultTSRAGConfig())
 
@@ -171,7 +167,6 @@ func TestCalculateEntropy(t *testing.T) {
 
 func TestTSRAGStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	rag := NewTSRAGEngine(db, DefaultTSRAGConfig())
 	stats := rag.Stats()

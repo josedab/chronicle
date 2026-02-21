@@ -13,7 +13,6 @@ import (
 // PointValidator → WritePipeline hooks → Schema → Write → Post-hooks → AuditLog
 func TestIntegration_WriteValidationPipeline(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pv := db.PointValidator()
 	wp := db.WritePipeline()
@@ -138,7 +137,6 @@ func TestIntegration_WriteValidationPipeline(t *testing.T) {
 // TestIntegration_QueryMiddleware tests the query path with middleware chain.
 func TestIntegration_QueryMiddleware(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	qm := db.QueryMiddleware()
 	if qm == nil {
@@ -184,7 +182,6 @@ func TestIntegration_QueryMiddleware(t *testing.T) {
 // TestIntegration_HealthEndpoints tests /health, /health/ready, /health/live HTTP endpoints.
 func TestIntegration_HealthEndpoints(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hc := db.HealthCheck()
 	if hc == nil {

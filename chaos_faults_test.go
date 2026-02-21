@@ -133,7 +133,6 @@ func TestRandomFaultInjector_Reproducibility(t *testing.T) {
 
 func TestChaosScenarioRunner(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 	runner.RegisterDefaultFaults(42)
@@ -161,7 +160,6 @@ func TestChaosScenarioRunner(t *testing.T) {
 
 func TestChaosScenarioRunner_WithFaults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	runner := NewResilienceScenarioRunner(db)
 	runner.RegisterDefaultFaults(42)

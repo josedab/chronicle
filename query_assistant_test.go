@@ -8,7 +8,6 @@ import (
 
 func TestQueryAssistant_LocalTranslate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Add some metrics
 	db.WriteBatch([]Point{
@@ -110,7 +109,6 @@ func TestQueryAssistant_LocalTranslate(t *testing.T) {
 
 func TestQueryAssistant_TranslateEmpty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	qa := NewQueryAssistant(db, DefaultAssistantConfig())
 
@@ -122,7 +120,6 @@ func TestQueryAssistant_TranslateEmpty(t *testing.T) {
 
 func TestQueryAssistant_Caching(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "test", Value: 1, Timestamp: time.Now().UnixNano()}})
 
@@ -147,7 +144,6 @@ func TestQueryAssistant_Caching(t *testing.T) {
 
 func TestQueryAssistant_Explain(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	qa := NewQueryAssistant(db, DefaultAssistantConfig())
 
@@ -191,7 +187,6 @@ func containsWord(s, word string) bool {
 
 func TestQueryAssistant_Suggest(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Add metrics
 	now := time.Now().UnixNano()
@@ -224,7 +219,6 @@ func TestQueryAssistant_Suggest(t *testing.T) {
 
 func TestQueryAssistant_NoMetrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	qa := NewQueryAssistant(db, DefaultAssistantConfig())
 

@@ -13,7 +13,6 @@ import (
 // accepts valid requests and returns correct HTTP status codes.
 func TestPrometheusCompliance_RemoteWrite(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mux := http.NewServeMux()
 	wrap := func(h http.HandlerFunc) http.HandlerFunc { return h }
@@ -47,7 +46,6 @@ func TestPrometheusCompliance_RemoteWrite(t *testing.T) {
 // TestPrometheusCompliance_QueryEndpoints verifies Prometheus-compatible query API.
 func TestPrometheusCompliance_QueryEndpoints(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now().UnixNano()
@@ -80,7 +78,6 @@ func TestPrometheusCompliance_QueryEndpoints(t *testing.T) {
 // TestPrometheusCompliance_HealthEndpoint verifies /health returns proper format.
 func TestPrometheusCompliance_HealthEndpoint(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mux := http.NewServeMux()
 	wrap := func(h http.HandlerFunc) http.HandlerFunc { return h }

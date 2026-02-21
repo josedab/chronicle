@@ -28,7 +28,6 @@ func TestDetectQueryLanguage(t *testing.T) {
 
 func TestQueryCompilerSQL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	compiler := NewQueryCompiler(db, DefaultQueryCompilerConfig())
 
@@ -50,7 +49,6 @@ func TestQueryCompilerSQL(t *testing.T) {
 
 func TestQueryCompilerPromQL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	compiler := NewQueryCompiler(db, DefaultQueryCompilerConfig())
 
@@ -69,7 +67,6 @@ func TestQueryCompilerPromQL(t *testing.T) {
 
 func TestQueryCompilerCQL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	compiler := NewQueryCompiler(db, DefaultQueryCompilerConfig())
 
@@ -85,7 +82,6 @@ func TestQueryCompilerCQL(t *testing.T) {
 
 func TestQueryCompilerCache(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	compiler := NewQueryCompiler(db, DefaultQueryCompilerConfig())
 
@@ -162,7 +158,6 @@ func TestPredicateEvaluation(t *testing.T) {
 
 func TestQueryCompilerUDFAggregation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -229,7 +224,6 @@ func TestQueryCompilerUDFAggregation(t *testing.T) {
 
 func TestQueryCompilerCacheStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	compiler := NewQueryCompiler(db, DefaultQueryCompilerConfig())
 

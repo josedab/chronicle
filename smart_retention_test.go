@@ -20,7 +20,6 @@ func TestSmartRetentionConfig(t *testing.T) {
 
 func TestSmartRetentionRecordAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sre := NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
 
@@ -45,7 +44,6 @@ func TestSmartRetentionRecordAccess(t *testing.T) {
 
 func TestSmartRetentionValueScore(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sre := NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
 
@@ -66,7 +64,6 @@ func TestSmartRetentionValueScore(t *testing.T) {
 
 func TestSmartRetentionEvaluate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sre := NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
 
@@ -89,7 +86,6 @@ func TestSmartRetentionEvaluate(t *testing.T) {
 
 func TestSmartRetentionApplyRecommendations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sre := NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
 	sre.RecordAccess("test_metric")
@@ -125,7 +121,6 @@ func TestSmartRetentionApplyRecommendations(t *testing.T) {
 
 func TestSmartRetentionListProfiles(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sre := NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
 	sre.RecordAccess("metric_a")
@@ -140,7 +135,6 @@ func TestSmartRetentionListProfiles(t *testing.T) {
 
 func TestSmartRetentionStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sre := NewSmartRetentionEngine(db, DefaultSmartRetentionConfig())
 	stats := sre.Stats()

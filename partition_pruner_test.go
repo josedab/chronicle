@@ -6,7 +6,6 @@ import (
 
 func TestPartitionPrunerTimeRange(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewPartitionPrunerEngine(db, DefaultPartitionPrunerConfig())
 
@@ -31,7 +30,6 @@ func TestPartitionPrunerTimeRange(t *testing.T) {
 
 func TestPartitionPrunerUnboundedQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewPartitionPrunerEngine(db, DefaultPartitionPrunerConfig())
 
@@ -51,7 +49,6 @@ func TestPartitionPrunerUnboundedQuery(t *testing.T) {
 
 func TestPartitionPrunerStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewPartitionPrunerEngine(db, DefaultPartitionPrunerConfig())
 
@@ -73,7 +70,6 @@ func TestPartitionPrunerStats(t *testing.T) {
 
 func TestPartitionPrunerBelowMinPartitions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPartitionPrunerConfig()
 	cfg.MinPartitions = 5

@@ -422,7 +422,6 @@ func BenchmarkParallelSum1M(b *testing.B) {
 
 func TestExecuteVectorizedEndToEnd(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write 100 data points
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)

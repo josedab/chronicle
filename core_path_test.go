@@ -9,7 +9,6 @@ import (
 // data path to ensure core coverage. This is the most important test in the project.
 func TestCorePath_FullWriteQueryRoundtrip(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now().UnixNano()
 

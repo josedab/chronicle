@@ -10,7 +10,6 @@ import (
 
 func TestAdminUI_APISchemas(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -31,7 +30,6 @@ func TestAdminUI_APISchemas(t *testing.T) {
 
 func TestAdminUI_APIRetention(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -57,7 +55,6 @@ func TestAdminUI_APIRetention(t *testing.T) {
 
 func TestAdminUI_APIDiagnostics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -85,7 +82,6 @@ func TestAdminUI_APIDiagnostics(t *testing.T) {
 
 func TestAdminUI_APISessions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -110,7 +106,6 @@ func TestAdminUI_APISessions(t *testing.T) {
 
 func TestAdminUI_APITemplates(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -144,7 +139,6 @@ func TestAdminUI_APITemplates(t *testing.T) {
 
 func TestAdminUI_APIAnnotations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -178,7 +172,6 @@ func TestAdminUI_APIAnnotations(t *testing.T) {
 
 func TestAdminUI_APIProfiling(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -211,7 +204,6 @@ func TestAdminUI_APIProfiling(t *testing.T) {
 
 func TestAdminUI_APILogs(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{DevMode: true})
 	handler := ui.Handler()
@@ -245,7 +237,6 @@ func TestAdminUI_APILogs(t *testing.T) {
 
 func TestAdminUI_APIRoles(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -279,7 +270,6 @@ func TestAdminUI_APIRoles(t *testing.T) {
 
 func TestAdminUI_APIPermissions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

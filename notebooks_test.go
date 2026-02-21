@@ -6,7 +6,6 @@ import (
 
 func TestNotebookEngineCreate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNotebookEngine(db, DefaultNotebookConfig())
 
@@ -72,7 +71,6 @@ func TestNotebookEngineAddCell(t *testing.T) {
 
 func TestNotebookEngineExecuteCell(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNotebookEngine(db, DefaultNotebookConfig())
 	nb, _ := engine.CreateNotebook(Notebook{Title: "Exec"})
@@ -91,7 +89,6 @@ func TestNotebookEngineExecuteCell(t *testing.T) {
 
 func TestNotebookEngineExecuteAll(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewNotebookEngine(db, DefaultNotebookConfig())
 	nb, _ := engine.CreateNotebook(Notebook{Title: "All"})

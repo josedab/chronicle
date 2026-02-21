@@ -16,7 +16,6 @@ func TestRetentionOptimizerConfig(t *testing.T) {
 
 func TestRetentionOptimizerRecordAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewRetentionOptimizerEngine(db, DefaultRetentionOptimizerConfig())
 
@@ -54,7 +53,6 @@ func TestRetentionOptimizerRecordAccess(t *testing.T) {
 
 func TestRetentionOptimizerImportance(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewRetentionOptimizerEngine(db, DefaultRetentionOptimizerConfig())
 
@@ -91,7 +89,6 @@ func TestRetentionOptimizerImportance(t *testing.T) {
 
 func TestRetentionOptimizerAnalyze(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewRetentionOptimizerEngine(db, DefaultRetentionOptimizerConfig())
 
@@ -144,7 +141,6 @@ func TestRetentionOptimizerAnalyze(t *testing.T) {
 
 func TestRetentionOptimizerStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewRetentionOptimizerEngine(db, DefaultRetentionOptimizerConfig())
 	e.RecordAccess("m1")
@@ -162,7 +158,6 @@ func TestRetentionOptimizerStats(t *testing.T) {
 
 func TestRetentionOptimizerStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewRetentionOptimizerEngine(db, DefaultRetentionOptimizerConfig())
 	e.Start()

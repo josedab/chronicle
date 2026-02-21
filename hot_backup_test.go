@@ -22,7 +22,6 @@ func TestHotBackupConfig(t *testing.T) {
 
 func TestHotBackupCreate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewHotBackupEngine(db, DefaultHotBackupConfig())
 
@@ -52,7 +51,6 @@ func TestHotBackupCreate(t *testing.T) {
 
 func TestHotBackupListBackups(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewHotBackupEngine(db, DefaultHotBackupConfig())
 
@@ -75,7 +73,6 @@ func TestHotBackupListBackups(t *testing.T) {
 
 func TestHotBackupGetBackup(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewHotBackupEngine(db, DefaultHotBackupConfig())
 
@@ -101,7 +98,6 @@ func TestHotBackupGetBackup(t *testing.T) {
 
 func TestHotBackupDelete(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewHotBackupEngine(db, DefaultHotBackupConfig())
 
@@ -128,7 +124,6 @@ func TestHotBackupDelete(t *testing.T) {
 
 func TestHotBackupMaxBackups(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultHotBackupConfig()
 	cfg.MaxBackups = 3
@@ -149,7 +144,6 @@ func TestHotBackupMaxBackups(t *testing.T) {
 
 func TestHotBackupStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewHotBackupEngine(db, DefaultHotBackupConfig())
 
@@ -170,7 +164,6 @@ func TestHotBackupStats(t *testing.T) {
 
 func TestHotBackupCompression(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultHotBackupConfig()
 	cfg.CompressionEnabled = false

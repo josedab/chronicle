@@ -7,7 +7,6 @@ import (
 
 func TestQueryMiddlewareSingle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewQueryMiddlewareEngine(db, DefaultQueryMiddlewareConfig())
 
@@ -29,7 +28,6 @@ func TestQueryMiddlewareSingle(t *testing.T) {
 
 func TestQueryMiddlewareChain(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewQueryMiddlewareEngine(db, DefaultQueryMiddlewareConfig())
 
@@ -64,7 +62,6 @@ func TestQueryMiddlewareChain(t *testing.T) {
 
 func TestQueryMiddlewareReject(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewQueryMiddlewareEngine(db, DefaultQueryMiddlewareConfig())
 
@@ -84,7 +81,6 @@ func TestQueryMiddlewareReject(t *testing.T) {
 
 func TestQueryMiddlewareEmptyPipeline(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewQueryMiddlewareEngine(db, DefaultQueryMiddlewareConfig())
 
@@ -100,7 +96,6 @@ func TestQueryMiddlewareEmptyPipeline(t *testing.T) {
 
 func TestQueryMiddlewareStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	e := NewQueryMiddlewareEngine(db, DefaultQueryMiddlewareConfig())
 

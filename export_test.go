@@ -9,7 +9,6 @@ import (
 
 func TestExporter_CSV(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data as a single batch
 	now := time.Now().UnixNano()
@@ -55,7 +54,6 @@ func TestExporter_CSV(t *testing.T) {
 
 func TestExporter_JSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now().UnixNano()
 	points := make([]Point, 50)
@@ -90,7 +88,6 @@ func TestExporter_JSON(t *testing.T) {
 
 func TestExporter_Parquet(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now().UnixNano()
 	points := make([]Point, 25)
@@ -138,7 +135,6 @@ func TestExporter_Parquet(t *testing.T) {
 
 func TestExporter_Compression(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now().UnixNano()
 	points := make([]Point, 100)
@@ -173,7 +169,6 @@ func TestExporter_Compression(t *testing.T) {
 
 func TestExporter_TimeRange(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano()
 	points := make([]Point, 100)
@@ -205,7 +200,6 @@ func TestExporter_TimeRange(t *testing.T) {
 
 func TestExporter_ConvenienceMethods(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now().UnixNano()
 	db.WriteBatch([]Point{{
@@ -312,7 +306,6 @@ func TestValidateExportPath(t *testing.T) {
 
 func TestExporter_SensitivePathRejection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some test data
 	db.WriteBatch([]Point{{
@@ -343,7 +336,6 @@ func TestExporter_SensitivePathRejection(t *testing.T) {
 
 func TestExporter_EmptyPath(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultExportConfig()
 	config.OutputPath = ""

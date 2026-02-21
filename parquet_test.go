@@ -311,7 +311,6 @@ func TestParquetBackend_ClosedOperations(t *testing.T) {
 func TestExportImportParquet(t *testing.T) {
 	// Setup DB
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now().UnixNano()

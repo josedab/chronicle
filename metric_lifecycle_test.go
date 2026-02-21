@@ -20,7 +20,6 @@ func TestMetricLifecycleConfig(t *testing.T) {
 
 func TestMetricLifecycleAddPolicy(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 
@@ -42,7 +41,6 @@ func TestMetricLifecycleAddPolicy(t *testing.T) {
 
 func TestMetricLifecycleTrackMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 
@@ -76,7 +74,6 @@ func TestMetricLifecycleTrackMetric(t *testing.T) {
 
 func TestMetricLifecycleArchiveRestore(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.TrackMetric("cpu_usage")
@@ -113,7 +110,6 @@ func TestMetricLifecycleArchiveRestore(t *testing.T) {
 
 func TestMetricLifecycleTombstone(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.TrackMetric("old_metric")
@@ -137,7 +133,6 @@ func TestMetricLifecycleTombstone(t *testing.T) {
 
 func TestMetricLifecycleStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.TrackMetric("active1")
@@ -165,7 +160,6 @@ func TestMetricLifecycleStats(t *testing.T) {
 
 func TestMetricLifecycleNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 
@@ -187,7 +181,6 @@ func TestMetricLifecycleNotFound(t *testing.T) {
 
 func TestMetricLifecyclePolicyMatching(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.AddPolicy(LifecyclePolicy{
@@ -213,7 +206,6 @@ func TestMetricLifecyclePolicyMatching(t *testing.T) {
 
 func TestMetricLifecycle_DeprecateMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.TrackMetric("old_cpu")
@@ -244,7 +236,6 @@ func TestMetricLifecycle_DeprecateMetric(t *testing.T) {
 
 func TestMetricLifecycle_DeprecateNonexistent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 
@@ -256,7 +247,6 @@ func TestMetricLifecycle_DeprecateNonexistent(t *testing.T) {
 
 func TestMetricLifecycle_QueryTracking(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.TrackMetric("queried_metric")
@@ -276,7 +266,6 @@ func TestMetricLifecycle_QueryTracking(t *testing.T) {
 
 func TestMetricLifecycle_StaleTransition(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultMetricLifecycleConfig()
 	cfg.StaleTimeout = 10 * time.Millisecond
@@ -298,7 +287,6 @@ func TestMetricLifecycle_StaleTransition(t *testing.T) {
 
 func TestMetricLifecycle_ReactivateFromStale(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultMetricLifecycleConfig()
 	cfg.StaleTimeout = 10 * time.Millisecond
@@ -325,7 +313,6 @@ func TestMetricLifecycle_ReactivateFromStale(t *testing.T) {
 
 func TestMetricLifecycle_DeprecatedStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mgr := NewMetricLifecycleManager(db, DefaultMetricLifecycleConfig())
 	mgr.TrackMetric("m1")

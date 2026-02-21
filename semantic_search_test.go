@@ -8,7 +8,6 @@ import (
 
 func TestSemanticSearchEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0 // Disable auto-indexing for tests
@@ -163,7 +162,6 @@ func TestHNSWIndex(t *testing.T) {
 
 func TestSearchWithFilters(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0
@@ -243,7 +241,6 @@ func TestCosineDistance(t *testing.T) {
 
 func TestGetPattern(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0
@@ -275,7 +272,6 @@ func TestGetPattern(t *testing.T) {
 
 func TestListPatterns(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0
@@ -306,7 +302,6 @@ func TestListPatterns(t *testing.T) {
 
 func TestSearchSimilar(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0
@@ -335,7 +330,6 @@ func TestSearchSimilar(t *testing.T) {
 
 func TestEviction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultSemanticSearchConfig()
 	config.AutoIndexInterval = 0

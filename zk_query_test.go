@@ -11,7 +11,6 @@ import (
 
 func TestZKQueryEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)
@@ -26,7 +25,6 @@ func TestZKQueryEngine(t *testing.T) {
 
 func TestCreateCommitment(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert test data
 	now := time.Now()
@@ -72,7 +70,6 @@ func TestCreateCommitment(t *testing.T) {
 
 func TestGenerateMerkleProof(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert test data
 	now := time.Now()
@@ -121,7 +118,6 @@ func TestGenerateMerkleProof(t *testing.T) {
 
 func TestGenerateSumProof(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert test data with known sum
 	now := time.Now()
@@ -172,7 +168,6 @@ func TestGenerateSumProof(t *testing.T) {
 
 func TestGenerateCountProof(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert test data
 	now := time.Now()
@@ -216,7 +211,6 @@ func TestGenerateCountProof(t *testing.T) {
 
 func TestGenerateRangeProof(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert test data with known min/max
 	now := time.Now()
@@ -269,7 +263,6 @@ func TestGenerateRangeProof(t *testing.T) {
 
 func TestVerifyProof(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert test data
 	now := time.Now()
@@ -319,7 +312,6 @@ func TestVerifyProof(t *testing.T) {
 
 func TestVerifyInvalidProof(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultZKQueryConfig()
 	engine := NewZKQueryEngine(db, config)
@@ -344,7 +336,6 @@ func TestVerifyInvalidProof(t *testing.T) {
 
 func TestGetCommitment(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Insert data
 	now := time.Now()
@@ -376,7 +367,6 @@ func TestGetCommitment(t *testing.T) {
 
 func TestListCommitments(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now()
 	db.Write(Point{Metric: "test", Value: 1, Timestamp: now.UnixNano()})
@@ -399,7 +389,6 @@ func TestListCommitments(t *testing.T) {
 
 func TestAuditLog(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now()
 	db.Write(Point{Metric: "audit_test", Value: 1, Timestamp: now.UnixNano()})
@@ -580,7 +569,6 @@ func TestPedersenCommitment(t *testing.T) {
 
 func TestProofWithExistingCommitment(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now()
 	for i := 0; i < 10; i++ {

@@ -194,7 +194,6 @@ func TestQueryCostAccounter(t *testing.T) {
 
 func TestNewTenantGovernanceEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	engine := NewTenantGovernanceEngine(db, cfg)
@@ -214,7 +213,6 @@ func TestNewTenantGovernanceEngine(t *testing.T) {
 
 func TestTenantGovernanceEngine_StartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	cfg.MeteringInterval = 50 * time.Millisecond
@@ -251,7 +249,6 @@ func TestTenantGovernanceEngine_StartStop(t *testing.T) {
 
 func TestTenantGovernanceEngine_BudgetCRUD(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	engine := NewTenantGovernanceEngine(db, cfg)
@@ -345,7 +342,6 @@ func TestTenantGovernanceEngine_BudgetCRUD(t *testing.T) {
 
 func TestTenantGovernanceEngine_AdmitQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	engine := NewTenantGovernanceEngine(db, cfg)
@@ -385,7 +381,6 @@ func TestTenantGovernanceEngine_AdmitQuery(t *testing.T) {
 
 func TestTenantGovernanceEngine_AdmitWrite(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	engine := NewTenantGovernanceEngine(db, cfg)
@@ -416,7 +411,6 @@ func TestTenantGovernanceEngine_AdmitWrite(t *testing.T) {
 
 func TestTenantGovernanceEngine_GenerateChargeback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	cfg.EnableChargeback = true
@@ -475,7 +469,6 @@ func TestTenantGovernanceEngine_GenerateChargeback(t *testing.T) {
 
 func TestTenantGovernanceEngine_GetUsage(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	engine := NewTenantGovernanceEngine(db, cfg)
@@ -528,7 +521,6 @@ func TestTenantGovernanceEngine_GetUsage(t *testing.T) {
 
 func TestTenantGovernanceEngine_MeteringRecords(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultTenantGovernanceConfig()
 	cfg.MeteringInterval = 50 * time.Millisecond

@@ -7,7 +7,6 @@ import (
 
 func TestSLOEngine_AddSLO(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewSLOEngine(db, DefaultSLOEngineConfig())
 
@@ -34,7 +33,6 @@ func TestSLOEngine_AddSLO(t *testing.T) {
 
 func TestSLOEngine_Validation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewSLOEngine(db, DefaultSLOEngineConfig())
 
@@ -53,7 +51,6 @@ func TestSLOEngine_Validation(t *testing.T) {
 
 func TestSLOEngine_ErrorBudget(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	engine.AddSLO(SLODefinition{
@@ -92,7 +89,6 @@ func TestSLOEngine_ErrorBudget(t *testing.T) {
 
 func TestSLOEngine_ListStatuses(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	engine.AddSLO(SLODefinition{Name: "slo1", SLIType: SLIAvailability, Target: 0.99, Metric: "m1"})
@@ -106,7 +102,6 @@ func TestSLOEngine_ListStatuses(t *testing.T) {
 
 func TestSLOEngine_RemoveSLO(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	engine.AddSLO(SLODefinition{Name: "to_remove", Target: 0.99, Metric: "m"})
@@ -122,7 +117,6 @@ func TestSLOEngine_RemoveSLO(t *testing.T) {
 
 func TestBurnRateEngine_DefaultAlerts(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sloEngine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	sloEngine.AddSLO(SLODefinition{Name: "api", Target: 0.999, Metric: "requests", SLIType: SLIAvailability})
@@ -140,7 +134,6 @@ func TestBurnRateEngine_DefaultAlerts(t *testing.T) {
 
 func TestBurnRateEngine_Evaluate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sloEngine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	sloEngine.AddSLO(SLODefinition{Name: "test", Target: 0.999, Metric: "m", SLIType: SLIAvailability})
@@ -165,7 +158,6 @@ func TestBurnRateEngine_Evaluate(t *testing.T) {
 
 func TestBurnRateEngine_CalculateBurnRate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sloEngine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	sloEngine.AddSLO(SLODefinition{Name: "test", Target: 0.99, Metric: "m", SLIType: SLIAvailability})
@@ -190,7 +182,6 @@ func TestBurnRateEngine_CalculateBurnRate(t *testing.T) {
 
 func TestSLOEngine_CreateRecordingRules(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sloEngine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	sloEngine.AddSLO(SLODefinition{
@@ -224,7 +215,6 @@ func TestSLOEngine_CreateRecordingRules(t *testing.T) {
 
 func TestSLOEngine_CreateBurnRateAlerts(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sloEngine := NewSLOEngine(db, DefaultSLOEngineConfig())
 	sloEngine.AddSLO(SLODefinition{

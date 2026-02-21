@@ -10,7 +10,6 @@ import (
 
 func TestAdminUI_APIStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -41,7 +40,6 @@ func TestAdminUI_APIStats(t *testing.T) {
 
 func TestAdminUI_APIMetrics(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{
 		{Metric: "cpu", Value: 1.0, Timestamp: time.Now().UnixNano()},
@@ -71,7 +69,6 @@ func TestAdminUI_APIMetrics(t *testing.T) {
 
 func TestAdminUI_APISeries(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "cpu", Value: 1.0, Timestamp: time.Now().UnixNano()}})
 
@@ -97,7 +94,6 @@ func TestAdminUI_APISeries(t *testing.T) {
 
 func TestAdminUI_APIQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	now := time.Now()
 	db.WriteBatch([]Point{{Metric: "cpu", Value: 1.0, Timestamp: now.UnixNano()}})
@@ -116,7 +112,6 @@ func TestAdminUI_APIQuery(t *testing.T) {
 
 func TestAdminUI_APIQuery_MissingQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -132,7 +127,6 @@ func TestAdminUI_APIQuery_MissingQuery(t *testing.T) {
 
 func TestAdminUI_APIQuery_InvalidQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -148,7 +142,6 @@ func TestAdminUI_APIQuery_InvalidQuery(t *testing.T) {
 
 func TestAdminUI_APIConfig(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -173,7 +166,6 @@ func TestAdminUI_APIConfig(t *testing.T) {
 
 func TestAdminUI_APIHealth(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -199,7 +191,6 @@ func TestAdminUI_APIHealth(t *testing.T) {
 
 func TestAdminUI_APIQueryHistory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -228,7 +219,6 @@ func TestAdminUI_APIQueryHistory(t *testing.T) {
 
 func TestAdminUI_APITags(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -249,7 +239,6 @@ func TestAdminUI_APITags(t *testing.T) {
 
 func TestAdminUI_APIDataPreview(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "cpu", Value: 42.5, Timestamp: time.Now().UnixNano()}})
 
@@ -276,7 +265,6 @@ func TestAdminUI_APIDataPreview(t *testing.T) {
 
 func TestAdminUI_APIDataPreview_MissingMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -292,7 +280,6 @@ func TestAdminUI_APIDataPreview_MissingMetric(t *testing.T) {
 
 func TestAdminUI_APIMetricDetails(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "cpu", Value: 42.5, Timestamp: time.Now().UnixNano()}})
 
@@ -319,7 +306,6 @@ func TestAdminUI_APIMetricDetails(t *testing.T) {
 
 func TestAdminUI_APIMetricDetails_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -335,7 +321,6 @@ func TestAdminUI_APIMetricDetails_NotFound(t *testing.T) {
 
 func TestAdminUI_APIPartitions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -356,7 +341,6 @@ func TestAdminUI_APIPartitions(t *testing.T) {
 
 func TestAdminUI_APIQueryExplain(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -385,7 +369,6 @@ func TestAdminUI_APIQueryExplain(t *testing.T) {
 
 func TestAdminUI_APIQueryExplain_MissingQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -401,7 +384,6 @@ func TestAdminUI_APIQueryExplain_MissingQuery(t *testing.T) {
 
 func TestAdminUI_APICluster(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -426,7 +408,6 @@ func TestAdminUI_APICluster(t *testing.T) {
 
 func TestAdminUI_APIWAL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

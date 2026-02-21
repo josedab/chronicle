@@ -12,7 +12,6 @@ import (
 
 func TestClickHouseServer_Ping(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 	mux := http.NewServeMux()
@@ -37,7 +36,6 @@ func TestClickHouseServer_Ping(t *testing.T) {
 
 func TestClickHouseServer_Select1(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -62,7 +60,6 @@ func TestClickHouseServer_Select1(t *testing.T) {
 
 func TestClickHouseServer_ShowDatabases(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultClickHouseConfig()
 	config.DefaultDatabase = "testdb"
@@ -95,7 +92,6 @@ func TestClickHouseServer_ShowDatabases(t *testing.T) {
 
 func TestClickHouseServer_ShowTables(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some test data
 	_ = db.Write(Point{
@@ -119,7 +115,6 @@ func TestClickHouseServer_ShowTables(t *testing.T) {
 
 func TestClickHouseServer_QueryWithAggregation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -147,7 +142,6 @@ func TestClickHouseServer_QueryWithAggregation(t *testing.T) {
 
 func TestClickHouseServer_QueryFormats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -182,7 +176,6 @@ func TestClickHouseServer_QueryFormats(t *testing.T) {
 
 func TestClickHouseServer_SystemTables(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -208,7 +201,6 @@ func TestClickHouseServer_SystemTables(t *testing.T) {
 
 func TestClickHouseServer_TimeConditions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -237,7 +229,6 @@ func TestClickHouseServer_TimeConditions(t *testing.T) {
 
 func TestClickHouseServer_GroupBy(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -265,7 +256,6 @@ func TestClickHouseServer_GroupBy(t *testing.T) {
 
 func TestClickHouseServer_Limit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -302,7 +292,6 @@ func TestClickHouseServer_Limit(t *testing.T) {
 
 func TestClickHouseServer_EmptyQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -317,7 +306,6 @@ func TestClickHouseServer_EmptyQuery(t *testing.T) {
 
 func TestClickHouseServer_InvalidQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -332,7 +320,6 @@ func TestClickHouseServer_InvalidQuery(t *testing.T) {
 
 func TestClickHouseServer_Version(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -401,7 +388,6 @@ func TestClickHouseQueryParser_ParseTimeValue(t *testing.T) {
 
 func TestClickHouseServer_URLQueryParam(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -417,7 +403,6 @@ func TestClickHouseServer_URLQueryParam(t *testing.T) {
 
 func TestClickHouseServer_MaxResultRows(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultClickHouseConfig()
 	config.MaxResultRows = 3
@@ -452,7 +437,6 @@ func TestClickHouseServer_MaxResultRows(t *testing.T) {
 
 func TestClickHouseServer_TabSeparatedOutput(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -486,7 +470,6 @@ func TestClickHouseServer_TabSeparatedOutput(t *testing.T) {
 
 func TestClickHouseServer_CSVOutput(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := NewClickHouseServer(db, DefaultClickHouseConfig())
 
@@ -507,7 +490,6 @@ func TestClickHouseServer_CSVOutput(t *testing.T) {
 // Helper function using bytes.Buffer
 func TestClickHouseServer_LargeQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultClickHouseConfig()
 	config.MaxQuerySize = 100

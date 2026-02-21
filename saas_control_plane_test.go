@@ -6,7 +6,6 @@ import (
 
 func TestSaaSControlPlaneProvision(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cp := NewSaaSControlPlane(db, DefaultSaaSControlPlaneConfig())
 

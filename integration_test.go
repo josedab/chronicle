@@ -10,7 +10,6 @@ import (
 
 func TestIntegration_SemanticSearchWithData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data with patterns
 	now := time.Now()
@@ -77,7 +76,6 @@ func TestIntegration_SemanticSearchWithData(t *testing.T) {
 
 func TestIntegration_CapacityPlanningWithData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write increasing data over time
 	now := time.Now()
@@ -153,7 +151,6 @@ func TestIntegration_CapacityPlanningWithData(t *testing.T) {
 
 func TestIntegration_QueryBuilderWithIndex(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write data with various tags
 	now := time.Now()
@@ -210,7 +207,6 @@ func TestIntegration_QueryBuilderWithIndex(t *testing.T) {
 
 func TestIntegration_NLDashboardWithQueries(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -259,7 +255,6 @@ func TestIntegration_NLDashboardWithQueries(t *testing.T) {
 
 func TestIntegration_ZKQueryWithCommitment(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -336,7 +331,6 @@ func TestIntegration_ZKQueryWithCommitment(t *testing.T) {
 
 func TestIntegration_CollaborativeQuerySession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCollaborativeQueryConfig()
 	hub := NewCollaborativeQueryHub(db, config)
@@ -388,7 +382,6 @@ func TestIntegration_CollaborativeQuerySession(t *testing.T) {
 
 func TestIntegration_DigitalTwinSync(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultDigitalTwinConfig()
 	config.Enabled = false // Don't auto-start sync
@@ -427,7 +420,6 @@ func TestIntegration_DigitalTwinSync(t *testing.T) {
 
 func TestIntegration_FederatedLearning(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultFederatedLearningConfig()
 	config.Enabled = false      // Don't auto-start
@@ -482,7 +474,6 @@ func TestIntegration_FederatedLearning(t *testing.T) {
 
 func TestIntegration_AutoRemediation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAutoRemediationConfig()
 	config.Enabled = false // Don't auto-start

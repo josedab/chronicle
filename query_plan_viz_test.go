@@ -7,7 +7,6 @@ import (
 
 func TestQueryPlanVizEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultQueryPlanVizConfig()
 	engine := NewQueryPlanVizEngine(db, cfg)

@@ -11,7 +11,6 @@ import (
 
 func TestAdminUI_APIBackup_GET(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -27,7 +26,6 @@ func TestAdminUI_APIBackup_GET(t *testing.T) {
 
 func TestAdminUI_APIBackup_POST(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -52,7 +50,6 @@ func TestAdminUI_APIBackup_POST(t *testing.T) {
 
 func TestAdminUI_APIInsert_DevMode(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{DevMode: true})
 	handler := ui.Handler()
@@ -79,7 +76,6 @@ func TestAdminUI_APIInsert_DevMode(t *testing.T) {
 
 func TestAdminUI_APIInsert_NotDevMode(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{DevMode: false})
 	handler := ui.Handler()
@@ -97,7 +93,6 @@ func TestAdminUI_APIInsert_NotDevMode(t *testing.T) {
 
 func TestAdminUI_APIDeleteMetric(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -113,7 +108,6 @@ func TestAdminUI_APIDeleteMetric(t *testing.T) {
 
 func TestAdminUI_APIDeleteMetric_WrongMethod(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -129,7 +123,6 @@ func TestAdminUI_APIDeleteMetric_WrongMethod(t *testing.T) {
 
 func TestAdminUI_APITruncate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -145,7 +138,6 @@ func TestAdminUI_APITruncate(t *testing.T) {
 
 func TestAdminUI_APIExport_JSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "cpu", Value: 42.5, Timestamp: time.Now().UnixNano()}})
 
@@ -168,7 +160,6 @@ func TestAdminUI_APIExport_JSON(t *testing.T) {
 
 func TestAdminUI_APIExport_CSV(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.WriteBatch([]Point{{Metric: "cpu", Value: 42.5, Timestamp: time.Now().UnixNano()}})
 
@@ -191,7 +182,6 @@ func TestAdminUI_APIExport_CSV(t *testing.T) {
 
 func TestAdminUI_APIScheduledExports(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -217,7 +207,6 @@ func TestAdminUI_APIScheduledExports(t *testing.T) {
 
 func TestAdminUI_APIImport_JSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{DevMode: true})
 	handler := ui.Handler()
@@ -243,7 +232,6 @@ func TestAdminUI_APIImport_JSON(t *testing.T) {
 
 func TestAdminUI_APIImport_NotDevMode(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

@@ -20,7 +20,6 @@ func TestDashboardConfig(t *testing.T) {
 
 func TestDashboardCreateAndLayout(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dashboard := NewEmbeddableDashboard(db, DefaultDashboardConfig())
 
@@ -36,7 +35,6 @@ func TestDashboardCreateAndLayout(t *testing.T) {
 
 func TestDashboardAddPanel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dashboard := NewEmbeddableDashboard(db, DefaultDashboardConfig())
 
@@ -63,7 +61,6 @@ func TestDashboardAddPanel(t *testing.T) {
 
 func TestDashboardRemovePanel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dashboard := NewEmbeddableDashboard(db, DefaultDashboardConfig())
 	dashboard.AddPanel("default", DashboardPanel{ID: "panel-1", Title: "P1", Metric: "m1"})
@@ -82,7 +79,6 @@ func TestDashboardRemovePanel(t *testing.T) {
 
 func TestDashboardMaxPanels(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultDashboardConfig()
 	cfg.MaxPanels = 2
@@ -98,7 +94,6 @@ func TestDashboardMaxPanels(t *testing.T) {
 
 func TestDashboardCreateLayout(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dashboard := NewEmbeddableDashboard(db, DefaultDashboardConfig())
 	layout := dashboard.CreateLayout("custom", "Custom Dashboard", "A custom view")
@@ -115,7 +110,6 @@ func TestDashboardCreateLayout(t *testing.T) {
 
 func TestDashboardAutoDiscover(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write some metrics
 	now := time.Now()
@@ -152,7 +146,6 @@ func TestDashboardPanelTypeString(t *testing.T) {
 
 func TestDashboardGetLayoutNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dashboard := NewEmbeddableDashboard(db, DefaultDashboardConfig())
 	_, err := dashboard.GetLayout("nonexistent")

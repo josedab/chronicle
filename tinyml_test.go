@@ -8,7 +8,6 @@ import (
 
 func TestTinyMLEngine_Creation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 	if engine == nil {
@@ -18,7 +17,6 @@ func TestTinyMLEngine_Creation(t *testing.T) {
 
 func TestTinyMLEngine_RegisterModel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 
@@ -35,7 +33,6 @@ func TestTinyMLEngine_RegisterModel(t *testing.T) {
 
 func TestTinyMLEngine_UnregisterModel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 
@@ -51,7 +48,6 @@ func TestTinyMLEngine_UnregisterModel(t *testing.T) {
 
 func TestTinyMLEngine_ListModels(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 
@@ -327,7 +323,6 @@ func TestStatisticalAnomalyDetector_Serialize(t *testing.T) {
 
 func TestTinyMLEngine_DetectAnomalies(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write test data
 	now := time.Now()
@@ -363,7 +358,6 @@ func TestTinyMLEngine_DetectAnomalies(t *testing.T) {
 
 func TestTinyMLEngine_Infer(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 
@@ -385,7 +379,6 @@ func TestTinyMLEngine_Infer(t *testing.T) {
 
 func TestTinyMLEngine_InferModelNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewTinyMLEngine(db, DefaultTinyMLConfig())
 
@@ -421,7 +414,6 @@ func TestEuclideanDistance(t *testing.T) {
 
 func TestTinyMLEngine_MaxModels(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultTinyMLConfig()
 	config.MaxModels = 2

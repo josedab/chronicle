@@ -7,7 +7,6 @@ import (
 
 func TestMaterializedViewV2Create(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
 
@@ -34,7 +33,6 @@ func TestMaterializedViewV2Create(t *testing.T) {
 
 func TestMaterializedViewV2Duplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
 
@@ -48,7 +46,6 @@ func TestMaterializedViewV2Duplicate(t *testing.T) {
 
 func TestMaterializedViewV2Drop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
 
@@ -65,7 +62,6 @@ func TestMaterializedViewV2Drop(t *testing.T) {
 
 func TestMaterializedViewV2TumblingWindow(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
 
@@ -100,7 +96,6 @@ func TestMaterializedViewV2TumblingWindow(t *testing.T) {
 
 func TestMaterializedViewV2SessionWindow(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
 
@@ -127,7 +122,6 @@ func TestMaterializedViewV2SessionWindow(t *testing.T) {
 
 func TestMaterializedViewV2LateData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultMaterializedViewV2Config()
 	config.EnableExactlyOnce = false
@@ -158,7 +152,6 @@ func TestMaterializedViewV2LateData(t *testing.T) {
 
 func TestMaterializedViewV2ExactlyOnce(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultMaterializedViewV2Config()
 	config.EnableExactlyOnce = true
@@ -189,7 +182,6 @@ func TestMaterializedViewV2ExactlyOnce(t *testing.T) {
 
 func TestMaterializedViewV2GetView(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewMaterializedViewV2Engine(db, DefaultMaterializedViewV2Config())
 	engine.CreateView(ViewV2Definition{

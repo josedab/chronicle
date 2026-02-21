@@ -445,7 +445,6 @@ func TestComplianceReporter(t *testing.T) {
 
 func TestNewAuditTrailManager(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAuditTrailConfig()
 	mgr := NewAuditTrailManager(db, cfg)
@@ -468,7 +467,6 @@ func TestNewAuditTrailManager(t *testing.T) {
 
 func TestAuditTrailManager_StartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAuditTrailConfig()
 	mgr := NewAuditTrailManager(db, cfg)
@@ -498,7 +496,6 @@ func TestAuditTrailManager_StartStop(t *testing.T) {
 
 func TestAuditTrailManager_RecordAndSearch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAuditTrailConfig()
 	mgr := NewAuditTrailManager(db, cfg)
@@ -581,7 +578,6 @@ func TestAuditTrailManager_RecordAndSearch(t *testing.T) {
 
 func TestAuditTrailManager_VerifyIntegrity(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultAuditTrailConfig()
 	mgr := NewAuditTrailManager(db, cfg)

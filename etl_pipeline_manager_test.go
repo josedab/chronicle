@@ -7,7 +7,6 @@ import (
 
 func TestETLPipelineManagerLifecycle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pm := NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
 	if err := pm.Start(); err != nil {
@@ -67,7 +66,6 @@ func TestETLPipelineManagerLifecycle(t *testing.T) {
 
 func TestETLPipelineManagerStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pm := NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
 
@@ -114,7 +112,6 @@ func TestETLPipelineManagerStartStop(t *testing.T) {
 
 func TestETLPipelineManagerDelete(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pm := NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
 
@@ -141,7 +138,6 @@ func TestETLPipelineManagerDelete(t *testing.T) {
 
 func TestETLPipelineManagerMaxPipelines(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultETLPipelineManagerConfig()
 	config.MaxPipelines = 2
@@ -245,7 +241,6 @@ func TestWindowedJoinFullOuter(t *testing.T) {
 
 func TestEnrichmentLookup(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write lookup data
 	baseTime := time.Now().Truncate(time.Hour)
@@ -298,7 +293,6 @@ func TestEnrichmentLookup(t *testing.T) {
 
 func TestEnrichmentLookupCacheEviction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultEnrichmentLookupConfig()
 	config.MaxCacheSize = 3
@@ -421,7 +415,6 @@ func TestPipelineSpecValidation(t *testing.T) {
 
 func TestPipelineSpecBuild(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	spec := &PipelineSpec{
 		Name:     "build-test",
@@ -441,7 +434,6 @@ func TestPipelineSpecBuild(t *testing.T) {
 
 func TestPipelineSpecBuildInvalidSource(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	spec := &PipelineSpec{
 		Name:   "bad-source",
@@ -478,7 +470,6 @@ func TestPipelineSpecToYAML(t *testing.T) {
 
 func TestETLDatabaseSinkWrite(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	sink := NewETLDatabaseSink(db)
 	if err := sink.Open(nil); err != nil {
@@ -513,7 +504,6 @@ func TestETLDatabaseSinkWrite(t *testing.T) {
 
 func TestETLPipelineManagerDoubleStart(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pm := NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
 	pm.Start()
@@ -527,7 +517,6 @@ func TestETLPipelineManagerDoubleStart(t *testing.T) {
 
 func TestETLPipelineManagerDeleteRunning(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	pm := NewETLPipelineManager(db, DefaultETLPipelineManagerConfig())
 	pm.CreatePipeline("running-pipe", nil, nil)

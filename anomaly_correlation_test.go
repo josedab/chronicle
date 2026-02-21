@@ -8,7 +8,6 @@ import (
 
 func TestAnomalyCorrelationEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyCorrelationConfig()
 	config.MinConfidence = 0.1
@@ -54,7 +53,6 @@ func TestAnomalyCorrelationEngine(t *testing.T) {
 
 func TestAnomalyCorrelationCausalGraph(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyCorrelationConfig()
 	config.MinConfidence = 0.1
@@ -97,7 +95,6 @@ func TestAnomalyCorrelationCausalGraph(t *testing.T) {
 
 func TestAnomalyCorrelationTraceLinked(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyCorrelationConfig()
 	config.MinConfidence = 0.1
@@ -125,7 +122,6 @@ func TestAnomalyCorrelationTraceLinked(t *testing.T) {
 
 func TestAnomalyCorrelationListAndGet(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyCorrelationConfig()
 	config.MinConfidence = 0.1
@@ -161,7 +157,6 @@ func TestAnomalyCorrelationListAndGet(t *testing.T) {
 
 func TestAnomalyCorrelationCallback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyCorrelationConfig()
 	config.MinConfidence = 0.1
@@ -190,7 +185,6 @@ func TestAnomalyCorrelationCallback(t *testing.T) {
 
 func TestAnomalyCorrelationStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultAnomalyCorrelationConfig()
 	config.Enabled = true

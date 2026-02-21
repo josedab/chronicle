@@ -7,7 +7,6 @@ import (
 
 func TestCloudRelayEnqueue(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudRelayConfig()
 	config.MaxQueueSize = 100
@@ -35,7 +34,6 @@ func TestCloudRelayEnqueue(t *testing.T) {
 
 func TestCloudRelayEnqueueBatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudRelayConfig()
 	relay := NewCloudRelay(db, config)
@@ -61,7 +59,6 @@ func TestCloudRelayEnqueueBatch(t *testing.T) {
 
 func TestCloudRelayQueueFull(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudRelayConfig()
 	config.MaxQueueSize = 2
@@ -79,7 +76,6 @@ func TestCloudRelayQueueFull(t *testing.T) {
 
 func TestCloudRelayStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudRelayConfig()
 	relay := NewCloudRelay(db, config)
@@ -91,7 +87,6 @@ func TestCloudRelayStatus(t *testing.T) {
 
 func TestCloudRelayStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudRelayConfig()
 	config.Enabled = true
@@ -112,7 +107,6 @@ func TestCloudRelayStartStop(t *testing.T) {
 
 func TestCloudRelayCollectBatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultCloudRelayConfig()
 	config.BatchSize = 5

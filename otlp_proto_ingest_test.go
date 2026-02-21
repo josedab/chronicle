@@ -12,7 +12,6 @@ import (
 
 func TestOTLPProtoEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultOTLPProtoConfig()
 	engine := NewOTLPProtoEngine(db, cfg)
@@ -323,7 +322,6 @@ func TestOTLPProtoEngine(t *testing.T) {
 
 func TestOTLPProtoHTTPBinaryIngestion(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultOTLPProtoConfig()
 	engine := NewOTLPProtoEngine(db, cfg)

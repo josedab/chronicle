@@ -17,7 +17,6 @@ func TestWritePipelineConfig(t *testing.T) {
 
 func TestWritePipelineRegister(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewWritePipelineEngine(db, DefaultWritePipelineConfig())
 
@@ -41,7 +40,6 @@ func TestWritePipelineRegister(t *testing.T) {
 
 func TestWritePipelineInvalidPhase(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewWritePipelineEngine(db, DefaultWritePipelineConfig())
 
@@ -57,7 +55,6 @@ func TestWritePipelineInvalidPhase(t *testing.T) {
 
 func TestWritePipelineUnregister(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewWritePipelineEngine(db, DefaultWritePipelineConfig())
 	engine.Register(WriteHook{
@@ -79,7 +76,6 @@ func TestWritePipelineUnregister(t *testing.T) {
 
 func TestWritePipelineProcessPre(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewWritePipelineEngine(db, DefaultWritePipelineConfig())
 
@@ -137,7 +133,6 @@ func TestWritePipelineProcessPre(t *testing.T) {
 
 func TestWritePipelineProcessPost(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewWritePipelineEngine(db, DefaultWritePipelineConfig())
 
@@ -159,7 +154,6 @@ func TestWritePipelineProcessPost(t *testing.T) {
 
 func TestWritePipelineStats(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	engine := NewWritePipelineEngine(db, DefaultWritePipelineConfig())
 	engine.Register(WriteHook{
@@ -182,7 +176,6 @@ func TestWritePipelineStats(t *testing.T) {
 
 func TestWritePipelineMaxHooks(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultWritePipelineConfig()
 	cfg.MaxHooks = 2

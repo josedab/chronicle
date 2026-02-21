@@ -20,7 +20,6 @@ func TestLSPEnhancedConfig(t *testing.T) {
 
 func TestLSPLanguageDetection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	srv := NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
 
@@ -47,7 +46,6 @@ func TestLSPLanguageDetection(t *testing.T) {
 
 func TestLSPPromQLCompletions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	srv := NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
 	items := srv.GetCompletions("", Position{Line: 0, Character: 0}, LSPLanguagePromQL)
@@ -67,7 +65,6 @@ func TestLSPPromQLCompletions(t *testing.T) {
 
 func TestLSPSQLCompletions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	srv := NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
 	items := srv.GetCompletions("", Position{Line: 0, Character: 0}, LSPLanguageSQL)
@@ -86,7 +83,6 @@ func TestLSPSQLCompletions(t *testing.T) {
 
 func TestLSPCQLCompletions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	srv := NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
 	items := srv.GetCompletions("", Position{Line: 0, Character: 0}, LSPLanguageCQL)
@@ -105,7 +101,6 @@ func TestLSPCQLCompletions(t *testing.T) {
 
 func TestLSPSignatureHelp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	srv := NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
 
@@ -133,7 +128,6 @@ func TestLSPSignatureHelp(t *testing.T) {
 
 func TestLSPCodeActions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	srv := NewLSPEnhancedServer(db, DefaultLSPEnhancedConfig())
 
@@ -145,7 +139,6 @@ func TestLSPCodeActions(t *testing.T) {
 
 func TestLSPHoverInfo(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Write a metric so catalog has data
 	db.Write(Point{Metric: "cpu_usage", Value: 50, Timestamp: time.Now().UnixNano(), Tags: map[string]string{"h": "a"}})
@@ -169,7 +162,6 @@ func TestLSPHoverInfo(t *testing.T) {
 
 func TestLSPMetricCatalog(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.Write(Point{Metric: "cpu", Value: 1, Timestamp: time.Now().UnixNano(), Tags: map[string]string{"h": "a"}})
 	db.Write(Point{Metric: "mem", Value: 2, Timestamp: time.Now().UnixNano(), Tags: map[string]string{"h": "a"}})

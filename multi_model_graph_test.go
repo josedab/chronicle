@@ -167,7 +167,6 @@ func TestDocumentIndex(t *testing.T) {
 
 func TestMultiModelGraphStoreDocument(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mm := NewMultiModelGraphStore(db)
 
@@ -199,7 +198,6 @@ func TestMultiModelGraphStoreDocument(t *testing.T) {
 
 func TestMultiModelGraphStoreCrossQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mm := NewMultiModelGraphStore(db)
 
@@ -231,7 +229,6 @@ func TestMultiModelGraphStoreCrossQuery(t *testing.T) {
 
 func TestExportTopology(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	mm := NewMultiModelGraphStore(db)
 	mm.Graph().AddNode(GraphNode{ID: "a"})

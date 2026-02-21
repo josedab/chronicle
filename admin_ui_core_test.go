@@ -11,7 +11,6 @@ import (
 
 func TestNewAdminUI(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	if ui == nil {
@@ -26,7 +25,6 @@ func TestNewAdminUI(t *testing.T) {
 
 func TestNewAdminUI_CustomPrefix(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{Prefix: "/custom"})
 
@@ -41,7 +39,6 @@ func TestNewAdminUI_CustomPrefix(t *testing.T) {
 
 func TestAdminUI_Dashboard(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -62,7 +59,6 @@ func TestAdminUI_Dashboard(t *testing.T) {
 
 func TestAdminUI_GetDashboardData(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	db.Write(Point{Metric: "test", Value: 1.0, Timestamp: time.Now().UnixNano()})
 
@@ -100,7 +96,6 @@ func TestAdminConfig_Defaults(t *testing.T) {
 
 func TestAdminUI_APIActivity(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -121,7 +116,6 @@ func TestAdminUI_APIActivity(t *testing.T) {
 
 func TestAdminUI_DevModeFlag(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{DevMode: true})
 	handler := ui.Handler()
@@ -139,7 +133,6 @@ func TestAdminUI_DevModeFlag(t *testing.T) {
 
 func TestAdminUI_ActivityLogging(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -171,7 +164,6 @@ func TestAdminUI_ActivityLogging(t *testing.T) {
 
 func TestAdminUI_QueryHistoryTracking(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()
@@ -205,7 +197,6 @@ func TestAdminUI_QueryHistoryTracking(t *testing.T) {
 
 func TestAdminUI_HasPermission(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ui := NewAdminUI(db, AdminConfig{})
 	handler := ui.Handler()

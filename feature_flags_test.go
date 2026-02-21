@@ -4,7 +4,6 @@ import "testing"
 
 func TestFeatureFlagEngine(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	t.Run("all enabled by default", func(t *testing.T) {
 		e := NewFeatureFlagEngine(db, DefaultFeatureFlagConfig())

@@ -7,7 +7,6 @@ import (
 
 func TestConnectorHubCreateAndList(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 
@@ -31,7 +30,6 @@ func TestConnectorHubCreateAndList(t *testing.T) {
 
 func TestConnectorHubDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 	hub.CreateConnector(ConnectorConfig{Name: "dup", Driver: "noop"})
@@ -44,7 +42,6 @@ func TestConnectorHubDuplicate(t *testing.T) {
 
 func TestConnectorHubMaxConnectors(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultConnectorHubConfig()
 	config.MaxConnectors = 2
@@ -60,7 +57,6 @@ func TestConnectorHubMaxConnectors(t *testing.T) {
 
 func TestConnectorHubStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 	hub.CreateConnector(ConnectorConfig{Name: "s1", Type: ConnectorTypeSink, Driver: "noop"})
@@ -84,7 +80,6 @@ func TestConnectorHubStartStop(t *testing.T) {
 
 func TestConnectorHubDelete(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 	hub.CreateConnector(ConnectorConfig{Name: "del1", Driver: "noop"})
@@ -100,7 +95,6 @@ func TestConnectorHubDelete(t *testing.T) {
 
 func TestConnectorHubDeadLetter(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultConnectorHubConfig()
 	config.DeadLetterEnabled = true
@@ -119,7 +113,6 @@ func TestConnectorHubDeadLetter(t *testing.T) {
 
 func TestConnectorHubListDrivers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 	drivers := hub.ListDrivers()
@@ -130,7 +123,6 @@ func TestConnectorHubListDrivers(t *testing.T) {
 
 func TestConnectorHubUnknownDriver(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 	hub.CreateConnector(ConnectorConfig{Name: "bad", Driver: "nonexistent", Type: ConnectorTypeSink})
@@ -143,7 +135,6 @@ func TestConnectorHubUnknownDriver(t *testing.T) {
 
 func TestConnectorHubStartNonExistent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
 	err := hub.StartConnector("ghost")
@@ -182,7 +173,6 @@ func TestConnectorHubFilterPoints(t *testing.T) {
 
 func TestConnectorHubGlobalStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	config := DefaultConnectorHubConfig()
 	config.Enabled = true

@@ -10,7 +10,6 @@ import (
 
 func TestPromScraperAddRemoveTargets(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	engine := NewPromScraperEngine(db, cfg)
@@ -43,7 +42,6 @@ func TestPromScraperAddRemoveTargets(t *testing.T) {
 
 func TestPromScraperDuplicateTarget(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	engine := NewPromScraperEngine(db, cfg)
@@ -60,7 +58,6 @@ func TestPromScraperDuplicateTarget(t *testing.T) {
 
 func TestPromScraperMaxTargets(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	cfg.MaxTargets = 2
@@ -84,7 +81,6 @@ func TestPromScraperMaxTargets(t *testing.T) {
 
 func TestPromScraperScrape(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	engine := NewPromScraperEngine(db, cfg)
@@ -122,7 +118,6 @@ func TestPromScraperScrape(t *testing.T) {
 
 func TestPromScraperScrapeNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	engine := NewPromScraperEngine(db, cfg)
@@ -135,7 +130,6 @@ func TestPromScraperScrapeNotFound(t *testing.T) {
 
 func TestPromScraperStartStop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	engine := NewPromScraperEngine(db, cfg)
@@ -166,7 +160,6 @@ func TestPromScraperDefaultConfig(t *testing.T) {
 
 func TestPromScraperHTTPHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultPromScraperConfig()
 	engine := NewPromScraperEngine(db, cfg)
