@@ -6,6 +6,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/chronicle-db/chronicle/actions/workflows/ci.yml/badge.svg)](https://github.com/chronicle-db/chronicle/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/chronicle-db/chronicle/badge)](https://scorecard.dev/viewer/?uri=github.com/chronicle-db/chronicle)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/chronicle-db/chronicle?quickstart=1)
 
 Chronicle is an embedded time-series database for Go designed for constrained and edge environments. It provides compressed columnar storage, SQL-like queries, retention, and downsampling in a single-file format.
 
@@ -367,7 +368,7 @@ make help
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 
 ## Security
 
