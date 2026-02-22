@@ -68,6 +68,9 @@ go test -race ./...
 
 # Run tests with coverage
 go test -cover ./...
+
+# Per-package function-level coverage
+make test-cover-pkg PKG=./internal/query/...
 ```
 
 ### Performance Tips
@@ -129,6 +132,35 @@ Chronicle uses consistent naming patterns for public APIs:
 
 When adding new features, follow these patterns for consistency.
 
+### File Size Guidelines
+
+Production Go files have a soft limit of **800 lines**. `make check-file-size`
+warns about files that exceed this threshold.
+
+**When exceptions are acceptable:**
+- Generated code (e.g., `feature_manager_gen.go`)
+- Query language parsers (e.g., `promql.go`, `parser.go`) where splitting reduces readability
+- Test files with many table-driven cases
+
+**Navigating large files:** Use `// Section:` markers to delineate logical blocks:
+
+```go
+// Section: Configuration
+
+type Config struct { ... }
+
+// Section: Initialization
+
+func New(...) { ... }
+
+// Section: Query execution
+
+func (e *Engine) Execute(...) { ... }
+```
+
+These markers work well with editor search (`Cmd+Shift+O` in VS Code, `grep -n 'Section:'`)
+and make large files navigable without splitting them prematurely.
+
 ## Submitting Changes
 
 ### Pull Request Process
@@ -179,7 +211,7 @@ Before submitting, please ensure:
 
 ## Troubleshooting
 
-Build or setup issues? See the **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to common problems including CGO errors, Apple Silicon setup, golangci-lint version mismatches, and test failures.
+Build or setup issues? See the **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to common problems including CGO errors, Apple Silicon setup, golangci-lint version mismatches, and test failures. Run `make doctor` for a full environment diagnostic — see the [Diagnostics section](docs/TROUBLESHOOTING.md#diagnostics-make-doctor) for what each check means.
 
 ## Reporting Issues
 
@@ -240,6 +272,35 @@ chronicle/
 ## Code of Conduct
 
 Please be respectful and constructive in all interactions. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
+
+## Code Ownership
+
+Chronicle uses [GitHub CODEOWNERS](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) to automatically assign reviewers to pull requests.
+
+### Current owners
+
+| Area | Owner | Scope |
+|------|-------|-------|
+| Overall | `@chronicle-db/maintainers` | All files (default) |
+| Documentation | `@chronicle-db/docs-team` | `*.md`, `docs/` |
+| CI/CD | `@chronicle-db/platform-team` | `.github/` |
+
+### How reviews work
+
+- When you open a PR, GitHub automatically requests reviews from the relevant
+  CODEOWNERS based on which files you changed.
+- PRs that touch documentation are routed to the docs team; CI changes go to
+  the platform team; everything else goes to maintainers.
+- At least one approval from a code owner is required before merging.
+
+### Becoming an owner
+
+Active contributors can become owners of a subsystem:
+
+1. Contribute multiple high-quality PRs to the area you want to own
+2. Demonstrate familiarity with the subsystem's design and conventions
+3. A current maintainer will propose adding you to the relevant team
+4. Once approved, you'll be added to `.github/CODEOWNERS` and the GitHub team
 
 ## License
 
