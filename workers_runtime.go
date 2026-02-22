@@ -362,7 +362,7 @@ func (d *D1Backend) Write(ctx context.Context, p Point) error {
 	tagsJSON, _ := json.Marshal(p.Tags)
 	sql := fmt.Sprintf(
 		"INSERT INTO points (metric, tags, value, timestamp) VALUES ('%s', '%s', %f, %d)",
-		p.Metric, string(tagsJSON), p.Value, p.Timestamp)
+		escapeSQL(p.Metric), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
 
 	return d.execute(ctx, sql)
 }
@@ -401,7 +401,7 @@ func (d *D1Backend) writeBatchChunk(ctx context.Context, points []Point) error {
 			values += ", "
 		}
 		values += fmt.Sprintf("('%s', '%s', %f, %d)",
-			p.Metric, string(tagsJSON), p.Value, p.Timestamp)
+			escapeSQL(p.Metric), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
 	}
 
 	sql := "INSERT INTO points (metric, tags, value, timestamp) VALUES " + values
@@ -417,7 +417,7 @@ func (d *D1Backend) Query(ctx context.Context, q *Query) (*WorkersQueryResult, e
 	// Build SQL query
 	sql := fmt.Sprintf(
 		"SELECT metric, tags, value, timestamp FROM points WHERE metric = '%s'",
-		q.Metric)
+		escapeSQL(q.Metric))
 
 	if q.Start > 0 {
 		sql += fmt.Sprintf(" AND timestamp >= %d", q.Start)
@@ -428,7 +428,7 @@ func (d *D1Backend) Query(ctx context.Context, q *Query) (*WorkersQueryResult, e
 
 	// Add tag filters
 	for k, v := range q.Tags {
-		sql += fmt.Sprintf(" AND json_extract(tags, '$.%s') = '%s'", k, v)
+		sql += fmt.Sprintf(" AND json_extract(tags, '$.%s') = '%s'", sanitizeIdentifier(k), escapeSQL(v))
 	}
 
 	sql += " ORDER BY timestamp ASC"

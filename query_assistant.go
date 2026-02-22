@@ -221,7 +221,7 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		tag := matches[2]
 		value := matches[3]
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT * FROM %s WHERE %s = '%s'", sanitizeIdentifier(metric), sanitizeIdentifier(tag), value),
+			Query:       fmt.Sprintf("SELECT * FROM %s WHERE %s = '%s'", sanitizeIdentifier(metric), sanitizeIdentifier(tag), escapeSQL(value)),
 			QueryType:   "sql",
 			Explanation: fmt.Sprintf("Retrieves %s values where %s is %s", metric, tag, value),
 			Confidence:  0.85,
