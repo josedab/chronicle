@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -438,7 +439,7 @@ func (o *K8sOperator) startMetricsServer() error {
 		fmt.Fprintf(w, "# HELP chronicle_info Chronicle instance information\n")
 		fmt.Fprintf(w, "# TYPE chronicle_info gauge\n")
 		fmt.Fprintf(w, "chronicle_info{name=\"%s\",namespace=\"%s\",phase=\"%s\"} 1\n",
-			o.config.Name, o.config.Namespace, phase)
+			escapePromLabel(o.config.Name), escapePromLabel(o.config.Namespace), escapePromLabel(string(phase)))
 
 		fmt.Fprintf(w, "# HELP chronicle_ready Chronicle readiness status\n")
 		fmt.Fprintf(w, "# TYPE chronicle_ready gauge\n")
@@ -1121,3 +1122,11 @@ func (k *K8sOperatorDB) Operator() *K8sOperator {
 
 // Placeholder implementations for missing types
 var errNotImplemented = errors.New("not implemented")
+
+// escapePromLabel escapes backslashes, double quotes, and newlines in Prometheus label values.
+func escapePromLabel(v string) string {
+	v = strings.ReplaceAll(v, `\`, `\\`)
+	v = strings.ReplaceAll(v, `"`, `\"`)
+	v = strings.ReplaceAll(v, "\n", `\n`)
+	return v
+}
