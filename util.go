@@ -98,6 +98,11 @@ func ValidatePoint(p *Point) error {
 	return nil
 }
 
+// escapeSQL escapes single quotes in a string for safe interpolation into SQL literals.
+func escapeSQL(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
 // sanitizeIdentifier strips characters not in [a-zA-Z0-9_.] to prevent SQL injection
 // when identifiers are interpolated into query strings.
 func sanitizeIdentifier(s string) string {
