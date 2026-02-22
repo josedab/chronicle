@@ -203,3 +203,74 @@ package modernc.org/sqlite: build constraints exclude all Go files
 - [FAQ](FAQ.md) — Common runtime gotchas and debugging tips
 - [Getting Started](GETTING_STARTED.md) — Initial setup guide
 - [Contributing](../CONTRIBUTING.md) — Development workflow
+
+## Diagnostics (`make doctor`)
+
+Run `make doctor` to get a full environment health check. The output covers
+several sections — here's what each means and how to fix issues:
+
+### System
+
+| Check | What it shows | If wrong |
+|-------|--------------|----------|
+| OS | Operating system and architecture | Informational only |
+| Shell | Current shell path | Informational only |
+| Disk free | Available disk space on the volume | Free up space if critically low |
+
+### Go
+
+| Check | What it shows | If wrong |
+|-------|--------------|----------|
+| Version | Go compiler version | Install Go 1.24+ from https://go.dev/dl/ |
+| GOPATH | Go workspace directory | Ensure `$GOPATH/bin` is on your `PATH` |
+| GOBIN | Binary install directory | Defaults to `$GOPATH/bin` if unset |
+
+### Tools
+
+Each tool shows `✓` (found) or `✗` (not found):
+
+| Tool | Purpose | How to install |
+|------|---------|----------------|
+| `golangci-lint` | Linter aggregator | `make setup` |
+| `goimports` | Import formatter | `make setup` |
+| `govulncheck` | Vulnerability scanner | `make setup` |
+| `benchstat` | Benchmark comparisons | `make setup` |
+
+If any tool shows `✗`, run `make setup` to install all development tools.
+
+### Git Hooks
+
+| Check | What it means | How to fix |
+|-------|--------------|-----------|
+| `✓ pre-commit hook installed` | Runs `go vet` + fast tests before commit | — |
+| `✗ pre-commit hook missing` | Commits aren't validated locally | Run `make install-hooks` |
+| `✓ commit-msg hook installed` | Enforces Conventional Commits format | — |
+| `✗ commit-msg hook missing` | Commit messages aren't validated | Run `make install-hooks` |
+
+### Module Status
+
+| Check | What it means | How to fix |
+|-------|--------------|-----------|
+| `✓ go.mod is tidy` | Dependencies are clean | — |
+| `⚠ go.mod may need tidying` | Extra or missing deps | Run `go mod tidy` |
+
+### Grafana Plugin & Node.js
+
+| Check | What it means | How to fix |
+|-------|--------------|-----------|
+| `✓ grafana-plugin/node_modules present` | Plugin dependencies installed | — |
+| `✗ grafana-plugin/node_modules missing` | Plugin can't build | Run `make setup-grafana` |
+| `✓ Node.js: vX.Y.Z` | Node.js available | — |
+| `✗ Node.js not found` | Needed for website/ and grafana-plugin/ | Install from https://nodejs.org/ |
+
+### Quick Fix
+
+If `make doctor` shows multiple issues, run this sequence:
+
+```bash
+make setup          # Install all Go tools
+make install-hooks  # Install git hooks
+make setup-grafana  # Install Grafana plugin deps (optional)
+```
+
+Or use the one-command setup: `make quickstart`
