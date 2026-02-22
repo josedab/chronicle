@@ -1,7 +1,10 @@
 package chronicle
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -124,7 +127,10 @@ func (cp *SaaSControlPlane) ProvisionTenant(id, name string) (*SaaSTenant, error
 		return nil, fmt.Errorf("max tenants reached (%d)", cp.config.MaxTenants)
 	}
 
-	apiKey := fmt.Sprintf("ck_%s_%d", id, time.Now().UnixNano())
+	apiKey, err := generateSecureAPIKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate API key: %w", err)
+	}
 	tenant := &SaaSTenant{
 		ID:        id,
 		Name:      name,
@@ -269,18 +275,19 @@ func (cp *SaaSControlPlane) ValidateAPIKey(key string) (string, error) {
 
 	info, exists := cp.apiKeys[key]
 	if !exists {
-		return "", fmt.Errorf("invalid API key")
+		return "", fmt.Errorf("authentication failed")
 	}
 	if time.Now().After(info.ExpiresAt) {
-		return "", fmt.Errorf("API key expired")
+		return "", fmt.Errorf("authentication failed")
 	}
 
 	t, exists := cp.tenants[info.TenantID]
 	if !exists {
-		return "", fmt.Errorf("tenant not found")
+		return "", fmt.Errorf("authentication failed")
 	}
 	if t.Status != TenantActive {
-		return "", fmt.Errorf("tenant is %s", t.Status)
+		slog.Warn("authentication attempt for non-active tenant", "tenant_id", info.TenantID, "status", t.Status)
+		return "", fmt.Errorf("authentication failed")
 	}
 
 	return info.TenantID, nil
@@ -389,4 +396,13 @@ func (cp *SaaSControlPlane) meteringLoop() {
 			// Metering: aggregate and optionally push to billing webhook
 		}
 	}
+}
+
+// generateSecureAPIKey creates a cryptographically random API key.
+func generateSecureAPIKey() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "ck_" + hex.EncodeToString(b), nil
 }
