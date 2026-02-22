@@ -842,7 +842,8 @@ func (s *ClickHouseServer) writeError(w http.ResponseWriter, err error, status i
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	w.Header().Set("X-ClickHouse-Exception-Code", "62")
 	w.WriteHeader(status)
-	if _, werr := w.Write([]byte(fmt.Sprintf("Code: 62. DB::Exception: %s", err.Error()))); werr != nil {
+	log.Printf("[ERROR] chronicle: clickhouse query error: %v", err)
+	if _, werr := w.Write([]byte("Code: 62. DB::Exception: internal server error")); werr != nil {
 		log.Printf("[WARN] chronicle: clickhouse writeError: %v", werr)
 	}
 }
