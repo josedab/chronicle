@@ -69,7 +69,7 @@ func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.Execute(query)
 	if err != nil {
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -104,7 +104,7 @@ func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 	forecaster := NewForecaster(config)
 	forecast, err := forecaster.Forecast(data, req.Periods)
 	if err != nil {
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -169,7 +169,7 @@ func handleHistogram(db *DB, w http.ResponseWriter, r *http.Request) {
 			Histogram: h,
 			Timestamp: time.Now().UnixNano(),
 		}); err != nil {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

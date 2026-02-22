@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -193,7 +194,8 @@ func (r *OTLPReceiver) Handler() http.HandlerFunc {
 
 		if len(points) > 0 {
 			if err := r.db.WriteBatch(points); err != nil {
-				http.Error(w, "write error: "+err.Error(), http.StatusInternalServerError)
+				slog.Error("OTLP write failed", "err", err)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 		}

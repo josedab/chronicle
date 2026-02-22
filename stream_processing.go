@@ -898,7 +898,7 @@ func (e *StreamProcessingEngine) handleStreamAction(w http.ResponseWriter, r *ht
 		}
 		results, err := e.ProcessEvent(id, &ev)
 		if err != nil {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{

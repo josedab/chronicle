@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"sync"
@@ -654,7 +655,8 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 			return
 		}
 		if err := e.ApplySnapshot(snapshot); err != nil {
-			http.Error(w, "apply snapshot: "+err.Error(), http.StatusInternalServerError)
+			slog.Error("apply snapshot failed", "err", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]string{"status": "applied"})

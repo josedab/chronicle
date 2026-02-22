@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -702,7 +703,8 @@ func OpenAPIHandler(generator *OpenAPIGenerator) http.HandlerFunc {
 		}
 		data, err := generator.ToJSON()
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to generate spec: %v", err), http.StatusInternalServerError)
+			slog.Error("failed to generate OpenAPI spec", "err", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

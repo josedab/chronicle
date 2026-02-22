@@ -1121,7 +1121,7 @@ func (e *StreamDSLV2Engine) handleEvents(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := e.ProcessEvent(req.Metric, req.Value, req.Tags, ts); err != nil {
-		writeError(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"})

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -154,7 +155,8 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 
 	// Write points
 	if err = ui.db.WriteBatch(points); err != nil {
-		http.Error(w, "Write failed: "+err.Error(), http.StatusInternalServerError)
+		slog.Error("data import write failed", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
