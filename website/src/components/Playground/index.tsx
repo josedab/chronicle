@@ -18,6 +18,8 @@ const SAMPLE_QUERIES = [
   {label: 'Average temperature', query: 'SELECT mean(value) FROM temperature WHERE room = "kitchen" WINDOW 1m'},
   {label: 'Recent disk usage', query: 'SELECT * FROM disk_usage LIMIT 10'},
   {label: 'Max memory by host', query: 'SELECT max(value) FROM memory GROUP BY host WINDOW 5m'},
+  {label: 'PromQL: CPU rate', query: 'rate(cpu[5m])'},
+  {label: 'PromQL: Avg memory', query: 'avg by (host) (memory)'},
 ];
 
 // Simulated in-browser database for the playground demo
@@ -165,6 +167,28 @@ export default function WasmPlayground(): React.JSX.Element {
             <span>{result.points.length} point{result.points.length !== 1 ? 's' : ''} returned</span>
             <span className={styles.timing}>{result.duration_us}µs</span>
           </div>
+
+          {/* Sparkline chart */}
+          {result.points.length > 1 && (
+            <div className={styles.chartContainer}>
+              <svg viewBox={`0 0 ${Math.min(result.points.length * 4, 600)} 80`} className={styles.sparkline}>
+                {(() => {
+                  const values = result.points.map(p => p.value);
+                  const minV = Math.min(...values);
+                  const maxV = Math.max(...values);
+                  const range = maxV - minV || 1;
+                  const w = Math.min(result.points.length * 4, 600);
+                  const points = values.map((v, i) => {
+                    const x = (i / (values.length - 1)) * w;
+                    const y = 75 - ((v - minV) / range) * 70;
+                    return `${x},${y}`;
+                  }).join(' ');
+                  return <polyline fill="none" stroke="var(--ifm-color-primary)" strokeWidth="2" points={points} />;
+                })()}
+              </svg>
+            </div>
+          )}
+
           <div className={styles.tableWrapper}>
             <table className={styles.resultTable}>
               <thead>
