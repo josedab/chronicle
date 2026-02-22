@@ -565,8 +565,8 @@ func NewOTelCollectorReceiver(db *DB, config OTelCollectorReceiverConfig) *OTelC
 // Start begins listening for OTel Collector data.
 func (r *OTelCollectorReceiver) Start() error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/metrics", r.handleMetrics)
-	mux.HandleFunc("/health", r.handleHealth)
+	mux.HandleFunc("/api/v1/otel-collector/ingest", r.handleMetrics)
+	mux.HandleFunc("/api/v1/otel-collector/health", r.handleHealth)
 
 	r.server = &http.Server{
 		Addr:    r.config.ListenAddr,

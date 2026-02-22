@@ -425,7 +425,7 @@ func (o *K8sOperator) startMetricsServer() error {
 	mux := http.NewServeMux()
 
 	// Prometheus metrics endpoint
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/operator/metrics", func(w http.ResponseWriter, r *http.Request) {
 		o.mu.RLock()
 		metrics := o.metrics
 		phase := o.phase

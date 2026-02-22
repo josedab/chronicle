@@ -422,7 +422,7 @@ func (plm *PluginLifecycleManager) recordEvent(pluginID, eventType, details stri
 
 // RegisterHTTPHandlers registers plugin management API endpoints on the given mux.
 func (plm *PluginLifecycleManager) RegisterHTTPHandlers(mux *http.ServeMux) {
-	mux.HandleFunc("/api/v1/plugins", plm.handlePlugins)
+	mux.HandleFunc("/api/v1/plugins/lifecycle", plm.handlePlugins)
 	mux.HandleFunc("/api/v1/plugins/install", plm.handleInstall)
 	mux.HandleFunc("/api/v1/plugins/updates", plm.handleUpdates)
 	mux.HandleFunc("/api/v1/plugins/events", plm.handleEvents)
