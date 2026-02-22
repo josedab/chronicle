@@ -790,9 +790,9 @@ func TestExtractAPIKey(t *testing.T) {
 			want:    "apikey456",
 		},
 		{
-			name:  "query parameter",
+			name:  "query parameter deprecated",
 			query: "api_key=querykey789",
-			want:  "querykey789",
+			want:  "",
 		},
 		{
 			name: "bearer takes precedence",
