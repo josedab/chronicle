@@ -520,7 +520,7 @@ func (b *VisualQueryBuilder) generateSQL(vq *VisualQuerySpec) (string, error) {
 
 	// Build FROM clause
 	if len(metrics) > 0 {
-		builder.WriteString(fmt.Sprintf(" FROM %s", metrics[0].Name))
+		builder.WriteString(fmt.Sprintf(" FROM %s", sanitizeIdentifier(metrics[0].Name)))
 	}
 
 	// Build WHERE clause

@@ -411,7 +411,7 @@ func (e *SLOEngine) CreateRecordingRules(rre *RecordingRulesEngine) error {
 		// Recording rule for error budget remaining
 		budgetRule := RecordingRule{
 			Name:         fmt.Sprintf("slo:%s:error_budget_remaining", slo.Name),
-			Query:        fmt.Sprintf("SELECT last(value) FROM %s", slo.Metric),
+			Query:        fmt.Sprintf("SELECT last(value) FROM %s", sanitizeIdentifier(slo.Metric)),
 			TargetMetric: fmt.Sprintf("slo:%s:budget_remaining", slo.Name),
 			Interval:     e.config.EvaluationInterval,
 			Labels: map[string]string{

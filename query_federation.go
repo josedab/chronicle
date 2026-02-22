@@ -418,7 +418,7 @@ func (f *QueryFederation) executeJoinQuery(ctx context.Context, plan *SQLPlan, q
 			defer wg.Done()
 
 			sourceQuery := &QueryFederatedQuery{
-				SQL:   fmt.Sprintf("SELECT * FROM %s", plan.Tables[idx]),
+				SQL:   fmt.Sprintf("SELECT * FROM %s", sanitizeIdentifier(plan.Tables[idx])),
 				Start: query.Start,
 				End:   query.End,
 			}
