@@ -168,7 +168,7 @@ func (e *QueryPlanVizEngine) Explain(q *Query) *VizQueryPlan {
 		warnings = append(warnings, "high cost query detected")
 	}
 
-	queryStr := fmt.Sprintf("SELECT FROM %s", q.Metric)
+	queryStr := fmt.Sprintf("SELECT FROM %s", sanitizeIdentifier(q.Metric))
 
 	plan := &VizQueryPlan{
 		QueryID:       fmt.Sprintf("qp-%d", e.nextID),
