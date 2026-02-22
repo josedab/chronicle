@@ -257,7 +257,12 @@ func (p *Playground) handlePlaygroundConfig(w http.ResponseWriter, r *http.Reque
 
 func (p *Playground) handleEmbedScript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript")
-	fmt.Fprintf(w, embedJS, p.config.Title)
+	// Escape single quotes and backslashes to prevent XSS in the JS template
+	safeTitle := strings.ReplaceAll(p.config.Title, `\`, `\\`)
+	safeTitle = strings.ReplaceAll(safeTitle, `'`, `\'`)
+	safeTitle = strings.ReplaceAll(safeTitle, "\n", `\n`)
+	safeTitle = strings.ReplaceAll(safeTitle, "\r", `\r`)
+	fmt.Fprintf(w, embedJS, safeTitle)
 }
 
 func (p *Playground) formatResult(result *Result, duration time.Duration) PlaygroundQueryResponse {
