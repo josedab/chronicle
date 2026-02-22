@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
+	"net/url"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -40,6 +42,9 @@ type AutoRemediationConfig struct {
 
 	// CooldownPeriod after action before allowing another
 	CooldownPeriod time.Duration
+
+	// AllowedWebhookDomains restricts webhook URLs to these domains. If empty, all non-private HTTPS URLs are allowed.
+	AllowedWebhookDomains []string
 }
 
 // DefaultAutoRemediationConfig returns default configuration.
@@ -609,8 +614,60 @@ func (e *AutoRemediationEngine) executeAction(exec *RemediationExecution, action
 	}
 }
 
+// validateWebhookURL validates the webhook URL to prevent SSRF attacks.
+func (e *AutoRemediationEngine) validateWebhookURL(rawURL string) error {
+	if rawURL == "" {
+		return fmt.Errorf("webhook URL is required")
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid webhook URL: %w", err)
+	}
+
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("webhook URL must use HTTPS scheme, got %q", parsed.Scheme)
+	}
+
+	hostname := parsed.Hostname()
+
+	// Block private/loopback IPs
+	ips, err := net.LookupHost(hostname)
+	if err != nil {
+		return fmt.Errorf("cannot resolve webhook host %q: %w", hostname, err)
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("webhook URL must not target private/loopback address %s", ipStr)
+		}
+	}
+
+	// Check domain allowlist
+	if len(e.config.AllowedWebhookDomains) > 0 {
+		allowed := false
+		for _, domain := range e.config.AllowedWebhookDomains {
+			if hostname == domain {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return fmt.Errorf("webhook domain %q is not in the allowed domains list", hostname)
+		}
+	}
+
+	return nil
+}
+
 func (e *AutoRemediationEngine) executeWebhook(action *RemediationAction, anomaly *DetectedAnomaly) (map[string]any, map[string]any, error) {
 	url, _ := action.Parameters["url"].(string)
+	if err := e.validateWebhookURL(url); err != nil {
+		return nil, nil, fmt.Errorf("webhook URL validation failed: %w", err)
+	}
 	method, _ := action.Parameters["method"].(string)
 	if method == "" {
 		method = "POST"
