@@ -6,7 +6,7 @@ import (
 )
 
 // setupAdminRoutes configures admin and operational endpoints
-func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
+func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper, auth *authenticator) {
 	mux.HandleFunc("/health", wrap(func(w http.ResponseWriter, r *http.Request) {
 		status := "ok"
 		if db.features != nil {
@@ -65,9 +65,12 @@ func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		handleSchemas(db, w, r)
 	}))
 
+	adminWrap := func(h http.HandlerFunc) http.HandlerFunc {
+		return wrap(adminOnlyMiddleware(auth, h))
+	}
 	adminUI := NewAdminUI(db, AdminConfig{Prefix: "/admin"})
-	mux.Handle("/admin", wrap(adminUI.ServeHTTP))
-	mux.Handle("/admin/", wrap(adminUI.ServeHTTP))
+	mux.Handle("/admin", adminWrap(adminUI.ServeHTTP))
+	mux.Handle("/admin/", adminWrap(adminUI.ServeHTTP))
 }
 
 // setupAlertingRoutes configures alerting-related endpoints

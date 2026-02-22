@@ -356,6 +356,38 @@ func authMiddleware(auth *authenticator, next http.HandlerFunc) http.HandlerFunc
 	}
 }
 
+// adminOnlyMiddleware restricts access to full-access (write-capable) API keys.
+// Read-only API key holders are denied access to admin endpoints.
+func adminOnlyMiddleware(auth *authenticator, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth.enabled {
+			next(w, r)
+			return
+		}
+
+		apiKey := extractAPIKey(r)
+		if apiKey == "" {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, "authentication required", http.StatusUnauthorized)
+			return
+		}
+
+		// Only full-access keys can access admin endpoints
+		if auth.matchKey(auth.apiKeys, apiKey) {
+			next(w, r)
+			return
+		}
+
+		// Read-only keys or invalid keys are forbidden
+		if auth.matchKey(auth.readOnlyKeys, apiKey) {
+			http.Error(w, "admin access requires a write-capable API key", http.StatusForbidden)
+			return
+		}
+
+		http.Error(w, "invalid API key", http.StatusUnauthorized)
+	}
+}
+
 // middlewareWrapper wraps handlers with authentication and rate limiting
 type middlewareWrapper func(h http.HandlerFunc) http.HandlerFunc
 

@@ -81,7 +81,7 @@ func TestPrometheusCompliance_HealthEndpoint(t *testing.T) {
 
 	mux := http.NewServeMux()
 	wrap := func(h http.HandlerFunc) http.HandlerFunc { return h }
-	setupAdminRoutes(mux, db, wrap)
+	setupAdminRoutes(mux, db, wrap, newAuthenticator(nil))
 
 	t.Run("GET /health returns 200", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)

@@ -191,7 +191,7 @@ func TestIntegration_HealthEndpoints(t *testing.T) {
 
 	mux := http.NewServeMux()
 	wrap := func(h http.HandlerFunc) http.HandlerFunc { return h }
-	setupAdminRoutes(mux, db, wrap)
+	setupAdminRoutes(mux, db, wrap, newAuthenticator(nil))
 
 	t.Run("health returns detailed status", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
