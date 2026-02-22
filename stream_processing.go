@@ -266,7 +266,9 @@ func (e *StreamProcessingEngine) checkpointLoop() {
 
 func streamProcessingGenerateID() string {
 	b := make([]byte, 8)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }
 

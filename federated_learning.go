@@ -792,7 +792,9 @@ func extractFeatures(points []Point, index int) []float64 {
 func (e *FederatedLearningEngine) getParticipantID() string {
 	// Generate or retrieve a stable participant ID
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	hash := sha256.Sum256(b)
 	return hex.EncodeToString(hash[:8])
 }
@@ -1132,7 +1134,9 @@ func compressGradients(gradients []float64, threshold float64) []float64 {
 
 func generateRoundID() string {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }
 
@@ -1145,6 +1149,8 @@ func gaussianNoise() float64 {
 
 func randFloat64() float64 {
 	b := make([]byte, 8)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return float64(b[0]^b[1]^b[2]^b[3]^b[4]^b[5]^b[6]^b[7]) / 256.0
 }

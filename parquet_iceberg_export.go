@@ -885,7 +885,9 @@ func icebergTableName(name string) string {
 // generateUUID produces a random UUID v4 string.
 func generateUUID() string {
 	var buf [16]byte
-	_, _ = rand.Read(buf[:])
+	if _, err := rand.Read(buf[:]); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	buf[6] = (buf[6] & 0x0f) | 0x40 // version 4
 	buf[8] = (buf[8] & 0x3f) | 0x80 // variant 2
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
