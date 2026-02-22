@@ -297,7 +297,7 @@ func (ne *NotebookEngine) ExportHTML(notebookID string) (string, error) {
 					sb.WriteString(fmt.Sprintf("<pre style='color:red'>%s</pre>", html.EscapeString(cell.Output.Error)))
 				} else {
 					data, _ := json.MarshalIndent(cell.Output.Data, "", "  ")
-					sb.WriteString(fmt.Sprintf("<pre>%s</pre>", string(data)))
+					sb.WriteString(fmt.Sprintf("<pre>%s</pre>", html.EscapeString(string(data))))
 				}
 				if cell.Output.Duration != "" {
 					sb.WriteString(fmt.Sprintf("<small>Duration: %s</small>", html.EscapeString(cell.Output.Duration)))
