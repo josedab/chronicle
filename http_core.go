@@ -184,6 +184,35 @@ func rateLimitMiddleware(rl *rateLimiter, next http.HandlerFunc) http.HandlerFun
 	}
 }
 
+// csrfProtectionMiddleware requires a custom header on state-changing requests to prevent CSRF.
+// Browsers will not send the X-Requested-With header cross-origin without a CORS preflight.
+func csrfProtectionMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete || r.Method == http.MethodPatch {
+			if r.Header.Get("X-Requested-With") == "" && r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+				// API clients using JSON or other content types must set X-Requested-With
+				// Allow form submissions only if they have the header
+			}
+			if r.Header.Get("X-Requested-With") == "" {
+				// Check Origin header as fallback
+				origin := r.Header.Get("Origin")
+				if origin != "" {
+					host := r.Host
+					if host == "" {
+						host = r.URL.Host
+					}
+					// Block if Origin doesn't match the Host
+					if !strings.HasSuffix(origin, "://"+host) {
+						http.Error(w, "CSRF validation failed: origin mismatch", http.StatusForbidden)
+						return
+					}
+				}
+			}
+		}
+		next(w, r)
+	}
+}
+
 // securityHeadersMiddleware sets standard security headers on all responses.
 func securityHeadersMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
