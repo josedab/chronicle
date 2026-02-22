@@ -111,6 +111,7 @@ import (
 )
 
 func TestMyFeature(t *testing.T) {
+	t.Parallel()
 	db := setupTestDB(t)
 	defer db.Close()
 
@@ -156,12 +157,58 @@ func TestMyFeature(t *testing.T) {
 - Use `assertPointCount(t, db, metric, expected)` for verification
 - Call `db.Flush()` before querying (see [Common Pitfalls](#common-pitfalls))
 
+## Parallel Tests
+
+Add `t.Parallel()` as the first line of any top-level test function that uses
+isolated state (e.g., `setupTestDB`, `t.TempDir()`, or pure-function tests):
+
+```go
+func TestMyFeature(t *testing.T) {
+    t.Parallel()
+    db := setupTestDB(t) // creates isolated temp dir
+    defer db.Close()
+    // ...
+}
+```
+
+**When to use `t.Parallel()`:**
+- ✅ Tests that use `setupTestDB(t)` or `t.TempDir()` — each gets its own directory
+- ✅ Pure function tests (parsers, validators, formatters)
+- ✅ Tests using `httptest.NewRecorder()` with isolated DB instances
+- ❌ Tests that modify global state (`os.Setenv`, package-level variables)
+- ❌ Tests that share a database instance across subtests
+- ❌ Tests that rely on specific timing or ordering
+
 ## Test File Conventions
 
 - Test files use `package chronicle` (not `_test` suffix) for access to internals
 - Helper functions live in `admin_ui_test_helpers_test.go`
 - Internal packages can use `internal/testutil` for shared path helpers
 - Each feature's tests live in `<feature>_test.go`
+
+## Environment Variables in Tests
+
+Use `t.Setenv` instead of `os.Setenv`/`os.Unsetenv`. It automatically restores
+the original value when the test completes:
+
+```go
+// ✅ Correct — automatically restored after test
+func TestWithEnv(t *testing.T) {
+    t.Setenv("CHRONICLE_DEBUG", "true")
+    // ... test logic ...
+}
+
+// ❌ Wrong — leaks state between tests, not parallel-safe
+func TestWithEnv(t *testing.T) {
+    os.Setenv("CHRONICLE_DEBUG", "true")
+    defer os.Unsetenv("CHRONICLE_DEBUG")
+    // ...
+}
+```
+
+> **Note:** `t.Setenv` calls `t.Setenv` internally marks the test as incompatible
+> with `t.Parallel()`. If your test needs both env vars and parallelism, restructure
+> the test to avoid environment mutation.
 
 ## Common Pitfalls
 
