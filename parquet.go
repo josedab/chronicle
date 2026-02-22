@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -131,6 +132,17 @@ func TimeSeriesParquetSchema() []ColumnDef {
 	}
 }
 
+// safePath validates that the resolved path stays within baseDir.
+func (p *ParquetBackend) safePath(key string) (string, error) {
+	cleanKey := filepath.Clean(key)
+	joined := filepath.Join(p.baseDir, cleanKey)
+	resolved := filepath.Clean(joined)
+	if resolved != p.baseDir && !strings.HasPrefix(resolved, p.baseDir+string(os.PathSeparator)) {
+		return "", errors.New("invalid key: path traversal attempt detected")
+	}
+	return resolved, nil
+}
+
 // Read reads a partition from Parquet storage.
 func (p *ParquetBackend) Read(ctx context.Context, key string) ([]byte, error) {
 	p.mu.RLock()
@@ -140,7 +152,10 @@ func (p *ParquetBackend) Read(ctx context.Context, key string) ([]byte, error) {
 	}
 	p.mu.RUnlock()
 
-	path := filepath.Join(p.baseDir, key)
+	path, err := p.safePath(key)
+	if err != nil {
+		return nil, err
+	}
 	return os.ReadFile(path)
 }
 
@@ -153,7 +168,10 @@ func (p *ParquetBackend) Write(ctx context.Context, key string, data []byte) err
 	}
 	p.mu.RUnlock()
 
-	path := filepath.Join(p.baseDir, key)
+	path, err := p.safePath(key)
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -171,7 +189,10 @@ func (p *ParquetBackend) Delete(ctx context.Context, key string) error {
 	}
 	p.mu.RUnlock()
 
-	path := filepath.Join(p.baseDir, key)
+	path, err := p.safePath(key)
+	if err != nil {
+		return err
+	}
 
 	p.mu.Lock()
 	delete(p.metadata, key)
@@ -190,9 +211,12 @@ func (p *ParquetBackend) List(ctx context.Context, prefix string) ([]string, err
 	p.mu.RUnlock()
 
 	var keys []string
-	searchPath := filepath.Join(p.baseDir, prefix)
+	searchPath, err := p.safePath(prefix)
+	if err != nil {
+		return nil, err
+	}
 
-	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -215,8 +239,11 @@ func (p *ParquetBackend) Exists(ctx context.Context, key string) (bool, error) {
 	}
 	p.mu.RUnlock()
 
-	path := filepath.Join(p.baseDir, key)
-	_, err := os.Stat(path)
+	path, err := p.safePath(key)
+	if err != nil {
+		return false, err
+	}
+	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
