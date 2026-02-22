@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"strings"
 	"sync"
@@ -564,18 +565,18 @@ func (s *ChronicleStudio) ExportNotebook(notebookID, format string) (*StudioExpo
 		data = []byte(b.String())
 	case "html":
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf("<html><head><title>%s</title></head><body>\n", nb.Name))
-		b.WriteString(fmt.Sprintf("<h1>%s</h1>\n", nb.Name))
+		b.WriteString(fmt.Sprintf("<html><head><title>%s</title></head><body>\n", html.EscapeString(nb.Name)))
+		b.WriteString(fmt.Sprintf("<h1>%s</h1>\n", html.EscapeString(nb.Name)))
 		for _, cell := range nb.Cells {
 			switch cell.Type {
 			case StudioCellMarkdown:
-				b.WriteString(fmt.Sprintf("<div class=\"markdown\">%s</div>\n", cell.Content))
+				b.WriteString(fmt.Sprintf("<div class=\"markdown\">%s</div>\n", html.EscapeString(cell.Content)))
 			case StudioCellQuery:
-				b.WriteString(fmt.Sprintf("<pre class=\"query\">%s</pre>\n", cell.Content))
+				b.WriteString(fmt.Sprintf("<pre class=\"query\">%s</pre>\n", html.EscapeString(cell.Content)))
 			case StudioCellCode:
-				b.WriteString(fmt.Sprintf("<pre class=\"code\">%s</pre>\n", cell.Content))
+				b.WriteString(fmt.Sprintf("<pre class=\"code\">%s</pre>\n", html.EscapeString(cell.Content)))
 			default:
-				b.WriteString(fmt.Sprintf("<div>%s</div>\n", cell.Content))
+				b.WriteString(fmt.Sprintf("<div>%s</div>\n", html.EscapeString(cell.Content)))
 			}
 		}
 		b.WriteString("</body></html>")

@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"strings"
 	"sync"
 	"time"
@@ -273,38 +274,38 @@ func (ne *NotebookEngine) ExportHTML(notebookID string) (string, error) {
 
 	var sb strings.Builder
 	sb.WriteString("<!DOCTYPE html><html><head><meta charset='UTF-8'>")
-	sb.WriteString(fmt.Sprintf("<title>%s</title>", nb.Title))
+	sb.WriteString(fmt.Sprintf("<title>%s</title>", html.EscapeString(nb.Title)))
 	sb.WriteString("<style>body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px}")
 	sb.WriteString(".cell{margin:10px 0;padding:10px;border:1px solid #ddd;border-radius:4px}")
 	sb.WriteString(".query{background:#f0f8ff}.output{background:#f5f5f5;margin-top:5px;padding:8px}")
 	sb.WriteString("pre{overflow-x:auto}</style></head><body>")
-	sb.WriteString(fmt.Sprintf("<h1>%s</h1>", nb.Title))
+	sb.WriteString(fmt.Sprintf("<h1>%s</h1>", html.EscapeString(nb.Title)))
 	if nb.Description != "" {
-		sb.WriteString(fmt.Sprintf("<p>%s</p>", nb.Description))
+		sb.WriteString(fmt.Sprintf("<p>%s</p>", html.EscapeString(nb.Description)))
 	}
 
 	for _, cell := range nb.Cells {
 		sb.WriteString("<div class='cell'>")
 		switch cell.Type {
 		case CellMarkdown:
-			sb.WriteString(fmt.Sprintf("<div class='markdown'>%s</div>", cell.Source))
+			sb.WriteString(fmt.Sprintf("<div class='markdown'>%s</div>", html.EscapeString(cell.Source)))
 		case CellQuery:
-			sb.WriteString(fmt.Sprintf("<div class='query'><pre>%s</pre></div>", cell.Source))
+			sb.WriteString(fmt.Sprintf("<div class='query'><pre>%s</pre></div>", html.EscapeString(cell.Source)))
 			if cell.Output != nil {
 				sb.WriteString("<div class='output'>")
 				if cell.Output.Error != "" {
-					sb.WriteString(fmt.Sprintf("<pre style='color:red'>%s</pre>", cell.Output.Error))
+					sb.WriteString(fmt.Sprintf("<pre style='color:red'>%s</pre>", html.EscapeString(cell.Output.Error)))
 				} else {
 					data, _ := json.MarshalIndent(cell.Output.Data, "", "  ")
 					sb.WriteString(fmt.Sprintf("<pre>%s</pre>", string(data)))
 				}
 				if cell.Output.Duration != "" {
-					sb.WriteString(fmt.Sprintf("<small>Duration: %s</small>", cell.Output.Duration))
+					sb.WriteString(fmt.Sprintf("<small>Duration: %s</small>", html.EscapeString(cell.Output.Duration)))
 				}
 				sb.WriteString("</div>")
 			}
 		case CellChart:
-			sb.WriteString(fmt.Sprintf("<div class='chart'>[Chart: %s]</div>", cell.Source))
+			sb.WriteString(fmt.Sprintf("<div class='chart'>[Chart: %s]</div>", html.EscapeString(cell.Source)))
 		}
 		sb.WriteString("</div>")
 	}
