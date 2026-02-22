@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -524,12 +525,12 @@ func (t *SoftwareTee) GetAttestation() (*Attestation, error) {
 }
 
 func (t *SoftwareTee) VerifyAttestation(attestation *Attestation) error {
-	// Software TEE: just verify signature
 	hash := sha256.Sum256(attestation.Measurement)
-	for i, b := range hash {
-		if i < len(attestation.Signature) && b != attestation.Signature[i] {
-			return errors.New("attestation verification failed")
-		}
+	if len(attestation.Signature) != len(hash) {
+		return errors.New("attestation verification failed")
+	}
+	if subtle.ConstantTimeCompare(hash[:], attestation.Signature) != 1 {
+		return errors.New("attestation verification failed")
 	}
 	return nil
 }
