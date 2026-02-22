@@ -195,6 +195,16 @@ func securityHeadersMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// bodySizeLimitMiddleware limits the size of request bodies to prevent resource exhaustion.
+func bodySizeLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.ContentLength != 0 {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+		}
+		next(w, r)
+	}
+}
+
 // authenticator handles API key authentication
 type authenticator struct {
 	enabled      bool
