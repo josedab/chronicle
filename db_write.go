@@ -1,5 +1,15 @@
 package chronicle
 
+// db_write.go implements the write data path.
+//
+// Write Pipeline:
+//   Point → PointValidator → WriteHooks(pre) → Schema Validation
+//   → Cardinality Tracking → WriteBuffer → WAL → Flush → Partitions
+//   → WriteHooks(post) → AuditLog
+//
+// All writes flow through Write() or WriteBatch(). Both support context
+// cancellation via WriteContext() and WriteBatchContext().
+
 import (
 	"context"
 	"fmt"
@@ -36,6 +46,30 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 		p.Tags = map[string]string{}
 	}
 
+	// Run point validation if validator is available
+	if db.features != nil {
+		if pv := db.features.PointValidator(); pv != nil {
+			if errs := pv.Validate(p); len(errs) > 0 {
+				for _, ve := range errs {
+					if ve.Severity == "error" {
+						return fmt.Errorf("point validation failed: %s: %s", ve.Field, ve.Message)
+					}
+				}
+			}
+		}
+	}
+
+	// Run pre-write hooks if pipeline is available
+	if db.features != nil {
+		if wp := db.features.WritePipeline(); wp != nil {
+			var err error
+			p, err = wp.ProcessPre(p)
+			if err != nil {
+				return fmt.Errorf("write hook rejected: %w", err)
+			}
+		}
+	}
+
 	// Validate against schema if registry exists
 	if err := db.schemaRegistry.Validate(p); err != nil {
 		return fmt.Errorf("schema validation failed: %w", err)
@@ -55,6 +89,21 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 		}
 	}
 	db.enqueueReplication([]Point{p})
+
+	// Run post-write hooks (fire-and-forget)
+	if db.features != nil {
+		if wp := db.features.WritePipeline(); wp != nil {
+			wp.ProcessPost(p)
+		}
+	}
+
+	// Audit log the write
+	if db.features != nil {
+		if al := db.features.AuditLog(); al != nil {
+			al.Log("write", "api", p.Metric, "", true)
+		}
+	}
+
 	return nil
 }
 
@@ -82,6 +131,34 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 		}
 		if points[i].Tags == nil {
 			points[i].Tags = map[string]string{}
+		}
+	}
+
+	// Run point validation on batch if validator is available
+	if db.features != nil {
+		if pv := db.features.PointValidator(); pv != nil {
+			for _, p := range points {
+				if errs := pv.Validate(p); len(errs) > 0 {
+					for _, ve := range errs {
+						if ve.Severity == "error" {
+							return fmt.Errorf("point validation failed: %s: %s", ve.Field, ve.Message)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Run pre-write hooks on batch
+	if db.features != nil {
+		if wp := db.features.WritePipeline(); wp != nil {
+			for i := range points {
+				var err error
+				points[i], err = wp.ProcessPre(points[i])
+				if err != nil {
+					return fmt.Errorf("write hook rejected point %d: %w", i, err)
+				}
+			}
 		}
 	}
 
@@ -117,6 +194,19 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 		return err
 	}
 	db.enqueueReplication(points)
+
+	// Post-write hooks (fire-and-forget) and audit
+	if db.features != nil {
+		if wp := db.features.WritePipeline(); wp != nil {
+			for _, p := range points {
+				wp.ProcessPost(p)
+			}
+		}
+		if al := db.features.AuditLog(); al != nil {
+			al.Log("write_batch", "api", "", fmt.Sprintf("%d points", len(points)), true)
+		}
+	}
+
 	return nil
 }
 
