@@ -183,6 +183,17 @@ func rateLimitMiddleware(rl *rateLimiter, next http.HandlerFunc) http.HandlerFun
 	}
 }
 
+// securityHeadersMiddleware sets standard security headers on all responses.
+func securityHeadersMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		next(w, r)
+	}
+}
+
 // authenticator handles API key authentication
 type authenticator struct {
 	enabled      bool

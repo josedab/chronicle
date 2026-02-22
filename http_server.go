@@ -28,6 +28,7 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 
 	// Helper to wrap handlers with middleware
 	wrap := func(h http.HandlerFunc) http.HandlerFunc {
+		h = securityHeadersMiddleware(h)
 		h = authMiddleware(auth, h)
 		if rl != nil {
 			h = rateLimitMiddleware(rl, h)
