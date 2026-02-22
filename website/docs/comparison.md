@@ -188,3 +188,42 @@ Benchmark: 1 hour aggregate over 1 million points
 ## Migration Guides
 
 See the [Prometheus Integration](/docs/guides/prometheus-integration) guide for migrating from Prometheus.
+
+## vs Go Embedded Libraries
+
+| Feature | Chronicle | tstorage | bbolt | badger |
+|---------|-----------|----------|-------|--------|
+| **Purpose** | Time-series DB | Time-series | Key-value | Key-value |
+| **API** | Write/Query/Agg | Insert/Select | Get/Put | Get/Set |
+| **Compression** | Gorilla + Delta + Dict | Gorilla | None | Snappy/Zstd |
+| **Query language** | SQL + PromQL + CQL + GraphQL | None | None | None |
+| **Aggregations** | 10+ functions | None | None | None |
+| **Schema validation** | ✅ | ❌ | ❌ | ❌ |
+| **Encryption** | AES-256-GCM | ❌ | ❌ | AES |
+| **HTTP API** | ✅ Full REST | ❌ | ❌ | ❌ |
+| **Grafana plugin** | ✅ | ❌ | ❌ | ❌ |
+| **OTel integration** | ✅ OTLP | ❌ | ❌ | ❌ |
+| **Lines of code** | ~225K | ~2K | ~8K | ~30K |
+
+### When to Choose What
+
+```
+Need time-series storage in Go?
+├── Need to deploy as a server? → Prometheus, VictoriaMetrics, InfluxDB
+├── Need SQL joins with relational data? → TimescaleDB
+├── Need minimal footprint (<5K lines)? → tstorage
+└── Need enterprise features in-process? → Chronicle
+    ├── IoT/Edge with encryption → Chronicle
+    ├── PromQL-compatible embedded → Chronicle
+    ├── OTel metrics backend → Chronicle
+    └── Prototype/learning → Chronicle (3-line quickstart)
+```
+
+## Benchmark Comparison
+
+See [Benchmarks](/docs/benchmarks) for detailed performance numbers.
+Run your own comparison:
+
+```bash
+go test -bench=BenchmarkComparative -benchmem -count=3 -benchtime=1s
+```
