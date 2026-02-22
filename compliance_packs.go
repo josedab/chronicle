@@ -752,8 +752,9 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"enabled","standard":"%s"}`, std)
+		json.NewEncoder(w).Encode(map[string]string{"status": "enabled", "standard": string(std)})
 	})
 
 	mux.HandleFunc("/api/v1/compliance/packs/disable", func(w http.ResponseWriter, r *http.Request) {
@@ -770,8 +771,9 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"disabled","standard":"%s"}`, std)
+		json.NewEncoder(w).Encode(map[string]string{"status": "disabled", "standard": string(std)})
 	})
 
 	mux.HandleFunc("/api/v1/compliance/packs/validate", func(w http.ResponseWriter, r *http.Request) {
