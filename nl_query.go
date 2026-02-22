@@ -8,9 +8,21 @@ import (
 	"io"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+)
+
+var (
+	allowedAggFunctions = map[string]bool{
+		"mean": true, "max": true, "min": true, "count": true, "sum": true,
+	}
+	validTimeRangeRe = regexp.MustCompile(`^\d+[smhd]$`)
+	allowedOperators = map[string]bool{
+		">": true, "<": true, ">=": true, "<=": true, "=": true, "!=": true,
+		"above": true, "below": true, "exceeds": true,
+	}
 )
 
 // EXPERIMENTAL: This API is unstable and may change without notice.
@@ -577,10 +589,23 @@ func (e *NLQueryEngine) handleAggregation(matches []string, ctx *ConversationCon
 		fn = "min"
 	}
 
+	if !allowedAggFunctions[fn] {
+		return &NLQueryResponse{
+			Intent:     "aggregation",
+			Error:      fmt.Sprintf("unsupported aggregation function: %s", fn),
+			Confidence: 0.0,
+			QueryType:  "sql",
+		}
+	}
+
 	// Get time range from context or use default
 	timeRange := "1h"
 	if ctx != nil && ctx.CurrentTimeRange != "" {
 		timeRange = ctx.CurrentTimeRange
+	}
+
+	if !validTimeRangeRe.MatchString(timeRange) {
+		timeRange = "1h"
 	}
 
 	query := fmt.Sprintf("SELECT %s(value) FROM %s WHERE time > now() - %s", fn, sanitizeIdentifier(metric), timeRange)
@@ -602,6 +627,10 @@ func (e *NLQueryEngine) handleTimeRange(matches []string, ctx *ConversationConte
 	amount := matches[2]
 	unit := normalizeTimeUnit(matches[3])
 	timeRange := amount + unit
+
+	if !validTimeRangeRe.MatchString(timeRange) {
+		timeRange = "1h"
+	}
 
 	// Use current metric from context
 	metric := "value"
@@ -633,7 +662,9 @@ func (e *NLQueryEngine) handleComparison(matches []string, ctx *ConversationCont
 		timeRange = ctx.CurrentTimeRange
 	}
 
-	// Generate a comparison query
+	if !validTimeRangeRe.MatchString(timeRange) {
+		timeRange = "1h"
+	}
 	query := fmt.Sprintf(`SELECT mean(value) as "%s", mean(value) as "%s" FROM %s, %s WHERE time > now() - %s GROUP BY time(5m)`,
 		sanitizeIdentifier(metric1), sanitizeIdentifier(metric2), sanitizeIdentifier(metric1), sanitizeIdentifier(metric2), timeRange)
 
@@ -668,6 +699,24 @@ func (e *NLQueryEngine) handleCreateAlert(matches []string, ctx *ConversationCon
 	operator := matches[3]
 	threshold := matches[4]
 
+	if !allowedOperators[operator] {
+		return &NLQueryResponse{
+			Intent:     "create_alert",
+			Error:      fmt.Sprintf("unsupported operator: %s", operator),
+			Confidence: 0.0,
+			QueryType:  "action",
+		}
+	}
+
+	if _, err := strconv.ParseFloat(threshold, 64); err != nil {
+		return &NLQueryResponse{
+			Intent:     "create_alert",
+			Error:      fmt.Sprintf("invalid threshold value: %s", threshold),
+			Confidence: 0.0,
+			QueryType:  "action",
+		}
+	}
+
 	return &NLQueryResponse{
 		Intent:      "create_alert",
 		Query:       fmt.Sprintf("CREATE ALERT ON %s WHEN value %s %s", sanitizeIdentifier(metric), operator, threshold),
@@ -686,7 +735,7 @@ func (e *NLQueryEngine) handleRate(matches []string, ctx *ConversationContext) *
 
 	return &NLQueryResponse{
 		Intent:      "rate",
-		Query:       fmt.Sprintf("rate(%s[5m])", metric),
+		Query:       fmt.Sprintf("rate(%s[5m])", sanitizeIdentifier(metric)),
 		QueryType:   "promql",
 		Explanation: fmt.Sprintf("Calculating per-second rate of change for %s", metric),
 		Confidence:  0.9,
@@ -699,6 +748,14 @@ func (e *NLQueryEngine) handleTopN(matches []string, ctx *ConversationContext) *
 	}
 
 	n := matches[1]
+	if _, err := strconv.Atoi(n); err != nil {
+		return &NLQueryResponse{
+			Intent:     "top_n",
+			Error:      fmt.Sprintf("invalid limit value: %s", n),
+			Confidence: 0.0,
+			QueryType:  "sql",
+		}
+	}
 	metric := matches[2]
 	groupBy := "host"
 	if len(matches) > 3 && matches[3] != "" {
