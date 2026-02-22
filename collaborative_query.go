@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -984,7 +985,9 @@ func (hub *CollaborativeQueryHub) HandleCreateSession(w http.ResponseWriter, r *
 
 	session, err := hub.CreateSession(req.Name, req.OwnerID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

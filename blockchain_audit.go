@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -760,7 +761,9 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		entry, err := bat.RecordEvent(req.EventType, req.Actor, req.Resource, req.Details)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -834,7 +837,9 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		intact, gaps, err := bat.VerifyIntegrity()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -900,7 +905,9 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := bat.GenerateReport(start, end)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -949,7 +956,9 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		hold, err := bat.CreateLegalHold(req.Resource, req.Reason, req.CreatedBy)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

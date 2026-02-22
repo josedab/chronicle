@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -222,7 +223,9 @@ func (e *TSDiffEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		var req TSDiffRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
 		result, err := e.Compare(req)
-		if err != nil { http.Error(w, err.Error(), http.StatusInternalServerError); return }
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})

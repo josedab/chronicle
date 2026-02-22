@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -49,7 +50,9 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				}
 			}
 			if err := db.WriteBatch(req.Points); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.Printf("[ERROR] %v", err)
+
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 			w.WriteHeader(http.StatusAccepted)
@@ -72,7 +75,9 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 		}
 		if err := db.WriteBatch(points); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -135,7 +140,9 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 		result, err := db.Execute(q)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

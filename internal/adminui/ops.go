@@ -1,6 +1,7 @@
 package adminui
 
 import (
+	"log"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -37,7 +38,9 @@ func (ui *AdminUI) handleAPIBackup(w http.ResponseWriter, r *http.Request) {
 
 		// Flush to ensure data is persisted
 		if err := ui.db.Flush(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

@@ -1,6 +1,7 @@
 package adminui
 
 import (
+	"log"
 	"net/http"
 	"runtime"
 	"sort"
@@ -98,7 +99,9 @@ func (ui *AdminUI) handleAPIQuery(w http.ResponseWriter, r *http.Request) {
 	duration := time.Since(start)
 	if err != nil {
 		ui.addQueryHistory(query, duration, false, err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

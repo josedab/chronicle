@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -757,7 +758,9 @@ func (e *DeclarativeAlertingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.Reload(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusOK)

@@ -1,6 +1,7 @@
 package edgemesh
 
 import (
+	"log"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -863,7 +864,9 @@ func (m *EdgeMesh) handleOperations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.applyOperation(req.Operation); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

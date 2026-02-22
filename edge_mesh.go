@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -863,7 +864,9 @@ func (em *EdgeMesh) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	result, err := em.db.ExecuteContext(r.Context(), &q)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

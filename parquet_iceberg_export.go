@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -778,7 +779,9 @@ func (m *IcebergExportManager) handleExport(w http.ResponseWriter, r *http.Reque
 	if req.Metric == "" {
 		err := m.ExportColdPartitions(r.Context())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]string{"status": "export completed"})
@@ -798,7 +801,9 @@ func (m *IcebergExportManager) handleExport(w http.ResponseWriter, r *http.Reque
 
 	info, err := m.exporter.ExportPartition(r.Context(), req.Metric, startTime, endTime)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, info)

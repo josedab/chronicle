@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"log"
 	"context"
 	"encoding/json"
 	"errors"
@@ -699,7 +700,9 @@ func (c *Cluster) handleReplicate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := c.pw.WritePoint(p); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 	}

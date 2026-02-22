@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -841,7 +842,9 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			result, err = e.DiffAll(req.FromTime, req.ToTime)
 		}
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -866,7 +869,9 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		points, err := e.QueryAsOf(req.Metric, req.Tags, time.Unix(0, req.AsOf), req.Start, req.End)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -969,7 +974,9 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 		timeline, err := e.GetTimeline(metric, start, end)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

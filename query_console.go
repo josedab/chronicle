@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -94,7 +95,9 @@ func (qc *QueryConsole) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := qc.tmpl.Execute(w, nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
 

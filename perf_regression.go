@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -501,7 +502,9 @@ func (e *PerfRegressionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		results, err := e.RunBenchmarks(r.Context())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -530,7 +533,9 @@ func (e *PerfRegressionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 				return
 			}
 			if err := e.UpdateBaseline(r.Context(), req.CommitSHA, req.Results); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.Printf("[ERROR] %v", err)
+
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")

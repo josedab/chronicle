@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -848,7 +849,9 @@ func (mc *MetricsCatalog) handleMetrics(w http.ResponseWriter, r *http.Request) 
 	}
 	result, err := mc.Search(query)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -890,7 +893,9 @@ func (mc *MetricsCatalog) handleScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := mc.Scan(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

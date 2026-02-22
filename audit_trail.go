@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -980,7 +981,9 @@ func (m *AuditTrailManager) handleRecordEvent(w http.ResponseWriter, r *http.Req
 
 	entry, err := m.RecordEvent(r.Context(), req.Action, req.Actor, req.Resource, req.Details, outcome)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

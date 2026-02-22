@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1458,7 +1459,9 @@ func (e *StreamingSQLV2Engine) handleQueries(w http.ResponseWriter, r *http.Requ
 			q, err = e.CreateWindowedQuery(req.SQL)
 		}
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{
@@ -1546,7 +1549,9 @@ func (e *StreamingSQLV2Engine) handleCheckpoint(w http.ResponseWriter, r *http.R
 		return
 	}
 	if err := e.Checkpoint(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	e.checkpointMu.RLock()

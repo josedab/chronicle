@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1153,7 +1154,9 @@ func setupFederationRoutes(mux *http.ServeMux, engine *QueryFederationEngine, wr
 		}
 		result, err := engine.ExecuteFederated(r.Context(), &q)
 		if err != nil && result == nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		resp := map[string]any{"result": result}

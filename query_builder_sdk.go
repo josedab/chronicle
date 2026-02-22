@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -775,7 +776,9 @@ func (b *VisualQueryBuilder) ParseFromSQL(sql string) (*VisualQuerySpec, error) 
 func (b *VisualQueryBuilder) HandleGetSchema(w http.ResponseWriter, r *http.Request) {
 	schema, err := b.GetSchema(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -793,7 +796,9 @@ func (b *VisualQueryBuilder) HandleAutocomplete(w http.ResponseWriter, r *http.R
 
 	resp, err := b.Autocomplete(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -811,7 +816,9 @@ func (b *VisualQueryBuilder) HandleGenerateQuery(w http.ResponseWriter, r *http.
 
 	result, err := b.GenerateQuery(r.Context(), &vq)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

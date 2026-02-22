@@ -1,6 +1,7 @@
 package adminui
 
 import (
+	"log"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -79,7 +80,9 @@ func (ui *AdminUI) handleAPIDataPreview(w http.ResponseWriter, r *http.Request) 
 
 	result, err := ui.db.Execute(q)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -146,7 +149,9 @@ func (ui *AdminUI) handleAPIExport(w http.ResponseWriter, r *http.Request) {
 
 	result, err := ui.db.Execute(q)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -267,7 +272,9 @@ func (ui *AdminUI) handleAPIInsert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := ui.db.WriteBatch(insertPoints); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

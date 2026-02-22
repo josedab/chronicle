@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -183,7 +184,9 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 			resp, err := rag.Ask(r.Context(), query)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.Printf("[ERROR] %v", err)
+
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 			writeJSON(w, resp)

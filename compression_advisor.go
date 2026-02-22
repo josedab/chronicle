@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"log"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -905,7 +906,9 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		benchmarks, err := ca.BenchmarkAll(req.Metric, req.Values)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -937,7 +940,9 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := ca.GenerateReport()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("[ERROR] %v", err)
+
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

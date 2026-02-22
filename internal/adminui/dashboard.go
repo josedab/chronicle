@@ -1,6 +1,7 @@
 package adminui
 
 import (
+	"log"
 	"net/http"
 	"runtime"
 	"time"
@@ -11,13 +12,17 @@ func (ui *AdminUI) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := dashboardTemplate()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	data := ui.getDashboardData()
 	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("[ERROR] %v", err)
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
 
