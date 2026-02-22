@@ -245,7 +245,11 @@ func (ct *CardinalityTracker) seriesExistsForMetric(metric, key string) bool {
 
 func (ct *CardinalityTracker) getMetricCount(metric string) int64 {
 	if v, ok := ct.metricCounts.Load(metric); ok {
-		return v.(int64)
+		val, ok := v.(int64)
+		if !ok {
+			return 0
+		}
+		return val
 	}
 	return 0
 }
@@ -253,7 +257,10 @@ func (ct *CardinalityTracker) getMetricCount(metric string) int64 {
 func (ct *CardinalityTracker) incrementMetricCount(metric string) {
 	for {
 		old, _ := ct.metricCounts.LoadOrStore(metric, int64(0))
-		oldVal := old.(int64)
+		oldVal, ok := old.(int64)
+		if !ok {
+			return
+		}
 		if ct.metricCounts.CompareAndSwap(metric, oldVal, oldVal+1) {
 			break
 		}
@@ -262,7 +269,10 @@ func (ct *CardinalityTracker) incrementMetricCount(metric string) {
 
 func (ct *CardinalityTracker) trackLabelValue(key, value string) error {
 	valuesI, _ := ct.labelValues.LoadOrStore(key, &sync.Map{})
-	values := valuesI.(*sync.Map)
+	values, ok := valuesI.(*sync.Map)
+	if !ok {
+		return fmt.Errorf("unexpected type in label values map for key %s", key)
+	}
 
 	// Count current values
 	count := int64(0)
@@ -319,8 +329,14 @@ func (ct *CardinalityTracker) checkCardinality() {
 	if ct.config.MaxSeriesPerMetric > 0 {
 		threshold := int64(float64(ct.config.MaxSeriesPerMetric) * float64(ct.config.AlertThresholdPercent) / 100)
 		ct.metricCounts.Range(func(k, v any) bool {
-			metric := k.(string)
-			count := v.(int64)
+			metric, ok := k.(string)
+			if !ok {
+				return true
+			}
+			count, ok := v.(int64)
+			if !ok {
+				return true
+			}
 			if count >= threshold {
 				alert := CardinalityAlert{
 					Type:      AlertHighCardinality,
@@ -343,8 +359,14 @@ func (ct *CardinalityTracker) checkCardinality() {
 	if ct.config.MaxLabelValues > 0 {
 		threshold := int64(float64(ct.config.MaxLabelValues) * float64(ct.config.AlertThresholdPercent) / 100)
 		ct.labelValues.Range(func(k, v any) bool {
-			labelKey := k.(string)
-			values := v.(*sync.Map)
+			labelKey, ok := k.(string)
+			if !ok {
+				return true
+			}
+			values, ok := v.(*sync.Map)
+			if !ok {
+				return true
+			}
 			count := int64(0)
 			values.Range(func(_, _ any) bool {
 				count++
