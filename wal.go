@@ -1,5 +1,17 @@
 package chronicle
 
+// wal.go implements the Write-Ahead Log for crash recovery.
+//
+// The WAL ensures durability by writing all points to a sequential log
+// before they are applied to partitions. On crash recovery, the WAL is
+// replayed to restore any points that were written but not yet flushed.
+//
+// Key behaviors:
+//   - Background syncLoop batches fsync calls (configurable interval)
+//   - WAL rotation occurs when file size exceeds WALMaxSize
+//   - Old WAL segments are retained per WALRetain config
+//   - Recovery replays all segments in order
+
 import (
 	"bufio"
 	"encoding/binary"
