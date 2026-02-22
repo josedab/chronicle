@@ -8,7 +8,46 @@ import (
 // setupAdminRoutes configures admin and operational endpoints
 func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	mux.HandleFunc("/health", wrap(func(w http.ResponseWriter, r *http.Request) {
+		if db.features != nil {
+			if hc := db.features.HealthCheck(); hc != nil {
+				hc.Start()
+				writeJSON(w, hc.Check())
+				return
+			}
+		}
 		writeJSON(w, map[string]string{"status": "ok"})
+	}))
+
+	mux.HandleFunc("/health/ready", wrap(func(w http.ResponseWriter, r *http.Request) {
+		if db.features != nil {
+			if hc := db.features.HealthCheck(); hc != nil {
+				hc.Start()
+				if !hc.IsReady() {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					writeJSON(w, map[string]string{"status": "not_ready"})
+					return
+				}
+				writeJSON(w, map[string]string{"status": "ready"})
+				return
+			}
+		}
+		writeJSON(w, map[string]string{"status": "ready"})
+	}))
+
+	mux.HandleFunc("/health/live", wrap(func(w http.ResponseWriter, r *http.Request) {
+		if db.features != nil {
+			if hc := db.features.HealthCheck(); hc != nil {
+				hc.Start()
+				if !hc.IsLive() {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					writeJSON(w, map[string]string{"status": "not_live"})
+					return
+				}
+				writeJSON(w, map[string]string{"status": "live"})
+				return
+			}
+		}
+		writeJSON(w, map[string]string{"status": "live"})
 	}))
 
 	mux.HandleFunc("/metrics", wrap(func(w http.ResponseWriter, r *http.Request) {
