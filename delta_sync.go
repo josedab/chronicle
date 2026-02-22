@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -323,6 +324,10 @@ func NewDeltaSyncManager(db *DB, config DeltaSyncConfig) (*DeltaSyncManager, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	if config.InsecureSkipVerify {
+		log.Println("[WARN] chronicle: DeltaSync InsecureSkipVerify is enabled. TLS certificate validation is disabled, making connections vulnerable to MITM attacks. Do not use in production.")
+	}
 
 	m := &DeltaSyncManager{
 		db:          db,
