@@ -70,6 +70,8 @@ func (s *GraphQLServer) Handler() http.Handler {
 
 		switch r.Method {
 		case http.MethodPost:
+			// Limit request body to 1MB to prevent OOM from oversized payloads
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				writeGraphQLError(w, "invalid request body: "+err.Error())
 				return
@@ -424,6 +426,11 @@ func (s *GraphQLServer) mutationDelete(ctx context.Context, sel graphQLSelection
 func (s *GraphQLServer) Subscribe(ctx context.Context, query string, interval time.Duration) (<-chan *GraphQLResult, string, error) {
 	s.subscriptionsMu.Lock()
 	defer s.subscriptionsMu.Unlock()
+
+	const maxSubscriptions = 1000
+	if len(s.subscriptions) >= maxSubscriptions {
+		return nil, "", fmt.Errorf("maximum number of subscriptions (%d) reached", maxSubscriptions)
+	}
 
 	id := fmt.Sprintf("sub_%d", time.Now().UnixNano())
 
