@@ -863,7 +863,7 @@ func (hub *CollaborativeQueryHub) WebSocketHandler() http.HandlerFunc {
 			return
 		}
 
-		conn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := newUpgrader(nil).Upgrade(w, r, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

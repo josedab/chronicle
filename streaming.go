@@ -22,6 +22,9 @@ type StreamConfig struct {
 	PingInterval time.Duration
 	// WriteTimeout for WebSocket writes
 	WriteTimeout time.Duration
+	// AllowedOrigins is the list of allowed WebSocket origins.
+	// If empty, only same-origin requests are allowed.
+	AllowedOrigins []string
 }
 
 // DefaultStreamConfig returns default streaming configuration.
@@ -177,10 +180,29 @@ func (h *StreamHub) List() []string {
 
 // WebSocket handling
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+// newUpgrader creates a WebSocket upgrader that validates the request origin
+// against the configured AllowedOrigins list. If no origins are configured,
+// only same-origin requests are permitted (the default gorilla/websocket behavior).
+func newUpgrader(allowedOrigins []string) *websocket.Upgrader {
+	return &websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			if len(allowedOrigins) == 0 {
+				return false
+			}
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true // non-browser client
+			}
+			for _, allowed := range allowedOrigins {
+				if allowed == "*" || allowed == origin {
+					return true
+				}
+			}
+			return false
+		},
+	}
 }
 
 // StreamMessage is the JSON format for WebSocket messages.
@@ -196,7 +218,8 @@ type StreamMessage struct {
 // WebSocketHandler returns an HTTP handler for WebSocket connections.
 func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
+		up := newUpgrader(h.config.AllowedOrigins)
+		conn, err := up.Upgrade(w, r, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
