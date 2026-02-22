@@ -1,5 +1,12 @@
 package chronicle
 
+// config.go defines all database configuration.
+//
+// Use DefaultConfig(path) for sensible defaults. Use ConfigBuilder for
+// fluent construction. Config.Validate() checks all fields for logical
+// errors. Legacy flat fields (MaxMemory, SyncInterval, etc.) are
+// normalized to their nested equivalents during validation.
+
 import (
 	"errors"
 	"fmt"
