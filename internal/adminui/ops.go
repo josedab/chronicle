@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const maxSSEClients = 100
+
 func (ui *AdminUI) handleAPIPartitions(w http.ResponseWriter, r *http.Request) {
 	partitions := make([]map[string]any, 0)
 
@@ -77,6 +79,11 @@ func (ui *AdminUI) handleAPIEvents(w http.ResponseWriter, r *http.Request) {
 
 	clientChan := make(chan []byte, 10)
 	ui.sseMu.Lock()
+	if len(ui.sseClients) >= maxSSEClients {
+		ui.sseMu.Unlock()
+		http.Error(w, "too many SSE connections", http.StatusServiceUnavailable)
+		return
+	}
 	ui.sseClients[clientChan] = true
 	ui.sseMu.Unlock()
 
