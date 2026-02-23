@@ -159,6 +159,24 @@ For the full API surface, see the [Go reference](https://pkg.go.dev/github.com/c
 - 🧪 **Vector embeddings** for ML/semantic search
 - 🧪 **Continuous profiling** with metric correlation
 
+## When to Choose Chronicle
+
+| Capability | Chronicle | InfluxDB | VictoriaMetrics | Prometheus |
+|---|---|---|---|---|
+| **Deployment** | Embedded (Go library) | Standalone server | Standalone server | Standalone server |
+| **Target environment** | Edge / IoT / constrained | Cloud / on-prem server | Cloud / on-prem server | Cloud / on-prem server |
+| **Binary dependency** | None (pure Go) | Separate process | Separate process | Separate process |
+| **Memory footprint** | ~10–64 MB configurable | 256 MB+ recommended | 256 MB+ recommended | 512 MB+ recommended |
+| **Storage format** | Single-file (SQLite-backed) | Custom TSM/TSI | Custom vmselect | Custom TSDB blocks |
+| **Clustering** | Embedded mesh / optional | Enterprise only | Built-in | Thanos/Cortex sidecar |
+| **Query language** | SQL-like + PromQL subset | InfluxQL / Flux | MetricsQL | PromQL |
+| **Offline operation** | First-class (edge sync) | Not designed for | Not designed for | Not designed for |
+| **Typical use case** | In-process metrics for Go apps, edge gateways, IoT devices | Central metrics platform | High-cardinality metrics at scale | Monitoring & alerting |
+
+**Choose Chronicle when** you need an in-process time-series store that ships as a Go dependency — no sidecar, no daemon, no network hop. It excels on single-node edge gateways, embedded devices, and CLI tools where running a server is impractical.
+
+**Choose a server TSDB when** you need multi-tenant dashboards, long-term retention across a fleet, or an existing ecosystem of integrations at data-center scale.
+
 ## Architecture
 
 ```
