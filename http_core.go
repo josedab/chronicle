@@ -48,6 +48,7 @@ var (
 type httpServer struct {
 	srv *http.Server
 	wg  sync.WaitGroup
+	rl  *rateLimiter
 }
 
 type writeRequest struct {
@@ -80,6 +81,7 @@ type rateLimiter struct {
 	rate     int           // requests per window
 	window   time.Duration // time window
 	cleanup  time.Duration // cleanup interval
+	stopCh   chan struct{}
 }
 
 type visitor struct {
@@ -94,6 +96,7 @@ func newRateLimiter(rate int, window time.Duration) *rateLimiter {
 		rate:     rate,
 		window:   window,
 		cleanup:  window * 2,
+		stopCh:   make(chan struct{}),
 	}
 	go rl.cleanupLoop()
 	return rl
@@ -101,15 +104,30 @@ func newRateLimiter(rate int, window time.Duration) *rateLimiter {
 
 func (rl *rateLimiter) cleanupLoop() {
 	ticker := time.NewTicker(rl.cleanup)
-	for range ticker.C {
-		rl.mu.Lock()
-		now := time.Now()
-		for ip, v := range rl.visitors {
-			if now.Sub(v.lastReset) > rl.cleanup {
-				delete(rl.visitors, ip)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			rl.mu.Lock()
+			now := time.Now()
+			for ip, v := range rl.visitors {
+				if now.Sub(v.lastReset) > rl.cleanup {
+					delete(rl.visitors, ip)
+				}
 			}
+			rl.mu.Unlock()
+		case <-rl.stopCh:
+			return
 		}
-		rl.mu.Unlock()
+	}
+}
+
+// Stop stops the cleanup goroutine.
+func (rl *rateLimiter) Stop() {
+	select {
+	case <-rl.stopCh:
+	default:
+		close(rl.stopCh)
 	}
 }
 

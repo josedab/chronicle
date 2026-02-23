@@ -3,6 +3,7 @@ package chronicle
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -75,13 +76,13 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 		WriteTimeout: 15 * time.Second,
 	}
 
-	s := &httpServer{srv: srv}
+	s := &httpServer{srv: srv, rl: rl}
 
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
-			// Log non-shutdown errors
+			slog.Error("http server error", "err", err)
 		}
 	}()
 
@@ -91,6 +92,9 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 func (s *httpServer) Close() error {
 	if s == nil || s.srv == nil {
 		return nil
+	}
+	if s.rl != nil {
+		s.rl.Stop()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

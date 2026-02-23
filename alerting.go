@@ -108,6 +108,7 @@ type AlertManager struct {
 	rules       map[string]*AlertRule
 	alerts      map[string]*Alert
 	stop        chan struct{}
+	wg          sync.WaitGroup
 	httpClient  HTTPDoer
 	evalTicker  *time.Ticker
 	defaultEval time.Duration
@@ -216,18 +217,21 @@ func (m *AlertManager) ListRules() []*AlertRule {
 // Start begins alert evaluation.
 func (m *AlertManager) Start() {
 	m.evalTicker = time.NewTicker(m.defaultEval)
+	m.wg.Add(1)
 	go m.evaluationLoop()
 }
 
-// Stop stops alert evaluation.
+// Stop stops alert evaluation and waits for the goroutine to finish.
 func (m *AlertManager) Stop() {
 	close(m.stop)
 	if m.evalTicker != nil {
 		m.evalTicker.Stop()
 	}
+	m.wg.Wait()
 }
 
 func (m *AlertManager) evaluationLoop() {
+	defer m.wg.Done()
 	for {
 		select {
 		case <-m.stop:
@@ -403,7 +407,7 @@ func (m *AlertManager) sendWebhook(webhookURL string, payload []byte) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // HTTP body close is best-effort
+	defer closeQuietly(resp.Body)
 
 	if resp.StatusCode >= 500 || resp.StatusCode == 429 {
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)

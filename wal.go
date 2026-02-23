@@ -33,6 +33,7 @@ type WAL struct {
 	writer       *bufio.Writer
 	syncInterval time.Duration
 	closeCh      chan struct{}
+	wg           sync.WaitGroup
 	maxSize      int64
 	retain       int
 
@@ -71,6 +72,7 @@ func NewWAL(path string, syncInterval time.Duration, maxSize int64, retain int, 
 		opt(wal)
 	}
 
+	wal.wg.Add(1)
 	go wal.syncLoop()
 
 	return wal, nil
@@ -79,16 +81,17 @@ func NewWAL(path string, syncInterval time.Duration, maxSize int64, retain int, 
 // Close closes the WAL.
 func (w *WAL) Close() error {
 	close(w.closeCh)
+	w.wg.Wait()
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if err := w.writer.Flush(); err != nil {
 		slog.Error("WAL close: flush failed", "err", err)
-		_ = w.file.Close() //nolint:errcheck // best-effort cleanup on error path
+		closeQuietly(w.file)
 		return err
 	}
 	if err := w.file.Sync(); err != nil {
 		slog.Error("WAL close: sync failed", "err", err)
-		_ = w.file.Close() //nolint:errcheck // best-effort cleanup on error path
+		closeQuietly(w.file)
 		return err
 	}
 	return w.file.Close()
@@ -243,6 +246,7 @@ func (w *WAL) cleanupRotations() error {
 }
 
 func (w *WAL) syncLoop() {
+	defer w.wg.Done()
 	if w.syncInterval <= 0 {
 		return
 	}

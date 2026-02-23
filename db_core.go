@@ -47,6 +47,7 @@ type lifecycleManager struct {
 	replicator *replicator
 	compactCh  chan struct{}
 	cqRunners  []*cqRunner
+	workerWg   sync.WaitGroup
 	mu         sync.Mutex
 }
 
@@ -80,9 +81,17 @@ func (lm *lifecycleManager) startReplication(cfg *ReplicationConfig) {
 
 func (lm *lifecycleManager) startBackgroundWorkers(compactionWorkers int, compactionInterval time.Duration) {
 	for i := 0; i < compactionWorkers; i++ {
-		go lm.db.compactionWorker()
+		lm.workerWg.Add(1)
+		go func() {
+			defer lm.workerWg.Done()
+			lm.db.compactionWorker()
+		}()
 	}
-	go lm.db.backgroundWorker()
+	lm.workerWg.Add(1)
+	go func() {
+		defer lm.workerWg.Done()
+		lm.db.backgroundWorker()
+	}()
 }
 
 func (lm *lifecycleManager) stop() {
@@ -90,13 +99,14 @@ func (lm *lifecycleManager) stop() {
 	defer lm.mu.Unlock()
 
 	if lm.httpServer != nil {
-		_ = lm.httpServer.Close() //nolint:errcheck // best-effort cleanup during shutdown
+		closeQuietly(lm.httpServer)
 		lm.httpServer = nil
 	}
 	if lm.replicator != nil {
 		lm.replicator.Stop()
 		lm.replicator = nil
 	}
+	lm.workerWg.Wait()
 }
 
 func (lm *lifecycleManager) enqueueReplication(points []Point) {
@@ -212,15 +222,15 @@ func (db *DB) Close() error {
 	db.mu.Lock()
 	if err := persistIndex(db.file, db.index); err != nil {
 		db.mu.Unlock()
-		_ = db.file.Close() //nolint:errcheck // cleanup on error path
-		_ = db.wal.Close()  //nolint:errcheck // cleanup on error path
+		closeQuietly(db.file)
+		closeQuietly(db.wal)
 		return err
 	}
 	db.mu.Unlock()
 
 	if err := db.file.Sync(); err != nil {
-		_ = db.file.Close() //nolint:errcheck // cleanup on error path
-		_ = db.wal.Close()  //nolint:errcheck // cleanup on error path
+		closeQuietly(db.file)
+		closeQuietly(db.wal)
 		return err
 	}
 
@@ -228,13 +238,13 @@ func (db *DB) Close() error {
 	if db.dataStore != nil {
 		if _, ok := db.dataStore.(*FileDataStore); !ok {
 			// Backend-based storage - close it separately
-			_ = db.dataStore.Close() //nolint:errcheck // best-effort cleanup during Close
+			closeQuietly(db.dataStore)
 		}
 		// FileDataStore shares the file handle, so don't close it separately
 	}
 
 	if err := db.file.Close(); err != nil {
-		_ = db.wal.Close() //nolint:errcheck // cleanup on error path
+		closeQuietly(db.wal)
 		return err
 	}
 
