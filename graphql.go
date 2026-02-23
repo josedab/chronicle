@@ -9,6 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"crypto/rand"
+	"encoding/hex"
 )
 
 // GraphQLServer provides a GraphQL API for Chronicle.
@@ -432,7 +435,11 @@ func (s *GraphQLServer) Subscribe(ctx context.Context, query string, interval ti
 		return nil, "", fmt.Errorf("maximum number of subscriptions (%d) reached", maxSubscriptions)
 	}
 
-	id := fmt.Sprintf("sub_%d", time.Now().UnixNano())
+	randBytes := make([]byte, 16)
+	if _, err := rand.Read(randBytes); err != nil {
+		return nil, "", fmt.Errorf("failed to generate subscription ID: %w", err)
+	}
+	id := fmt.Sprintf("sub_%s", hex.EncodeToString(randBytes))
 
 	sub := &graphQLSubscription{
 		id:       id,
