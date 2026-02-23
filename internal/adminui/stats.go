@@ -1,8 +1,9 @@
 package adminui
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/chronicle-db/chronicle/internal/httputil"
 	"runtime"
 	"sort"
 	"strconv"
@@ -99,9 +100,7 @@ func (ui *AdminUI) handleAPIQuery(w http.ResponseWriter, r *http.Request) {
 	duration := time.Since(start)
 	if err != nil {
 		ui.addQueryHistory(query, duration, false, err.Error())
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httputil.InternalError(w, err, "internal error")
 		return
 	}
 

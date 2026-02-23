@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
+
+	"github.com/chronicle-db/chronicle/internal/httputil"
 	"strconv"
 	"strings"
 	"time"
@@ -155,8 +156,7 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 
 	// Write points
 	if err = ui.db.WriteBatch(points); err != nil {
-		slog.Error("data import write failed", "err", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httputil.InternalError(w, err, "data import write failed")
 		return
 	}
 

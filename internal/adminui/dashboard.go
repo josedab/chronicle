@@ -1,8 +1,9 @@
 package adminui
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/chronicle-db/chronicle/internal/httputil"
 	"runtime"
 	"time"
 )
@@ -12,17 +13,13 @@ func (ui *AdminUI) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := dashboardTemplate()
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httputil.InternalError(w, err, "internal error")
 		return
 	}
 
 	data := ui.getDashboardData()
 	if err := tmpl.Execute(w, data); err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httputil.InternalError(w, err, "internal error")
 	}
 }
 

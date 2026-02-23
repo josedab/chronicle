@@ -1,10 +1,11 @@
 package adminui
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/chronicle-db/chronicle/internal/httputil"
 	"runtime"
 	"strconv"
 	"strings"
@@ -40,9 +41,7 @@ func (ui *AdminUI) handleAPIBackup(w http.ResponseWriter, r *http.Request) {
 
 		// Flush to ensure data is persisted
 		if err := ui.db.Flush(); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			httputil.InternalError(w, err, "internal error")
 			return
 		}
 
