@@ -446,7 +446,7 @@ func (ca *ComplianceAutomation) RegisterHTTPHandlers(mux *http.ServeMux) {
 				return
 			}
 			if err := ca.AddRetentionPolicy(policy); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)

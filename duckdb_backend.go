@@ -506,7 +506,7 @@ func (e *DuckDBBackendEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			SQL string `json:"sql"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		result, err := e.ExecuteSQL(req.SQL)
@@ -527,7 +527,7 @@ func (e *DuckDBBackendEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			SQL string `json:"sql"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		plan := e.Analyze(req.SQL)

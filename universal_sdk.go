@@ -589,7 +589,7 @@ func (e *UniversalSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		artifact, err := e.GenerateSDK(UniversalSDKLanguage(req.Language))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

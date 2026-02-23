@@ -805,7 +805,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		entry, err := bat.GetEntry(id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -819,7 +819,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		anchor, err := bat.AnchorToBlockchain()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -872,7 +872,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		proof, err := bat.GenerateProof(entryID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -927,7 +927,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := bat.ReleaseLegalHold(id); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

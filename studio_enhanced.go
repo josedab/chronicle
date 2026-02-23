@@ -439,12 +439,12 @@ func (e *StudioEnhancedEngine) handleSessions(w http.ResponseWriter, r *http.Req
 			UserID string `json:"user_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		s, err := e.CreateSession(req.UserID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -469,14 +469,14 @@ func (e *StudioEnhancedEngine) handleSession(w http.ResponseWriter, r *http.Requ
 	case http.MethodGet:
 		s, err := e.GetSession(id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(s)
 	case http.MethodDelete:
 		if err := e.CloseSession(id); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -495,12 +495,12 @@ func (e *StudioEnhancedEngine) handleExecuteQuery(w http.ResponseWriter, r *http
 		Query     string `json:"query"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	result, err := e.ExecuteQuery(req.SessionID, req.Query)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -524,12 +524,12 @@ func (e *StudioEnhancedEngine) handleLayouts(w http.ResponseWriter, r *http.Requ
 			Name string `json:"name"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		layout, err := e.CreateLayout(req.Name)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -552,11 +552,11 @@ func (e *StudioEnhancedEngine) handleSharedQueries(w http.ResponseWriter, r *htt
 			Query     string `json:"query"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.ShareQuery(req.SessionID, req.Name, req.Query); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
@@ -588,12 +588,12 @@ func (e *StudioEnhancedEngine) handleExport(w http.ResponseWriter, r *http.Reque
 		Data   any    `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	result, err := e.ExportResults(req.Format, req.Data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")

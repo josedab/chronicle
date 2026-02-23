@@ -551,11 +551,11 @@ func (ec *EmbeddedClusterEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Addr   string `json:"addr"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := ec.Join(req.NodeID, req.Addr); err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
+			http.Error(w, "conflict", http.StatusConflict)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -571,11 +571,11 @@ func (ec *EmbeddedClusterEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			NodeID string `json:"node_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := ec.Leave(req.NodeID); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

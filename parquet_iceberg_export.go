@@ -836,7 +836,7 @@ func (m *IcebergExportManager) handlePolicies(w http.ResponseWriter, r *http.Req
 			return
 		}
 		if err := m.CreateExportPolicy(policy); err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
+			http.Error(w, "conflict", http.StatusConflict)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
@@ -879,7 +879,7 @@ func (m *IcebergExportManager) handleSnapshots(w http.ResponseWriter, r *http.Re
 
 	meta, err := m.catalog.LoadTable(ns, table)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 	writeJSON(w, meta.Snapshots)

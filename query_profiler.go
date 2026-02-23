@@ -373,7 +373,7 @@ func (e *QueryProfilerEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			QueryType string `json:"query_type"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		profile, err := e.Profile(req.Query, req.QueryType)
@@ -400,7 +400,7 @@ func (e *QueryProfilerEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			QueryType string `json:"query_type"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		plan := e.Explain(req.Query, req.QueryType)

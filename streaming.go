@@ -221,7 +221,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 		up := newUpgrader(h.config.AllowedOrigins)
 		conn, err := up.Upgrade(w, r, nil)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		defer func() { _ = conn.Close() }() //nolint:errcheck // best-effort stream operation

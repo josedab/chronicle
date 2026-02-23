@@ -533,7 +533,7 @@ func (e *OTLPProtoEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/otlp-proto/ingest", func(w http.ResponseWriter, r *http.Request) {
 		var points []ProtoMetricPoint
 		if err := json.NewDecoder(r.Body).Decode(&points); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		result, err := e.IngestMetrics(points)
@@ -587,7 +587,7 @@ func (e *OTLPProtoEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			// JSON fallback
 			var batch OTLPMetricBatch
 			if err := json.NewDecoder(r.Body).Decode(&batch); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			result, err := e.IngestBatch(&batch)

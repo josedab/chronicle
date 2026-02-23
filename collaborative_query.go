@@ -890,7 +890,7 @@ func (hub *CollaborativeQueryHub) WebSocketHandler() http.HandlerFunc {
 
 		if err := hub.JoinSession(sessionID, participant, conn); err != nil {
 			_ = conn.Close() //nolint:errcheck // best-effort WebSocket send
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 	}
@@ -990,7 +990,7 @@ func (hub *CollaborativeQueryHub) HandleCreateSession(w http.ResponseWriter, r *
 		OwnerName string `json:"owner_name"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -1022,7 +1022,7 @@ func (hub *CollaborativeQueryHub) HandleJoinSession(w http.ResponseWriter, r *ht
 		Name          string `json:"name"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -1054,12 +1054,12 @@ func (hub *CollaborativeQueryHub) HandleLeaveSession(w http.ResponseWriter, r *h
 		ParticipantID string `json:"participant_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	if err := hub.LeaveSession(req.SessionID, req.ParticipantID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

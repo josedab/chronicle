@@ -868,7 +868,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 				return
 			}
 			if err := e.CreateBranch(req.Name, req.BaseBranch); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -878,7 +878,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 				name = strings.TrimPrefix(r.URL.Path, "/api/v1/branches/")
 			}
 			if err := e.DeleteBranch(name); err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
@@ -902,7 +902,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		diff, err := e.DiffBranches(req.Source, req.Target)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -921,7 +921,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := e.Merge(req)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -940,7 +940,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := e.CherryPick(req)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -960,7 +960,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			}
 			created, err := e.CreateABTest(test)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -985,7 +985,7 @@ func (e *TSDiffMergeEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		results, err := e.AnalyzeABTest(req.ID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

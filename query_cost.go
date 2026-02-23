@@ -160,9 +160,9 @@ func (e *QueryCostEstimator) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/cost/estimate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var q Query
-		if err := json.NewDecoder(r.Body).Decode(&q); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := json.NewDecoder(r.Body).Decode(&q); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		est, err := e.Estimate(&q)
-		if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(est)
 	})

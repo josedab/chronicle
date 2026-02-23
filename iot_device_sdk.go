@@ -651,7 +651,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			}
 			device, err := sdk.RegisterDevice(req.Name, req.Platform, req.Capabilities)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -675,14 +675,14 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodGet:
 			device, err := sdk.GetDevice(deviceID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(device)
 		case http.MethodDelete:
 			if err := sdk.UnregisterDevice(deviceID); err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
@@ -704,7 +704,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := sdk.Heartbeat(req.DeviceID); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -742,7 +742,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			}
 			group, err := sdk.CreateGroup(req.Name, req.Description)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -770,7 +770,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := sdk.AddDeviceToGroup(req.GroupID, req.DeviceID); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -791,7 +791,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		entry, err := sdk.QueueOfflineData(req.DeviceID, req.Telemetry)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -837,7 +837,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		update, err := sdk.CreateOTAUpdate(req.Version, req.Description, req.Platform, req.Targets)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -857,7 +857,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		update, err := sdk.GetOTAUpdate(updateID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -880,7 +880,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		cmd, err := sdk.SendCommand(req.DeviceID, req.Command, req.Payload)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -902,7 +902,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := sdk.AcknowledgeCommand(req.CommandID, req.Result); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -922,7 +922,7 @@ func (sdk *IoTDeviceSDK) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := sdk.DetectSchema(req.DeviceID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

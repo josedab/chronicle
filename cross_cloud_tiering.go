@@ -803,11 +803,11 @@ func (e *CrossCloudTieringEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var ep CloudEndpoint
 			if err := json.NewDecoder(r.Body).Decode(&ep); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.AddEndpoint(ep); err != nil {
-				http.Error(w, err.Error(), http.StatusConflict)
+				http.Error(w, "conflict", http.StatusConflict)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -825,11 +825,11 @@ func (e *CrossCloudTieringEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var p TieringPolicy
 			if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.CreatePolicy(p); err != nil {
-				http.Error(w, err.Error(), http.StatusConflict)
+				http.Error(w, "conflict", http.StatusConflict)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -863,12 +863,12 @@ func (e *CrossCloudTieringEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			PolicyID string `json:"policy_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		sim, err := e.SimulatePolicy(req.PolicyID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		json.NewEncoder(w).Encode(sim)
@@ -887,7 +887,7 @@ func (e *CrossCloudTieringEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := e.GenerateCostReport(period)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		json.NewEncoder(w).Encode(report)

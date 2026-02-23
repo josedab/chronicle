@@ -220,7 +220,7 @@ func (e *TSDiffEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/diff/compare", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req TSDiffRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		result, err := e.Compare(req)
 		internalError(w, err, "internal error")
 		w.Header().Set("Content-Type", "application/json")

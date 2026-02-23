@@ -480,7 +480,7 @@ func (e *HWAcceleratedQueryEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			DataSize int `json:"data_size"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if req.DataSize <= 0 {

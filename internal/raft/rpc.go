@@ -185,7 +185,7 @@ func (rn *RaftNode) forwardToLeader(ctx context.Context, command []byte) error {
 func (rn *RaftNode) handlePreVote(w http.ResponseWriter, r *http.Request) {
 	var req PreVoteRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -215,7 +215,7 @@ func (rn *RaftNode) handlePreVote(w http.ResponseWriter, r *http.Request) {
 func (rn *RaftNode) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 	var req RequestVoteRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -257,7 +257,7 @@ func (rn *RaftNode) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 func (rn *RaftNode) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
 	var req AppendEntriesRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -336,7 +336,7 @@ func (rn *RaftNode) handleAppendEntries(w http.ResponseWriter, r *http.Request) 
 func (rn *RaftNode) handleInstallSnapshot(w http.ResponseWriter, r *http.Request) {
 	var req InstallSnapshotRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -372,7 +372,7 @@ func (rn *RaftNode) handleInstallSnapshot(w http.ResponseWriter, r *http.Request
 func (rn *RaftNode) handleForwardProposal(w http.ResponseWriter, r *http.Request) {
 	var req ForwardProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

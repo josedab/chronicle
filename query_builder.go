@@ -866,13 +866,13 @@ func (qb *QueryBuilder) handleBuild(w http.ResponseWriter, r *http.Request) {
 
 	var vq VisualQuery
 	if err := json.NewDecoder(r.Body).Decode(&vq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	sql, err := qb.BuildSQL(&vq)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -888,7 +888,7 @@ func (qb *QueryBuilder) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 	var vq VisualQuery
 	if err := json.NewDecoder(r.Body).Decode(&vq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -912,11 +912,11 @@ func (qb *QueryBuilder) handleSavedQueries(w http.ResponseWriter, r *http.Reques
 	case http.MethodPost:
 		var sq SavedQuery
 		if err := json.NewDecoder(r.Body).Decode(&sq); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := qb.SaveQuery(&sq); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		json.NewEncoder(w).Encode(sq)
@@ -945,7 +945,7 @@ func (qb *QueryBuilder) handleAutocomplete(w http.ResponseWriter, r *http.Reques
 
 	var ctx AutocompleteContext
 	if err := json.NewDecoder(r.Body).Decode(&ctx); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

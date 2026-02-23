@@ -206,7 +206,7 @@ func (e *PointValidatorEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var p Point
 		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		errors := e.Validate(p)

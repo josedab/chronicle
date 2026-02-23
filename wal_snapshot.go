@@ -218,7 +218,7 @@ func (e *WALSnapshotEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		plan, err := e.GetRecoveryPlan()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		json.NewEncoder(w).Encode(plan)

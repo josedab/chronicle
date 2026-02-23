@@ -938,7 +938,7 @@ func (h *WorkersHandler) handleWrite(ctx context.Context, w http.ResponseWriter,
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -968,7 +968,7 @@ func (h *WorkersHandler) handleQuery(ctx context.Context, w http.ResponseWriter,
 		// Add more query param parsing as needed
 	} else if r.Method == http.MethodPost {
 		if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 	} else {

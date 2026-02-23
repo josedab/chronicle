@@ -75,7 +75,7 @@ func (ui *AdminUI) handleAPIDataPreview(w http.ResponseWriter, r *http.Request) 
 
 	q, err := ui.db.ParseQuery(queryStr)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -142,7 +142,7 @@ func (ui *AdminUI) handleAPIExport(w http.ResponseWriter, r *http.Request) {
 
 	q, err := ui.db.ParseQuery(query)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -249,7 +249,7 @@ func (ui *AdminUI) handleAPIInsert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&points); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

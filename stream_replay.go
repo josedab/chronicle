@@ -259,25 +259,25 @@ func (e *StreamReplayEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			EndTime   int64   `json:"end_time"`
 			Speed     float64 `json:"speed"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		session, err := e.CreateReplay(req.Metric, req.StartTime, req.EndTime, req.Speed, nil)
-		if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(session)
 	})
 	mux.HandleFunc("/api/v1/replay/start", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req struct { SessionID string `json:"session_id"` }
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
-		if err := e.StartReplay(req.SessionID); err != nil { http.Error(w, err.Error(), http.StatusNotFound); return }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
+		if err := e.StartReplay(req.SessionID); err != nil { http.Error(w, "not found", http.StatusNotFound); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "started"})
 	})
 	mux.HandleFunc("/api/v1/replay/cancel", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req struct { SessionID string `json:"session_id"` }
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
-		if err := e.CancelReplay(req.SessionID); err != nil { http.Error(w, err.Error(), http.StatusNotFound); return }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
+		if err := e.CancelReplay(req.SessionID); err != nil { http.Error(w, "not found", http.StatusNotFound); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
 	})

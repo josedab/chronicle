@@ -370,12 +370,12 @@ func (cp *SaaSControlPlane) TenantMiddleware(next http.HandlerFunc) http.Handler
 
 		tenantID, err := cp.ValidateAPIKey(key)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusForbidden)
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 
 		if err := cp.CheckQuota(tenantID); err != nil {
-			http.Error(w, err.Error(), http.StatusTooManyRequests)
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}
 

@@ -162,7 +162,7 @@ func (e *FeatureFlagEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/flags/toggle", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req struct { Name string `json:"name"`; Enabled bool `json:"enabled"` }
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		if req.Enabled { e.Enable(req.Name) } else { e.Disable(req.Name) }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})

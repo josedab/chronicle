@@ -418,7 +418,7 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var event SDKEvent
 		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.Track(event); err != nil {
@@ -437,7 +437,7 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var events []SDKEvent
 		if err := json.NewDecoder(r.Body).Decode(&events); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		tracked := 0
@@ -461,7 +461,7 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Platform  string `json:"platform"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		session := e.StartSession(req.SessionID, req.AppID, req.Platform)

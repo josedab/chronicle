@@ -334,11 +334,11 @@ func (e *SLOEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var slo SLODefinition
 			if err := json.NewDecoder(r.Body).Decode(&slo); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.AddSLO(slo); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -385,11 +385,11 @@ func (e *SLOEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Good bool   `json:"good"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.RecordEvent(req.SLO, req.Good); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

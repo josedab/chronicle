@@ -702,7 +702,7 @@ func (e *DeclarativeAlertingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 				return
 			}
 			if err := e.UnloadAlert(name); err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
@@ -718,7 +718,7 @@ func (e *DeclarativeAlertingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var def AlertDefinition
 		if err := json.NewDecoder(r.Body).Decode(&def); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		result := e.ValidateDefinition(def)
@@ -743,7 +743,7 @@ func (e *DeclarativeAlertingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var tests []AlertTestCase
 		if err := json.NewDecoder(r.Body).Decode(&tests); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		results := e.RunTests(tests)
@@ -783,11 +783,11 @@ func (e *DeclarativeAlertingEngine) handleListDefinitions(w http.ResponseWriter,
 func (e *DeclarativeAlertingEngine) handleLoadDefinition(w http.ResponseWriter, r *http.Request) {
 	var def AlertDefinition
 	if err := json.NewDecoder(r.Body).Decode(&def); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	if err := e.LoadDefinition(def); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)

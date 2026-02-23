@@ -521,7 +521,7 @@ func (e *SchemaInferenceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			}
 			mig, err := e.CreateMigration(req.From, req.To)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")

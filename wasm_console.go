@@ -602,7 +602,7 @@ func (qc *WASMQueryConsole) handleConsoleSave(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := qc.SaveQuery(req.Name, req.Description, req.Query, req.Language); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -645,7 +645,7 @@ func (qc *WASMQueryConsole) handleConsoleExport(w http.ResponseWriter, r *http.R
 
 	data, err := ExportConsoleResults(lastResult, format)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

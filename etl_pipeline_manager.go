@@ -318,12 +318,12 @@ func (pm *ETLPipelineManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 				Labels map[string]string `json:"labels"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			pipeline := NewETLPipeline(DefaultETLPipelineConfig())
 			if err := pm.CreatePipeline(req.Name, pipeline, req.Labels); err != nil {
-				http.Error(w, err.Error(), http.StatusConflict)
+				http.Error(w, "conflict", http.StatusConflict)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)

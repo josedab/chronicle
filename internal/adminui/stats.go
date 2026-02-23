@@ -92,7 +92,7 @@ func (ui *AdminUI) handleAPIQuery(w http.ResponseWriter, r *http.Request) {
 	q, err := ui.db.ParseQuery(query)
 	if err != nil {
 		ui.addQueryHistory(query, time.Since(start), false, err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

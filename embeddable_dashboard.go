@@ -248,7 +248,7 @@ func (d *EmbeddableDashboard) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		layout, err := d.GetLayout(id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -275,7 +275,7 @@ func (d *EmbeddableDashboard) RegisterHTTPHandlers(mux *http.ServeMux) {
 			layoutID = "default"
 		}
 		if err := d.AddPanel(layoutID, panel); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)

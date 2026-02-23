@@ -203,11 +203,11 @@ func (ls *LogStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var record LogRecord
 			if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := ls.WriteLog(record); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)

@@ -412,7 +412,7 @@ func (sd *SchemaDesigner) RegisterHTTPHandlers(mux *http.ServeMux) {
 			}
 			result, err := sd.CreateSchema(schema)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -455,7 +455,7 @@ func (sd *SchemaDesigner) RegisterHTTPHandlers(mux *http.ServeMux) {
 			output, err = sd.GenerateGoCode(id)
 		}
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

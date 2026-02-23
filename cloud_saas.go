@@ -559,12 +559,12 @@ func (e *CloudSaaSEngine) handleOrgs(w http.ResponseWriter, r *http.Request) {
 			Tier  CloudTier `json:"tier"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		org, err := e.CreateOrganization(req.Name, req.Email, req.Tier)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

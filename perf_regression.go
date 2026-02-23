@@ -526,7 +526,7 @@ func (e *PerfRegressionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 				Results   []BenchRunResult `json:"results"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.UpdateBaseline(r.Context(), req.CommitSHA, req.Results); err != nil {

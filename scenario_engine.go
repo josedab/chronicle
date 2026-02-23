@@ -270,11 +270,11 @@ func (e *ScenarioEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var config ScenarioConfig
 			if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.CreateScenario(config); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -293,7 +293,7 @@ func (e *ScenarioEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := e.CompareScenario(name)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		json.NewEncoder(w).Encode(result)

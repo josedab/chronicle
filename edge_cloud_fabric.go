@@ -363,11 +363,11 @@ func (e *EdgeCloudFabricEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var ep FabricEndpoint
 			if err := json.NewDecoder(r.Body).Decode(&ep); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.AddEndpoint(ep); err != nil {
-				http.Error(w, err.Error(), http.StatusConflict)
+				http.Error(w, "conflict", http.StatusConflict)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -387,12 +387,12 @@ func (e *EdgeCloudFabricEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Direction  SyncDirection `json:"direction"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		job, err := e.TriggerSync(req.EndpointID, req.Direction)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -426,7 +426,7 @@ func (e *EdgeCloudFabricEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var policy SyncPolicy
 			if err := json.NewDecoder(r.Body).Decode(&policy); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			e.AddPolicy(policy)

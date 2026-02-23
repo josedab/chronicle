@@ -201,7 +201,7 @@ func (e *RateControllerEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Metric string `json:"metric"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		allowed := e.Allow(req.Metric)
@@ -218,7 +218,7 @@ func (e *RateControllerEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Limit  int64  `json:"limit"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		e.SetMetricLimit(req.Metric, req.Limit)

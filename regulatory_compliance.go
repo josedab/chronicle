@@ -697,7 +697,7 @@ func (e *RegulatoryComplianceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := e.AssessCompliance(fw)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -710,7 +710,7 @@ func (e *RegulatoryComplianceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := e.GenerateReport(fw)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

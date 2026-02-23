@@ -885,7 +885,7 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		session, err := e.CreateReplay(req)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -902,7 +902,7 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			id = strings.TrimSuffix(id, "/next")
 			frame, err := e.NextFrame(id)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -925,7 +925,7 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		created, err := e.CreateWhatIf(scenario)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -942,7 +942,7 @@ func (e *TimeTravelDebugEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			id = strings.TrimSuffix(id, "/run")
 			result, err := e.RunWhatIf(id)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")

@@ -54,7 +54,7 @@ func (r *OTLPDistroReceiver) handleMetrics(w http.ResponseWriter, req *http.Requ
 	// Parse and push metrics
 	var otlpReq otlpExportRequest
 	if err := json.NewDecoder(req.Body).Decode(&otlpReq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

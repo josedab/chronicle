@@ -400,11 +400,11 @@ func (e *RelabelEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var rule RelabelRule
 			if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := e.AddRule(rule); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)

@@ -869,12 +869,12 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Values []float64 `json:"values"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		profile, err := ca.ProfileMetric(req.Metric, req.Values)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -900,7 +900,7 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Values []float64 `json:"values"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		benchmarks, err := ca.BenchmarkAll(req.Metric, req.Values)
@@ -923,7 +923,7 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := ca.ApplyRecommendation(metric); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

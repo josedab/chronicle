@@ -285,7 +285,7 @@ func (e *ChaosRecoveryEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		result, err := e.RunScenario(id)
-		if err != nil { http.Error(w, err.Error(), http.StatusNotFound); return }
+		if err != nil { http.Error(w, "not found", http.StatusNotFound); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})

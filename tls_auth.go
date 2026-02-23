@@ -963,7 +963,7 @@ func (m *AuthManager) handleCreateToken(w http.ResponseWriter, r *http.Request) 
 
 	result, err := m.tokenManager.CreateToken(req.Name, req.Scopes, req.RateLimit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -1000,7 +1000,7 @@ func (m *AuthManager) handleRevokeToken(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := m.tokenManager.RevokeToken(tokenID); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 

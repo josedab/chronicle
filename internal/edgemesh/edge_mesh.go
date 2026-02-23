@@ -766,14 +766,14 @@ func (m *EdgeMesh) handleSync(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		gr, err := gzip.NewReader(bytes.NewReader(body))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		body, _ = io.ReadAll(gr) //nolint:errcheck // best-effort decompression
@@ -781,7 +781,7 @@ func (m *EdgeMesh) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -819,7 +819,7 @@ func (m *EdgeMesh) handleSync(w http.ResponseWriter, r *http.Request) {
 func (m *EdgeMesh) handleGossip(w http.ResponseWriter, r *http.Request) {
 	var gossip MeshGossipMessage
 	if err := json.NewDecoder(r.Body).Decode(&gossip); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -846,7 +846,7 @@ func (m *EdgeMesh) handleGossip(w http.ResponseWriter, r *http.Request) {
 func (m *EdgeMesh) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	var heartbeat MeshHeartbeat
 	if err := json.NewDecoder(r.Body).Decode(&heartbeat); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -860,7 +860,7 @@ func (m *EdgeMesh) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 func (m *EdgeMesh) handleOperations(w http.ResponseWriter, r *http.Request) {
 	var req MeshOperationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

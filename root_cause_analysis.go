@@ -854,12 +854,12 @@ func (e *RootCauseAnalysisEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			EndTime   time.Time `json:"end_time"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		incident, err := e.AnalyzeIncident(req.Metrics, req.StartTime, req.EndTime)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -914,11 +914,11 @@ func (e *RootCauseAnalysisEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			CorrectCause string `json:"correct_cause"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.ProvideFeedback(req.IncidentID, req.CorrectCause); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

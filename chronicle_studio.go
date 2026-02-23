@@ -741,12 +741,12 @@ func (s *ChronicleStudio) handleProjects(w http.ResponseWriter, r *http.Request)
 			Owner       string `json:"owner"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		p, err := s.CreateProject(req.Name, req.Description, req.Owner)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -771,14 +771,14 @@ func (s *ChronicleStudio) handleProject(w http.ResponseWriter, r *http.Request) 
 	case http.MethodGet:
 		p, err := s.GetProject(id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(p)
 	case http.MethodDelete:
 		if err := s.DeleteProject(id); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -798,12 +798,12 @@ func (s *ChronicleStudio) handleCreateNotebook(w http.ResponseWriter, r *http.Re
 		Author    string `json:"author"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	nb, err := s.CreateNotebook(req.ProjectID, req.Name, req.Author)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -823,7 +823,7 @@ func (s *ChronicleStudio) handleNotebook(w http.ResponseWriter, r *http.Request)
 	}
 	nb, err := s.GetNotebook(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -841,12 +841,12 @@ func (s *ChronicleStudio) handleAddCell(w http.ResponseWriter, r *http.Request) 
 		Content    string         `json:"content"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	cell, err := s.AddCell(req.NotebookID, req.Type, req.Content)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -863,11 +863,11 @@ func (s *ChronicleStudio) handleCell(w http.ResponseWriter, r *http.Request) {
 			Content    string `json:"content"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := s.UpdateCell(req.NotebookID, req.CellID, req.Content); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -877,11 +877,11 @@ func (s *ChronicleStudio) handleCell(w http.ResponseWriter, r *http.Request) {
 			CellID     string `json:"cell_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := s.DeleteCell(req.NotebookID, req.CellID); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -900,12 +900,12 @@ func (s *ChronicleStudio) handleExecuteCell(w http.ResponseWriter, r *http.Reque
 		CellID     string `json:"cell_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	output, err := s.ExecuteCell(req.NotebookID, req.CellID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -932,12 +932,12 @@ func (s *ChronicleStudio) handleExport(w http.ResponseWriter, r *http.Request) {
 		Format     string `json:"format"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	result, err := s.ExportNotebook(req.NotebookID, req.Format)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

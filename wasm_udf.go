@@ -446,11 +446,11 @@ func (e *WASMUDFEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var def UDFDefinition
 		if err := json.NewDecoder(r.Body).Decode(&def); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.Register(def); err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
+			http.Error(w, "conflict", http.StatusConflict)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -467,12 +467,12 @@ func (e *WASMUDFEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Args map[string]interface{} `json:"args"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		result, err := e.Invoke(req.Name, req.Args)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -506,11 +506,11 @@ func (e *WASMUDFEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Name string `json:"name"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.Unregister(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

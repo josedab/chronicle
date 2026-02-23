@@ -1083,7 +1083,7 @@ func (m *AuditTrailManager) handleComplianceReport(w http.ResponseWriter, r *htt
 
 	report, err := m.GenerateComplianceReport(r.Context(), framework, start, end)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

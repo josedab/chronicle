@@ -238,9 +238,9 @@ func (e *SmartCompactionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/compaction/trigger", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req struct { PartitionIDs []string `json:"partition_ids"` }
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		job, err := e.TriggerCompaction(req.PartitionIDs)
-		if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(job)
 	})

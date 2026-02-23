@@ -200,12 +200,12 @@ func (e *HotBackupEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			SizeBytes  int64 `json:"size_bytes"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		manifest, err := e.CreateBackup(req.PointCount, req.SizeBytes)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -220,11 +220,11 @@ func (e *HotBackupEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			ID string `json:"id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.DeleteBackup(req.ID); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

@@ -159,7 +159,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 			plan, err := compiler.Compile(string(body))
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			writeJSON(w, plan)
@@ -376,7 +376,7 @@ func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := engine.Execute(r.Context(), string(body))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, result)
@@ -411,7 +411,7 @@ func handleCQLExplain(engine *CQLEngine, w http.ResponseWriter, r *http.Request)
 	}
 	result, err := engine.Explain(string(body))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, result)

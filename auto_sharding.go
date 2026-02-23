@@ -861,7 +861,7 @@ func (e *AutoShardingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 				return
 			}
 			if err := e.AddNode(node); err != nil {
-				http.Error(w, err.Error(), http.StatusConflict)
+				http.Error(w, "conflict", http.StatusConflict)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -883,7 +883,7 @@ func (e *AutoShardingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.RemoveNode(nodeID); err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -901,7 +901,7 @@ func (e *AutoShardingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		plan, err := e.Rebalance()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -934,7 +934,7 @@ func (e *AutoShardingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 		node, err := e.GetNodeForMetric(metric, tags)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

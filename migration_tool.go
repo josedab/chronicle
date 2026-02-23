@@ -297,14 +297,14 @@ func (e *ImportEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/migrate/influx", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		result, err := e.ImportInfluxLineProtocol(r.Body)
-		if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})
 	mux.HandleFunc("/api/v1/migrate/csv", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		result, err := e.ImportCSV(r.Body)
-		if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+		if err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})

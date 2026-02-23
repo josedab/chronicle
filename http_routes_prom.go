@@ -25,17 +25,17 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		decoded, err := snappy.Decode(nil, body)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		var req prompb.WriteRequest
 		if err := req.Unmarshal(decoded); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		points := convertPromWrite(&req)

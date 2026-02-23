@@ -808,7 +808,7 @@ func (g *GRPCIngestionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var req WriteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := g.HandleWrite(r.Context(), &req); err != nil {
@@ -826,7 +826,7 @@ func (g *GRPCIngestionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var req QueryRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		resp, err := g.HandleQuery(r.Context(), &req)
@@ -911,7 +911,7 @@ func (g *GRPCIngestionEngine) handleOTLPExport(w http.ResponseWriter, r *http.Re
 func (g *GRPCIngestionEngine) handleOTLPHTTPMetrics(w http.ResponseWriter, r *http.Request) {
 	var batch OTLPMetricBatch
 	if err := json.NewDecoder(io.LimitReader(r.Body, int64(g.config.MaxMessageSize))).Decode(&batch); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

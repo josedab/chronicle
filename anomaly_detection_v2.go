@@ -1120,7 +1120,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Tags   map[string]string `json:"tags"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		result := e.Ingest(req.Metric, req.Value, req.Tags, time.Now())
@@ -1146,11 +1146,11 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var fb AnomalyFeedback
 		if err := json.NewDecoder(r.Body).Decode(&fb); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.SubmitFeedback(fb); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

@@ -749,7 +749,7 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.EnablePack(std); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -768,7 +768,7 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.DisablePack(std); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -788,7 +788,7 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := e.ValidatePack(std)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -803,7 +803,7 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := e.GenerateReport(std)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -834,7 +834,7 @@ func (e *CompliancePacksEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.ClassifyMetric(dc); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)

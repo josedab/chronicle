@@ -789,7 +789,7 @@ func (b *VisualQueryBuilder) HandleGetSchema(w http.ResponseWriter, r *http.Requ
 func (b *VisualQueryBuilder) HandleAutocomplete(w http.ResponseWriter, r *http.Request) {
 	var req AutocompleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -807,7 +807,7 @@ func (b *VisualQueryBuilder) HandleAutocomplete(w http.ResponseWriter, r *http.R
 func (b *VisualQueryBuilder) HandleGenerateQuery(w http.ResponseWriter, r *http.Request) {
 	var vq VisualQuerySpec
 	if err := json.NewDecoder(r.Body).Decode(&vq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -825,7 +825,7 @@ func (b *VisualQueryBuilder) HandleGenerateQuery(w http.ResponseWriter, r *http.
 func (b *VisualQueryBuilder) HandleValidateQuery(w http.ResponseWriter, r *http.Request) {
 	var vq VisualQuerySpec
 	if err := json.NewDecoder(r.Body).Decode(&vq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -845,13 +845,13 @@ func (b *VisualQueryBuilder) HandleParseSQL(w http.ResponseWriter, r *http.Reque
 		SQL string `json:"sql"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	vq, err := b.ParseFromSQL(req.SQL)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

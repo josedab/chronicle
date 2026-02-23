@@ -559,7 +559,7 @@ func (c *Cluster) sendAppendEntries(node *ClusterNode, entries []LogEntry) {
 func (c *Cluster) handleVoteRequest(w http.ResponseWriter, r *http.Request) {
 	var req VoteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -599,7 +599,7 @@ func (c *Cluster) handleVoteRequest(w http.ResponseWriter, r *http.Request) {
 func (c *Cluster) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
 	var req AppendEntriesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -652,7 +652,7 @@ func (c *Cluster) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
 func (c *Cluster) handleGossip(w http.ResponseWriter, r *http.Request) {
 	var gossip GossipMessage
 	if err := json.NewDecoder(r.Body).Decode(&gossip); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -690,14 +690,14 @@ func (c *Cluster) handleGossip(w http.ResponseWriter, r *http.Request) {
 func (c *Cluster) handleReplicate(w http.ResponseWriter, r *http.Request) {
 	var entry LogEntry
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	if entry.Type == LogEntryWrite {
 		var p Point
 		if err := json.Unmarshal(entry.Data, &p); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := c.pw.WritePoint(p); err != nil {

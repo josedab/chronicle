@@ -230,12 +230,12 @@ func (e *WebhookEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var ep WebhookEndpoint
 		if err := json.NewDecoder(r.Body).Decode(&ep); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		id, err := e.Register(ep)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -251,7 +251,7 @@ func (e *WebhookEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Payload string `json:"payload"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		deliveries := e.Emit(req.Event, req.Payload)

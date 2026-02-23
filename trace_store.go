@@ -153,11 +153,11 @@ func (ts *TraceStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var span Span
 			if err := json.NewDecoder(r.Body).Decode(&span); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := ts.WriteSpan(span); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)

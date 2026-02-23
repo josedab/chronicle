@@ -763,7 +763,7 @@ func (e *TenantGovernanceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		usage, err := e.GetUsage(tenantID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		json.NewEncoder(w).Encode(usage)
@@ -804,7 +804,7 @@ func (e *TenantGovernanceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 func (e *TenantGovernanceEngine) handleCreateBudget(w http.ResponseWriter, r *http.Request) {
 	var budget ResourceBudget
 	if err := json.NewDecoder(r.Body).Decode(&budget); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	if budget.TenantID == "" {
@@ -812,7 +812,7 @@ func (e *TenantGovernanceEngine) handleCreateBudget(w http.ResponseWriter, r *ht
 		return
 	}
 	if err := e.CreateBudget(budget.TenantID, budget); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		http.Error(w, "conflict", http.StatusConflict)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -834,7 +834,7 @@ func (e *TenantGovernanceEngine) handleListBudgets(w http.ResponseWriter, _ *htt
 func (e *TenantGovernanceEngine) handleGetBudget(w http.ResponseWriter, tenantID string) {
 	budget, err := e.GetBudget(tenantID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -844,11 +844,11 @@ func (e *TenantGovernanceEngine) handleGetBudget(w http.ResponseWriter, tenantID
 func (e *TenantGovernanceEngine) handleUpdateBudget(w http.ResponseWriter, r *http.Request, tenantID string) {
 	var budget ResourceBudget
 	if err := json.NewDecoder(r.Body).Decode(&budget); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	if err := e.UpdateBudget(tenantID, budget); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -863,7 +863,7 @@ func (e *TenantGovernanceEngine) handleAdmit(w http.ResponseWriter, r *http.Requ
 		PointCount    int     `json:"point_count"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -892,7 +892,7 @@ func (e *TenantGovernanceEngine) handleAdmit(w http.ResponseWriter, r *http.Requ
 func (e *TenantGovernanceEngine) handleChargebackReport(w http.ResponseWriter, r *http.Request, tenantID string) {
 	start, end, err := parseTimeRange(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -913,7 +913,7 @@ func (e *TenantGovernanceEngine) handleChargebackReport(w http.ResponseWriter, r
 func (e *TenantGovernanceEngine) handleMeteringRecords(w http.ResponseWriter, r *http.Request, tenantID string) {
 	start, end, err := parseTimeRange(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 

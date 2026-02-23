@@ -415,11 +415,11 @@ func (s *NativeHistogramStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPost:
 			var h NativeHistogram
 			if err := json.NewDecoder(r.Body).Decode(&h); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			if err := s.Write(h); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -439,7 +439,7 @@ func (s *NativeHistogramStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Quantile float64           `json:"quantile"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 

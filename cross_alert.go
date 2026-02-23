@@ -223,7 +223,7 @@ func (e *CrossAlertEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var metrics map[string]float64
 		if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

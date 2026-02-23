@@ -265,14 +265,14 @@ func (g *GrafanaBackend) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	var req GrafanaQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	// Parse time range
 	from, to, err := g.parseTimeRange(req.From, req.To)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -446,7 +446,7 @@ func (g *GrafanaBackend) getAnnotations(w http.ResponseWriter, r *http.Request) 
 func (g *GrafanaBackend) createAnnotation(w http.ResponseWriter, r *http.Request) {
 	var ann GrafanaAnnotation
 	if err := json.NewDecoder(r.Body).Decode(&ann); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -647,7 +647,7 @@ func (g *GrafanaBackend) handleAlerts(w http.ResponseWriter, r *http.Request) {
 func (g *GrafanaBackend) createAlertRule(w http.ResponseWriter, r *http.Request) {
 	var rule GrafanaAlertRule
 	if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -675,7 +675,7 @@ func (g *GrafanaBackend) createAlertRule(w http.ResponseWriter, r *http.Request)
 			alertRule.ForDuration, _ = g.parseDuration(rule.For) //nolint:errcheck // best-effort response encoding
 		}
 		if err := g.alertMgr.AddRule(alertRule); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 	}

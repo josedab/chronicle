@@ -495,12 +495,12 @@ func (e *AnomalyExplainabilityEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Time   time.Time `json:"time"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		expl, err := e.ExplainAnomaly(req.Metric, req.Value, req.Time)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -514,12 +514,12 @@ func (e *AnomalyExplainabilityEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var ctx ExplainabilityContext
 		if err := json.NewDecoder(r.Body).Decode(&ctx); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		expl, err := e.ExplainWithContext(ctx)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

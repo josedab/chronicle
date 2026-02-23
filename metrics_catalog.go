@@ -909,7 +909,7 @@ func (mc *MetricsCatalog) handleDeprecate(w http.ResponseWriter, r *http.Request
 	}
 	report, err := mc.DeprecateMetric(req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
