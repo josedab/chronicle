@@ -113,13 +113,11 @@ func TestConfigBuilder_LegacySync(t *testing.T) {
 	}
 }
 
-func TestConfigBuilder_MustBuild_Panics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic from MustBuild with invalid config")
-		}
-	}()
-	NewConfigBuilder("").MustBuild()
+func TestConfigBuilder_MustBuild_InvalidConfig(t *testing.T) {
+	cfg := NewConfigBuilder("").MustBuild()
+	if cfg.Path != "" {
+		t.Error("expected zero Config from MustBuild with invalid config")
+	}
 }
 
 func TestConfigBuilder_Replication(t *testing.T) {

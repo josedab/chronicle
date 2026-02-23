@@ -1,6 +1,9 @@
 package chronicle
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 // ConfigBuilder provides a fluent API for constructing a [Config].
 // It starts from [DefaultConfig] defaults, so only fields that differ
@@ -175,11 +178,16 @@ func (b *ConfigBuilder) Build() (Config, error) {
 	return b.cfg, nil
 }
 
-// MustBuild is like [ConfigBuilder.Build] but panics on validation errors.
+// MustBuild is like [ConfigBuilder.Build] but logs and returns a zero Config on
+// validation errors instead of panicking.
+//
+// Deprecated: Prefer [ConfigBuilder.Build] which returns an error for proper
+// error handling.
 func (b *ConfigBuilder) MustBuild() Config {
 	cfg, err := b.Build()
 	if err != nil {
-		panic("chronicle: invalid config: " + err.Error())
+		log.Printf("chronicle: invalid config: %v", err)
+		return Config{}
 	}
 	return cfg
 }
