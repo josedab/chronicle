@@ -72,7 +72,7 @@ func (s *BenchRunSuite) RunWrite() BenchRunResult {
 		latencies = append(latencies, time.Since(opStart))
 		totalPoints++
 	}
-	_ = s.db.Flush() //nolint:errcheck // benchmark cleanup
+	flushQuietly(s.db)
 
 	elapsed := time.Since(start)
 	return BenchRunResult{
@@ -97,7 +97,7 @@ func (s *BenchRunSuite) RunQuery() BenchRunResult {
 			Tags:      map[string]string{"bench": "true"},
 		})
 	}
-	_ = s.db.Flush() //nolint:errcheck // benchmark cleanup
+	flushQuietly(s.db)
 
 	var latencies []time.Duration
 	totalPoints := 0

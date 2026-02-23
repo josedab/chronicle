@@ -47,6 +47,6 @@ var (
 
 // StorageBackendFromReader creates a simple ReadCloser-based reader.
 func StorageBackendFromReader(r io.ReadCloser) ([]byte, error) {
-	defer func() { _ = r.Close() }() //nolint:errcheck // reader close is best-effort
+	defer closeQuietly(r)
 	return io.ReadAll(r)
 }

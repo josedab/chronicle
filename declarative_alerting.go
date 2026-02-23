@@ -539,7 +539,7 @@ func (e *DeclarativeAlertingEngine) RunTest(tc AlertTestCase) *AlertTestResult {
 				Timestamp: ts,
 			})
 		}
-		_ = e.db.Flush() //nolint:errcheck // best-effort alert dispatch
+		flushQuietly(e.db)
 	}
 
 	firing := e.evaluateConditions(def)

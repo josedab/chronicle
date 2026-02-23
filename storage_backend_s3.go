@@ -237,7 +237,7 @@ func (s *S3Backend) Read(ctx context.Context, key string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("S3 get object failed: %w", err)
 		}
-		defer func() { _ = resp.Body.Close() }() //nolint:errcheck // HTTP body close is best-effort
+		defer closeQuietly(resp.Body)
 
 		d, err := io.ReadAll(resp.Body)
 		if err != nil {

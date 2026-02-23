@@ -278,7 +278,7 @@ func (e *UsageMeteringEngine) sendBillingWebhook(tenantID string, record TenantU
 	if err != nil {
 		return
 	}
-	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // HTTP body close is best-effort
+	defer closeQuietly(resp.Body)
 }
 
 // Start begins the metering collection loop.

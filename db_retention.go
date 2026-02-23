@@ -174,24 +174,24 @@ func (db *DB) compact() error {
 	}
 
 	if err := initStorage(tempFile); err != nil {
-		_ = tempFile.Close() //nolint:errcheck // cleanup on error path
+		closeQuietly(tempFile)
 		return err
 	}
 
 	for _, part := range db.index.partitions {
 		if err := persistPartition(tempFile, part); err != nil {
-			_ = tempFile.Close() //nolint:errcheck // cleanup on error path
+			closeQuietly(tempFile)
 			return err
 		}
 	}
 
 	if err := persistIndex(tempFile, db.index); err != nil {
-		_ = tempFile.Close() //nolint:errcheck // cleanup on error path
+		closeQuietly(tempFile)
 		return err
 	}
 
 	if err := tempFile.Sync(); err != nil {
-		_ = tempFile.Close() //nolint:errcheck // cleanup on error path
+		closeQuietly(tempFile)
 		return err
 	}
 

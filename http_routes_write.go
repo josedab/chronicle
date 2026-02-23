@@ -26,7 +26,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
-			defer func() { _ = gz.Close() }() //nolint:errcheck // best-effort cleanup
+			defer closeQuietly(gz)
 			reader = io.LimitReader(gz, maxBodySize)
 		}
 

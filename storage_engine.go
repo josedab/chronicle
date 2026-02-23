@@ -64,20 +64,20 @@ func NewStorageEngine(cfg StorageEngineConfig) (*StorageEngine, error) {
 	se.file = file
 
 	if err := initStorage(file); err != nil {
-		_ = file.Close() //nolint:errcheck // best-effort cleanup
+		closeQuietly(file)
 		return nil, err
 	}
 
 	se.wal, err = NewWAL(cfg.Path+".wal", cfg.WAL.SyncInterval, cfg.WAL.WALMaxSize, cfg.WAL.WALRetain)
 	if err != nil {
-		_ = file.Close() //nolint:errcheck // best-effort cleanup
+		closeQuietly(file)
 		return nil, err
 	}
 
 	se.index, err = loadIndex(file)
 	if err != nil {
-		_ = file.Close() //nolint:errcheck // best-effort cleanup
-		_ = se.wal.Close() //nolint:errcheck // best-effort cleanup
+		closeQuietly(file)
+		closeQuietly(se.wal)
 		return nil, err
 	}
 
