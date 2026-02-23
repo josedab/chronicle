@@ -469,197 +469,35 @@ func (fm *FeatureManager) SchemaRegistry() *SchemaRegistry {
 }
 
 // CQLEngine returns the CQL query engine.
-func (fm *FeatureManager) CQLEngine() *CQLEngine {
-	fm.cqlEngineOnce.Do(func() {
-		safeInit("cql", func() {
-			fm.cqlEngine = NewCQLEngine(fm.db, fm.cqlConfig)
-		})
-	})
-	return fm.cqlEngine
-}
-
 // Observability returns the observability suite.
-func (fm *FeatureManager) Observability() *ObservabilitySuite {
-	fm.observabilityOnce.Do(func() {
-		safeInit("observability", func() {
-			fm.observability = NewObservabilitySuite(fm.observabilityConfig)
-		})
-	})
-	return fm.observability
-}
-
 // MaterializedViews returns the V1 materialized view engine.
 //
 // Deprecated: Use [FeatureManager.MaterializedViewsV2] instead.
-func (fm *FeatureManager) MaterializedViews() *MaterializedViewEngine {
-	fm.materializedViewsOnce.Do(func() {
-		safeInit("materialized_views", func() {
-			fm.materializedViews = NewMaterializedViewEngine(fm.db, fm.materializedViewsConfig)
-		})
-	})
-	return fm.materializedViews
-}
-
 // ChaosInjector returns the fault injector.
-func (fm *FeatureManager) ChaosInjector() *FaultInjector {
-	fm.chaosInjectorOnce.Do(func() {
-		safeInit("chaos", func() {
-			fm.chaosInjector = NewFaultInjector(DefaultChaosConfig())
-		})
-	})
-	return fm.chaosInjector
-}
-
 // OfflineSync returns the offline sync manager.
-func (fm *FeatureManager) OfflineSync() *OfflineSyncManager {
-	fm.offlineSyncOnce.Do(func() {
-		safeInit("offline_sync", func() {
-			fm.offlineSync = NewOfflineSyncManager(DefaultOfflineSyncConfig())
-		})
-	})
-	return fm.offlineSync
-}
-
 // AnomalyPipeline returns the streaming anomaly detection pipeline.
-func (fm *FeatureManager) AnomalyPipeline() *AnomalyPipeline {
-	fm.anomalyPipelineOnce.Do(func() {
-		safeInit("anomaly_pipeline", func() {
-			fm.anomalyPipeline = NewAnomalyPipeline(fm.db, DefaultAnomalyPipelineConfig())
-		})
-	})
-	return fm.anomalyPipeline
-}
-
 // AnomalyCorrelation returns the anomaly correlation engine.
-func (fm *FeatureManager) AnomalyCorrelation() *AnomalyCorrelationEngine {
-	fm.anomalyCorrelationOnce.Do(func() {
-		safeInit("anomaly_correlation", func() {
-			fm.anomalyCorrelation = NewAnomalyCorrelationEngine(fm.db, DefaultAnomalyCorrelationConfig())
-		})
-	})
-	return fm.anomalyCorrelation
-}
-
 // CloudRelay returns the cloud relay agent.
-func (fm *FeatureManager) CloudRelay() *CloudRelay {
-	fm.cloudRelayOnce.Do(func() {
-		safeInit("cloud_relay", func() {
-			fm.cloudRelay = NewCloudRelay(fm.db, DefaultCloudRelayConfig())
-		})
-	})
-	return fm.cloudRelay
-}
-
 // Playground returns the query playground.
-func (fm *FeatureManager) Playground() *Playground {
-	fm.playgroundOnce.Do(func() {
-		safeInit("playground", func() {
-			fm.playground = NewPlayground(fm.db, DefaultPlaygroundConfig())
-		})
-	})
-	return fm.playground
-}
-
 // QueryPlanner returns the adaptive query planner.
-func (fm *FeatureManager) QueryPlanner() *QueryPlanner {
-	fm.queryPlannerOnce.Do(func() {
-		safeInit("query_planner", func() {
-			fm.queryPlanner = NewQueryPlanner(fm.db, DefaultQueryPlannerConfig())
-		})
-	})
-	return fm.queryPlanner
-}
-
 // ConnectorHub returns the connector hub.
-func (fm *FeatureManager) ConnectorHub() *ConnectorHub {
-	fm.connectorHubOnce.Do(func() {
-		safeInit("connector_hub", func() {
-			fm.connectorHub = NewConnectorHub(fm.db, DefaultConnectorHubConfig())
-		})
-	})
-	return fm.connectorHub
-}
-
 // Autoscaler returns the predictive autoscaler.
-func (fm *FeatureManager) Autoscaler() *PredictiveAutoscaler {
-	fm.autoscalerOnce.Do(func() {
-		fm.autoscaler = NewPredictiveAutoscaler(fm.db, DefaultPredictiveAutoscalingConfig())
-	})
-	return fm.autoscaler
-}
-
 // NotebookEngine returns the notebook engine.
-func (fm *FeatureManager) NotebookEngine() *NotebookEngine {
-	fm.notebookEngineOnce.Do(func() {
-		fm.notebookEngine = NewNotebookEngine(fm.db, DefaultNotebookConfig())
-	})
-	return fm.notebookEngine
-}
-
 // SaaSControlPlane returns the SaaS control plane.
-func (fm *FeatureManager) SaaSControlPlane() *SaaSControlPlane {
-	fm.saasControlPlaneOnce.Do(func() {
-		fm.saasControlPlane = NewSaaSControlPlane(fm.db, DefaultSaaSControlPlaneConfig())
-	})
-	return fm.saasControlPlane
-}
-
 // GitOpsEngine returns the GitOps engine.
-func (fm *FeatureManager) GitOpsEngine() *GitOpsEngine {
-	fm.gitopsEngineOnce.Do(func() {
-		fm.gitopsEngine = NewGitOpsEngine(fm.db, DefaultGitOpsConfig())
-	})
-	return fm.gitopsEngine
-}
-
 // FederatedMLTrainer returns the federated ML trainer.
-func (fm *FeatureManager) FederatedMLTrainer() *FederatedMLTrainer {
-	fm.federatedMLOnce.Do(func() {
-		fm.federatedML = NewFederatedMLTrainer(fm.db, DefaultFederatedMLConfig())
-	})
-	return fm.federatedML
-}
-
 // EdgeMesh returns the edge mesh network manager.
 func (fm *FeatureManager) EdgeMesh() *EdgeMesh {
 	fm.edgeMeshOnce.Do(func() {
-		fm.edgeMesh, _ = NewEdgeMesh(fm.db, DefaultEdgeMeshConfig())
+		fm.edgeMesh, _ = NewEdgeMesh(fm.db, DefaultEdgeMeshConfig()) //nolint:errcheck // EdgeMesh init is best-effort
 	})
 	return fm.edgeMesh
 }
 
 // QueryCompiler returns the unified query compiler.
-func (fm *FeatureManager) QueryCompiler() *QueryCompiler {
-	fm.queryCompilerOnce.Do(func() {
-		fm.queryCompiler = NewQueryCompiler(fm.db, DefaultQueryCompilerConfig())
-	})
-	return fm.queryCompiler
-}
-
 // EdgePlatform returns the edge platform manager.
-func (fm *FeatureManager) EdgePlatform() *EdgePlatformManager {
-	fm.edgePlatformOnce.Do(func() {
-		fm.edgePlatform = NewEdgePlatformManager()
-	})
-	return fm.edgePlatform
-}
-
 // TSRAG returns the time-series RAG engine.
-func (fm *FeatureManager) TSRAG() *TSRAGEngine {
-	fm.tsRAGOnce.Do(func() {
-		fm.tsRAG = NewTSRAGEngine(fm.db, DefaultTSRAGConfig())
-	})
-	return fm.tsRAG
-}
-
 // PluginRegistry returns the plugin registry.
-func (fm *FeatureManager) PluginRegistry() *PluginRegistry {
-	fm.pluginRegistryOnce.Do(func() {
-		fm.pluginRegistry = NewPluginRegistry(DefaultPluginSDKConfig())
-	})
-	return fm.pluginRegistry
-}
-
 // PluginMarketplace returns the plugin marketplace.
 func (fm *FeatureManager) PluginMarketplace() *PluginMarketplace {
 	fm.pluginMarketplaceOnce.Do(func() {
