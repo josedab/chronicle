@@ -504,12 +504,12 @@ func (qa *QueryAssistant) Suggest() []QuerySuggestion {
 			break
 		}
 		suggestions = append(suggestions, QuerySuggestion{
-			Query:       fmt.Sprintf("SELECT mean(value) FROM %s WHERE time > now() - 1h GROUP BY time(5m)", metric),
+			Query:       fmt.Sprintf("SELECT mean(value) FROM %s WHERE time > now() - 1h GROUP BY time(5m)", sanitizeIdentifier(metric)),
 			Description: fmt.Sprintf("Average %s over the last hour", metric),
 			Category:    "aggregation",
 		})
 		suggestions = append(suggestions, QuerySuggestion{
-			Query:       fmt.Sprintf("SELECT max(value), min(value) FROM %s WHERE time > now() - 24h", metric),
+			Query:       fmt.Sprintf("SELECT max(value), min(value) FROM %s WHERE time > now() - 24h", sanitizeIdentifier(metric)),
 			Description: fmt.Sprintf("Min/max %s over the last 24 hours", metric),
 			Category:    "aggregation",
 		})
