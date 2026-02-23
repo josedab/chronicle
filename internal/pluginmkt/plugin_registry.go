@@ -179,7 +179,23 @@ func (r *PluginRegistry) Install(ctx context.Context, pluginID string, opts Inst
 		return fmt.Errorf("checksum mismatch for plugin: %s", pluginID)
 	}
 
+	// Validate pluginID to prevent path traversal
+	cleanID := filepath.Clean(pluginID)
+	if cleanID != pluginID || strings.Contains(pluginID, "..") || strings.ContainsRune(pluginID, os.PathSeparator) || (os.PathSeparator != '/' && strings.ContainsRune(pluginID, '/')) {
+		r.mu.Lock()
+		delete(r.installed, pluginID)
+		r.mu.Unlock()
+		return fmt.Errorf("invalid plugin ID: %s", pluginID)
+	}
 	installPath := filepath.Join(r.config.PluginsDir, pluginID)
+	absPluginsDir, _ := filepath.Abs(r.config.PluginsDir)
+	absInstallPath, _ := filepath.Abs(installPath)
+	if !strings.HasPrefix(absInstallPath, absPluginsDir+string(os.PathSeparator)) {
+		r.mu.Lock()
+		delete(r.installed, pluginID)
+		r.mu.Unlock()
+		return fmt.Errorf("invalid plugin ID: %s", pluginID)
+	}
 	if err := os.MkdirAll(installPath, 0755); err != nil {
 		r.mu.Lock()
 		delete(r.installed, pluginID)
