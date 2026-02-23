@@ -57,6 +57,13 @@ func jsonError(w http.ResponseWriter, status int, errorType, message string) {
 	}
 }
 
+// internalError logs the real error server-side and returns a generic
+// "internal server error" message to the client, preventing information leakage.
+func internalError(w http.ResponseWriter, err error, msg string) {
+	slog.Error(msg, "err", err)
+	http.Error(w, "internal server error", http.StatusInternalServerError)
+}
+
 // jsonSuccess writes a JSON success response.
 func jsonSuccess(w http.ResponseWriter, data any) {
 	writeJSON(w, map[string]any{
