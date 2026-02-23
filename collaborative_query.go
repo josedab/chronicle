@@ -38,6 +38,10 @@ type CollaborativeQueryConfig struct {
 
 	// HistoryRetention for undo/redo operations
 	HistoryRetention int
+
+	// AllowedOrigins restricts WebSocket CORS to these origins.
+	// An empty list defaults to same-origin only (no wildcard).
+	AllowedOrigins []string
 }
 
 // DefaultCollaborativeQueryConfig returns default configuration.
@@ -871,9 +875,9 @@ func (hub *CollaborativeQueryHub) WebSocketHandler() http.HandlerFunc {
 			return
 		}
 
-		conn, err := newUpgrader(nil).Upgrade(w, r, nil)
+		conn, err := newUpgrader(hub.config.AllowedOrigins).Upgrade(w, r, nil)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 

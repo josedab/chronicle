@@ -539,7 +539,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := newUpgrader(nil).Upgrade(w, r, nil)
+	conn, err := newUpgrader(g.config.AllowedOrigins).Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
