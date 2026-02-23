@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"sort"
 	"sync"
@@ -258,12 +257,12 @@ type MultiRegionReplicationStats struct {
 // Engine
 // ---------------------------------------------------------------------------
 
-func multiRegionGenerateID() string {
+func multiRegionGenerateID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 // MultiRegionReplicationEngine orchestrates active-active replication across regions.
@@ -396,8 +395,13 @@ func (e *MultiRegionReplicationEngine) ReplicateWrite(p Point) error {
 
 	e.vectorClock.Increment(e.config.RegionName)
 
+	genID, err := multiRegionGenerateID()
+	if err != nil {
+		return err
+	}
+
 	event := MRReplicationEvent{
-		ID:           "re-" + multiRegionGenerateID(),
+		ID:           "re-" + genID,
 		Type:         MRReplicationWrite,
 		SourceRegion: e.config.RegionName,
 		Timestamp:    time.Now(),
@@ -434,8 +438,13 @@ func (e *MultiRegionReplicationEngine) ReplicateBatch(points []Point) error {
 
 		e.vectorClock.Increment(e.config.RegionName)
 
+		genID, err := multiRegionGenerateID()
+		if err != nil {
+			return err
+		}
+
 		event := MRReplicationEvent{
-			ID:           "re-" + multiRegionGenerateID(),
+			ID:           "re-" + genID,
 			Type:         MRReplicationWrite,
 			SourceRegion: e.config.RegionName,
 			Timestamp:    time.Now(),
@@ -655,8 +664,7 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 			return
 		}
 		if err := e.ApplySnapshot(snapshot); err != nil {
-			slog.Error("apply snapshot failed", "err", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "apply snapshot failed")
 			return
 		}
 		writeJSON(w, map[string]string{"status": "applied"})

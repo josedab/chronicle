@@ -235,8 +235,9 @@ func (e *ZKQueryEngine) CreateCommitment(ctx context.Context, metric string, tag
 	e.treeMu.Unlock()
 
 	// Create commitment
+	genID1, _ := generateID()
 	commitment := &DataCommitment{
-		ID:           generateID(),
+		ID:           genID1,
 		Root:         tree.Root,
 		Timestamp:    time.Now(),
 		DataHash:     hashData(result.Points),
@@ -393,8 +394,9 @@ func (e *ZKQueryEngine) generateMerkleProof(result *Result, commitment *DataComm
 	}
 
 	// Create aggregated proof
+	genID2, _ := generateID()
 	proof := &ZKProof{
-		ID:           generateID(),
+		ID:           genID2,
 		Type:         ProofMerkleInclusion,
 		CommitmentID: commitment.ID,
 		PublicInputs: map[string]any{
@@ -440,8 +442,9 @@ func (e *ZKQueryEngine) generateSumProof(result *Result, commitment *DataCommitm
 
 	proofBytes, _ := json.Marshal(proofData)
 
+	genID3, _ := generateID()
 	proof := &ZKProof{
-		ID:           generateID(),
+		ID:           genID3,
 		Type:         ProofSumProof,
 		CommitmentID: commitment.ID,
 		PublicInputs: map[string]any{
@@ -478,8 +481,9 @@ func (e *ZKQueryEngine) generateCountProof(result *Result, commitment *DataCommi
 
 	proofBytes, _ := json.Marshal(proofData)
 
+	genID4, _ := generateID()
 	proof := &ZKProof{
-		ID:           generateID(),
+		ID:           genID4,
 		Type:         ProofCountProof,
 		CommitmentID: commitment.ID,
 		PublicInputs: map[string]any{
@@ -536,8 +540,9 @@ func (e *ZKQueryEngine) generateRangeProof(result *Result, commitment *DataCommi
 
 	proofBytes, _ := json.Marshal(proofData)
 
+	genID5, _ := generateID()
 	proof := &ZKProof{
-		ID:           generateID(),
+		ID:           genID5,
 		Type:         ProofRangeProof,
 		CommitmentID: commitment.ID,
 		PublicInputs: map[string]any{

@@ -382,13 +382,15 @@ func BenchmarkHNSWInsert(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		vectors[i] = make([]float32, 32)
 		for j := 0; j < 32; j++ {
-			vectors[i][j] = float32(randFloat64())
+			v, _ := randFloat64()
+			vectors[i][j] = float32(v)
 		}
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		index.Insert(generateID(), vectors[i])
+		id, _ := generateID()
+		index.Insert(id, vectors[i])
 	}
 }
 
@@ -399,14 +401,17 @@ func BenchmarkHNSWSearch(b *testing.B) {
 	for i := 0; i < 1000; i++ {
 		vec := make([]float32, 32)
 		for j := 0; j < 32; j++ {
-			vec[j] = float32(randFloat64())
+			v, _ := randFloat64()
+			vec[j] = float32(v)
 		}
-		index.Insert(generateID(), vec)
+		id, _ := generateID()
+		index.Insert(id, vec)
 	}
 
 	query := make([]float32, 32)
 	for j := 0; j < 32; j++ {
-		query[j] = float32(randFloat64())
+		v, _ := randFloat64()
+		query[j] = float32(v)
 	}
 
 	b.ResetTimer()

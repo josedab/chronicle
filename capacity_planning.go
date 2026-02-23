@@ -432,8 +432,9 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	// Storage recommendations
 	if forecast, ok := forecasts["storage"]; ok && forecast != nil {
 		if forecast.TimeToExhaustion != nil && *forecast.TimeToExhaustion < 7*24*time.Hour {
+			genID1, _ := generateID()
 			rec := &CapacityRecommendation{
-				ID:             generateID(),
+				ID:             genID1,
 				Priority:       PriorityHigh,
 				Category:       CategoryStorage,
 				Title:          "Storage Exhaustion Warning",
@@ -453,8 +454,9 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	if current.StorageLimit > 0 {
 		utilization := float64(current.StorageBytes) / float64(current.StorageLimit)
 		if utilization > 0.8 {
+			genID2, _ := generateID()
 			rec := &CapacityRecommendation{
-				ID:             generateID(),
+				ID:             genID2,
 				Priority:       PriorityMedium,
 				Category:       CategoryRetention,
 				Title:          "Adjust Retention Policy",
@@ -475,8 +477,9 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	if current.SeriesLimit > 0 {
 		utilization := float64(current.SeriesCount) / float64(current.SeriesLimit)
 		if utilization > 0.7 {
+			genID3, _ := generateID()
 			rec := &CapacityRecommendation{
-				ID:             generateID(),
+				ID:             genID3,
 				Priority:       PriorityMedium,
 				Category:       CategoryQuery,
 				Title:          "High Series Cardinality",
@@ -495,8 +498,9 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	// Partition recommendations
 	avgPointsPerPartition := float64(current.PointsCount) / float64(max(current.PartitionCount, 1))
 	if avgPointsPerPartition > 10000000 { // 10M points per partition
+		genID4, _ := generateID()
 		rec := &CapacityRecommendation{
-			ID:             generateID(),
+			ID:             genID4,
 			Priority:       PriorityLow,
 			Category:       CategoryPartition,
 			Title:          "Consider Partition Splitting",
@@ -516,8 +520,9 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 	if current.MemoryLimit > 0 {
 		utilization := float64(current.MemoryBytes) / float64(current.MemoryLimit)
 		if utilization > 0.85 {
+			genID5, _ := generateID()
 			rec := &CapacityRecommendation{
-				ID:             generateID(),
+				ID:             genID5,
 				Priority:       PriorityCritical,
 				Category:       CategoryMemory,
 				Title:          "Memory Pressure Warning",
@@ -535,8 +540,9 @@ func (e *CapacityPlanningEngine) GenerateRecommendations() ([]*CapacityRecommend
 
 	// Downsampling recommendations based on query patterns
 	if forecast, ok := forecasts["query_rate"]; ok && forecast != nil && forecast.Trend == TrendUp {
+		genID6, _ := generateID()
 		rec := &CapacityRecommendation{
-			ID:             generateID(),
+			ID:             genID6,
 			Priority:       PriorityLow,
 			Category:       CategoryDownsample,
 			Title:          "Enable Additional Downsampling",

@@ -349,8 +349,13 @@ func (e *FederatedLearningEngine) StartTrainingRound(modelID string, config *Rou
 		}
 	}
 
+	roundID, err := generateRoundID()
+	if err != nil {
+		return nil, err
+	}
+
 	round := &TrainingRound{
-		ID:           generateRoundID(),
+		ID:           roundID,
 		ModelID:      modelID,
 		RoundNumber:  maxRound + 1,
 		Status:       RoundPending,
@@ -441,8 +446,13 @@ func (e *FederatedLearningEngine) TrainLocally(modelID string, config *RoundConf
 		gradients = compressGradients(gradients, e.config.CompressionThreshold)
 	}
 
+	participantID, err := e.getParticipantID()
+	if err != nil {
+		return nil, err
+	}
+
 	update := &ParticipantUpdate{
-		ParticipantID: e.getParticipantID(),
+		ParticipantID: participantID,
 		ModelWeights:  trainer.model.Weights,
 		Gradients:     gradients,
 		SampleCount:   int64(len(samples)),
@@ -705,7 +715,7 @@ func (e *FederatedLearningEngine) broadcastModel(model *FederatedModel) {
 
 func (e *FederatedLearningEngine) sendToParticipant(p *FederatedParticipant, payload []byte) {
 	// In production, this would send HTTP request to participant
-	_ = payload
+	_ = payload //nolint:errcheck // payload reserved for serialization
 }
 
 func (e *FederatedLearningEngine) verifyUpdate(update *ParticipantUpdate) bool {
@@ -789,14 +799,13 @@ func extractFeatures(points []Point, index int) []float64 {
 	return features
 }
 
-func (e *FederatedLearningEngine) getParticipantID() string {
-	// Generate or retrieve a stable participant ID
+func (e *FederatedLearningEngine) getParticipantID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
 	hash := sha256.Sum256(b)
-	return hex.EncodeToString(hash[:8])
+	return hex.EncodeToString(hash[:8]), nil
 }
 
 func (e *FederatedLearningEngine) coordinatorLoop() {
@@ -1132,25 +1141,25 @@ func compressGradients(gradients []float64, threshold float64) []float64 {
 	return compressed
 }
 
-func generateRoundID() string {
+func generateRoundID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 func gaussianNoise() float64 {
 	// Box-Muller transform for generating Gaussian noise
-	u1 := randFloat64()
-	u2 := randFloat64()
+	u1, _ := randFloat64()
+	u2, _ := randFloat64()
 	return math.Sqrt(-2*math.Log(u1)) * math.Cos(2*math.Pi*u2)
 }
 
-func randFloat64() float64 {
+func randFloat64() (float64, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return 0, fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return float64(b[0]^b[1]^b[2]^b[3]^b[4]^b[5]^b[6]^b[7]) / 256.0
+	return float64(b[0]^b[1]^b[2]^b[3]^b[4]^b[5]^b[6]^b[7]) / 256.0, nil
 }

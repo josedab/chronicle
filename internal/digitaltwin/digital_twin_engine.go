@@ -14,7 +14,11 @@ import (
 // AddConnection adds a new twin platform connection.
 func (e *DigitalTwinEngine) AddConnection(conn *TwinConnection) error {
 	if conn.ID == "" {
-		conn.ID = generateID()
+		id, err := generateID()
+		if err != nil {
+			return err
+		}
+		conn.ID = id
 	}
 	conn.CreatedAt = time.Now()
 	conn.Status = TwinStatusPending
@@ -96,7 +100,11 @@ func (e *DigitalTwinEngine) ListConnections() []*TwinConnection {
 // AddMapping adds a property mapping.
 func (e *DigitalTwinEngine) AddMapping(mapping *TwinMapping) error {
 	if mapping.ID == "" {
-		mapping.ID = generateID()
+		id, err := generateID()
+		if err != nil {
+			return err
+		}
+		mapping.ID = id
 	}
 
 	e.connectionsMu.RLock()
@@ -161,8 +169,13 @@ func (e *DigitalTwinEngine) PushMetric(metric string, tags map[string]string, va
 			transformedValue = applyTransform(value, m.Transform)
 		}
 
+		updateID, err := generateID()
+		if err != nil {
+			return err
+		}
+
 		update := &TwinUpdate{
-			ID:           generateID(),
+			ID:           updateID,
 			ConnectionID: m.ConnectionID,
 			TwinID:       m.TwinID,
 			Component:    m.TwinComponent,
@@ -430,10 +443,10 @@ func (e *DigitalTwinEngine) Close() error {
 
 	return nil
 }
-func generateID() string {
+func generateID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }

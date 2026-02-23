@@ -457,7 +457,7 @@ func (e *SemanticSearchEngine) indexRecentData() {
 	metrics := e.db.Metrics()
 
 	for _, metric := range metrics {
-		_, _ = e.IndexFromDatabase(metric, nil, start, end)
+		_, _ = e.IndexFromDatabase(metric, nil, start, end) //nolint:errcheck // best-effort background indexing
 	}
 }
 
@@ -862,7 +862,11 @@ func (h *HNSWIndex) pruneNeighbors(vector []float32, neighborIDs []string, m int
 
 func (h *HNSWIndex) randomLevel() int {
 	level := 0
-	for randFloat64() < 0.5 && level < 16 {
+	for {
+		r, _ := randFloat64()
+		if r >= 0.5 || level >= 16 {
+			break
+		}
 		level++
 	}
 	return level
@@ -1100,7 +1104,8 @@ func semContainsWord(s, word string) bool {
 }
 
 func generatePatternID() string {
-	return fmt.Sprintf("pat_%s", generateID())
+	genID1, _ := generateID()
+	return fmt.Sprintf("pat_%s", genID1)
 }
 
 func semMin(a, b int) int {

@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -221,10 +220,15 @@ func (c *IcebergCatalog) CreateTable(namespace, name string, schema IcebergSchem
 		c.namespaces[namespace] = true
 	}
 
+	uuid, err := generateUUID()
+	if err != nil {
+		return nil, err
+	}
+
 	location := filepath.Join(c.config.ExportDir, namespace, name)
 	meta := &IcebergTableMetadata{
 		FormatVersion:   2,
-		TableUUID:       generateUUID(),
+		TableUUID:       uuid,
 		Location:        location,
 		Schema:          schema,
 		Snapshots:       nil,
@@ -373,7 +377,11 @@ func (pe *PartitionExporter) ExportPartition(ctx context.Context, metric string,
 		return nil, fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 
-	fileName := fmt.Sprintf("part-%s.parquet", generateUUID())
+	partUUID, err := generateUUID()
+	if err != nil {
+		return nil, err
+	}
+	fileName := fmt.Sprintf("part-%s.parquet", partUUID)
 	filePath := filepath.Join(dir, fileName)
 
 	if err := writeSimpleParquet(filePath, result.Points); err != nil {
@@ -547,7 +555,7 @@ func (m *IcebergExportManager) exportLoop() {
 			return
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), m.config.ExportInterval/2)
-			_ = m.ExportColdPartitions(ctx)
+			_ = m.ExportColdPartitions(ctx) //nolint:errcheck // best-effort periodic export
 			cancel()
 			m.runPolicies()
 		}
@@ -680,7 +688,11 @@ func (m *IcebergExportManager) runPolicy(p *ExportPolicy) {
 // CreateExportPolicy registers a new export policy.
 func (m *IcebergExportManager) CreateExportPolicy(policy ExportPolicy) error {
 	if policy.ID == "" {
-		policy.ID = generateUUID()
+		id, err := generateUUID()
+		if err != nil {
+			return err
+		}
+		policy.ID = id
 	}
 	if policy.PartitionAge <= 0 {
 		policy.PartitionAge = m.config.ColdPartitionAge
@@ -779,9 +791,7 @@ func (m *IcebergExportManager) handleExport(w http.ResponseWriter, r *http.Reque
 	if req.Metric == "" {
 		err := m.ExportColdPartitions(r.Context())
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		writeJSON(w, map[string]string{"status": "export completed"})
@@ -801,9 +811,7 @@ func (m *IcebergExportManager) handleExport(w http.ResponseWriter, r *http.Reque
 
 	info, err := m.exporter.ExportPartition(r.Context(), req.Metric, startTime, endTime)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 	writeJSON(w, info)
@@ -888,13 +896,13 @@ func icebergTableName(name string) string {
 }
 
 // generateUUID produces a random UUID v4 string.
-func generateUUID() string {
+func generateUUID() (string, error) {
 	var buf [16]byte
 	if _, err := rand.Read(buf[:]); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
 	buf[6] = (buf[6] & 0x0f) | 0x40 // version 4
 	buf[8] = (buf[8] & 0x3f) | 0x80 // variant 2
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		buf[0:4], buf[4:6], buf[6:8], buf[8:10], buf[10:16])
+		buf[0:4], buf[4:6], buf[6:8], buf[8:10], buf[10:16]), nil
 }

@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -249,7 +248,7 @@ func (b *VisualQueryBuilder) GetSchema(ctx context.Context) (*QuerySchema, error
 	}
 
 	// Get tag keys
-	schema.TagKeys, _ = b.getTagKeys(ctx, "")
+	schema.TagKeys, _ = b.getTagKeys(ctx, "") //nolint:errcheck // tag keys are optional metadata
 
 	return schema, nil
 }
@@ -711,8 +710,9 @@ func (b *VisualQueryBuilder) generateInternalQuery(vq *VisualQuerySpec) (*Query,
 
 // CreateComponent creates a new query component.
 func (b *VisualQueryBuilder) CreateComponent(compType ComponentType, properties any) *QueryComponent {
+	genID1, _ := generateID()
 	return &QueryComponent{
-		ID:         generateID(),
+		ID:         genID1,
 		Type:       compType,
 		Properties: properties,
 	}
@@ -721,8 +721,9 @@ func (b *VisualQueryBuilder) CreateComponent(compType ComponentType, properties 
 // CreateVisualQuerySpec creates a new visual query.
 func (b *VisualQueryBuilder) CreateVisualQuery(name string) *VisualQuerySpec {
 	now := time.Now()
+	genID2, _ := generateID()
 	return &VisualQuerySpec{
-		ID:        generateID(),
+		ID:        genID2,
 		Name:      name,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -776,9 +777,7 @@ func (b *VisualQueryBuilder) ParseFromSQL(sql string) (*VisualQuerySpec, error) 
 func (b *VisualQueryBuilder) HandleGetSchema(w http.ResponseWriter, r *http.Request) {
 	schema, err := b.GetSchema(r.Context())
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "schema retrieval failed")
 		return
 	}
 
@@ -796,9 +795,7 @@ func (b *VisualQueryBuilder) HandleAutocomplete(w http.ResponseWriter, r *http.R
 
 	resp, err := b.Autocomplete(r.Context(), &req)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "autocomplete failed")
 		return
 	}
 
@@ -816,9 +813,7 @@ func (b *VisualQueryBuilder) HandleGenerateQuery(w http.ResponseWriter, r *http.
 
 	result, err := b.GenerateQuery(r.Context(), &vq)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "query generation failed")
 		return
 	}
 

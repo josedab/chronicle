@@ -442,8 +442,9 @@ func (e *AutoRemediationEngine) EvaluateAnomaly(anomaly *DetectedAnomaly) ([]*Re
 				continue
 			}
 
+			genID1, _ := generateID()
 			execution := &RemediationExecution{
-				ID:        generateID(),
+				ID:        genID1,
 				RuleID:    rule.ID,
 				ActionID:  action.ID,
 				AnomalyID: anomaly.ID,
@@ -703,7 +704,7 @@ func (e *AutoRemediationEngine) executeWebhook(action *RemediationAction, anomal
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // HTTP body close is best-effort
 
 	if resp.StatusCode >= 400 {
 		return nil, nil, fmt.Errorf("webhook returned status %d", resp.StatusCode)
@@ -938,8 +939,9 @@ func (e *AutoRemediationEngine) checkRateLimit() bool {
 }
 
 func (e *AutoRemediationEngine) recordAudit(eventType, ruleID, actionID, executionID, anomalyID, status string, details map[string]any) {
+	genID2, _ := generateID()
 	entry := RemediationAuditEntry{
-		ID:          generateID(),
+		ID:          genID2,
 		Timestamp:   time.Now(),
 		EventType:   eventType,
 		RuleID:      ruleID,
@@ -965,8 +967,9 @@ func (e *AutoRemediationEngine) recordSuccessForML(action *RemediationAction, an
 		return
 	}
 
+	genID3, _ := generateID()
 	incident := HistoricalIncident{
-		ID:            generateID(),
+		ID:            genID3,
 		AnomalyType:   anomaly.Type,
 		MetricPattern: anomaly.Metric,
 		Severity:      anomaly.Score,
@@ -1027,8 +1030,9 @@ func (e *AutoRemediationEngine) GetRecommendations(anomaly *DetectedAnomaly) []*
 				continue
 			}
 
+			genID4, _ := generateID()
 			rec := &RemediationRecommendation{
-				ID:               generateID(),
+				ID:               genID4,
 				AnomalyID:        anomaly.ID,
 				ActionType:       action.Type,
 				Confidence:       effectiveness,

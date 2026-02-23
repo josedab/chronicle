@@ -317,12 +317,12 @@ func NewStreamDSLV2Engine(db *DB, config StreamDSLV2Config) *StreamDSLV2Engine {
 	}
 }
 
-func streamDSLV2GenerateID() string {
+func streamDSLV2GenerateID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 // Parse parses a DSL string into a StreamDSLV2Statement.
@@ -651,7 +651,11 @@ func (e *StreamDSLV2Engine) CreateContinuousQuery(name, dsl string) (*DSLV2Conti
 		return nil, fmt.Errorf("stream dsl v2: max concurrent queries (%d) reached", e.config.MaxConcurrentQueries)
 	}
 
-	id := "sdv2-" + streamDSLV2GenerateID()
+	genID, err := streamDSLV2GenerateID()
+	if err != nil {
+		return nil, err
+	}
+	id := "sdv2-" + genID
 	q := &DSLV2ContinuousQuery{
 		ID:       id,
 		Name:     name,
@@ -1121,7 +1125,7 @@ func (e *StreamDSLV2Engine) handleEvents(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := e.ProcessEvent(req.Metric, req.Value, req.Tags, ts); err != nil {
-		writeError(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"})

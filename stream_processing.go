@@ -258,18 +258,18 @@ func (e *StreamProcessingEngine) checkpointLoop() {
 			e.mu.RUnlock()
 
 			for _, id := range ids {
-				_ = e.checkpoint(id)
+				_ = e.checkpoint(id) //nolint:errcheck // best-effort periodic checkpoint
 			}
 		}
 	}
 }
 
-func streamProcessingGenerateID() string {
+func streamProcessingGenerateID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 // CreatePipeline creates a new stream processing pipeline.
@@ -291,7 +291,11 @@ func (e *StreamProcessingEngine) CreatePipeline(name string, source string, sink
 		return nil, fmt.Errorf("pipeline sink is required")
 	}
 
-	id := "sp-" + streamProcessingGenerateID()
+	genID, err := streamProcessingGenerateID()
+	if err != nil {
+		return nil, err
+	}
+	id := "sp-" + genID
 	p := &StreamPipeline{
 		ID:        id,
 		Name:      name,
@@ -898,7 +902,7 @@ func (e *StreamProcessingEngine) handleStreamAction(w http.ResponseWriter, r *ht
 		}
 		results, err := e.ProcessEvent(id, &ev)
 		if err != nil {
-			writeError(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		writeJSON(w, map[string]any{

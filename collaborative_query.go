@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -220,7 +219,10 @@ func (hub *CollaborativeQueryHub) CreateSession(name, creatorID string) (*Collab
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 
-	sessionID := generateCollabSessionID()
+	sessionID, err := generateCollabSessionID()
+	if err != nil {
+		return nil, err
+	}
 
 	session := &CollaborativeSession{
 		ID:           sessionID,
@@ -360,7 +362,7 @@ func (hub *CollaborativeQueryHub) LeaveSession(sessionID, participantID string) 
 	if exists {
 		delete(session.Participants, participantID)
 		if participant.conn != nil {
-			_ = participant.conn.Close()
+			_ = participant.conn.Close() //nolint:errcheck // best-effort WebSocket send
 		}
 		close(participant.send)
 	}
@@ -442,7 +444,7 @@ func (hub *CollaborativeQueryHub) broadcastWorker(session *CollaborativeSession)
 
 func (hub *CollaborativeQueryHub) readPump(session *CollaborativeSession, participant *Participant) {
 	defer hub.wg.Done()
-	defer func() { _ = hub.LeaveSession(session.ID, participant.ID) }()
+	defer func() { _ = hub.LeaveSession(session.ID, participant.ID) }() //nolint:errcheck // best-effort WebSocket send
 
 	for {
 		_, message, err := participant.conn.ReadMessage()
@@ -494,7 +496,9 @@ func (hub *CollaborativeQueryHub) readPump(session *CollaborativeSession, partic
 				if json.Unmarshal(data, &annotation) == nil {
 					annotation.ParticipantID = participant.ID
 					annotation.CreatedAt = time.Now()
-					annotation.ID = generateID()
+					if id, err := generateID(); err == nil {
+						annotation.ID = id
+					}
 					hub.addAnnotation(session, &annotation)
 				}
 			}
@@ -505,7 +509,9 @@ func (hub *CollaborativeQueryHub) readPump(session *CollaborativeSession, partic
 				if json.Unmarshal(data, &bookmark) == nil {
 					bookmark.CreatedBy = participant.ID
 					bookmark.CreatedAt = time.Now()
-					bookmark.ID = generateID()
+					if id, err := generateID(); err == nil {
+						bookmark.ID = id
+					}
 					hub.addBookmark(session, &bookmark)
 				}
 			}
@@ -591,8 +597,9 @@ func (hub *CollaborativeQueryHub) applyQueryEdit(session *CollaborativeSession, 
 
 	// Apply CRDT operation for conflict resolution
 	if hub.config.EnableConflictResolution {
+		opID, _ := generateID()
 		op := CollabCRDTOperation{
-			ID:            generateID(),
+			ID:            opID,
 			Type:          edit.Type,
 			Position:      edit.Position,
 			Character:     edit.Text,
@@ -878,7 +885,7 @@ func (hub *CollaborativeQueryHub) WebSocketHandler() http.HandlerFunc {
 		}
 
 		if err := hub.JoinSession(sessionID, participant, conn); err != nil {
-			_ = conn.Close()
+			_ = conn.Close() //nolint:errcheck // best-effort WebSocket send
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -985,9 +992,7 @@ func (hub *CollaborativeQueryHub) HandleCreateSession(w http.ResponseWriter, r *
 
 	session, err := hub.CreateSession(req.Name, req.OwnerID)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 
@@ -1074,20 +1079,20 @@ func (hub *CollaborativeQueryHub) HandleStats(w http.ResponseWriter, r *http.Req
 
 // Helper functions
 
-func generateCollabSessionID() string {
+func generateCollabSessionID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
-func generateID() string {
+func generateID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 func generateParticipantColor(index int) string {

@@ -258,8 +258,9 @@ func (e *NLDashboardEngine) GenerateDashboard(ctx context.Context, description s
 	parsed := e.parseDescription(description)
 
 	// Create dashboard spec
+	genID1, _ := generateID()
 	dashboard := &DashboardSpec{
-		ID:          generateID(),
+		ID:          genID1,
 		Title:       parsed.Title,
 		Description: description,
 		Tags:        parsed.Tags,
