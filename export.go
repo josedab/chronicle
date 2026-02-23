@@ -175,6 +175,10 @@ func (e *Exporter) exportCSV(metrics []string, start, end int64) (*ExportResult,
 	if e.config.Compression && !strings.HasSuffix(outputPath, ".gz") {
 		outputPath += ".gz"
 	}
+	outputPath, err := validateExportPath(outputPath)
+	if err != nil {
+		return nil, err
+	}
 
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
@@ -252,6 +256,10 @@ func (e *Exporter) exportJSON(metrics []string, start, end int64) (*ExportResult
 	if e.config.Compression && !strings.HasSuffix(outputPath, ".gz") {
 		outputPath += ".gz"
 	}
+	outputPath, err := validateExportPath(outputPath)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
@@ -315,6 +323,10 @@ func (e *Exporter) exportParquet(metrics []string, start, end int64) (*ExportRes
 	outputPath := e.config.OutputPath
 	if !strings.HasSuffix(outputPath, ".parquet") {
 		outputPath = filepath.Join(outputPath, "export.parquet")
+	}
+	outputPath, err := validateExportPath(outputPath)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {

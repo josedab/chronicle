@@ -275,7 +275,10 @@ func (p *ParquetBackend) WritePoints(ctx context.Context, key string, points []P
 	data, metadata := p.encodeParquet(points)
 
 	// Write file
-	path := filepath.Join(p.baseDir, key)
+	path, err := p.safePath(key)
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -302,7 +305,10 @@ func (p *ParquetBackend) ReadPoints(ctx context.Context, key string) ([]Point, e
 	}
 	p.mu.RUnlock()
 
-	path := filepath.Join(p.baseDir, key)
+	path, err := p.safePath(key)
+	if err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
