@@ -60,8 +60,17 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 		return nil, err
 	}
 
+	// Wrap the mux with a global body size limit to protect all handlers,
+	// including feature handlers registered via RegisterHTTPHandlers.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.ContentLength != 0 {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+		}
+		mux.ServeHTTP(w, r)
+	})
+
 	srv := &http.Server{
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 	}

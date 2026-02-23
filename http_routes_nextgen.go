@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +14,8 @@ type httpRouteRegistrar interface {
 }
 
 // registerFeatureRoutes registers HTTP handlers for features that implement httpRouteRegistrar.
-// It safely skips nil features.
+// It safely skips nil features. Body size limits are enforced at the server level
+// via the global MaxBytesReader wrapper in http_server.go.
 func registerFeatureRoutes(mux *http.ServeMux, registrars ...httpRouteRegistrar) {
 	for _, r := range registrars {
 		if r != nil {
@@ -184,9 +184,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 			resp, err := rag.Ask(r.Context(), query)
 			if err != nil {
-				log.Printf("[ERROR] %v", err)
-
-				http.Error(w, "internal server error", http.StatusInternalServerError)
+				internalError(w, err, "internal error")
 				return
 			}
 			writeJSON(w, resp)

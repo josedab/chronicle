@@ -125,6 +125,7 @@ func (r *FeatureRegistry) StopAll() {
 }
 
 // RegisterAllHTTP registers HTTP handlers for all features that implement HTTPFeature.
+// Body size limits are enforced at the server level via http_server.go.
 func (r *FeatureRegistry) RegisterAllHTTP(mux *http.ServeMux) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
