@@ -74,12 +74,15 @@ func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper, auth *
 }
 
 // setupAlertingRoutes configures alerting-related endpoints
-func setupAlertingRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
+func setupAlertingRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper, auth *authenticator) {
 	mux.HandleFunc("/api/v1/alerts", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleAlerts(db, w, r)
 	}))
 
-	mux.HandleFunc("/api/v1/rules", wrap(func(w http.ResponseWriter, r *http.Request) {
+	adminWrap := func(h http.HandlerFunc) http.HandlerFunc {
+		return wrap(adminOnlyMiddleware(auth, h))
+	}
+	mux.HandleFunc("/api/v1/rules", adminWrap(func(w http.ResponseWriter, r *http.Request) {
 		handleRules(db, w, r)
 	}))
 }

@@ -45,7 +45,7 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	setupQueryRoutes(mux, db, wrap)
 	setupPrometheusRoutes(mux, db, wrap)
 	setupAdminRoutes(mux, db, wrap, auth)
-	setupAlertingRoutes(mux, db, wrap)
+	setupAlertingRoutes(mux, db, wrap, auth)
 	setupFeatureRoutes(mux, db, wrap)
 	setupNextGenRoutes(mux, db, wrap)
 
