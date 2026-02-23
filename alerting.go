@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -383,11 +385,15 @@ func (m *AlertManager) notify(alert *Alert, status string) {
 	}
 }
 
-func (m *AlertManager) sendWebhook(url string, payload []byte) error {
+func (m *AlertManager) sendWebhook(webhookURL string, payload []byte) error {
+	if err := validateWebhookURL(webhookURL); err != nil {
+		return fmt.Errorf("invalid webhook URL: %w", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -403,6 +409,29 @@ func (m *AlertManager) sendWebhook(url string, payload []byte) error {
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)
 	}
 
+	return nil
+}
+
+// validateWebhookURL ensures the webhook URL is safe to call.
+func validateWebhookURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("malformed URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("only HTTPS scheme is allowed, got %q", u.Scheme)
+	}
+
+	host := u.Hostname()
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("failed to resolve host %q: %w", host, err)
+	}
+	for _, ip := range ips {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("webhook URL must not resolve to private/loopback address: %s", ip)
+		}
+	}
 	return nil
 }
 
