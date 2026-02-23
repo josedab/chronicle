@@ -484,7 +484,10 @@ func (v *JWKSValidator) verifyECDSA(hash, signature []byte, key JWKSKey) error {
 
 func (v *JWKSValidator) validateClaims(claims *JWTClaims) error {
 	now := time.Now().Unix()
-	if claims.ExpiresAt > 0 && now > claims.ExpiresAt {
+	if claims.ExpiresAt == 0 {
+		return errors.New("token must have an expiration time")
+	}
+	if now > claims.ExpiresAt {
 		return errors.New("token has expired")
 	}
 	if v.config.IssuerURL != "" && claims.Issuer != v.config.IssuerURL {
