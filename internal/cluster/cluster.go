@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"log"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +8,8 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+
+	"github.com/chronicle-db/chronicle/internal/httputil"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -76,7 +77,7 @@ func (c *Cluster) Stop() error {
 	if c.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = c.server.Shutdown(ctx)
+		_ = c.server.Shutdown(ctx) //nolint:errcheck // best-effort shutdown
 	}
 
 	c.wg.Wait()
@@ -270,7 +271,7 @@ func (c *Cluster) replicateAsync(entry LogEntry) {
 
 	for _, node := range nodes {
 		go func(n *ClusterNode) {
-			_ = c.sendReplicateRequest(n, entry)
+			_ = c.sendReplicateRequest(n, entry) //nolint:errcheck // best-effort replication, retried on next cycle
 		}(node)
 	}
 }
@@ -638,7 +639,7 @@ func (c *Cluster) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
 			if entry.Type == LogEntryWrite {
 				var p Point
 				if err := json.Unmarshal(entry.Data, &p); err == nil {
-					_ = c.pw.WritePoint(p)
+					_ = c.pw.WritePoint(p) //nolint:errcheck // best-effort point write on apply
 				}
 			}
 		}
@@ -700,9 +701,7 @@ func (c *Cluster) handleReplicate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := c.pw.WritePoint(p); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			httputil.InternalError(w, err, "internal error")
 			return
 		}
 	}

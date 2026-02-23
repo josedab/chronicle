@@ -151,8 +151,8 @@ func (s *PGServer) handleSession(sess *PGSession) {
 
 // handleStartup processes the PostgreSQL startup sequence.
 func (sess *PGSession) handleStartup() error {
-	_ = sess.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
-	defer func() { _ = sess.conn.SetReadDeadline(time.Time{}) }()
+	_ = sess.conn.SetReadDeadline(time.Now().Add(30 * time.Second)) //nolint:errcheck // deadline errors are non-fatal
+	defer func() { _ = sess.conn.SetReadDeadline(time.Time{}) }() //nolint:errcheck // deadline reset is best-effort
 
 	// Read startup length
 	lenBuf := make([]byte, 4)

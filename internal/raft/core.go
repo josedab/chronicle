@@ -398,7 +398,7 @@ func (rn *RaftNode) Stop() error {
 	if rn.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = rn.server.Shutdown(ctx)
+		_ = rn.server.Shutdown(ctx) //nolint:errcheck // best-effort shutdown
 	}
 
 	rn.wg.Wait()

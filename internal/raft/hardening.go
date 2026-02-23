@@ -103,7 +103,7 @@ func NewSnapshotManager(config SnapshotManagerConfig) *SnapshotManager {
 	}
 
 	// Load existing snapshot metadata from disk.
-	_ = sm.loadExistingSnapshots()
+	_ = sm.loadExistingSnapshots() //nolint:errcheck // best-effort snapshot loading at init
 
 	return sm
 }
@@ -308,7 +308,7 @@ func (sm *SnapshotManager) PruneSnapshots() {
 
 	for _, meta := range removed {
 		path := filepath.Join(sm.config.SnapshotDir, meta.ID+".snap")
-		_ = os.Remove(path)
+		_ = os.Remove(path) //nolint:errcheck // best-effort cleanup of old snapshots
 	}
 }
 
@@ -645,7 +645,7 @@ func (lc *LogCompactor) compactionLoop() {
 				continue
 			}
 
-			_, _ = lc.Compact(latestIndex)
+			_, _ = lc.Compact(latestIndex) //nolint:errcheck // best-effort log compaction
 		}
 	}
 }

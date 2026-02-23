@@ -577,7 +577,7 @@ func (e *CEPEngine) checkpoint() {
 	}
 	e.windowsMu.RUnlock()
 
-	_ = windowState
+	_ = windowState //nolint:errcheck // placeholder for future window state usage
 }
 
 // parseCEPSQL parses a CEP SQL query (simplified parser).
@@ -608,11 +608,11 @@ func (e *CEPEngine) parseCEPSQL(sql string) (*ParsedCEPQuery, error) {
 		var duration time.Duration
 		switch matches[3] {
 		case "s", "second", "seconds":
-			duration, _ = time.ParseDuration(matches[2] + "s")
+			duration, _ = time.ParseDuration(matches[2] + "s") //nolint:errcheck // validated by regex
 		case "m", "minute", "minutes":
-			duration, _ = time.ParseDuration(matches[2] + "m")
+			duration, _ = time.ParseDuration(matches[2] + "m") //nolint:errcheck // validated by regex
 		case "h", "hour", "hours":
-			duration, _ = time.ParseDuration(matches[2] + "h")
+			duration, _ = time.ParseDuration(matches[2] + "h") //nolint:errcheck // validated by regex
 		}
 
 		switch windowType {

@@ -11,7 +11,7 @@ import (
 
 // readMessage reads a PostgreSQL wire protocol message (type byte + length + payload).
 func (sess *PGSession) readMessage() (byte, []byte, error) {
-	_ = sess.conn.SetReadDeadline(time.Now().Add(sess.server.config.QueryTimeout))
+	_ = sess.conn.SetReadDeadline(time.Now().Add(sess.server.config.QueryTimeout)) //nolint:errcheck // deadline errors are non-fatal
 
 	header := make([]byte, 5)
 	if _, err := io.ReadFull(sess.conn, header); err != nil {

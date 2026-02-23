@@ -302,7 +302,7 @@ func (ad *AnomalyDetector) retrain() {
 		timestamps[i] = p.Timestamp
 	}
 
-	_ = ad.Train(TimeSeriesData{
+	_ = ad.Train(TimeSeriesData{ //nolint:errcheck // best-effort training on new data
 		Timestamps: timestamps,
 		Values:     values,
 	})

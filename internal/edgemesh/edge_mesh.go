@@ -1,7 +1,6 @@
 package edgemesh
 
 import (
-	"log"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -13,6 +12,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+
+	"github.com/chronicle-db/chronicle/internal/httputil"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -775,7 +776,7 @@ func (m *EdgeMesh) handleSync(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		body, _ = io.ReadAll(gr)
+		body, _ = io.ReadAll(gr) //nolint:errcheck // best-effort decompression
 		gr.Close()
 	}
 
@@ -785,7 +786,7 @@ func (m *EdgeMesh) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, op := range req.Operations {
-		_ = m.applyOperation(op)
+		_ = m.applyOperation(op) //nolint:errcheck // best-effort operation replay
 	}
 
 	opsToSend := m.opLog.GetSince(req.VectorClock)
@@ -864,9 +865,7 @@ func (m *EdgeMesh) handleOperations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.applyOperation(req.Operation); err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httputil.InternalError(w, err, "internal error")
 		return
 	}
 

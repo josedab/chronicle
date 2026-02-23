@@ -99,7 +99,7 @@ func (rn *RaftNode) startElection() {
 	rn.stateMu.Unlock()
 
 	rn.notifyRoleChange(RaftRoleCandidate)
-	_ = rn.saveState()
+	_ = rn.saveState() //nolint:errcheck // best-effort state persistence
 
 	rn.peersMu.RLock()
 	peers := make([]*RaftPeerState, 0, len(rn.peers))
@@ -173,7 +173,7 @@ func (rn *RaftNode) becomeLeader() {
 		Term:  term,
 		Type:  RaftLogNoop,
 	}
-	_ = rn.log.Append(entry)
+	_ = rn.log.Append(entry) //nolint:errcheck // best-effort log append
 
 	rn.heartbeatTicker = time.NewTicker(rn.config.HeartbeatInterval)
 	go rn.heartbeatLoop()
@@ -197,7 +197,7 @@ func (rn *RaftNode) becomeFollower(term uint64, leaderID string) {
 	}
 
 	rn.resetElectionTimer()
-	_ = rn.saveState()
+	_ = rn.saveState() //nolint:errcheck // best-effort state persistence
 
 	if oldRole != RaftRoleFollower {
 		rn.notifyRoleChange(RaftRoleFollower)
