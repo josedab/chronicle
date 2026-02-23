@@ -250,7 +250,7 @@ func TestAnalyzeFloat64Data(t *testing.T) {
 	data := make([]byte, 80) // 10 float64 values
 	// Fill with sequential values (would be encoded properly in real usage)
 
-	chars := engine.analyzeData(data, "float64")
+	chars := engine.AnalyzeData(data, "float64")
 
 	if chars.DataType != "float64" {
 		t.Errorf("Expected float64, got %s", chars.DataType)
@@ -263,7 +263,7 @@ func TestAnalyzeInt64Data(t *testing.T) {
 
 	data := make([]byte, 80) // 10 int64 values
 
-	chars := engine.analyzeData(data, "int64")
+	chars := engine.AnalyzeData(data, "int64")
 
 	if chars.DataType != "int64" {
 		t.Errorf("Expected int64, got %s", chars.DataType)
@@ -276,7 +276,7 @@ func TestAnalyzeStringData(t *testing.T) {
 
 	data := []byte("hello world hello world")
 
-	chars := engine.analyzeData(data, "string")
+	chars := engine.AnalyzeData(data, "string")
 
 	if chars.DataType != "string" {
 		t.Errorf("Expected string, got %s", chars.DataType)
@@ -295,7 +295,7 @@ func TestSelectCodecFromCharacteristics(t *testing.T) {
 		DataType:      "float64",
 		DeltaVariance: 0.05,
 	}
-	codec := engine.selectCodecFromCharacteristics(floatChars)
+	codec := engine.SelectCodecFromCharacteristics(floatChars)
 	if codec != CodecGorilla {
 		t.Errorf("Expected CodecGorilla for low variance floats, got %v", codec)
 	}
@@ -305,7 +305,7 @@ func TestSelectCodecFromCharacteristics(t *testing.T) {
 		DataType:     "int64",
 		Monotonicity: 0.95,
 	}
-	codec = engine.selectCodecFromCharacteristics(intChars)
+	codec = engine.SelectCodecFromCharacteristics(intChars)
 	if codec != CodecDeltaDelta {
 		t.Errorf("Expected CodecDeltaDelta for monotonic ints, got %v", codec)
 	}
@@ -315,7 +315,7 @@ func TestSelectCodecFromCharacteristics(t *testing.T) {
 		DataType:    "string",
 		Cardinality: 50,
 	}
-	codec = engine.selectCodecFromCharacteristics(stringChars)
+	codec = engine.SelectCodecFromCharacteristics(stringChars)
 	if codec != CodecDictionary {
 		t.Errorf("Expected CodecDictionary for low cardinality strings, got %v", codec)
 	}
