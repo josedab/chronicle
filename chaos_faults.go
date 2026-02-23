@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -87,8 +88,16 @@ func (f *SlowIOFault) IsActive() bool {
 
 // MaybeDelay adds latency if the fault is active.
 func (f *SlowIOFault) MaybeDelay() {
+	f.MaybeDelayContext(context.Background())
+}
+
+// MaybeDelayContext adds latency if the fault is active, respecting context cancellation.
+func (f *SlowIOFault) MaybeDelayContext(ctx context.Context) {
 	if f.IsActive() {
-		time.Sleep(f.latency)
+		select {
+		case <-time.After(f.latency):
+		case <-ctx.Done():
+		}
 	}
 }
 
