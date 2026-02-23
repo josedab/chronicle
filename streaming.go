@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -196,7 +197,11 @@ func newUpgrader(allowedOrigins []string) *websocket.Upgrader {
 				return true // non-browser client
 			}
 			for _, allowed := range allowedOrigins {
-				if allowed == "*" || allowed == origin {
+				if allowed == "*" {
+					log.Println("chronicle: WARNING: wildcard '*' in AllowedOrigins disables CORS protection; avoid in production")
+					return true
+				}
+				if allowed == origin {
 					return true
 				}
 			}
@@ -224,7 +229,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		defer func() { _ = conn.Close() }() //nolint:errcheck // best-effort stream operation
+		defer closeQuietly(conn)
 
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
@@ -335,7 +340,7 @@ func (h *StreamHub) sendError(conn *websocket.Conn, msg string) {
 		Error: msg,
 	})
 	if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
-		_ = conn.Close() //nolint:errcheck // best-effort stream operation
+		closeQuietly(conn)
 	}
 }
 

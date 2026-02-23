@@ -337,11 +337,11 @@ func (pr *PluginRegistry) InvokeAggregator(ctx context.Context, id string, value
 	ch := make(chan result, 1)
 
 	pr.wg.Add(1)
-	go func() {
+	go func(vals []float64) {
 		defer pr.wg.Done()
-		v, err := entry.aggregator.Aggregate(values)
+		v, err := entry.aggregator.Aggregate(vals)
 		ch <- result{v, err}
-	}()
+	}(values)
 
 	select {
 	case r := <-ch:
@@ -374,11 +374,11 @@ func (pr *PluginRegistry) InvokeIngestor(ctx context.Context, id string, data []
 	ch := make(chan result, 1)
 
 	pr.wg.Add(1)
-	go func() {
+	go func(d []byte) {
 		defer pr.wg.Done()
-		pts, err := entry.ingestor.Parse(data)
+		pts, err := entry.ingestor.Parse(d)
 		ch <- result{pts, err}
-	}()
+	}(data)
 
 	select {
 	case r := <-ch:

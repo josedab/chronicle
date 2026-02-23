@@ -732,7 +732,9 @@ func gaussianSample(sigma float64) float64 {
 
 func uniformSample() float64 {
 	var buf [8]byte
-	rand.Read(buf[:])
+	if _, err := rand.Read(buf[:]); err != nil {
+		return 0
+	}
 	val := float64(buf[0])
 	for i := 1; i < 8; i++ {
 		val = val*256 + float64(buf[i])

@@ -171,14 +171,14 @@ func (f *Federation) Query(ctx context.Context, query *Query) (*FederatedResult,
 
 	// Add local result
 	wg.Add(1)
-	go func() {
+	go func(res *Result, err error) {
 		defer wg.Done()
 		results <- &federatedQueryResult{
 			source: "local",
-			result: localResult,
-			err:    localErr,
+			result: res,
+			err:    err,
 		}
-	}()
+	}(localResult, localErr)
 
 	// Limit concurrent queries
 	sem := make(chan struct{}, f.config.MaxConcurrentQueries)
@@ -432,7 +432,7 @@ func (f *Federation) StartHealthChecker(ctx context.Context) {
 		return
 	}
 
-	go func() {
+	go func(ctx context.Context) {
 		ticker := time.NewTicker(f.config.HealthCheckInterval)
 		defer ticker.Stop()
 
@@ -444,7 +444,7 @@ func (f *Federation) StartHealthChecker(ctx context.Context) {
 				f.CheckHealth(ctx)
 			}
 		}
-	}()
+	}(ctx)
 }
 
 // Metrics returns aggregated metrics from all sources.
