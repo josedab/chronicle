@@ -250,7 +250,10 @@ func (s *S3Backend) Read(ctx context.Context, key string) ([]byte, error) {
 		return nil, result.LastErr
 	}
 
-	data := val.([]byte)
+	data, ok := val.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type from S3 read for key %s", fullKey)
+	}
 	s.cache.Put(fullKey, data)
 	return data, nil
 }
