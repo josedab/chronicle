@@ -149,7 +149,7 @@ func (lm *LifecycleManager) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_, _ = lm.Evaluate()
+			_, _ = lm.Evaluate() //nolint:errcheck // best-effort lifecycle evaluation, retried on next interval
 		}
 	}
 }

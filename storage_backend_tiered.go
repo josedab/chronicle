@@ -35,7 +35,7 @@ func (t *TieredBackend) Read(ctx context.Context, key string) ([]byte, error) {
 	}
 
 	// Promote to hot storage
-	_ = t.hot.Write(ctx, key, data)
+	_ = t.hot.Write(ctx, key, data) //nolint:errcheck // best-effort hot tier cache write
 	return data, nil
 }
 

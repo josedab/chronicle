@@ -1088,7 +1088,7 @@ func (e *AnomalyDetectionV2Engine) detectionLoop() {
 						threshold.Confidence = math.Max(0.1, threshold.Confidence-0.05)
 					}
 				}
-				_ = metric
+				_ = metric //nolint:errcheck // metric used for iteration
 			}
 			e.mu.Unlock()
 		}

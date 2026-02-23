@@ -161,7 +161,7 @@ func (t *TimeTravelEngine) snapshotLoop() {
 		case <-t.ctx.Done():
 			return
 		case <-ticker.C:
-			_, _ = t.CreateSnapshot("auto", "Automatic snapshot")
+			_, _ = t.CreateSnapshot("auto", "Automatic snapshot") //nolint:errcheck // best-effort auto-snapshot
 		}
 	}
 }

@@ -63,7 +63,7 @@ func (s *BenchRunSuite) RunWrite() BenchRunResult {
 
 	for i := 0; i < s.config.WriteCount; i++ {
 		opStart := time.Now()
-		_ = s.db.Write(Point{
+		_ = s.db.Write(Point{ //nolint:errcheck // benchmark cleanup
 			Metric:    "bench_write",
 			Value:     float64(i),
 			Timestamp: time.Now().Add(time.Duration(i) * time.Millisecond).UnixNano(),
@@ -72,7 +72,7 @@ func (s *BenchRunSuite) RunWrite() BenchRunResult {
 		latencies = append(latencies, time.Since(opStart))
 		totalPoints++
 	}
-	_ = s.db.Flush()
+	_ = s.db.Flush() //nolint:errcheck // benchmark cleanup
 
 	elapsed := time.Since(start)
 	return BenchRunResult{
@@ -90,14 +90,14 @@ func (s *BenchRunSuite) RunWrite() BenchRunResult {
 func (s *BenchRunSuite) RunQuery() BenchRunResult {
 	// Seed data for querying
 	for i := 0; i < 100; i++ {
-		_ = s.db.Write(Point{
+		_ = s.db.Write(Point{ //nolint:errcheck // benchmark cleanup
 			Metric:    "bench_query",
 			Value:     float64(i),
 			Timestamp: time.Now().Add(time.Duration(i) * time.Second).UnixNano(),
 			Tags:      map[string]string{"bench": "true"},
 		})
 	}
-	_ = s.db.Flush()
+	_ = s.db.Flush() //nolint:errcheck // benchmark cleanup
 
 	var latencies []time.Duration
 	totalPoints := 0

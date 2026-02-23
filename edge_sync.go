@@ -245,7 +245,7 @@ func (m *EdgeSyncManager) Stop() error {
 	// Flush remaining queued items
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	_ = m.Flush(ctx)
+	_ = m.Flush(ctx) //nolint:errcheck // best-effort sync operation
 
 	return m.queue.Close()
 }
@@ -327,14 +327,14 @@ func (m *EdgeSyncManager) syncOnce(ctx context.Context) error {
 	payload, err := m.preparePayload(batch)
 	if err != nil {
 		// Re-queue on failure
-		_ = m.queue.Enqueue(batch)
+		_ = m.queue.Enqueue(batch) //nolint:errcheck // best-effort sync operation
 		return fmt.Errorf("failed to prepare payload: %w", err)
 	}
 
 	// Apply bandwidth limiting
 	if m.bandwidthLimiter != nil {
 		if err := m.bandwidthLimiter.Wait(ctx, int64(len(payload))); err != nil {
-			_ = m.queue.Enqueue(batch)
+			_ = m.queue.Enqueue(batch) //nolint:errcheck // best-effort sync operation
 			return fmt.Errorf("rate limiting: %w", err)
 		}
 	}
@@ -347,7 +347,7 @@ func (m *EdgeSyncManager) syncOnce(ctx context.Context) error {
 			backoff := m.config.RetryBackoff * time.Duration(1<<attempt)
 			select {
 			case <-ctx.Done():
-				_ = m.queue.Enqueue(batch)
+				_ = m.queue.Enqueue(batch) //nolint:errcheck // best-effort sync operation
 				return ctx.Err()
 			case <-time.After(backoff):
 				continue
@@ -367,7 +367,7 @@ func (m *EdgeSyncManager) syncOnce(ctx context.Context) error {
 	}
 
 	// All retries failed - re-queue
-	_ = m.queue.Enqueue(batch)
+	_ = m.queue.Enqueue(batch) //nolint:errcheck // best-effort sync operation
 
 	m.statsMu.Lock()
 	m.stats.SyncFailures++

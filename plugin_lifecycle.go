@@ -203,7 +203,7 @@ func (plm *PluginLifecycleManager) UninstallPlugin(id string) error {
 	}
 
 	// Attempt to unregister from the plugin registry
-	_ = plm.registry.Unregister(id)
+	_ = plm.registry.Unregister(id) //nolint:errcheck // best-effort cleanup on shutdown
 
 	delete(plm.installed, id)
 	plm.recordEvent(id, "uninstalled", "plugin removed")

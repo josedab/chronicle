@@ -224,7 +224,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		defer func() { _ = conn.Close() }()
+		defer func() { _ = conn.Close() }() //nolint:errcheck // best-effort stream operation
 
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
@@ -335,7 +335,7 @@ func (h *StreamHub) sendError(conn *websocket.Conn, msg string) {
 		Error: msg,
 	})
 	if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
-		_ = conn.Close()
+		_ = conn.Close() //nolint:errcheck // best-effort stream operation
 	}
 }
 

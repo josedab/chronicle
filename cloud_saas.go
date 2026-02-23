@@ -255,7 +255,7 @@ func (e *CloudSaaSEngine) DeployInstance(orgID string, spec DeploymentSpec) (*Cl
 	if orgCount >= e.config.MaxInstances {
 		return nil, fmt.Errorf("cloud_saas: max instances (%d) reached for org %q", e.config.MaxInstances, orgID)
 	}
-	_ = org
+	_ = org //nolint:errcheck // org used for context
 
 	region := spec.Region
 	if region == "" {

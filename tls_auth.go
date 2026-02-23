@@ -245,7 +245,7 @@ func (p *TLSProvider) watchCertificates() {
 			return
 		case <-ticker.C:
 			p.mu.Lock()
-			_ = p.loadCertificate()
+			_ = p.loadCertificate() //nolint:errcheck // best-effort certificate reload
 			p.mu.Unlock()
 		}
 	}

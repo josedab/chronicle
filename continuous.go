@@ -38,7 +38,7 @@ func (r *cqRunner) run() {
 		case <-r.stop:
 			return
 		case <-ticker.C:
-			_ = r.execute()
+			_ = r.execute() //nolint:errcheck // best-effort continuous query execution
 		}
 	}
 }

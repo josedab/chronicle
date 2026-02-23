@@ -265,7 +265,7 @@ func (p *ETLPipeline) Start() error {
 		return fmt.Errorf("etl source open: %w", err)
 	}
 	if err := p.sink.Open(p.ctx); err != nil {
-		_ = p.source.Close()
+		_ = p.source.Close() //nolint:errcheck // best-effort ETL processing
 		return fmt.Errorf("etl sink open: %w", err)
 	}
 
@@ -400,7 +400,7 @@ func (p *ETLPipeline) checkpointLoop() {
 		case <-ticker.C:
 			p.checkpoint.SavedAt = time.Now()
 			path := fmt.Sprintf("checkpoint_%s.json", p.config.Name)
-			_ = p.checkpoint.save(path)
+			_ = p.checkpoint.save(path) //nolint:errcheck // best-effort ETL processing
 			p.stats.mu.Lock()
 			p.stats.LastCheckpoint = p.checkpoint.SavedAt
 			p.stats.mu.Unlock()
@@ -888,7 +888,7 @@ func (r *ETLRegistry) StartAll() {
 		running := p.running
 		p.mu.RUnlock()
 		if !running {
-			_ = p.Start()
+			_ = p.Start() //nolint:errcheck // best-effort ETL processing
 		}
 	}
 }
@@ -902,7 +902,7 @@ func (r *ETLRegistry) StopAll() {
 		running := p.running
 		p.mu.RUnlock()
 		if running {
-			_ = p.Stop()
+			_ = p.Stop() //nolint:errcheck // best-effort ETL processing
 		}
 	}
 }

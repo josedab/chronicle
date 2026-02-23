@@ -356,13 +356,13 @@ func (o *K8sOperator) Stop() error {
 	if o.healthServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = o.healthServer.Shutdown(ctx)
+		_ = o.healthServer.Shutdown(ctx) //nolint:errcheck // best-effort shutdown
 	}
 
 	if o.metricsServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = o.metricsServer.Shutdown(ctx)
+		_ = o.metricsServer.Shutdown(ctx) //nolint:errcheck // best-effort shutdown
 	}
 
 	o.wg.Wait()
@@ -381,7 +381,7 @@ func (o *K8sOperator) startHealthServer() error {
 	// Liveness probe
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok")) //nolint:errcheck // HTTP response write
 	})
 
 	// Readiness probe
@@ -392,10 +392,10 @@ func (o *K8sOperator) startHealthServer() error {
 
 		if ready {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok"))
+			_, _ = w.Write([]byte("ok")) //nolint:errcheck // HTTP response write
 		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte("not ready"))
+			_, _ = w.Write([]byte("not ready")) //nolint:errcheck // HTTP response write
 		}
 	})
 

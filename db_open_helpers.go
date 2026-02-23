@@ -104,14 +104,14 @@ func setLegacyReferences(db *DB) {
 func closeOpenResources(db *DB) {
 	if db.dataStore != nil {
 		if _, ok := db.dataStore.(*FileDataStore); !ok {
-			_ = db.dataStore.Close()
+			_ = db.dataStore.Close() //nolint:errcheck // best-effort cleanup
 		}
 	}
 	if db.file != nil {
-		_ = db.file.Close()
+		_ = db.file.Close() //nolint:errcheck // best-effort cleanup
 	}
 	if db.wal != nil {
-		_ = db.wal.Close()
+		_ = db.wal.Close() //nolint:errcheck // best-effort cleanup
 	}
 }
 

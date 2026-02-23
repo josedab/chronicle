@@ -219,7 +219,7 @@ func decodePartition(data []byte) (*Partition, error) {
 				if _, err := reader.Read(index); err != nil {
 					return nil, err
 				}
-				_ = index
+				_ = index //nolint:errcheck // index consumed by iteration
 			}
 
 			if name == "time" && DataType(dataType) == DataTypeTimestamp {

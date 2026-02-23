@@ -403,7 +403,7 @@ func (m *AlertManager) sendWebhook(webhookURL string, payload []byte) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // HTTP body close is best-effort
 
 	if resp.StatusCode >= 500 || resp.StatusCode == 429 {
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)

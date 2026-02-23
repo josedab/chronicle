@@ -221,7 +221,7 @@ func (s *ArrowFlightServer) Start() error {
 func (s *ArrowFlightServer) Stop() error {
 	close(s.stopCh)
 	if s.listener != nil {
-		_ = s.listener.Close()
+		_ = s.listener.Close() //nolint:errcheck // best-effort close on shutdown
 	}
 	s.wg.Wait()
 	return nil
@@ -677,7 +677,7 @@ func (s *ArrowFlightServer) sendRecordBatch(conn net.Conn, batch ArrowRecordBatc
 func (s *ArrowFlightServer) sendError(conn net.Conn, err error) {
 	errResp := map[string]string{"error": err.Error()}
 	body, _ := json.Marshal(errResp)
-	_ = s.sendMessage(conn, 0, body)
+	_ = s.sendMessage(conn, 0, body) //nolint:errcheck // best-effort final message
 }
 
 // sendMessage sends a length-prefixed message.

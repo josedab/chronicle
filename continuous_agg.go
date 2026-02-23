@@ -197,7 +197,7 @@ func (e *ContinuousAggEngine) maybeEmitWindow(state *ContinuousAggState) {
 		w := &state.Windows[i]
 		// Window is closed when watermark has moved past window end
 		if watermark > w.End+windowNanos {
-			_ = e.db.Write(Point{
+			_ = e.db.Write(Point{ //nolint:errcheck // best-effort materialized write
 				Metric:    state.Definition.TargetMetric,
 				Value:     w.Value,
 				Timestamp: w.End,

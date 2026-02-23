@@ -79,7 +79,7 @@ func (b *BurnRateEngine) AddDefaultAlerts(sloName string) error {
 	if !ok {
 		return fmt.Errorf("SLO %q not found", sloName)
 	}
-	_ = slo
+	_ = slo //nolint:errcheck // slo used for context
 
 	alerts := []BurnRateAlert{
 		{

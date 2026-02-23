@@ -237,7 +237,7 @@ func (s *S3Backend) Read(ctx context.Context, key string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("S3 get object failed: %w", err)
 		}
-		defer func() { _ = resp.Body.Close() }()
+		defer func() { _ = resp.Body.Close() }() //nolint:errcheck // HTTP body close is best-effort
 
 		d, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -319,7 +319,7 @@ func (s *S3Backend) writeMultipart(ctx context.Context, fullKey string, data []b
 		})
 		if err != nil {
 			// Abort on failure
-			_, _ = s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+			_, _ = s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{ //nolint:errcheck // best-effort abort on failure
 				Bucket:   aws.String(s.config.Bucket),
 				Key:      aws.String(fullKey),
 				UploadId: uploadID,

@@ -118,7 +118,7 @@ func (e *Exporter) flushLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			_ = e.flush(context.Background())
+			_ = e.flush(context.Background()) //nolint:errcheck // best-effort periodic flush
 		case <-e.stopCh:
 			return
 		}

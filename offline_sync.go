@@ -299,7 +299,7 @@ func NewBloomFilter(size, hashes uint) *BloomFilter {
 
 func (bf *BloomFilter) hash(data []byte, seed uint) uint {
 	h := fnv.New64a()
-	_ = binary.Write(h, binary.LittleEndian, uint64(seed))
+	_ = binary.Write(h, binary.LittleEndian, uint64(seed)) //nolint:errcheck // hash.Write never fails
 	h.Write(data)
 	return uint(h.Sum64() % uint64(bf.size))
 }

@@ -83,12 +83,12 @@ func (w *WAL) Close() error {
 	defer w.mu.Unlock()
 	if err := w.writer.Flush(); err != nil {
 		slog.Error("WAL close: flush failed", "err", err)
-		_ = w.file.Close()
+		_ = w.file.Close() //nolint:errcheck // best-effort cleanup on error path
 		return err
 	}
 	if err := w.file.Sync(); err != nil {
 		slog.Error("WAL close: sync failed", "err", err)
-		_ = w.file.Close()
+		_ = w.file.Close() //nolint:errcheck // best-effort cleanup on error path
 		return err
 	}
 	return w.file.Close()

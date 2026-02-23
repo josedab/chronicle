@@ -543,7 +543,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer func() { _ = conn.Close() }()
+	defer func() { _ = conn.Close() }() //nolint:errcheck // best-effort response encoding
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
@@ -564,7 +564,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 			var cmd StreamMessage
 			if err := json.Unmarshal(msg, &cmd); err != nil {
 				resp, _ := json.Marshal(StreamMessage{Type: "error", Error: "invalid message format"})
-				_ = conn.WriteMessage(1, resp)
+				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
 				continue
 			}
 
@@ -576,7 +576,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 				connMu.Unlock()
 
 				resp, _ := json.Marshal(StreamMessage{Type: "subscribed", SubID: sub.ID})
-				_ = conn.WriteMessage(1, resp)
+				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
 
 				go g.forwardStreamPoints(ctx, conn, sub)
 
@@ -589,11 +589,11 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 				connMu.Unlock()
 
 				resp, _ := json.Marshal(StreamMessage{Type: "unsubscribed", SubID: cmd.SubID})
-				_ = conn.WriteMessage(1, resp)
+				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
 
 			default:
 				resp, _ := json.Marshal(StreamMessage{Type: "error", Error: "unknown command: " + cmd.Type})
-				_ = conn.WriteMessage(1, resp)
+				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
 			}
 		}
 	}()
@@ -672,7 +672,7 @@ func (g *GrafanaBackend) createAlertRule(w http.ResponseWriter, r *http.Request)
 			Annotations: rule.Annotations,
 		}
 		if rule.For != "" {
-			alertRule.ForDuration, _ = g.parseDuration(rule.For)
+			alertRule.ForDuration, _ = g.parseDuration(rule.For) //nolint:errcheck // best-effort response encoding
 		}
 		if err := g.alertMgr.AddRule(alertRule); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

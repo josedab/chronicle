@@ -407,7 +407,7 @@ func (bs *BenchmarkSuite) RunCardinalityBenchmark(db *DB, seriesCounts []int) ([
 				return nil, err
 			}
 		}
-		_ = db.Flush()
+		_ = db.Flush() //nolint:errcheck // benchmark cleanup
 
 		// Benchmark query across all series
 		iterations := 50
@@ -458,7 +458,7 @@ func (bs *BenchmarkSuite) RunAggregationBenchmark(db *DB, pointCount int) ([]Ben
 	if err := db.WriteBatch(pts); err != nil {
 		return nil, err
 	}
-	_ = db.Flush()
+	_ = db.Flush() //nolint:errcheck // benchmark cleanup
 
 	aggs := []struct {
 		name string
@@ -539,7 +539,7 @@ func (bs *BenchmarkSuite) RunRetentionBenchmark(db *DB, pointCount int) (*Benchm
 			return nil, err
 		}
 	}
-	_ = db.Flush()
+	_ = db.Flush() //nolint:errcheck // benchmark cleanup
 	elapsed := time.Since(start)
 
 	result := &BenchmarkResult{

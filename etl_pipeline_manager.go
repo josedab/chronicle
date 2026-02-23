@@ -109,7 +109,7 @@ func (pm *ETLPipelineManager) Stop() error {
 		mp.mu.Lock()
 		if mp.State == PipelineStateRunning {
 			if mp.Pipeline != nil {
-				_ = mp.Pipeline.Stop()
+				_ = mp.Pipeline.Stop() //nolint:errcheck // best-effort pipeline operation
 			}
 			mp.State = PipelineStateStopped
 			now := time.Now()
@@ -184,7 +184,7 @@ func (pm *ETLPipelineManager) StopPipeline(name string) error {
 		return fmt.Errorf("pipeline %q not running", name)
 	}
 	if mp.Pipeline != nil {
-		_ = mp.Pipeline.Stop()
+		_ = mp.Pipeline.Stop() //nolint:errcheck // best-effort pipeline operation
 	}
 	mp.State = PipelineStateStopped
 	now := time.Now()

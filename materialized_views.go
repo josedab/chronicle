@@ -668,7 +668,7 @@ func (e *MaterializedViewEngine) checkStaleness() {
 		}
 		if time.Since(mv.lastRefresh) > mv.definition.MaxStaleness {
 			mv.stale = true
-			_ = e.RefreshView(mv.definition.Name)
+			_ = e.RefreshView(mv.definition.Name) //nolint:errcheck // best-effort periodic refresh
 		}
 	}
 }

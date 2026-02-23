@@ -894,7 +894,7 @@ func (e *StreamingSQLEngine) parseConditions(conditionStr string) []Condition {
 	// Simple parsing: split by AND
 	parts := strings.Split(strings.ToUpper(conditionStr), " AND ")
 	for i, part := range parts {
-		_ = i
+		_ = i //nolint:errcheck // index consumed by iteration
 		part = strings.TrimSpace(part)
 		cond := e.parseCondition(part)
 		if cond != nil {

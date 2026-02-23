@@ -352,7 +352,7 @@ func NewCloudSync(db *DB, config CloudSyncConfig) *CloudSync {
 			path:    config.OfflineQueuePath,
 			maxSize: config.MaxOfflineQueueSize,
 		}
-		_ = os.MkdirAll(config.OfflineQueuePath, 0755)
+		_ = os.MkdirAll(config.OfflineQueuePath, 0755) //nolint:errcheck // best-effort sync operation
 	}
 
 	// Setup metric filters
@@ -819,7 +819,7 @@ func (cs *CloudSync) saveCheckpoint() {
 	}
 
 	checkpointPath := filepath.Join(cs.config.OfflineQueuePath, "checkpoint.json")
-	_ = os.WriteFile(checkpointPath, data, 0644)
+	_ = os.WriteFile(checkpointPath, data, 0644) //nolint:errcheck // best-effort sync operation
 }
 
 func (cs *CloudSync) updateCheckpoint(timestamp int64) {

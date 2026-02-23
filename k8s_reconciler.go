@@ -163,7 +163,7 @@ func (fr *FullReconciler) reconcileAll(ctx context.Context) {
 		go func(r *ChronicleResource) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			_, _ = fr.Reconcile(r)
+			_, _ = fr.Reconcile(r) //nolint:errcheck // best-effort reconciliation, retried on next interval
 		}(res)
 	}
 
