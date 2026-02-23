@@ -341,6 +341,7 @@ func (e *ContinuousAggEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/continuous-agg/create", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var def ContinuousAggDefinition
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&def); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		if err := e.Create(def); err != nil { http.Error(w, "conflict", http.StatusConflict); return }
 		w.Header().Set("Content-Type", "application/json")
@@ -357,6 +358,7 @@ func (e *ContinuousAggEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/continuous-agg/delete", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req struct{ Name string `json:"name"` }
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		if err := e.Delete(req.Name); err != nil { http.Error(w, "not found", http.StatusNotFound); return }
 		w.Header().Set("Content-Type", "application/json")
@@ -365,6 +367,7 @@ func (e *ContinuousAggEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/continuous-agg/alter", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req ContinuousAggAlterRequest
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		if err := e.Alter(req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		w.Header().Set("Content-Type", "application/json")
@@ -373,6 +376,7 @@ func (e *ContinuousAggEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/continuous-agg/sql", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
 		var req struct{ SQL string `json:"sql"` }
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		result, err := e.ExecuteSQL(req.SQL)
 		if err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }

@@ -438,6 +438,7 @@ func (e *StudioEnhancedEngine) handleSessions(w http.ResponseWriter, r *http.Req
 		var req struct {
 			UserID string `json:"user_id"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -494,6 +495,7 @@ func (e *StudioEnhancedEngine) handleExecuteQuery(w http.ResponseWriter, r *http
 		SessionID string `json:"session_id"`
 		Query     string `json:"query"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
@@ -523,6 +525,7 @@ func (e *StudioEnhancedEngine) handleLayouts(w http.ResponseWriter, r *http.Requ
 		var req struct {
 			Name string `json:"name"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -551,6 +554,7 @@ func (e *StudioEnhancedEngine) handleSharedQueries(w http.ResponseWriter, r *htt
 			Name      string `json:"name"`
 			Query     string `json:"query"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -587,6 +591,7 @@ func (e *StudioEnhancedEngine) handleExport(w http.ResponseWriter, r *http.Reque
 		Format string `json:"format"`
 		Data   any    `json:"data"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return

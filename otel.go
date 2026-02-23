@@ -172,22 +172,22 @@ func (r *OTLPReceiver) Handler() http.HandlerFunc {
 		if req.Header.Get("Content-Encoding") == "gzip" {
 			gz, err := gzip.NewReader(req.Body)
 			if err != nil {
-				http.Error(w, "failed to decompress: "+err.Error(), http.StatusBadRequest)
+				http.Error(w, "failed to decompress request body", http.StatusBadRequest)
 				return
 			}
-			defer func() { _ = gz.Close() }() //nolint:errcheck // best-effort cleanup
+			defer closeQuietly(gz)
 			reader = gz
 		}
 
 		var export OTLPExportRequest
 		if err := json.NewDecoder(reader).Decode(&export); err != nil {
-			http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid JSON payload", http.StatusBadRequest)
 			return
 		}
 
 		points, err := r.convertToPoints(export)
 		if err != nil {
-			http.Error(w, "conversion error: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "failed to convert metrics", http.StatusBadRequest)
 			return
 		}
 

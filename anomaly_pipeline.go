@@ -130,7 +130,7 @@ func (p *AnomalyPipeline) Start(ctx context.Context) error {
 
 	sub := p.hub.Subscribe("", nil)
 
-	go func() {
+	go func(ctx context.Context) {
 		defer sub.Close()
 		for {
 			select {
@@ -143,7 +143,7 @@ func (p *AnomalyPipeline) Start(ctx context.Context) error {
 				p.processPoint(pt)
 			}
 		}
-	}()
+	}(ctx)
 
 	return nil
 }
@@ -495,7 +495,7 @@ func (p *AnomalyPipeline) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		var pt Point
 		if err := json.NewDecoder(r.Body).Decode(&pt); err != nil {
-			http.Error(w, "invalid point: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 		anomaly := p.DetectPoint(pt)
@@ -515,7 +515,7 @@ func (p *AnomalyPipeline) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodPut:
 			var cfg AnomalyPipelineConfig
 			if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-				http.Error(w, "invalid config: "+err.Error(), http.StatusBadRequest)
+				http.Error(w, "invalid request body", http.StatusBadRequest)
 				return
 			}
 			p.mu.Lock()

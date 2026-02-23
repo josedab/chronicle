@@ -660,7 +660,7 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 		}
 		var snapshot MRSnapshot
 		if err := json.NewDecoder(r.Body).Decode(&snapshot); err != nil {
-			http.Error(w, "invalid snapshot: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 		if err := e.ApplySnapshot(snapshot); err != nil {
