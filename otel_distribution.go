@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -284,7 +285,8 @@ func (d *OTelDistro) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		batch.Received = time.Now()
 		if err := d.Push(&batch); err != nil {
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			slog.Error("push failed", "err", err)
+			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)

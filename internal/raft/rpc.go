@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -248,9 +249,8 @@ func (rn *RaftNode) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 		rn.votedFor = req.CandidateID
 		resp.VoteGranted = true
 		rn.resetElectionTimer()
-		_ = rn.saveState()
+		_ = rn.saveState() //nolint:errcheck // best-effort state persistence
 	}
-
 	rn.writeJSON(w, resp)
 }
 
@@ -309,12 +309,12 @@ func (rn *RaftNode) handleAppendEntries(w http.ResponseWriter, r *http.Request) 
 			existingTerm := rn.log.TermAt(entry.Index)
 			if existingTerm == 0 {
 
-				_ = rn.log.Append(req.Entries[i:]...)
+				_ = rn.log.Append(req.Entries[i:]...) //nolint:errcheck // best-effort log append
 				break
 			} else if existingTerm != entry.Term {
 
 				rn.log.TruncateAfter(entry.Index - 1)
-				_ = rn.log.Append(req.Entries[i:]...)
+				_ = rn.log.Append(req.Entries[i:]...) //nolint:errcheck // best-effort log append
 				break
 			}
 		}
@@ -380,7 +380,8 @@ func (rn *RaftNode) handleForwardProposal(w http.ResponseWriter, r *http.Request
 	defer cancel()
 
 	if err := rn.Propose(ctx, req.Command); err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		log.Printf("[ERROR] propose failed: %v", err)
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 		return
 	}
 

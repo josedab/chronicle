@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -421,7 +422,8 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.Track(event); err != nil {
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			slog.Error("track failed", "err", err)
+			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
