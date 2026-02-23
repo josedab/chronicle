@@ -460,6 +460,7 @@ type SIEMExporter struct {
 	lastExportAt  time.Time
 	connected     bool
 	stopCh        chan struct{}
+	wg            sync.WaitGroup
 }
 
 // NewSIEMExporter creates a new SIEM exporter.
@@ -569,7 +570,9 @@ func (se *SIEMExporter) flushLocked() error {
 
 // StartBackgroundFlush runs periodic flushing until stopCh is closed.
 func (se *SIEMExporter) StartBackgroundFlush() {
+	se.wg.Add(1)
 	go func() {
+		defer se.wg.Done()
 		ticker := time.NewTicker(se.flushInterval)
 		defer ticker.Stop()
 		for {
@@ -584,13 +587,14 @@ func (se *SIEMExporter) StartBackgroundFlush() {
 	}()
 }
 
-// Stop stops the background flush loop.
+// Stop stops the background flush loop and waits for it to finish.
 func (se *SIEMExporter) Stop() {
 	select {
 	case <-se.stopCh:
 	default:
 		close(se.stopCh)
 	}
+	se.wg.Wait()
 }
 
 // PendingCount returns the number of buffered entries awaiting export.

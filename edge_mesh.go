@@ -254,6 +254,7 @@ type EdgeMesh struct {
 	client  *http.Client
 	running atomic.Bool
 	stopCh  chan struct{}
+	wg      sync.WaitGroup
 
 	gossipsSent     atomic.Int64
 	gossipsReceived atomic.Int64
@@ -297,11 +298,22 @@ func (em *EdgeMesh) Start() error {
 
 	// Bootstrap from seed nodes
 	for _, seed := range em.config.SeedNodes {
-		go em.joinPeer(seed)
+		em.wg.Add(1)
+		go func(s string) {
+			defer em.wg.Done()
+			em.joinPeer(s)
+		}(seed)
 	}
 
-	go em.gossipLoop()
-	go em.healthCheckLoop()
+	em.wg.Add(2)
+	go func() {
+		defer em.wg.Done()
+		em.gossipLoop()
+	}()
+	go func() {
+		defer em.wg.Done()
+		em.healthCheckLoop()
+	}()
 
 	return nil
 }
@@ -312,6 +324,7 @@ func (em *EdgeMesh) Stop() error {
 		return nil
 	}
 	close(em.stopCh)
+	em.wg.Wait()
 
 	// Notify peers of departure
 	em.mu.RLock()

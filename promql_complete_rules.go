@@ -27,6 +27,7 @@ type PromQLRecordingRuleEngine struct {
 	parser *PromQLCompleteParser
 	mu     sync.RWMutex
 	stopCh chan struct{}
+	wg     sync.WaitGroup
 }
 
 // NewPromQLRecordingRuleEngine creates a new recording rule engine.
@@ -103,7 +104,9 @@ func (e *PromQLRecordingRuleEngine) EvaluateRule(rule PromQLRecordingRule) error
 
 // Start begins periodic evaluation of all recording rules.
 func (e *PromQLRecordingRuleEngine) Start() {
+	e.wg.Add(1)
 	go func() {
+		defer e.wg.Done()
 		ticker := time.NewTicker(time.Second * 15)
 		defer ticker.Stop()
 		for {
@@ -124,9 +127,10 @@ func (e *PromQLRecordingRuleEngine) Start() {
 	}()
 }
 
-// Stop halts the recording rule engine.
+// Stop halts the recording rule engine and waits for the goroutine to finish.
 func (e *PromQLRecordingRuleEngine) Stop() {
 	close(e.stopCh)
+	e.wg.Wait()
 }
 
 // PromQLLabelReplace performs label_replace on a set of labels.

@@ -192,6 +192,7 @@ type PluginRegistry struct {
 	config  PluginSDKConfig
 	plugins map[string]*pluginEntry
 	mu      sync.RWMutex
+	wg      sync.WaitGroup
 }
 
 // NewPluginRegistry creates a new plugin registry.
@@ -200,6 +201,11 @@ func NewPluginRegistry(config PluginSDKConfig) *PluginRegistry {
 		config:  config,
 		plugins: make(map[string]*pluginEntry),
 	}
+}
+
+// Close waits for all inflight plugin invocations to complete.
+func (pr *PluginRegistry) Close() {
+	pr.wg.Wait()
 }
 
 // RegisterAggregator registers a custom aggregation plugin.
@@ -330,7 +336,9 @@ func (pr *PluginRegistry) InvokeAggregator(ctx context.Context, id string, value
 	}
 	ch := make(chan result, 1)
 
+	pr.wg.Add(1)
 	go func() {
+		defer pr.wg.Done()
 		v, err := entry.aggregator.Aggregate(values)
 		ch <- result{v, err}
 	}()
@@ -365,7 +373,9 @@ func (pr *PluginRegistry) InvokeIngestor(ctx context.Context, id string, data []
 	}
 	ch := make(chan result, 1)
 
+	pr.wg.Add(1)
 	go func() {
+		defer pr.wg.Done()
 		pts, err := entry.ingestor.Parse(data)
 		ch <- result{pts, err}
 	}()

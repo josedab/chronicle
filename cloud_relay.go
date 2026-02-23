@@ -94,6 +94,7 @@ type CloudRelay struct {
 
 	mu   sync.RWMutex
 	done chan struct{}
+	wg   sync.WaitGroup
 }
 
 // NewCloudRelay creates a new edge-to-cloud relay agent.
@@ -122,8 +123,15 @@ func (r *CloudRelay) Start() {
 		return
 	}
 	r.status.Store(RelayNodeOnline)
-	go r.flushLoop()
-	go r.heartbeatLoop()
+	r.wg.Add(2)
+	go func() {
+		defer r.wg.Done()
+		r.flushLoop()
+	}()
+	go func() {
+		defer r.wg.Done()
+		r.heartbeatLoop()
+	}()
 }
 
 // Stop gracefully shuts down the relay, flushing remaining data.
@@ -133,6 +141,7 @@ func (r *CloudRelay) Stop() {
 	default:
 		close(r.done)
 	}
+	r.wg.Wait()
 	r.status.Store(RelayNodeOffline)
 	// Drain remaining queue
 	r.flushQueue()
