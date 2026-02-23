@@ -667,7 +667,18 @@ func (pe *PolicyEngine) auditWorker() {
 	for {
 		select {
 		case <-pe.ctx.Done():
-			return
+			// Drain remaining entries before exiting
+			for {
+				select {
+				case entry := <-pe.auditChan:
+					pe.auditMu.Lock()
+					pe.auditLog = append(pe.auditLog, entry)
+					atomic.AddInt64(&pe.auditEntries, 1)
+					pe.auditMu.Unlock()
+				default:
+					return
+				}
+			}
 		case entry := <-pe.auditChan:
 			pe.auditMu.Lock()
 			pe.auditLog = append(pe.auditLog, entry)
