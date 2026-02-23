@@ -1,11 +1,43 @@
 package chronicle
 
 import (
+	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 )
+
+// closeQuietly closes c and logs any error at debug level.
+// Use this for best-effort cleanup where the error cannot be meaningfully handled.
+func closeQuietly(c io.Closer) {
+	if err := c.Close(); err != nil {
+		slog.Debug("close error", "err", err)
+	}
+}
+
+// flushQuietly calls Flush and logs any error at debug level.
+func flushQuietly(f interface{ Flush() error }) {
+	if err := f.Flush(); err != nil {
+		slog.Debug("flush error", "err", err)
+	}
+}
+
+// shutdownQuietly calls Shutdown and logs any error at debug level.
+func shutdownQuietly(s interface{ Shutdown(ctx context.Context) error }, ctx context.Context) {
+	if err := s.Shutdown(ctx); err != nil {
+		slog.Debug("shutdown error", "err", err)
+	}
+}
+
+// stopQuietly calls Stop and logs any error at debug level.
+func stopQuietly(s interface{ Stop() error }) {
+	if err := s.Stop(); err != nil {
+		slog.Debug("stop error", "err", err)
+	}
+}
 
 // HTTPDoer is an interface for making HTTP requests.
 // It is implemented by *http.Client and can be mocked in tests.

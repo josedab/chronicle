@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -222,4 +223,24 @@ func TestEqualStringSlice(t *testing.T) {
 			t.Errorf("equalStringSlice(%v, %v) = %v, want %v", tt.a, tt.b, got, tt.want)
 		}
 	}
+}
+
+type errCloser struct{ err error }
+
+func (e errCloser) Close() error { return e.err }
+
+func TestCloseQuietly(t *testing.T) {
+// Should not panic on nil error
+closeQuietly(errCloser{err: nil})
+// Should not panic on real error
+closeQuietly(errCloser{err: errors.New("test error")})
+}
+
+type errFlusher struct{ err error }
+
+func (e errFlusher) Flush() error { return e.err }
+
+func TestFlushQuietly(t *testing.T) {
+flushQuietly(errFlusher{err: nil})
+flushQuietly(errFlusher{err: errors.New("test error")})
 }
