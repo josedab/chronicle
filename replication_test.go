@@ -203,13 +203,26 @@ func TestReplicator_FlushToServer(t *testing.T) {
 	}
 	r.Enqueue(points)
 
-	// Wait for flush
-	time.Sleep(200 * time.Millisecond)
-
-	mu.Lock()
-	defer mu.Unlock()
-	if len(receivedPoints) != 2 {
-		t.Errorf("expected 2 points, got %d", len(receivedPoints))
+	// Poll until flush completes
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			mu.Lock()
+			n := len(receivedPoints)
+			mu.Unlock()
+			t.Fatalf("timed out: expected 2 points, got %d", n)
+		case <-tick.C:
+			mu.Lock()
+			n := len(receivedPoints)
+			mu.Unlock()
+			if n == 2 {
+				return
+			}
+		}
 	}
 }
 
@@ -243,12 +256,26 @@ func TestReplicator_BatchSizeTrigger(t *testing.T) {
 	}
 	r.Enqueue(points)
 
-	time.Sleep(200 * time.Millisecond)
-
-	mu.Lock()
-	defer mu.Unlock()
-	if flushCount != 1 {
-		t.Errorf("expected 1 flush, got %d", flushCount)
+	// Poll until batch flush occurs
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			mu.Lock()
+			n := flushCount
+			mu.Unlock()
+			t.Fatalf("timed out: expected 1 flush, got %d", n)
+		case <-tick.C:
+			mu.Lock()
+			n := flushCount
+			mu.Unlock()
+			if n == 1 {
+				return
+			}
+		}
 	}
 }
 
@@ -289,22 +316,39 @@ func TestReplicator_StopFlushesRemaining(t *testing.T) {
 	}
 	r.Enqueue(points)
 
-	// Give time for points to be read from queue
-	time.Sleep(50 * time.Millisecond)
-
 	// Stop should flush remaining
 	r.Stop()
-	time.Sleep(100 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-	if len(receivedPoints) != 2 {
-		t.Errorf("expected 2 points after stop, got %d", len(receivedPoints))
+	// Poll until flushed points arrive
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			mu.Lock()
+			n := len(receivedPoints)
+			mu.Unlock()
+			t.Fatalf("timed out: expected 2 points after stop, got %d", n)
+		case <-tick.C:
+			mu.Lock()
+			n := len(receivedPoints)
+			mu.Unlock()
+			if n == 2 {
+				return
+			}
+		}
 	}
 }
 
 func TestReplicator_ServerError(t *testing.T) {
+	var mu sync.Mutex
+	reqCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		reqCount++
+		mu.Unlock()
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
@@ -322,7 +366,25 @@ func TestReplicator_ServerError(t *testing.T) {
 
 	// Should not panic on server error
 	r.Enqueue([]Point{{Metric: "test", Value: 1.0, Timestamp: time.Now().UnixNano()}})
-	time.Sleep(100 * time.Millisecond)
+
+	// Poll until the server has received the request
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			t.Fatal("timed out waiting for server to receive request")
+		case <-tick.C:
+			mu.Lock()
+			n := reqCount
+			mu.Unlock()
+			if n >= 1 {
+				return
+			}
+		}
+	}
 }
 
 func TestReplicator_EmptyTargetURL(t *testing.T) {

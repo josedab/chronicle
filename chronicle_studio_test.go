@@ -29,7 +29,6 @@ func TestChronicleStudioListProjects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateProject %d failed: %v", i, err)
 		}
-		time.Sleep(time.Nanosecond)
 	}
 	projects := studio.ListProjects()
 	if len(projects) != 3 {
@@ -89,7 +88,6 @@ func TestChronicleStudioAddCell(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AddCell %d failed: %v", i, err)
 		}
-		time.Sleep(time.Nanosecond)
 	}
 
 	got, _ := studio.GetNotebook(nb.ID)
@@ -275,7 +273,6 @@ func TestChronicleStudioMaxProjects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateProject %d failed: %v", i, err)
 		}
-		time.Sleep(time.Nanosecond)
 	}
 
 	_, err := studio.CreateProject("P3", "desc", "owner")

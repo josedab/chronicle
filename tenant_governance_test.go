@@ -548,14 +548,30 @@ func TestTenantGovernanceEngine_MeteringRecords(t *testing.T) {
 	// Start engine to trigger metering collection
 	engine.Start()
 
-	// Wait for at least one metering cycle
-	time.Sleep(150 * time.Millisecond)
+	// Poll for at least one metering record
+	deadline := time.After(2 * time.Second)
+	var records []MeteringRecord
+	for {
+		now := time.Now()
+		start := now.Add(-1 * time.Hour)
+		records = engine.GetMeteringRecords("t1", start, now)
+		if len(records) > 0 {
+			break
+		}
+		select {
+		case <-deadline:
+			engine.Stop()
+			t.Fatal("timed out waiting for metering records")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
 
 	engine.Stop()
 
 	now := time.Now()
 	start := now.Add(-1 * time.Hour)
-	records := engine.GetMeteringRecords("t1", start, now)
+	records = engine.GetMeteringRecords("t1", start, now)
 
 	if len(records) == 0 {
 		t.Fatal("expected at least one metering record")

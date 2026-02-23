@@ -101,7 +101,24 @@ func TestHealthChecker_RegisterAndCheck(t *testing.T) {
 	})
 
 	hc.Start()
-	time.Sleep(100 * time.Millisecond)
+
+	// Poll until health check has run
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			t.Fatal("timed out waiting for health check to run")
+		case <-tick.C:
+			status := hc.Status()
+			if len(status.Checks) > 0 {
+				goto checksDone
+			}
+		}
+	}
+checksDone:
 	hc.Stop()
 
 	status := hc.Status()
@@ -129,7 +146,24 @@ func TestHealthChecker_DegradedState(t *testing.T) {
 	})
 
 	hc.Start()
-	time.Sleep(150 * time.Millisecond)
+
+	// Poll until health check has run
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			t.Fatal("timed out waiting for health check to run")
+		case <-tick.C:
+			status := hc.Status()
+			if status.Overall == HealthDegraded {
+				goto checksDone
+			}
+		}
+	}
+checksDone:
 	hc.Stop()
 
 	status := hc.Status()
@@ -157,7 +191,23 @@ func TestObservabilitySuite_StartStop(t *testing.T) {
 		t.Fatal("expected non-nil Health()")
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	// Allow suite's background goroutines to initialize before stopping
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			goto suiteDone
+		case <-tick.C:
+			snap := mc.Snapshot()
+			if snap.Counters["test.counter"] == 1 {
+				goto suiteDone
+			}
+		}
+	}
+suiteDone:
 	suite.Stop()
 
 	snap := mc.Snapshot()

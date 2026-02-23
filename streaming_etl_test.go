@@ -33,7 +33,16 @@ func TestETLPipeline_TransformFilter(t *testing.T) {
 	inCh <- &Point{Metric: "cpu", Value: 1, Timestamp: time.Now().UnixNano()}
 	inCh <- &Point{Metric: "cpu", Value: 10, Timestamp: time.Now().UnixNano()}
 
-	time.Sleep(100 * time.Millisecond)
+	// Poll for the expected output point with timeout
+	deadline := time.After(2 * time.Second)
+	for len(outCh) < 1 {
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for pipeline output")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
 
 	if err := pipeline.Stop(); err != nil {
 		t.Fatalf("Stop: %v", err)
@@ -249,7 +258,20 @@ func TestETLPipelineStats(t *testing.T) {
 		inCh <- &Point{Metric: "m", Value: float64(i), Timestamp: time.Now().UnixNano()}
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	// Poll for stats to reflect processed points
+	deadline := time.After(2 * time.Second)
+	for {
+		stats := pipeline.Stats()
+		if stats.PointsRead >= 5 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for pipeline to process points")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
 
 	stats := pipeline.Stats()
 	if stats.PointsRead == 0 {

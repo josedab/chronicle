@@ -35,8 +35,20 @@ func TestStreamReplayEngine(t *testing.T) {
 		session, _ := e.CreateReplay("replay_metric", 0, now+int64(time.Hour), 0, cb)
 		if err := e.StartReplay(session.ID); err != nil { t.Fatal(err) }
 
-		// Wait for completion
-		time.Sleep(200 * time.Millisecond)
+		// Poll for replay completion
+		deadline := time.After(2 * time.Second)
+		for {
+			s := e.GetSession(session.ID)
+			if s != nil && s.Status == "completed" {
+				break
+			}
+			select {
+			case <-deadline:
+				t.Fatal("timed out waiting for replay completion")
+			default:
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
 
 		s := e.GetSession(session.ID)
 		if s == nil { t.Fatal("expected session") }
@@ -47,7 +59,20 @@ func TestStreamReplayEngine(t *testing.T) {
 		e := NewStreamReplayEngine(db, DefaultStreamReplayConfig())
 		session, _ := e.CreateReplay("replay_metric", 0, now+int64(time.Hour), 0.001, nil)
 		e.StartReplay(session.ID)
-		time.Sleep(10 * time.Millisecond)
+		// Poll until replay starts running
+		deadline := time.After(2 * time.Second)
+		for {
+			s := e.GetSession(session.ID)
+			if s != nil && s.Status == "running" {
+				break
+			}
+			select {
+			case <-deadline:
+				t.Fatal("timed out waiting for replay to start")
+			default:
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
 		if err := e.CancelReplay(session.ID); err != nil { t.Fatal(err) }
 		s := e.GetSession(session.ID)
 		if s.Status != "cancelled" { t.Errorf("expected cancelled, got %s", s.Status) }
