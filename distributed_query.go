@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -358,9 +357,7 @@ func (c *DistributedQueryCoordinator) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := c.Execute(r.Context(), &req.Query, req.Nodes)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -898,9 +897,7 @@ func (e *RootCauseAnalysisEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.BuildCausalGraph(); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

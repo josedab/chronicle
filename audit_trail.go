@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -576,9 +575,9 @@ func (se *SIEMExporter) StartBackgroundFlush() {
 		for {
 			select {
 			case <-ticker.C:
-				_ = se.Flush()
+				_ = se.Flush() //nolint:errcheck // best-effort audit recording
 			case <-se.stopCh:
-				_ = se.Flush()
+				_ = se.Flush() //nolint:errcheck // best-effort audit recording
 				return
 			}
 		}
@@ -952,7 +951,7 @@ func (m *AuditTrailManager) RegisterAuditTrailRoutes(mux *http.ServeMux) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(m.Status()); err != nil {
-			http.Error(w, "encoding response", http.StatusInternalServerError)
+			internalError(w, err, "encoding response")
 		}
 	})
 }
@@ -981,16 +980,14 @@ func (m *AuditTrailManager) handleRecordEvent(w http.ResponseWriter, r *http.Req
 
 	entry, err := m.RecordEvent(r.Context(), req.Action, req.Actor, req.Resource, req.Details, outcome)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(entry); err != nil {
-		http.Error(w, "encoding response", http.StatusInternalServerError)
+		internalError(w, err, "encoding response")
 	}
 }
 
@@ -1021,7 +1018,7 @@ func (m *AuditTrailManager) handleSearchEvents(w http.ResponseWriter, r *http.Re
 	results := m.Search(r.Context(), filter)
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
-		http.Error(w, "encoding response", http.StatusInternalServerError)
+		internalError(w, err, "encoding response")
 	}
 }
 
@@ -1031,7 +1028,7 @@ func (m *AuditTrailManager) handleVerify(w http.ResponseWriter, r *http.Request)
 		EndSeq   uint64 `json:"end_seq"`
 	}
 	// Body is optional; empty body verifies the entire chain.
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	_ = json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck // best-effort audit recording
 
 	var (
 		valid bool
@@ -1053,7 +1050,7 @@ func (m *AuditTrailManager) handleVerify(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "encoding response", http.StatusInternalServerError)
+		internalError(w, err, "encoding response")
 	}
 }
 
@@ -1088,6 +1085,6 @@ func (m *AuditTrailManager) handleComplianceReport(w http.ResponseWriter, r *htt
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(report); err != nil {
-		http.Error(w, "encoding response", http.StatusInternalServerError)
+		internalError(w, err, "encoding response")
 	}
 }

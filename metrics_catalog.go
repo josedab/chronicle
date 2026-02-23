@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -260,7 +259,7 @@ func (mc *MetricsCatalog) scanLoop() {
 		case <-mc.stopCh:
 			return
 		case <-ticker.C:
-			_ = mc.Scan()
+			_ = mc.Scan() //nolint:errcheck // best-effort periodic scan
 		}
 	}
 }
@@ -849,9 +848,7 @@ func (mc *MetricsCatalog) handleMetrics(w http.ResponseWriter, r *http.Request) 
 	}
 	result, err := mc.Search(query)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -893,9 +890,7 @@ func (mc *MetricsCatalog) handleScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := mc.Scan(); err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

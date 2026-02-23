@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -949,9 +948,7 @@ func (h *WorkersHandler) handleWrite(ctx context.Context, w http.ResponseWriter,
 	}
 
 	if err := h.runtime.WriteBatch(ctx, req.Points); err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 
@@ -981,9 +978,7 @@ func (h *WorkersHandler) handleQuery(ctx context.Context, w http.ResponseWriter,
 
 	result, err := h.runtime.Query(ctx, &q)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 

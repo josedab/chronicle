@@ -3,7 +3,6 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -418,7 +417,7 @@ func (e *DeclarativeAlertingEngine) evaluateCondition(spec AlertConditionSpec, m
 			window = d
 		}
 	}
-	_ = window
+	_ = window //nolint:errcheck // window reserved for future use
 
 	// Use Start: 0 to ensure BTree range scan finds partitions containing recent writes
 	end := now.Add(time.Second).UnixNano()
@@ -533,14 +532,14 @@ func (e *DeclarativeAlertingEngine) RunTest(tc AlertTestCase) *AlertTestResult {
 					ts = t.UnixNano()
 				}
 			}
-			_ = e.db.Write(Point{
+			_ = e.db.Write(Point{ //nolint:errcheck // best-effort alert dispatch
 				Metric:    def.Spec.Metric,
 				Tags:      def.Spec.Tags,
 				Value:     tp.Value,
 				Timestamp: ts,
 			})
 		}
-		_ = e.db.Flush()
+		_ = e.db.Flush() //nolint:errcheck // best-effort alert dispatch
 	}
 
 	firing := e.evaluateConditions(def)
@@ -758,9 +757,7 @@ func (e *DeclarativeAlertingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.Reload(); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.WriteHeader(http.StatusOK)

@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -813,9 +812,7 @@ func (g *GRPCIngestionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := g.HandleWrite(r.Context(), &req); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -834,9 +831,7 @@ func (g *GRPCIngestionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		resp, err := g.HandleQuery(r.Context(), &req)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -923,9 +918,7 @@ func (g *GRPCIngestionEngine) handleOTLPHTTPMetrics(w http.ResponseWriter, r *ht
 	engine := NewOTLPProtoEngine(g.db, DefaultOTLPProtoConfig())
 	result, err := engine.IngestBatch(&batch)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 

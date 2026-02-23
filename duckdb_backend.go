@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -512,9 +511,7 @@ func (e *DuckDBBackendEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := e.ExecuteSQL(req.SQL)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

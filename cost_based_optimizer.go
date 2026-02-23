@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -737,9 +736,7 @@ func (o *CostBasedOptimizer) handleAnalyze(w http.ResponseWriter, r *http.Reques
 		// Analyze all metrics.
 		allStats, err := o.AnalyzeAll(ctx)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -749,9 +746,7 @@ func (o *CostBasedOptimizer) handleAnalyze(w http.ResponseWriter, r *http.Reques
 
 	ts, err := o.Analyze(ctx, req.Metric)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -829,9 +824,7 @@ func (o *CostBasedOptimizer) handleExplain(w http.ResponseWriter, r *http.Reques
 
 	plans, err := o.ExplainQuery(q)
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 

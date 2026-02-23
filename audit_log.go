@@ -173,13 +173,13 @@ func (e *AuditLogEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		action := sanitizeAuditAction(r.URL.Query().Get("action"))
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(e.Query(action, 100)); err != nil {
-			http.Error(w, "encoding response", http.StatusInternalServerError)
+			internalError(w, err, "encoding response")
 		}
 	})
 	mux.HandleFunc("/api/v1/audit/log/stats", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(e.GetStats()); err != nil {
-			http.Error(w, "encoding response", http.StatusInternalServerError)
+			internalError(w, err, "encoding response")
 		}
 	})
 }

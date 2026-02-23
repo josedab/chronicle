@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -916,9 +915,7 @@ func (m *PITRManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		cp, err := m.CreateCheckpoint(r.Context())
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -943,9 +940,7 @@ func (m *PITRManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := m.RestoreToPointInTime(r.Context(), req.TargetTime)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

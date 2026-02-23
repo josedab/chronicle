@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -176,7 +175,7 @@ func (r *OTLPReceiver) Handler() http.HandlerFunc {
 				http.Error(w, "failed to decompress: "+err.Error(), http.StatusBadRequest)
 				return
 			}
-			defer func() { _ = gz.Close() }()
+			defer func() { _ = gz.Close() }() //nolint:errcheck // best-effort cleanup
 			reader = gz
 		}
 
@@ -194,15 +193,14 @@ func (r *OTLPReceiver) Handler() http.HandlerFunc {
 
 		if len(points) > 0 {
 			if err := r.db.WriteBatch(points); err != nil {
-				slog.Error("OTLP write failed", "err", err)
-				http.Error(w, "internal server error", http.StatusInternalServerError)
+				internalError(w, err, "OTLP write failed")
 				return
 			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`)) //nolint:errcheck // best-effort cleanup
 	}
 }
 

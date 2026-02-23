@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -761,9 +760,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		entry, err := bat.RecordEvent(req.EventType, req.Actor, req.Resource, req.Details)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -780,10 +777,10 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		eventType := AuditEventType(q.Get("type"))
 		var start, end time.Time
 		if s := q.Get("start"); s != "" {
-			start, _ = time.Parse(time.RFC3339, s)
+			start, _ = time.Parse(time.RFC3339, s) //nolint:errcheck // best-effort audit recording
 		}
 		if e := q.Get("end"); e != "" {
-			end, _ = time.Parse(time.RFC3339, e)
+			end, _ = time.Parse(time.RFC3339, e) //nolint:errcheck // best-effort audit recording
 		}
 		limit := 100
 		if l := q.Get("limit"); l != "" {
@@ -837,9 +834,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		intact, gaps, err := bat.VerifyIntegrity()
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -892,10 +887,10 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		q := r.URL.Query()
 		var start, end time.Time
 		if s := q.Get("start"); s != "" {
-			start, _ = time.Parse(time.RFC3339, s)
+			start, _ = time.Parse(time.RFC3339, s) //nolint:errcheck // best-effort audit recording
 		}
 		if e := q.Get("end"); e != "" {
-			end, _ = time.Parse(time.RFC3339, e)
+			end, _ = time.Parse(time.RFC3339, e) //nolint:errcheck // best-effort audit recording
 		}
 		if start.IsZero() {
 			start = time.Now().AddDate(0, -1, 0)
@@ -905,9 +900,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := bat.GenerateReport(start, end)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -956,9 +949,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		hold, err := bat.CreateLegalHold(req.Resource, req.Reason, req.CreatedBy)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

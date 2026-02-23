@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -183,7 +182,7 @@ func (ca *CompressionAdvisor) runLoop() {
 			return
 		case <-ticker.C:
 			if ca.config.Enabled {
-				_ = ca.AnalyzeAll()
+				_ = ca.AnalyzeAll() //nolint:errcheck // best-effort background analysis
 			}
 		}
 	}
@@ -706,11 +705,11 @@ func (ca *CompressionAdvisor) AnalyzeAll() error {
 			continue
 		}
 
-		_, _ = ca.BenchmarkAll(metric, values)
-		_, _ = ca.Recommend(metric)
+		_, _ = ca.BenchmarkAll(metric, values) //nolint:errcheck // best-effort benchmark
+		_, _ = ca.Recommend(metric) //nolint:errcheck // best-effort recommendation
 
 		if ca.config.AutoApply {
-			_ = ca.ApplyRecommendation(metric)
+			_ = ca.ApplyRecommendation(metric) //nolint:errcheck // best-effort auto-apply
 		}
 	}
 
@@ -906,9 +905,7 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		benchmarks, err := ca.BenchmarkAll(req.Metric, req.Values)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -940,9 +937,7 @@ func (ca *CompressionAdvisor) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		report, err := ca.GenerateReport()
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -904,9 +903,7 @@ func (e *TenantGovernanceEngine) handleChargebackReport(w http.ResponseWriter, r
 		report, err = e.GenerateShowbackReport(tenantID, start, end)
 	}
 	if err != nil {
-		log.Printf("[ERROR] %v", err)
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		internalError(w, err, "internal error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

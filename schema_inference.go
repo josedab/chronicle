@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -483,9 +482,7 @@ func (e *SchemaInferenceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			}
 			schema, err := e.InferSchema(metric)
 			if err != nil {
-				log.Printf("[ERROR] %v", err)
-
-				http.Error(w, "internal server error", http.StatusInternalServerError)
+				internalError(w, err, "internal error")
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -502,9 +499,7 @@ func (e *SchemaInferenceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		schemas, err := e.InferAll()
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

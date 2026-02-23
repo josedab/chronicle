@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -848,9 +847,7 @@ func (e *CrossCloudTieringEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		jobs, err := e.EvaluatePolicies()
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		json.NewEncoder(w).Encode(jobs)

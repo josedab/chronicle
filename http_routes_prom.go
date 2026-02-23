@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"io"
 	"net/http"
 	"strconv"
@@ -41,9 +40,7 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		}
 		points := convertPromWrite(&req)
 		if err := db.WriteBatch(points); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)

@@ -1,7 +1,6 @@
 package chronicle
 
 import (
-	"log"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -27,7 +26,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			defer func() { _ = gz.Close() }()
+			defer func() { _ = gz.Close() }() //nolint:errcheck // best-effort cleanup
 			reader = io.LimitReader(gz, maxBodySize)
 		}
 
@@ -50,9 +49,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				}
 			}
 			if err := db.WriteBatch(req.Points); err != nil {
-				log.Printf("[ERROR] %v", err)
-
-				http.Error(w, "internal server error", http.StatusInternalServerError)
+				internalError(w, err, "internal error")
 				return
 			}
 			w.WriteHeader(http.StatusAccepted)
@@ -75,9 +72,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 		}
 		if err := db.WriteBatch(points); err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -140,9 +135,7 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 		result, err := db.Execute(q)
 		if err != nil {
-			log.Printf("[ERROR] %v", err)
-
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalError(w, err, "internal error")
 			return
 		}
 
@@ -181,7 +174,7 @@ func parseLineProtocol(body string) ([]Point, error) {
 			return nil, err
 		}
 
-		_ = fieldKey
+		_ = fieldKey //nolint:errcheck // field key consumed by iteration
 		points = append(points, Point{
 			Metric:    metric,
 			Tags:      tags,
