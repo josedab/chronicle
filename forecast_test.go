@@ -299,14 +299,14 @@ func TestNewForecaster_Defaults(t *testing.T) {
 		AnomalyThreshold: -1, // Invalid
 	})
 
-	if f.config.Alpha != 0.5 {
-		t.Errorf("expected alpha to default to 0.5, got %f", f.config.Alpha)
+	if f.Config.Alpha != 0.5 {
+		t.Errorf("expected alpha to default to 0.5, got %f", f.Config.Alpha)
 	}
-	if f.config.SeasonalPeriods != 12 {
-		t.Errorf("expected seasonal periods to default to 12, got %d", f.config.SeasonalPeriods)
+	if f.Config.SeasonalPeriods != 12 {
+		t.Errorf("expected seasonal periods to default to 12, got %d", f.Config.SeasonalPeriods)
 	}
-	if f.config.AnomalyThreshold != 3.0 {
-		t.Errorf("expected threshold to default to 3.0, got %f", f.config.AnomalyThreshold)
+	if f.Config.AnomalyThreshold != 3.0 {
+		t.Errorf("expected threshold to default to 3.0, got %f", f.Config.AnomalyThreshold)
 	}
 }
 
@@ -323,21 +323,21 @@ func TestHelperFunctions(t *testing.T) {
 	t.Run("stdDev", func(t *testing.T) {
 		actual := []float64{1, 2, 3, 4, 5}
 		fitted := []float64{1, 2, 3, 4, 5}
-		if stdDev(actual, fitted) != 0 {
+		if StdDev(actual, fitted) != 0 {
 			t.Error("stdDev of perfect fit should be 0")
 		}
 	})
 
 	t.Run("estimateInterval", func(t *testing.T) {
 		ts := []int64{1000, 2000, 3000, 4000, 5000}
-		interval := estimateInterval(ts)
+		interval := EstimateInterval(ts)
 		if interval != 1000 {
 			t.Errorf("expected interval 1000, got %d", interval)
 		}
 
 		// Single timestamp
 		single := []int64{1000}
-		if estimateInterval(single) != int64(time.Minute) {
+		if EstimateInterval(single) != int64(time.Minute) {
 			t.Error("single timestamp should default to 1 minute")
 		}
 	})
