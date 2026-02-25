@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"net/http"
 
@@ -38,7 +39,7 @@ func (c *Cluster) Start() error {
 		go func() {
 			defer c.wg.Done()
 			if err := c.server.ListenAndServe(); err != http.ErrServerClosed {
-
+				slog.Error("cluster server error", "err", err)
 			}
 		}()
 	}
@@ -77,7 +78,9 @@ func (c *Cluster) Stop() error {
 	if c.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = c.server.Shutdown(ctx) //nolint:errcheck // best-effort shutdown
+		if err := c.server.Shutdown(ctx); err != nil {
+			slog.Debug("shutdown error", "err", err)
+		}
 	}
 
 	c.wg.Wait()

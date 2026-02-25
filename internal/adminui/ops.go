@@ -154,7 +154,7 @@ func (ui *AdminUI) handleAPIAlerts(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		var rule adminAlertRule
 		if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 

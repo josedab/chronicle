@@ -44,7 +44,7 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 			Tags      map[string]string `json:"tags,omitempty"`
 		}
 		if err = json.NewDecoder(r.Body).Decode(&data); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 		for _, d := range data {
@@ -64,7 +64,7 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 		reader := csv.NewReader(r.Body)
 		records, err := reader.ReadAll()
 		if err != nil {
-			http.Error(w, "Invalid CSV: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid CSV data", http.StatusBadRequest)
 			return
 		}
 
@@ -97,7 +97,7 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 		// InfluxDB line protocol
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read body: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "failed to read request body", http.StatusBadRequest)
 			return
 		}
 		lines := strings.Split(string(body), "\n")

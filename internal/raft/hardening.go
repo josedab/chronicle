@@ -983,7 +983,7 @@ func (rn *RaftNode) TransferLeadership(ctx context.Context, targetID string) err
 	}
 
 	// Attempt to bring the target up to date and send a TimeoutNow hint.
-	go func() {
+	go func(ctx context.Context) {
 		defer close(state.Done)
 
 		// Wait until the target's match index catches up.
@@ -1014,7 +1014,7 @@ func (rn *RaftNode) TransferLeadership(ctx context.Context, targetID string) err
 				}
 			}
 		}
-	}()
+	}(ctx)
 
 	select {
 	case <-state.Done:

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 
@@ -44,7 +45,7 @@ func (m *EdgeMesh) Start() error {
 		go func() {
 			defer m.wg.Done()
 			if err := m.server.ListenAndServe(); err != http.ErrServerClosed {
-
+				slog.Error("edge mesh server error", "err", err)
 			}
 		}()
 	}

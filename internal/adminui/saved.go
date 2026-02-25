@@ -29,7 +29,7 @@ func (ui *AdminUI) handleAPISavedQueries(w http.ResponseWriter, r *http.Request)
 	case http.MethodPost:
 		var query savedQuery
 		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
@@ -81,7 +81,7 @@ func (ui *AdminUI) handleAPIFavorites(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		var fav favoriteItem
 		if err := json.NewDecoder(r.Body).Decode(&fav); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
@@ -153,7 +153,7 @@ func (ui *AdminUI) handleAPIRecent(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		var item recentItem
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 

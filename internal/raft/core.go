@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -350,7 +351,7 @@ func (rn *RaftNode) Start() error {
 		go func() {
 			defer rn.wg.Done()
 			if err := rn.server.ListenAndServe(); err != http.ErrServerClosed {
-
+				slog.Error("raft server error", "err", err)
 			}
 		}()
 	}
@@ -398,7 +399,9 @@ func (rn *RaftNode) Stop() error {
 	if rn.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = rn.server.Shutdown(ctx) //nolint:errcheck // best-effort shutdown
+		if err := rn.server.Shutdown(ctx); err != nil {
+			slog.Debug("shutdown error", "err", err)
+		}
 	}
 
 	rn.wg.Wait()

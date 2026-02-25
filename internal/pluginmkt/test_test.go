@@ -532,7 +532,7 @@ func TestPluginCLISearch(t *testing.T) {
 
 	// Search will fail network but should handle gracefully
 	// (returns cached results or empty)
-	_ = cli.Search("compression", "")
+	_ = cli.Search(context.Background(), "compression", "")
 }
 
 func TestPluginUpdate(t *testing.T) {

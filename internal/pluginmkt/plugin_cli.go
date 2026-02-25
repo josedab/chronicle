@@ -7,7 +7,7 @@ import (
 )
 
 // Search searches for plugins
-func (cli *PluginCLI) Search(query string, pluginType string) error {
+func (cli *PluginCLI) Search(ctx context.Context, query string, pluginType string) error {
 	opts := SearchOptions{
 		Query:    query,
 		SortBy:   "downloads",
@@ -18,7 +18,7 @@ func (cli *PluginCLI) Search(query string, pluginType string) error {
 		opts.Type = PluginType(pluginType)
 	}
 
-	results, err := cli.registry.Search(context.Background(), opts)
+	results, err := cli.registry.Search(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -43,11 +43,11 @@ func (cli *PluginCLI) Search(query string, pluginType string) error {
 }
 
 // Install installs a plugin
-func (cli *PluginCLI) Install(pluginID string, force bool) error {
+func (cli *PluginCLI) Install(ctx context.Context, pluginID string, force bool) error {
 	fmt.Fprintf(cli.output, "Installing %s...\n", pluginID)
 
 	opts := InstallOptions{Force: force}
-	if err := cli.registry.Install(context.Background(), pluginID, opts); err != nil {
+	if err := cli.registry.Install(ctx, pluginID, opts); err != nil {
 		return fmt.Errorf("installation failed: %w", err)
 	}
 
@@ -56,10 +56,10 @@ func (cli *PluginCLI) Install(pluginID string, force bool) error {
 }
 
 // Uninstall removes a plugin
-func (cli *PluginCLI) Uninstall(pluginID string) error {
+func (cli *PluginCLI) Uninstall(ctx context.Context, pluginID string) error {
 	fmt.Fprintf(cli.output, "Uninstalling %s...\n", pluginID)
 
-	if err := cli.registry.Uninstall(context.Background(), pluginID); err != nil {
+	if err := cli.registry.Uninstall(ctx, pluginID); err != nil {
 		return fmt.Errorf("uninstall failed: %w", err)
 	}
 
@@ -88,10 +88,10 @@ func (cli *PluginCLI) List() error {
 }
 
 // Update updates plugins
-func (cli *PluginCLI) Update(pluginID string) error {
+func (cli *PluginCLI) Update(ctx context.Context, pluginID string) error {
 	if pluginID == "" {
 
-		updates, err := cli.registry.CheckUpdates(context.Background())
+		updates, err := cli.registry.CheckUpdates(ctx)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (cli *PluginCLI) Update(pluginID string) error {
 		for _, u := range updates {
 			fmt.Fprintf(cli.output, "Updating %s (%s -> %s)...\n",
 				u.PluginID, u.CurrentVersion, u.LatestVersion)
-			if err := cli.registry.Update(context.Background(), u.PluginID); err != nil {
+			if err := cli.registry.Update(ctx, u.PluginID); err != nil {
 				fmt.Fprintf(cli.output, "  ✗ Failed: %v\n", err)
 			} else {
 				fmt.Fprintf(cli.output, "  ✓ Updated\n")
@@ -112,7 +112,7 @@ func (cli *PluginCLI) Update(pluginID string) error {
 		}
 	} else {
 		fmt.Fprintf(cli.output, "Updating %s...\n", pluginID)
-		if err := cli.registry.Update(context.Background(), pluginID); err != nil {
+		if err := cli.registry.Update(ctx, pluginID); err != nil {
 			return fmt.Errorf("update failed: %w", err)
 		}
 		fmt.Fprintf(cli.output, "✓ Successfully updated %s\n", pluginID)
@@ -122,8 +122,8 @@ func (cli *PluginCLI) Update(pluginID string) error {
 }
 
 // Info shows plugin details
-func (cli *PluginCLI) Info(pluginID string) error {
-	meta, err := cli.registry.GetPlugin(context.Background(), pluginID)
+func (cli *PluginCLI) Info(ctx context.Context, pluginID string) error {
+	meta, err := cli.registry.GetPlugin(ctx, pluginID)
 	if err != nil {
 		return err
 	}
