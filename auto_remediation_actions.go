@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -65,12 +66,15 @@ func (e *AutoRemediationEngine) validateWebhookURL(rawURL string) error {
 }
 
 func (e *AutoRemediationEngine) executeWebhook(action *RemediationAction, anomaly *DetectedAnomaly) (map[string]any, map[string]any, error) {
-	url, _ := action.Parameters["url"].(string)
+	url, ok := action.Parameters["url"].(string)
+	if !ok || url == "" {
+		return nil, nil, fmt.Errorf("webhook action requires a string 'url' parameter")
+	}
 	if err := e.validateWebhookURL(url); err != nil {
 		return nil, nil, fmt.Errorf("webhook URL validation failed: %w", err)
 	}
-	method, _ := action.Parameters["method"].(string)
-	if method == "" {
+	method, ok := action.Parameters["method"].(string)
+	if !ok || method == "" {
 		method = "POST"
 	}
 
@@ -80,12 +84,15 @@ func (e *AutoRemediationEngine) executeWebhook(action *RemediationAction, anomal
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
-	payloadBytes, _ := json.Marshal(payload)
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal webhook payload: %w", err)
+	}
 
 	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -118,8 +125,8 @@ func (e *AutoRemediationEngine) executeWebhook(action *RemediationAction, anomal
 }
 
 func (e *AutoRemediationEngine) executeAlert(action *RemediationAction, anomaly *DetectedAnomaly) (map[string]any, error) {
-	severity, _ := action.Parameters["severity"].(string)
-	if severity == "" {
+	severity, ok := action.Parameters["severity"].(string)
+	if !ok || severity == "" {
 		severity = "warning"
 	}
 
@@ -139,8 +146,14 @@ func (e *AutoRemediationEngine) executeAlert(action *RemediationAction, anomaly 
 }
 
 func (e *AutoRemediationEngine) executeThresholdAdjustment(action *RemediationAction, anomaly *DetectedAnomaly) (map[string]any, map[string]any, error) {
-	adjustmentType, _ := action.Parameters["adjustment_type"].(string) // increase, decrease, percentage
-	amount, _ := action.Parameters["amount"].(float64)
+	adjustmentType, ok := action.Parameters["adjustment_type"].(string)
+	if !ok || adjustmentType == "" {
+		return nil, nil, fmt.Errorf("threshold adjustment requires a string 'adjustment_type' parameter (increase, decrease, percentage)")
+	}
+	amount, ok := action.Parameters["amount"].(float64)
+	if !ok {
+		return nil, nil, fmt.Errorf("threshold adjustment requires a numeric 'amount' parameter")
+	}
 
 	// Get current threshold
 	currentThreshold := 100.0 // Placeholder - would get from actual alert rule
@@ -173,9 +186,9 @@ func (e *AutoRemediationEngine) executeThresholdAdjustment(action *RemediationAc
 }
 
 func (e *AutoRemediationEngine) executeQuery(action *RemediationAction, anomaly *DetectedAnomaly) (map[string]any, error) {
-	queryText, _ := action.Parameters["query"].(string)
-	if queryText == "" {
-		return nil, fmt.Errorf("query parameter required")
+	queryText, ok := action.Parameters["query"].(string)
+	if !ok || queryText == "" {
+		return nil, fmt.Errorf("query action requires a string 'query' parameter")
 	}
 
 	// Parse and execute query
@@ -215,9 +228,18 @@ func (e *AutoRemediationEngine) executeNotification(action *RemediationAction, a
 }
 
 func (e *AutoRemediationEngine) executeScale(action *RemediationAction, anomaly *DetectedAnomaly) (map[string]any, map[string]any, error) {
-	direction, _ := action.Parameters["direction"].(string) // up, down
-	amount, _ := action.Parameters["amount"].(float64)
-	resource, _ := action.Parameters["resource"].(string)
+	direction, ok := action.Parameters["direction"].(string)
+	if !ok || direction == "" {
+		return nil, nil, fmt.Errorf("scale action requires a string 'direction' parameter (up, down)")
+	}
+	amount, ok := action.Parameters["amount"].(float64)
+	if !ok {
+		return nil, nil, fmt.Errorf("scale action requires a numeric 'amount' parameter")
+	}
+	resource, ok := action.Parameters["resource"].(string)
+	if !ok || resource == "" {
+		return nil, nil, fmt.Errorf("scale action requires a string 'resource' parameter")
+	}
 
 	currentScale := 1.0
 	if cs, ok := action.Parameters["current_scale"].(float64); ok {
