@@ -554,6 +554,16 @@ check-todos: ## Surface technical debt markers (TODO/FIXME/HACK/XXX)
 	fi
 
 deps-check: ## Check for untidy or outdated dependencies
+	@echo "Checking if go.mod is tidy..."
+	@if $(GO) mod tidy -diff > /dev/null 2>&1; then \
+		echo "  ✓ go.mod is tidy"; \
+	else \
+		echo "  ⚠ go.mod is not tidy. Run 'go mod tidy' to fix."; \
+		$(GO) mod tidy -diff 2>&1 | head -20; \
+	fi
+	@echo ""
+	@echo "Outdated direct dependencies:"
+	@$(GO) list -m -u -f '{{if and .Update (not .Indirect)}}  {{.Path}}: {{.Version}} → {{.Update.Version}}{{end}}' all 2>/dev/null | grep -v '^$$' || echo "  ✓ All direct dependencies are up to date"
 
 check-goroutine-leaks: ## Find go func() calls without context in production code
 	@echo "Scanning production code for bare 'go func()' calls..."
@@ -570,16 +580,6 @@ check-goroutine-leaks: ## Find go func() calls without context in production cod
 	else \
 		echo "✓ No bare go func() calls found"; \
 	fi
-	@echo "Checking if go.mod is tidy..."
-	@if $(GO) mod tidy -diff > /dev/null 2>&1; then \
-		echo "  ✓ go.mod is tidy"; \
-	else \
-		echo "  ⚠ go.mod is not tidy. Run 'go mod tidy' to fix."; \
-		$(GO) mod tidy -diff 2>&1 | head -20; \
-	fi
-	@echo ""
-	@echo "Outdated direct dependencies:"
-	@$(GO) list -m -u -f '{{if and .Update (not .Indirect)}}  {{.Path}}: {{.Version}} → {{.Update.Version}}{{end}}' all 2>/dev/null | grep -v '^$$' || echo "  ✓ All direct dependencies are up to date"
 
 run-example: ## Run an example project (usage: make run-example EXAMPLE=simple)
 ifndef EXAMPLE
