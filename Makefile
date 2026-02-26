@@ -1,7 +1,6 @@
 .PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example help
 
 GO ?= go
-GOFLAGS ?= -race
 MIN_GO_VERSION := 1.24
 
 all: lint test build ## Run lint, test, and build
@@ -33,7 +32,7 @@ build: ## Build the package
 	$(GO) build ./...
 
 test: ## Run tests with race detector
-	$(GO) test $(GOFLAGS) -count=1 ./...
+	$(GO) test -race -count=1 ./...
 
 test-verbose: ## Run a single test verbosely (usage: make test-verbose TEST=TestMyThing)
 ifndef TEST
@@ -71,11 +70,11 @@ endif
 	fi
 
 test-integration: ## Run all tests including integration
-	$(GO) test $(GOFLAGS) -tags integration ./...
+	$(GO) test -race -tags integration ./...
 
 test-ci: ## Run the same checks as CI (vet + all tests + race)
 	$(GO) vet ./...
-	$(GO) test $(GOFLAGS) -short ./...
+	$(GO) test -race -short ./...
 
 test-examples: ## Verify all examples compile (and optionally run with 5s timeout)
 	@echo "Building examples..."
@@ -184,7 +183,7 @@ lint-ci: ## Run linters matching exact CI configuration
 lint-fix: ## Auto-fix all fixable lint issues
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fix
 	gofmt -s -w .
-	goimports -w .
+	$(GO) run golang.org/x/tools/cmd/goimports@latest -w .
 
 lint-changed: ## Lint only modified files (fast iteration)
 	@if ! git rev-parse --verify HEAD~1 >/dev/null 2>&1; then \
@@ -197,7 +196,7 @@ lint-changed: ## Lint only modified files (fast iteration)
 
 fmt: ## Format code
 	gofmt -s -w .
-	goimports -w .
+	$(GO) run golang.org/x/tools/cmd/goimports@latest -w .
 
 fmt-check: ## Check if code is formatted (dry-run, no changes)
 	@UNFORMATTED=$$(gofmt -l .); \
@@ -338,7 +337,7 @@ setup-grafana: ## Install Grafana plugin dependencies (cd grafana-plugin && npm 
 release-check: ## Run all checks before a release (vet + lint + full tests + vuln + interface + API stability)
 	$(GO) vet ./...
 	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
-	$(GO) test $(GOFLAGS) -short ./...
+	$(GO) test -race -short ./...
 	@$(MAKE) check-interface
 	@$(MAKE) check-api-stability
 	govulncheck ./... || true
