@@ -225,18 +225,25 @@ func (g *GrafanaBackend) corsMiddleware(next http.Handler) http.Handler {
 	allowed := g.config.AllowedOrigins
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if len(allowed) == 0 {
-			// No origins configured: allow same-origin only (no header set).
-		} else {
+		originAllowed := false
+		if len(allowed) > 0 && origin != "" {
 			for _, o := range allowed {
+				if o == "*" {
+					slog.Warn("wildcard '*' in AllowedOrigins is rejected; configure explicit origins")
+					break
+				}
 				if o == origin {
+					originAllowed = true
 					w.Header().Set("Access-Control-Allow-Origin", origin)
 					break
 				}
 			}
 		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Grafana-Org-Id")
+
+		if originAllowed {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Grafana-Org-Id")
+		}
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

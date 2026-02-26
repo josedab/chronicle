@@ -198,8 +198,8 @@ func newUpgrader(allowedOrigins []string) *websocket.Upgrader {
 			}
 			for _, allowed := range allowedOrigins {
 				if allowed == "*" {
-					log.Println("chronicle: WARNING: wildcard '*' in AllowedOrigins disables CORS protection; avoid in production")
-					return true
+					log.Println("chronicle: WARNING: wildcard '*' in AllowedOrigins is rejected; configure explicit origins")
+					return false
 				}
 				if allowed == origin {
 					return true
