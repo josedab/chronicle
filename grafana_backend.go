@@ -479,7 +479,10 @@ func (g *GrafanaBackend) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON request body", http.StatusBadRequest)
+			return
+		}
 	} else {
 		req.Target = r.URL.Query().Get("target")
 	}
@@ -505,7 +508,10 @@ func (g *GrafanaBackend) handleVariable(w http.ResponseWriter, r *http.Request) 
 	var req GrafanaMetricFindQuery
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON request body", http.StatusBadRequest)
+			return
+		}
 	} else {
 		req.Query = r.URL.Query().Get("query")
 		req.Type = r.URL.Query().Get("type")
