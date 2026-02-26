@@ -347,11 +347,11 @@ Choose the right test speed for your workflow:
 
 | Command | Time | What it runs | When to use |
 |---------|------|-------------|-------------|
-| `make check` | ~15s | `go vet` + internal tests | Pre-commit validation ⚡ |
 | `make test-fast` | ~5s | Internal packages only | TDD fast iteration ⚡ |
+| `make check` | ~15s | `go vet` + internal tests | Pre-commit validation ⚡ |
+| `make test-short` | ~20s | All tests, short mode | Quick full-suite run |
 | `make quickcheck` | ~25s | `go vet` + all short tests | Before pushing |
-| `make test-short` | ~30s | All tests, short mode | Before pushing |
-| `make test` | ~45s | All tests + race detector | CI-level confidence |
+| `make test` | ~60s | All tests + race detector | CI-level confidence |
 | `make test-cover` | ~60s | All tests + HTML coverage | Coverage review |
 
 ```bash
