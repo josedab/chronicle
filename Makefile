@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example help
+.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate help
 
 GO ?= go
 MIN_GO_VERSION := 1.24
@@ -193,6 +193,9 @@ lint-changed: ## Lint only modified files (fast iteration)
 		echo "Linting changes since HEAD~1..."; \
 		$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --new-from-rev=HEAD~1; \
 	fi
+
+lint-fast: ## Run only fast linters (~5s, matches VS Code config)
+	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fast
 
 fmt: ## Format code
 	gofmt -s -w .
@@ -592,6 +595,17 @@ endif
 			exit 1; \
 		fi; \
 	fi
+
+validate: ## Full local CI parity — run before pushing
+	@echo "═══ Full validation (local CI parity) ═══"
+	@echo ""
+	$(GO) vet ./...
+	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
+	$(GO) test -short -count=1 ./...
+	@$(MAKE) check-file-size
+	@$(MAKE) check-generate
+	@echo ""
+	@echo "✓ All validation checks passed"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
