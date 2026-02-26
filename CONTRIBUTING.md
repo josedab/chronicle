@@ -75,22 +75,15 @@ make test-cover-pkg PKG=./internal/query/...
 
 ### Performance Tips
 
-The Makefile sets `GOFLAGS ?= -race` by default, so `make test` always runs with
-the race detector enabled. This is safer but slower. Use these shortcuts for faster
-iteration:
+`make test` and `make test-ci` run with the race detector (`-race`) explicitly.
+Other targets like `make test-short` do not include the race detector, giving you
+faster iteration. To opt-in to race detection for any target:
 
 ```bash
-make test-short     # Short tests without race detector (fastest full-suite run)
-make test-race      # Short tests WITH race detector (~45s, best pre-push check)
-make test-fast      # Internal packages only (~5s, TDD loop)
+GOFLAGS=-race make test-short  # Add race detector to test-short
+make test-race                 # Short tests WITH race detector (~45s, best pre-push check)
+make test-fast                 # Internal packages only (~5s, TDD loop)
 make test-verbose TEST=TestMyThing  # Single test with verbose output
-```
-
-To override `GOFLAGS` for any target:
-
-```bash
-GOFLAGS="" make test          # Full tests, no race detector
-GOFLAGS="-race -v" make test  # Full tests, race + verbose
 ```
 
 ### Code Style
@@ -197,7 +190,15 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### PR Checklist
 
-Before submitting, please ensure:
+Before submitting, run `make validate` for full local CI parity:
+
+```bash
+make validate    # vet → lint → test-short → check-file-size → check-generate
+```
+
+This matches the PR-blocking CI jobs and catches issues before pushing.
+
+Please also ensure:
 
 - [ ] Code compiles without errors (`go build ./...`)
 - [ ] All tests pass (`go test ./...`)
