@@ -9,6 +9,14 @@ quickstart: setup install-hooks doctor ## One-command setup for new contributors
 	@echo "Downloading Go module dependencies..."
 	@$(GO) mod download
 	@echo ""
+	@echo "Verifying build..."
+	@$(GO) build ./...
+	@echo "✓ Build succeeded"
+	@echo ""
+	@echo "Running smoke tests..."
+	@$(MAKE) test-fast
+	@echo "✓ Smoke tests passed"
+	@echo ""
 	@echo "════════════════════════════════════════════════"
 	@echo "  ✓ Ready! Run 'make dev' to start."
 	@echo "════════════════════════════════════════════════"
