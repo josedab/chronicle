@@ -3,11 +3,25 @@ package chronicle
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
+
+// validRelativeTimeSDKRe matches safe relative time expressions like "1h", "30m", "7d", "2w".
+var validRelativeTimeSDKRe = regexp.MustCompile(`^[0-9]+[smhdw]$`)
+
+// allowedAggFunctionsSDK is the whitelist of permitted SQL aggregation function names for the query builder.
+var allowedAggFunctionsSDK = map[string]bool{
+	"mean": true, "avg": true, "sum": true, "count": true,
+	"min": true, "max": true, "first": true, "last": true,
+	"stddev": true, "median": true, "percentile": true,
+	"rate": true, "irate": true, "increase": true,
+	"derivative": true, "non_negative_derivative": true,
+	"mode": true, "spread": true,
+}
 
 // VisualQueryBuilderConfig configures the visual query builder SDK.
 type VisualQueryBuilderConfig struct {
@@ -504,11 +518,15 @@ func (b *VisualQueryBuilder) generateSQL(vq *VisualQuerySpec) (string, error) {
 	for _, m := range metrics {
 		field := "value"
 		if m.Alias != "" {
-			field = fmt.Sprintf("value AS %s", m.Alias)
+			field = fmt.Sprintf("value AS %s", sanitizeIdentifier(m.Alias))
 		}
 		if len(aggregations) > 0 {
 			for _, agg := range aggregations {
-				field = fmt.Sprintf("%s(value) AS %s_%s", agg.Function, m.Name, agg.Function)
+				fn := strings.ToLower(agg.Function)
+				if !allowedAggFunctionsSDK[fn] {
+					fn = "mean"
+				}
+				field = fmt.Sprintf("%s(value) AS %s_%s", fn, sanitizeIdentifier(m.Name), fn)
 			}
 		}
 		selectClauses = append(selectClauses, field)
@@ -530,13 +548,15 @@ func (b *VisualQueryBuilder) generateSQL(vq *VisualQuerySpec) (string, error) {
 			whereClauses = append(whereClauses, fmt.Sprintf("time <= '%s'", timeRange.End.Format(time.RFC3339)))
 		}
 		if timeRange.Relative != "" {
-			whereClauses = append(whereClauses, fmt.Sprintf("time >= now() - %s", timeRange.Relative))
+			if validRelativeTimeSDKRe.MatchString(timeRange.Relative) {
+				whereClauses = append(whereClauses, fmt.Sprintf("time >= now() - %s", timeRange.Relative))
+			}
 		}
 	}
 
 	for _, m := range metrics {
 		for k, v := range m.Tags {
-			whereClauses = append(whereClauses, fmt.Sprintf("%s = '%s'", k, v))
+			whereClauses = append(whereClauses, fmt.Sprintf("%s = '%s'", sanitizeIdentifier(k), escapeSQL(v)))
 		}
 	}
 

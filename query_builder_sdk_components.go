@@ -475,14 +475,25 @@ func formatFilterClause(f *FilterComponent) string {
 		return ""
 	}
 
+	// Whitelist allowed SQL operators
+	allowedOps := map[string]bool{
+		"=": true, "!=": true, ">": true, "<": true,
+		">=": true, "<=": true, "LIKE": true, "like": true,
+	}
+	op := f.Operator
+	if !allowedOps[op] {
+		op = "="
+	}
+
+	field := sanitizeIdentifier(f.Field)
 	value := f.Value
 	switch v := value.(type) {
 	case string:
-		return fmt.Sprintf("%s %s '%s'", f.Field, f.Operator, v)
+		return fmt.Sprintf("%s %s '%s'", field, op, escapeSQL(v))
 	case float64:
-		return fmt.Sprintf("%s %s %v", f.Field, f.Operator, v)
+		return fmt.Sprintf("%s %s %v", field, op, v)
 	default:
-		return fmt.Sprintf("%s %s %v", f.Field, f.Operator, v)
+		return fmt.Sprintf("%s %s %v", field, op, v)
 	}
 }
 
