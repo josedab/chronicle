@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate help
+.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example help
 
 GO ?= go
 GOFLAGS ?= -race
@@ -154,10 +154,24 @@ quickcheck: ## Full pre-push validation (vet + all short tests)
 	$(GO) test -short -count=1 ./...
 
 install-hooks: ## Install git pre-commit and commit-msg hooks
+	@mkdir -p .git/hooks
 	ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
 	ln -sf ../../scripts/commit-msg .git/hooks/commit-msg
-	@echo "Pre-commit hook installed ✓"
-	@echo "Commit-msg hook installed (conventional commits enforced) ✓"
+	@# Verify hooks were installed correctly
+	@FAIL=0; \
+	if [ -f .git/hooks/pre-commit ]; then \
+		echo "  ✓ pre-commit hook installed"; \
+	else \
+		echo "  ✗ pre-commit hook failed to install"; FAIL=1; \
+	fi; \
+	if [ -f .git/hooks/commit-msg ]; then \
+		echo "  ✓ commit-msg hook installed"; \
+	else \
+		echo "  ✗ commit-msg hook failed to install"; FAIL=1; \
+	fi; \
+	if [ "$$FAIL" = "1" ]; then \
+		echo "ERROR: Hook installation failed."; exit 1; \
+	fi
 
 lint: ## Run linters
 	$(GO) vet ./...
@@ -274,28 +288,44 @@ vuln: ## Check for vulnerabilities
 setup: ## Install development tools
 	@echo "Downloading Go module dependencies..."
 	@$(GO) mod download
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	$(GO) install golang.org/x/tools/cmd/goimports@latest
-	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
-	$(GO) install golang.org/x/perf/cmd/benchstat@latest
-	@echo ""
-	@echo "Verifying tool installation..."
 	@FAIL=0; \
-	for tool in golangci-lint goimports govulncheck benchstat; do \
-		if command -v $$tool >/dev/null 2>&1; then \
-			echo "  ✓ $$tool found"; \
-		else \
-			echo "  ⚠ WARN: $$tool not on PATH (check GOBIN/GOPATH)"; \
+	for pkg in \
+		github.com/golangci/golangci-lint/cmd/golangci-lint@latest \
+		golang.org/x/tools/cmd/goimports@latest \
+		golang.org/x/vuln/cmd/govulncheck@latest \
+		golang.org/x/perf/cmd/benchstat@latest \
+		github.com/cespare/reflex@latest; \
+	do \
+		echo "  Installing $$pkg..."; \
+		if ! $(GO) install $$pkg; then \
+			echo "  ✗ Failed to install $$pkg"; \
 			FAIL=1; \
 		fi; \
 	done; \
 	if [ "$$FAIL" = "1" ]; then \
 		echo ""; \
-		echo "Some tools not found on PATH. Ensure \$$(go env GOPATH)/bin is in your PATH:"; \
-		echo "  export PATH=\"\$$(go env GOPATH)/bin:\$$PATH\""; \
-	else \
-		echo "✓ All development tools installed"; \
+		echo "ERROR: Some tools failed to install."; \
+		exit 1; \
 	fi
+	@echo ""
+	@echo "Verifying tool installation..."
+	@FAIL=0; \
+	for tool in golangci-lint goimports govulncheck benchstat reflex; do \
+		if command -v $$tool >/dev/null 2>&1; then \
+			echo "  ✓ $$tool found"; \
+		else \
+			echo "  ✗ $$tool not on PATH"; \
+			FAIL=1; \
+		fi; \
+	done; \
+	if [ "$$FAIL" = "1" ]; then \
+		echo ""; \
+		echo "ERROR: Some tools not found on PATH after installation."; \
+		echo "Ensure \$$(go env GOPATH)/bin is in your PATH:"; \
+		echo "  export PATH=\"\$$(go env GOPATH)/bin:\$$PATH\""; \
+		exit 1; \
+	fi
+	@echo "✓ All development tools installed and verified"
 
 setup-grafana: ## Install Grafana plugin dependencies (cd grafana-plugin && npm install)
 	@if [ ! -d grafana-plugin ]; then \
@@ -376,6 +406,15 @@ doctor: ## Diagnose development environment
 			echo "  ✗ $$tool: not found (run make setup)"; \
 		fi; \
 	done
+	@echo ""
+	@echo "File watcher (for make watch):"
+	@if command -v reflex >/dev/null 2>&1; then \
+		echo "  ✓ reflex: installed"; \
+	elif command -v fswatch >/dev/null 2>&1; then \
+		echo "  ✓ fswatch: installed"; \
+	else \
+		echo "  ✗ No file watcher found (install reflex: go install github.com/cespare/reflex@latest)"; \
+	fi
 	@echo ""
 	@echo "Git hooks:"
 	@if [ -f .git/hooks/pre-commit ]; then \
@@ -531,6 +570,29 @@ check-goroutine-leaks: ## Find go func() calls without context in production cod
 	@echo ""
 	@echo "Outdated direct dependencies:"
 	@$(GO) list -m -u -f '{{if and .Update (not .Indirect)}}  {{.Path}}: {{.Version}} → {{.Update.Version}}{{end}}' all 2>/dev/null | grep -v '^$$' || echo "  ✓ All direct dependencies are up to date"
+
+run-example: ## Run an example project (usage: make run-example EXAMPLE=simple)
+ifndef EXAMPLE
+	$(error EXAMPLE is required. Usage: make run-example EXAMPLE=simple. Available: $(shell ls -d examples/*/ 2>/dev/null | xargs -I{} basename {}))
+endif
+	@if [ ! -d "examples/$(EXAMPLE)" ]; then \
+		echo "ERROR: Example '$(EXAMPLE)' not found."; \
+		echo "Available examples:"; \
+		ls -d examples/*/ 2>/dev/null | xargs -I{} basename {} | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@echo "Running example: $(EXAMPLE) (10s timeout)..."
+	@if timeout 10s $(GO) run ./examples/$(EXAMPLE) 2>&1; then \
+		echo "✓ Example $(EXAMPLE) completed successfully"; \
+	else \
+		STATUS=$$?; \
+		if [ "$$STATUS" = "124" ]; then \
+			echo "✓ Example $(EXAMPLE) timed out (likely a server — this is OK)"; \
+		else \
+			echo "✗ Example $(EXAMPLE) failed (exit $$STATUS)"; \
+			exit 1; \
+		fi; \
+	fi
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
