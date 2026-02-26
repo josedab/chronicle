@@ -161,9 +161,29 @@ Posts a welcome message with links to contributing guidelines and resources.
 # Run the same checks as CI
 make test-ci
 
+# Full local CI parity (vet + lint + tests + file-size + generated code)
+make validate
+
 # Full pre-release validation
 make release-check
 
 # Quick pre-commit check
 make check
 ```
+
+### Local Equivalents for CI Workflows
+
+| CI Workflow | Local Equivalent | Notes |
+|-------------|-----------------|-------|
+| CI (ci.yml) | `make test-ci` | vet + short tests with race detector |
+| Benchmarks | `make benchmark` | Runs benchmarks, saves results for comparison |
+| Performance Regression | `make benchmark` | Compare with `benchstat` |
+| CodeQL | `make lint` | `go vet` + golangci-lint catches most issues; install `gosec` for deeper security analysis |
+| Security Audit | `govulncheck ./...` | Run `make vuln` or install `staticcheck` |
+| Dependency Review | `make deps-check` | Checks tidy status and outdated dependencies |
+| Deploy Documentation | `cd website && npm run build` | Verifies docs build locally |
+| Release Please | — | GitHub-only (conventional commit automation) |
+| Release | `goreleaser check` | Validates `.goreleaser.yml` config |
+| Docker Multi-Arch | `docker build .` | Single-arch local build only |
+| OpenSSF Scorecard | — | GitHub-only (requires repository metadata) |
+| Welcome | — | GitHub-only (contributor greeting) |
