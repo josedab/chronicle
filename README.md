@@ -1,5 +1,9 @@
 # Chronicle
 
+<p align="center">
+  <img src="docs/logo.svg" alt="Chronicle Logo" width="200">
+</p>
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/chronicle-db/chronicle.svg)](https://pkg.go.dev/github.com/chronicle-db/chronicle)
 [![Go Report Card](https://goreportcard.com/badge/github.com/chronicle-db/chronicle)](https://goreportcard.com/report/github.com/chronicle-db/chronicle)
 [![codecov](https://codecov.io/gh/chronicle-db/chronicle/branch/main/graph/badge.svg)](https://codecov.io/gh/chronicle-db/chronicle)
