@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -170,6 +171,9 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		amount := matches[3]
 		unit := matches[4]
 		duration := parseNLDuration(amount, unit)
+		if !validTimeRangeRe.MatchString(duration) {
+			return nil
+		}
 		return &TranslateResponse{
 			Query:       fmt.Sprintf("SELECT mean(value) FROM %s WHERE time > now() - %s GROUP BY time(5m)", sanitizeIdentifier(metric), duration),
 			QueryType:   "sql",
@@ -191,6 +195,9 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		amount := matches[3]
 		unit := matches[4]
 		duration := parseNLDuration(amount, unit)
+		if !validTimeRangeRe.MatchString(duration) {
+			return nil
+		}
 		return &TranslateResponse{
 			Query:       fmt.Sprintf("SELECT %s(value) FROM %s WHERE time > now() - %s", fn, sanitizeIdentifier(metric), duration),
 			QueryType:   "sql",
@@ -206,10 +213,21 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		_ = matches[2] // field (usually "value")
 		op := matches[3]
 		threshold := matches[4]
+		// Validate operator against whitelist to prevent SQL injection
+		validOps := map[string]bool{">": true, "<": true, "=": true, ">=": true, "<=": true}
+		if !validOps[op] {
+			return nil
+		}
+		// Parse threshold as float to ensure it's a valid number
+		thresholdVal, err := strconv.ParseFloat(threshold, 64)
+		if err != nil {
+			return nil
+		}
+		safeThreshold := strconv.FormatFloat(thresholdVal, 'f', -1, 64)
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT count(value) FROM %s WHERE value %s %s", sanitizeIdentifier(metric), op, threshold),
+			Query:       fmt.Sprintf("SELECT count(value) FROM %s WHERE value %s %s", sanitizeIdentifier(metric), op, safeThreshold),
 			QueryType:   "sql",
-			Explanation: fmt.Sprintf("Counts %s points where value %s %s", metric, op, threshold),
+			Explanation: fmt.Sprintf("Counts %s points where value %s %s", metric, op, safeThreshold),
 			Confidence:  0.85,
 		}
 	}
@@ -245,10 +263,16 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		limit := matches[1]
 		metric := matches[2]
 		groupBy := matches[3]
+		// Parse limit as integer to prevent injection
+		limitVal, err := strconv.Atoi(limit)
+		if err != nil || limitVal <= 0 {
+			return nil
+		}
+		safeLimit := strconv.Itoa(limitVal)
 		return &TranslateResponse{
-			Query:       fmt.Sprintf("SELECT mean(value) FROM %s GROUP BY %s ORDER BY mean DESC LIMIT %s", sanitizeIdentifier(metric), sanitizeIdentifier(groupBy), limit),
+			Query:       fmt.Sprintf("SELECT mean(value) FROM %s GROUP BY %s ORDER BY mean DESC LIMIT %s", sanitizeIdentifier(metric), sanitizeIdentifier(groupBy), safeLimit),
 			QueryType:   "sql",
-			Explanation: fmt.Sprintf("Shows top %s %s values grouped by %s", limit, metric, groupBy),
+			Explanation: fmt.Sprintf("Shows top %s %s values grouped by %s", safeLimit, metric, groupBy),
 			Confidence:  0.85,
 		}
 	}
