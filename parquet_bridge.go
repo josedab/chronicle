@@ -211,12 +211,13 @@ func (pb *ParquetBridge) ExportToParquet(metric string, start, end time.Time) (s
 
 	partition := pb.partitionKey(start)
 
-	// Validate metric name to prevent path traversal
-	if strings.Contains(metric, "..") || strings.ContainsAny(metric, "/\\") {
+	// Validate metric name using filepath.Clean + prefix check to prevent path traversal
+	baseDir := filepath.Clean(pb.config.DataDir)
+	dir := filepath.Clean(filepath.Join(baseDir, metric, partition))
+	if !strings.HasPrefix(dir, baseDir+string(os.PathSeparator)) && dir != baseDir {
 		return "", fmt.Errorf("parquet: invalid metric name: %q", metric)
 	}
 
-	dir := filepath.Join(pb.config.DataDir, metric, partition)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("parquet: cannot create partition dir: %w", err)
 	}
