@@ -414,6 +414,7 @@ func (s *NativeHistogramStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 		switch r.Method {
 		case http.MethodPost:
 			var h NativeHistogram
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			if err := json.NewDecoder(r.Body).Decode(&h); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
@@ -438,6 +439,7 @@ func (s *NativeHistogramStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Tags     map[string]string `json:"tags"`
 			Quantile float64           `json:"quantile"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return

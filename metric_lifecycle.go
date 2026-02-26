@@ -399,6 +399,7 @@ func (m *MetricLifecycleManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 		var req struct {
 			Metric string `json:"metric"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -418,6 +419,7 @@ func (m *MetricLifecycleManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 		var req struct {
 			Metric string `json:"metric"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -439,6 +441,7 @@ func (m *MetricLifecycleManager) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Message     string `json:"message"`
 			Replacement string `json:"replacement"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return

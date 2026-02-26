@@ -155,6 +155,7 @@ func (g *GRPCIngestionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		var req WriteRequest
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -173,6 +174,7 @@ func (g *GRPCIngestionEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		var req QueryRequest
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
