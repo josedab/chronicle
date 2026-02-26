@@ -139,8 +139,19 @@ func (hub *CollaborativeQueryHub) HandleCreateSession(w http.ResponseWriter, r *
 		OwnerID   string `json:"owner_id"`
 		OwnerName string `json:"owner_name"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" || req.OwnerID == "" {
+		http.Error(w, "name and owner_id are required", http.StatusBadRequest)
+		return
+	}
+	const maxFieldLen = 256
+	if len(req.Name) > maxFieldLen || len(req.OwnerID) > maxFieldLen {
+		http.Error(w, "name or owner_id exceeds maximum length", http.StatusBadRequest)
 		return
 	}
 
@@ -171,6 +182,7 @@ func (hub *CollaborativeQueryHub) HandleJoinSession(w http.ResponseWriter, r *ht
 		ParticipantID string `json:"participant_id"`
 		Name          string `json:"name"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
