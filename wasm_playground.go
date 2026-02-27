@@ -339,21 +339,22 @@ h1 { font-size: 1.4em; }
 <span id="status"></span>
 <div class="results" id="results"></div>
 <script>
+function escapeHTML(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 async function runQuery() {
   const q = document.getElementById('query').value;
   document.getElementById('status').textContent = 'Running...';
   try {
     const resp = await fetch('/playground/query', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({query: q}) });
     const data = await resp.json();
-    if (data.error) { document.getElementById('results').innerHTML = '<pre style="color:red">' + data.error + '</pre>'; }
+    if (data.error) { var pre = document.createElement('pre'); pre.style.color = 'red'; pre.textContent = data.error; var r = document.getElementById('results'); r.textContent = ''; r.appendChild(pre); }
     else { renderTable(data); }
     document.getElementById('status').textContent = data.duration || '';
-  } catch(e) { document.getElementById('results').innerHTML = '<pre style="color:red">' + e + '</pre>'; }
+  } catch(e) { var pre = document.createElement('pre'); pre.style.color = 'red'; pre.textContent = String(e); var r = document.getElementById('results'); r.textContent = ''; r.appendChild(pre); }
 }
 function renderTable(data) {
-  let html = '<table><thead><tr>' + data.columns.map(c => '<th>'+c+'</th>').join('') + '</tr></thead><tbody>';
-  (data.rows||[]).forEach(r => { html += '<tr>' + r.map(v => '<td>'+v+'</td>').join('') + '</tr>'; });
-  html += '</tbody></table><p>' + data.row_count + ' rows</p>';
+  let html = '<table><thead><tr>' + data.columns.map(c => '<th>'+escapeHTML(c)+'</th>').join('') + '</tr></thead><tbody>';
+  (data.rows||[]).forEach(r => { html += '<tr>' + r.map(v => '<td>'+escapeHTML(v)+'</td>').join('') + '</tr>'; });
+  html += '</tbody></table><p>' + escapeHTML(data.row_count) + ' rows</p>';
   document.getElementById('results').innerHTML = html;
 }
 document.getElementById('query').addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') runQuery(); });
