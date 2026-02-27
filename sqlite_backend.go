@@ -70,6 +70,9 @@ type SQLiteBackend struct {
 	existsStmt  *sql.Stmt
 	insertPoint *sql.Stmt
 	selectRange *sql.Stmt
+
+	// Prepared aggregate statements keyed by function name
+	aggStmts map[string]*sql.Stmt
 }
 
 // NewSQLiteBackend creates a new SQLite-based storage backend.
@@ -238,6 +241,25 @@ func (s *SQLiteBackend) prepareStatements() error {
 		return fmt.Errorf("failed to prepare select range statement: %w", err)
 	}
 
+	// Prepare aggregate statements for each supported function
+	s.aggStmts = make(map[string]*sql.Stmt)
+	for _, fn := range []string{"AVG", "SUM", "MIN", "MAX", "COUNT"} {
+		stmt, err := s.db.Prepare(fmt.Sprintf(`
+			SELECT
+				(timestamp / ?) * ? AS bucket,
+				%s(value) AS agg_value,
+				COUNT(*) AS count
+			FROM time_series
+			WHERE metric = ? AND timestamp >= ? AND timestamp < ?
+			GROUP BY bucket
+			ORDER BY bucket
+		`, fn))
+		if err != nil {
+			return fmt.Errorf("failed to prepare %s aggregate statement: %w", fn, err)
+		}
+		s.aggStmts[fn] = stmt
+	}
+
 	return nil
 }
 
@@ -370,6 +392,9 @@ func (s *SQLiteBackend) Close() error {
 	}
 	if s.selectRange != nil {
 		s.selectRange.Close()
+	}
+	for _, stmt := range s.aggStmts {
+		stmt.Close()
 	}
 
 	return s.db.Close()
@@ -667,18 +692,12 @@ func (s *SQLiteBackend) Aggregate(ctx context.Context, metric string, start, end
 		return nil, fmt.Errorf("unsupported aggregation function: %s", fn)
 	}
 
-	query := fmt.Sprintf(`
-		SELECT 
-			(timestamp / ?) * ? AS bucket,
-			%s(value) AS agg_value,
-			COUNT(*) AS count
-		FROM time_series
-		WHERE metric = ? AND timestamp >= ? AND timestamp < ?
-		GROUP BY bucket
-		ORDER BY bucket
-	`, aggFn)
+	stmt, ok := s.aggStmts[aggFn]
+	if !ok {
+		return nil, fmt.Errorf("no prepared statement for aggregation: %s", aggFn)
+	}
 
-	rows, err := s.db.QueryContext(ctx, query, interval, interval, metric, start, end)
+	rows, err := stmt.QueryContext(ctx, interval, interval, metric, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute aggregate query: %w", err)
 	}
