@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -190,6 +191,10 @@ func (qc *QueryConsole) corsMiddleware(next http.Handler) http.Handler {
 			// No origins configured: allow same-origin only (no header set).
 		} else {
 			for _, o := range allowed {
+				if o == "*" {
+					log.Println("chronicle: WARNING: wildcard '*' in AllowedOrigins is rejected; configure explicit origins")
+					break
+				}
 				if o == origin {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
 					break
