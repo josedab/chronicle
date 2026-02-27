@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// maxBodySize is the maximum allowed request body size for admin endpoints (1MB).
+const maxBodySize = 1 << 20
+
 // NewAdminUI creates an admin UI instance.
 func NewAdminUI(db AdminDB, config AdminConfig) *AdminUI {
 	if config.Prefix == "" {

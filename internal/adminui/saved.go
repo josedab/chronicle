@@ -27,6 +27,7 @@ func (ui *AdminUI) handleAPISavedQueries(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, queries)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var query savedQuery
 		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -79,6 +80,7 @@ func (ui *AdminUI) handleAPIFavorites(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, favs)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var fav favoriteItem
 		if err := json.NewDecoder(r.Body).Decode(&fav); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -151,6 +153,7 @@ func (ui *AdminUI) handleAPIRecent(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, items)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var item recentItem
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)

@@ -61,6 +61,7 @@ func (ui *AdminUI) handleAPIRetention(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, rules)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var rule retentionRule
 		if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -162,6 +163,7 @@ func (ui *AdminUI) handleAPIScheduledExports(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, exports)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var export scheduledExport
 		if err := json.NewDecoder(r.Body).Decode(&export); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)

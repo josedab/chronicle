@@ -23,6 +23,7 @@ func (ui *AdminUI) handleAPIAnnotations(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, annotations)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var ann metricAnnotation
 		if err := json.NewDecoder(r.Body).Decode(&ann); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -51,6 +52,7 @@ func (ui *AdminUI) handleAPIAnnotations(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, ann)
 
 	case http.MethodPut:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var ann metricAnnotation
 		if err := json.NewDecoder(r.Body).Decode(&ann); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)

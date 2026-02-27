@@ -152,6 +152,7 @@ func (ui *AdminUI) handleAPIAlerts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, alerts)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var rule adminAlertRule
 		if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)

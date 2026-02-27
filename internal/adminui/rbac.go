@@ -49,6 +49,7 @@ func (ui *AdminUI) handleAPIRoles(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, roles)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var role userRole
 		if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -126,6 +127,7 @@ func (ui *AdminUI) handleAPIPermissions(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, perms)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var access userAccess
 		if err := json.NewDecoder(r.Body).Decode(&access); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)

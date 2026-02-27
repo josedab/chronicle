@@ -119,6 +119,7 @@ func (ui *AdminUI) handleAPITemplates(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, templates)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var tpl queryTemplate
 		if err := json.NewDecoder(r.Body).Decode(&tpl); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)

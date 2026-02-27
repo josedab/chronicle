@@ -35,6 +35,7 @@ func (ui *AdminUI) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		// Allow posting log entries (useful for client-side logging)
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var entry logEntry
 		if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)

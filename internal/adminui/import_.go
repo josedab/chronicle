@@ -37,6 +37,7 @@ func (ui *AdminUI) handleAPIImport(w http.ResponseWriter, r *http.Request) {
 
 	switch format {
 	case "json":
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var data []struct {
 			Metric    string            `json:"metric"`
 			Value     float64           `json:"value"`
