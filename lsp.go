@@ -33,6 +33,9 @@ type LSPServer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// WaitGroup for background goroutines
+	wg sync.WaitGroup
+
 	// Debounce timer for diagnostics
 	diagnosticTimer   *time.Timer
 	diagnosticTimerMu sync.Mutex
@@ -211,9 +214,14 @@ func (s *LSPServer) Start() error {
 		return fmt.Errorf("failed to start LSP server: %w", err)
 	}
 
-	go s.refreshSchemaCache()
+	s.wg.Add(2)
+	go func() {
+		defer s.wg.Done()
+		s.refreshSchemaCache()
+	}()
 
 	go func() {
+		defer s.wg.Done()
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
@@ -236,6 +244,7 @@ func (s *LSPServer) Start() error {
 // Stop stops the LSP server.
 func (s *LSPServer) Stop() {
 	s.cancel()
+	s.wg.Wait()
 }
 
 func (s *LSPServer) handleConnection(conn net.Conn) {
