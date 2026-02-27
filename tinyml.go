@@ -1,4 +1,4 @@
-//go:build !nostubs
+//go:build experimental
 
 package chronicle
 
