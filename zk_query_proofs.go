@@ -1,3 +1,5 @@
+//go:build experimental
+
 // zk_query_proofs.go contains extended zk query functionality.
 package chronicle
 
