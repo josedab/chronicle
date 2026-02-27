@@ -271,7 +271,7 @@ When `HTTPEnabled: true`, the following endpoints are available:
 | `/graphql` | POST | GraphQL API |
 | `/graphql/playground` | GET | Interactive GraphQL playground |
 | `/admin` | GET | Admin UI dashboard |
-| `/api/v1/prom/write` | POST | Prometheus remote write |
+| `/prometheus/write` | POST | Prometheus remote write |
 
 ## Project Layout
 

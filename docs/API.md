@@ -16,7 +16,14 @@ This document describes the Chronicle HTTP API endpoints available when `HTTPEna
 | `/api/v1/alerts` | GET | Get active alerts |
 | `/api/v1/rules` | GET/POST | Alerting rules management |
 | `/stream` | WebSocket | Real-time streaming subscription |
-| `/api/v1/prom/write` | POST | Prometheus remote write |
+| `/prometheus/write` | POST | Prometheus remote write |
+| `/graphql` | POST | GraphQL API |
+| `/graphql/playground` | GET | Interactive GraphQL playground |
+| `/api/v1/export` | POST | Export data (JSON, CSV, Parquet) |
+| `/api/v1/forecast` | POST | Generate time-series forecasts |
+| `/api/v1/histogram` | GET/POST | Histogram data and observations |
+| `/api/v1/labels` | GET | List label names (Prometheus-compatible) |
+| `/metrics` | GET | List registered metric names |
 
 ---
 
@@ -93,7 +100,7 @@ Write metrics using OpenTelemetry OTLP JSON format.
 
 **Response:** `200 OK` with accepted count
 
-### POST /api/v1/prom/write
+### POST /prometheus/write
 
 Accept Prometheus remote write format (snappy-compressed protobuf).
 
@@ -564,6 +571,50 @@ Health check with details.
 {
   "status": "healthy",
   "uptime": 3600.5
+}
+```
+
+---
+
+## Export API
+
+### POST /api/v1/export
+
+Export time-series data in various formats.
+
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "metric": "cpu",
+  "start": 1609459200000000000,
+  "end": 1609462800000000000,
+  "format": "json"
+}
+```
+
+**Parameters:**
+- `metric` (required): Metric name to export
+- `start` (optional): Start timestamp (nanoseconds)
+- `end` (optional): End timestamp (nanoseconds)
+- `format`: Output format — `json`, `csv`, or `parquet`
+
+**Response:** `200 OK` with exported data in the requested format
+
+---
+
+## Labels API
+
+### GET /api/v1/labels
+
+List all known label names (Prometheus-compatible).
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": ["__name__", "host", "region", "instance"]
 }
 ```
 
