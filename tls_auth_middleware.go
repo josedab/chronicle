@@ -11,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"crypto/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -478,7 +478,7 @@ func (m *AuthManager) handleCreateToken(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req createTokenRequest
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+	if err := json.NewDecoder(io.LimitReader(r.Body, MaxAuthBodySize)).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
