@@ -262,6 +262,9 @@ func (p *Playground) handleEmbedScript(w http.ResponseWriter, r *http.Request) {
 	safeTitle = strings.ReplaceAll(safeTitle, `'`, `\'`)
 	safeTitle = strings.ReplaceAll(safeTitle, "\n", `\n`)
 	safeTitle = strings.ReplaceAll(safeTitle, "\r", `\r`)
+	safeTitle = strings.ReplaceAll(safeTitle, "\u2028", `\u2028`)
+	safeTitle = strings.ReplaceAll(safeTitle, "\u2029", `\u2029`)
+	safeTitle = strings.ReplaceAll(safeTitle, "</script>", `<\/script>`)
 	fmt.Fprintf(w, embedJS, safeTitle)
 }
 
