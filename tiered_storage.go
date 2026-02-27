@@ -255,6 +255,7 @@ type MigrationEngine struct {
 	running bool
 	stopCh  chan struct{}
 	tierMap map[StorageTierLevel]*StorageTierConfig
+	wg      sync.WaitGroup
 }
 
 // NewMigrationEngine creates a new migration engine.
@@ -283,21 +284,25 @@ func (e *MigrationEngine) Start() {
 	e.running = true
 	e.mu.Unlock()
 
+	e.wg.Add(1)
 	go e.loop()
 }
 
 // Stop halts the background migration loop.
 func (e *MigrationEngine) Stop() {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if !e.running {
+		e.mu.Unlock()
 		return
 	}
 	e.running = false
 	close(e.stopCh)
+	e.mu.Unlock()
+	e.wg.Wait()
 }
 
 func (e *MigrationEngine) loop() {
+	defer e.wg.Done()
 	// Derive a context that cancels when the engine stops.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
