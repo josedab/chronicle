@@ -362,6 +362,7 @@ func (e *EdgeCloudFabricEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			json.NewEncoder(w).Encode(e.ListEndpoints())
 		case http.MethodPost:
 			var ep FabricEndpoint
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			if err := json.NewDecoder(r.Body).Decode(&ep); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
@@ -386,6 +387,7 @@ func (e *EdgeCloudFabricEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			EndpointID string        `json:"endpoint_id"`
 			Direction  SyncDirection `json:"direction"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -425,6 +427,7 @@ func (e *EdgeCloudFabricEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			json.NewEncoder(w).Encode(e.ListPolicies())
 		case http.MethodPost:
 			var policy SyncPolicy
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			if err := json.NewDecoder(r.Body).Decode(&policy); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return

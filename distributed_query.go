@@ -351,6 +351,7 @@ func (c *DistributedQueryCoordinator) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Query Query    `json:"query"`
 			Nodes []string `json:"nodes"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -373,6 +374,7 @@ func (c *DistributedQueryCoordinator) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Query Query    `json:"query"`
 			Nodes []string `json:"nodes"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return

@@ -509,6 +509,7 @@ func (spe *SQLPipelineEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			json.NewEncoder(w).Encode(spe.ListPipelines())
 		case http.MethodPost:
 			var def SQLPipelineDefinition
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			if err := json.NewDecoder(r.Body).Decode(&def); err != nil {
 				http.Error(w, "invalid request", http.StatusBadRequest)
 				return

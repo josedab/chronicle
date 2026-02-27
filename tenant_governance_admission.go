@@ -290,6 +290,7 @@ func (e *TenantGovernanceEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 func (e *TenantGovernanceEngine) handleCreateBudget(w http.ResponseWriter, r *http.Request) {
 	var budget ResourceBudget
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&budget); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
@@ -330,6 +331,7 @@ func (e *TenantGovernanceEngine) handleGetBudget(w http.ResponseWriter, tenantID
 
 func (e *TenantGovernanceEngine) handleUpdateBudget(w http.ResponseWriter, r *http.Request, tenantID string) {
 	var budget ResourceBudget
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&budget); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
@@ -349,6 +351,7 @@ func (e *TenantGovernanceEngine) handleAdmit(w http.ResponseWriter, r *http.Requ
 		EstimatedCost float64 `json:"estimated_cost"`
 		PointCount    int     `json:"point_count"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return

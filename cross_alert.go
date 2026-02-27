@@ -222,6 +222,7 @@ func (e *CrossAlertEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		var metrics map[string]float64
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return

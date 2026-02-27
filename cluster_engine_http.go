@@ -50,6 +50,7 @@ func (ec *EmbeddedClusterEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			NodeID string `json:"node_id"`
 			Addr   string `json:"addr"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -70,6 +71,7 @@ func (ec *EmbeddedClusterEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		var req struct {
 			NodeID string `json:"node_id"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return

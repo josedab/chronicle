@@ -74,7 +74,7 @@ func (s *GraphQLServer) Handler() http.Handler {
 		switch r.Method {
 		case http.MethodPost:
 			// Limit request body to 1MB to prevent OOM from oversized payloads
-			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+			r.Body = http.MaxBytesReader(w, r.Body, MaxQueryBodySize)
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				writeGraphQLError(w, "invalid request body: "+err.Error())
 				return
