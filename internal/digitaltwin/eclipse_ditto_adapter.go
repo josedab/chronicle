@@ -110,9 +110,14 @@ func (a *EclipseDittoAdapter) ListTwins(ctx context.Context) ([]string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("reading response: %w", err)
+	}
 	var things []map[string]any
-	json.Unmarshal(body, &things)
+	if err := json.Unmarshal(body, &things); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
 
 	ids := make([]string, 0, len(things))
 	for _, t := range things {
