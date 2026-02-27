@@ -143,13 +143,27 @@ func (e *NLQueryEngine) handleTopN(matches []string, ctx *ConversationContext) *
 	}
 
 	n := matches[1]
-	if _, err := strconv.Atoi(n); err != nil {
+	nVal, err := strconv.Atoi(n)
+	if err != nil {
 		return &NLQueryResponse{
 			Intent:     "top_n",
 			Error:      fmt.Sprintf("invalid limit value: %s", n),
 			Confidence: 0.0,
 			QueryType:  "sql",
 		}
+	}
+	if nVal <= 0 {
+		return &NLQueryResponse{
+			Intent:     "top_n",
+			Error:      "limit must be a positive integer",
+			Confidence: 0.0,
+			QueryType:  "sql",
+		}
+	}
+	const maxLimit = 10000
+	if nVal > maxLimit {
+		nVal = maxLimit
+		n = strconv.Itoa(nVal)
 	}
 	metric := matches[2]
 	groupBy := "host"
@@ -211,11 +225,26 @@ func (e *NLQueryEngine) handleForecast(matches []string, ctx *ConversationContex
 	amount := matches[3]
 	unit := normalizeTimeUnit(matches[4])
 
+	// Validate amount is a positive integer
+	if _, err := strconv.Atoi(amount); err != nil {
+		return &NLQueryResponse{
+			Intent:     "forecast",
+			Error:      fmt.Sprintf("invalid forecast amount: %s", amount),
+			Confidence: 0.0,
+			QueryType:  "sql",
+		}
+	}
+
+	forecastRange := amount + unit
+	if !validTimeRangeRe.MatchString(forecastRange) {
+		forecastRange = "1h"
+	}
+
 	return &NLQueryResponse{
 		Intent:      "forecast",
-		Query:       fmt.Sprintf("FORECAST %s FOR %s%s", metric, amount, unit),
+		Query:       fmt.Sprintf("FORECAST %s FOR %s", sanitizeIdentifier(metric), forecastRange),
 		QueryType:   "sql",
-		Explanation: fmt.Sprintf("Forecasting %s for the next %s%s", metric, amount, unit),
+		Explanation: fmt.Sprintf("Forecasting %s for the next %s", metric, forecastRange),
 		Confidence:  0.8,
 		Visualization: &VisualizationSuggestion{
 			Type:  "line",
