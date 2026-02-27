@@ -11,6 +11,9 @@ import (
 	"net/http"
 )
 
+// maxBodySize is the maximum allowed request body size for Raft RPCs (10MB).
+const maxBodySize = 10 << 20
+
 func (rn *RaftNode) sendPreVote(peer *RaftPeerState, term, lastLogIndex, lastLogTerm uint64) bool {
 	req := &PreVoteRPCRequest{
 		Term:         term,
@@ -183,6 +186,7 @@ func (rn *RaftNode) forwardToLeader(ctx context.Context, command []byte) error {
 }
 
 func (rn *RaftNode) handlePreVote(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req PreVoteRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -213,6 +217,7 @@ func (rn *RaftNode) handlePreVote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rn *RaftNode) handleRequestVote(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req RequestVoteRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -255,6 +260,7 @@ func (rn *RaftNode) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rn *RaftNode) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req AppendEntriesRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -334,6 +340,7 @@ func (rn *RaftNode) handleAppendEntries(w http.ResponseWriter, r *http.Request) 
 }
 
 func (rn *RaftNode) handleInstallSnapshot(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req InstallSnapshotRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -370,6 +377,7 @@ func (rn *RaftNode) handleInstallSnapshot(w http.ResponseWriter, r *http.Request
 }
 
 func (rn *RaftNode) handleForwardProposal(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req ForwardProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
