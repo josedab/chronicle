@@ -489,6 +489,7 @@ func (e *AnomalyExplainabilityEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			Metric string    `json:"metric"`
 			Value  float64   `json:"value"`
@@ -512,6 +513,7 @@ func (e *AnomalyExplainabilityEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var ctx ExplainabilityContext
 		if err := json.NewDecoder(r.Body).Decode(&ctx); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)

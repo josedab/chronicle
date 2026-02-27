@@ -228,6 +228,7 @@ func (e *WebhookEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var ep WebhookEndpoint
 		if err := json.NewDecoder(r.Body).Decode(&ep); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -246,6 +247,7 @@ func (e *WebhookEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			Event   string `json:"event"`
 			Payload string `json:"payload"`

@@ -161,6 +161,7 @@ func (e *FeatureFlagEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/api/v1/flags/toggle", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost { http.Error(w, "method not allowed", http.StatusMethodNotAllowed); return }
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct { Name string `json:"name"`; Enabled bool `json:"enabled"` }
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
 		if req.Enabled { e.Enable(req.Name) } else { e.Disable(req.Name) }

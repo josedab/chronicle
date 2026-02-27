@@ -416,6 +416,7 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var event SDKEvent
 		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -435,6 +436,7 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var events []SDKEvent
 		if err := json.NewDecoder(r.Body).Decode(&events); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -455,6 +457,7 @@ func (e *MetricsSDKEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			SessionID string `json:"session_id"`
 			AppID     string `json:"app_id"`

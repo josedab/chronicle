@@ -223,6 +223,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			EventType AuditEventType    `json:"event_type"`
 			Actor     string            `json:"actor"`
@@ -324,6 +325,7 @@ func (bat *BlockchainAuditTrail) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var proof BlockchainMerkleProof
 		if err := json.NewDecoder(r.Body).Decode(&proof); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)

@@ -471,6 +471,7 @@ func (dc *DataContractEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(dc.ListContracts())
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var contract DataContract
 			if err := json.NewDecoder(r.Body).Decode(&contract); err != nil {
 				http.Error(w, "invalid request", http.StatusBadRequest)

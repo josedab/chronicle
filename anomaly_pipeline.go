@@ -493,6 +493,7 @@ func (p *AnomalyPipeline) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var pt Point
 		if err := json.NewDecoder(r.Body).Decode(&pt); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -513,6 +514,7 @@ func (p *AnomalyPipeline) RegisterHTTPHandlers(mux *http.ServeMux) {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(p.config)
 		case http.MethodPut:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var cfg AnomalyPipelineConfig
 			if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
 				http.Error(w, "invalid request body", http.StatusBadRequest)

@@ -332,6 +332,7 @@ func (e *SLOEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodGet:
 			json.NewEncoder(w).Encode(e.ListSLOs())
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var slo SLODefinition
 			if err := json.NewDecoder(r.Body).Decode(&slo); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
@@ -380,6 +381,7 @@ func (e *SLOEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			SLO  string `json:"slo"`
 			Good bool   `json:"good"`

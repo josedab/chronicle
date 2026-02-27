@@ -398,6 +398,7 @@ func (e *RelabelEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		case http.MethodGet:
 			json.NewEncoder(w).Encode(e.ListRules())
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var rule RelabelRule
 			if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)

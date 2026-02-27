@@ -195,6 +195,7 @@ func (e *HotBackupEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			PointCount int64 `json:"point_count"`
 			SizeBytes  int64 `json:"size_bytes"`
@@ -216,6 +217,7 @@ func (e *HotBackupEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req struct {
 			ID string `json:"id"`
 		}

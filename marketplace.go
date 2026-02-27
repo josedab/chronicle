@@ -562,6 +562,7 @@ func (me *MarketplaceEngine) handlePublish(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req PublishRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err.Error(), http.StatusBadRequest)
@@ -580,6 +581,7 @@ func (me *MarketplaceEngine) handleInstall(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	var req struct {
 		ListingID string `json:"listing_id"`
 	}

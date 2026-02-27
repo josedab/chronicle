@@ -571,6 +571,7 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 		case http.MethodGet:
 			writeJSON(w, e.ListPeers())
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var req struct {
 				ID      string `json:"id"`
 				Address string `json:"address"`
@@ -588,6 +589,7 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 				"id": req.ID, "status": "added",
 			})
 		case http.MethodDelete:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var req struct {
 				ID string `json:"id"`
 			}
@@ -658,6 +660,7 @@ func (e *MultiRegionReplicationEngine) RegisterHTTPHandlers(mux *http.ServeMux) 
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var snapshot MRSnapshot
 		if err := json.NewDecoder(r.Body).Decode(&snapshot); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)

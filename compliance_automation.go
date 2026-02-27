@@ -440,6 +440,7 @@ func (ca *ComplianceAutomation) RegisterHTTPHandlers(mux *http.ServeMux) {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(ca.ListRetentionPolicies())
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var policy RetentionPolicy
 			if err := json.NewDecoder(r.Body).Decode(&policy); err != nil {
 				http.Error(w, "invalid request", http.StatusBadRequest)
@@ -459,6 +460,7 @@ func (ca *ComplianceAutomation) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var tags map[string]string
 		if err := json.NewDecoder(r.Body).Decode(&tags); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)

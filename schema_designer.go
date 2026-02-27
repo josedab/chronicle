@@ -405,6 +405,7 @@ func (sd *SchemaDesigner) RegisterHTTPHandlers(mux *http.ServeMux) {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(sd.ListSchemas())
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var schema SchemaDesign
 			if err := json.NewDecoder(r.Body).Decode(&schema); err != nil {
 				http.Error(w, "invalid request", http.StatusBadRequest)
@@ -427,6 +428,7 @@ func (sd *SchemaDesigner) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var schema SchemaDesign
 		if err := json.NewDecoder(r.Body).Decode(&schema); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)

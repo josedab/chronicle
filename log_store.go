@@ -201,6 +201,7 @@ func (ls *LogStore) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.Method {
 		case http.MethodPost:
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 			var record LogRecord
 			if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
