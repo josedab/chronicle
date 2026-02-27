@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
+	"crypto/rand"
 	"net/http"
 	"os"
 	"regexp"

@@ -205,6 +205,14 @@ func (c *IcebergCatalog) CreateTable(namespace, name string, schema IcebergSchem
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Validate namespace and name to prevent path traversal
+	if strings.Contains(namespace, "..") || strings.ContainsAny(namespace, `/\`) {
+		return nil, fmt.Errorf("invalid namespace: path traversal not allowed")
+	}
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		return nil, fmt.Errorf("invalid table name: path traversal not allowed")
+	}
+
 	key := namespace + "." + name
 	if _, exists := c.tables[key]; exists {
 		return nil, fmt.Errorf("table %q already exists", key)
@@ -220,6 +228,11 @@ func (c *IcebergCatalog) CreateTable(namespace, name string, schema IcebergSchem
 	}
 
 	location := filepath.Join(c.config.ExportDir, namespace, name)
+	// Verify resolved path stays under ExportDir
+	resolved := filepath.Clean(location)
+	if !strings.HasPrefix(resolved, filepath.Clean(c.config.ExportDir)+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("invalid table path: path traversal not allowed")
+	}
 	meta := &IcebergTableMetadata{
 		FormatVersion:   2,
 		TableUUID:       uuid,
@@ -367,6 +380,11 @@ func (pe *PartitionExporter) ExportPartition(ctx context.Context, metric string,
 	partitionDate := startTime.Format("2006-01-02")
 	tableName := pe.config.TablePrefix + icebergTableName(metric)
 	dir := filepath.Join(pe.config.ExportDir, pe.config.Namespace, tableName, "data", partitionDate)
+	// Verify resolved path stays under ExportDir to prevent path traversal
+	resolvedDir := filepath.Clean(dir)
+	if !strings.HasPrefix(resolvedDir, filepath.Clean(pe.config.ExportDir)+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("invalid export path: path traversal not allowed")
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("mkdir %s: %w", dir, err)
 	}
