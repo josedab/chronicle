@@ -70,8 +70,17 @@ type queryResponse struct {
 }
 
 const (
-	// maxBodySize is the maximum allowed request body size (10MB)
-	maxBodySize = 10 * 1024 * 1024
+	// MaxWriteBodySize is the maximum allowed request body size for write/ingest endpoints (10MB).
+	MaxWriteBodySize = 10 * 1024 * 1024
+
+	// MaxQueryBodySize is the maximum allowed request body size for query endpoints (1MB).
+	MaxQueryBodySize = 1 * 1024 * 1024
+
+	// MaxAuthBodySize is the maximum allowed request body size for auth endpoints (64KB).
+	MaxAuthBodySize = 64 * 1024
+
+	// maxBodySize is the default body size limit applied by the global middleware.
+	maxBodySize = MaxWriteBodySize
 )
 
 // rateLimiter implements a simple token bucket rate limiter per IP
