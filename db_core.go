@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"sync"
@@ -49,12 +50,17 @@ type lifecycleManager struct {
 	cqRunners  []*cqRunner
 	workerWg   sync.WaitGroup
 	mu         sync.Mutex
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 func newLifecycleManager(db *DB) *lifecycleManager {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &lifecycleManager{
 		db:        db,
 		compactCh: make(chan struct{}, 1),
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 }
 
@@ -84,17 +90,19 @@ func (lm *lifecycleManager) startBackgroundWorkers(compactionWorkers int, compac
 		lm.workerWg.Add(1)
 		go func() {
 			defer lm.workerWg.Done()
-			lm.db.compactionWorker()
+			lm.db.compactionWorker(lm.ctx)
 		}()
 	}
 	lm.workerWg.Add(1)
 	go func() {
 		defer lm.workerWg.Done()
-		lm.db.backgroundWorker()
+		lm.db.backgroundWorker(lm.ctx)
 	}()
 }
 
 func (lm *lifecycleManager) stop() {
+	lm.cancel()
+
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 

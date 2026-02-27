@@ -1,11 +1,12 @@
 package chronicle
 
 import (
+	"context"
 	"os"
 	"time"
 )
 
-func (db *DB) backgroundWorker() {
+func (db *DB) backgroundWorker(ctx context.Context) {
 	retentionTicker := time.NewTicker(5 * time.Minute)
 	downsampleTicker := time.NewTicker(5 * time.Minute)
 	compactionTicker := time.NewTicker(db.config.Retention.CompactionInterval)
@@ -15,6 +16,8 @@ func (db *DB) backgroundWorker() {
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-db.closeCh:
 			return
 		case <-retentionTicker.C:
@@ -38,9 +41,11 @@ func (db *DB) scheduleCompaction() {
 	db.lifecycle.scheduleCompaction()
 }
 
-func (db *DB) compactionWorker() {
+func (db *DB) compactionWorker(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-db.closeCh:
 			return
 		case <-db.lifecycle.compactCh:
