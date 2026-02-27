@@ -38,7 +38,10 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 	var connMu sync.Mutex
 
 	// Read commands from client
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer cancel()
 		for {
 			_, msg, err := conn.ReadMessage()
@@ -86,6 +89,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	<-ctx.Done()
+	wg.Wait()
 
 	// Cleanup all subscriptions
 	connMu.Lock()
