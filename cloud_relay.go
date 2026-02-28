@@ -123,6 +123,11 @@ func (r *CloudRelay) Start() {
 		return
 	}
 	r.status.Store(RelayNodeOnline)
+	// flushLoop and heartbeatLoop use a dedicated done channel instead of
+	// context.Context for shutdown because the relay must flush buffered
+	// data on Stop(). A cancelled context would abort in-flight HTTP posts,
+	// whereas closing the done channel lets each loop finish its current
+	// iteration before exiting.
 	r.wg.Add(2)
 	go func() {
 		defer r.wg.Done()
