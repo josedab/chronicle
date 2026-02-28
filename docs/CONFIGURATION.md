@@ -183,7 +183,7 @@ When enabled, the following endpoints are available:
 - `/query` - SQL-like queries
 - `/api/v1/query` - PromQL instant queries
 - `/api/v1/query_range` - PromQL range queries
-- `/api/v1/prom/write` - Prometheus remote write
+- `/prometheus/write` - Prometheus remote write
 - `/v1/metrics` - OpenTelemetry OTLP
 - `/schemas` - Schema registry
 - `/api/v1/alerts` - Active alerts
