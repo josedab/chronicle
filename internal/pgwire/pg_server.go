@@ -189,21 +189,8 @@ func (sess *PGSession) handleStartup() error {
 
 	// Authentication
 	if sess.server.config.RequireAuth {
-		sess.writeAuthCleartextPassword()
-		sess.flush()
-
-		msgType, pw, err := sess.readMessage()
-		if err != nil {
+		if err := sess.authenticateSession(); err != nil {
 			return err
-		}
-		if msgType != PGMsgPassword {
-			return fmt.Errorf("expected password message")
-		}
-		password := strings.TrimRight(string(pw), "\x00")
-		if password != sess.server.config.Password {
-			sess.writeError("28P01", "password authentication failed for user \""+sess.user+"\"")
-			sess.flush()
-			return fmt.Errorf("auth failed")
 		}
 	}
 

@@ -62,6 +62,16 @@ const (
 	// Auth subtypes
 	PGAuthOK          int32 = 0
 	PGAuthCleartextPw int32 = 3
+	PGAuthMD5         int32 = 5
+	PGAuthSASL        int32 = 10
+	PGAuthSASLContinue int32 = 11
+	PGAuthSASLFinal   int32 = 12
+
+	// COPY protocol messages
+	PGMsgCopyInResponse  byte = 'G'
+	PGMsgCopyData        byte = 'd'
+	PGMsgCopyDone        byte = 'c'
+	PGMsgCopyFail        byte = 'f'
 
 	// Transaction states
 	PGTxIdle   byte = 'I'
@@ -94,6 +104,7 @@ type PGWireConfig struct {
 	MaxConnections int           `json:"max_connections"`
 	QueryTimeout   time.Duration `json:"query_timeout"`
 	RequireAuth    bool          `json:"require_auth"`
+	AuthMethod     string        `json:"auth_method"` // "cleartext", "md5", "scram-sha-256"
 	Username       string        `json:"username,omitempty"`
 	Password       string        `json:"password,omitempty"`
 	ReadBufSize    int           `json:"read_buffer_size"`
