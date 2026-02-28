@@ -99,6 +99,7 @@ func (g *OpenAPIGenerator) jsonContent(schema *OpenAPISchema) map[string]*OpenAP
 
 // SDK generation types and templates.
 
+// SDKLanguage represents a supported programming language for SDK generation.
 type SDKLanguage string
 
 const (
@@ -109,6 +110,7 @@ const (
 	SDKCSharp     SDKLanguage = "csharp"
 )
 
+// SDKGeneratorConfig controls SDK client generation for a given language.
 type SDKGeneratorConfig struct {
 	Language        SDKLanguage
 	OutputDir       string
@@ -134,18 +136,20 @@ func DefaultSDKGeneratorConfig(lang SDKLanguage) SDKGeneratorConfig {
 		Language:        lang,
 		OutputDir:       fmt.Sprintf("sdk/%s", lang),
 		PackageName:     pkg,
-		Version:         "1.0.0",
+		Version:         APIVersion,
 		IncludeTests:    true,
 		IncludeExamples: true,
 	}
 }
 
+// SDKOutput contains the generated SDK source files for a language.
 type SDKOutput struct {
 	Files    map[string]string
 	Language SDKLanguage
 	Version  string
 }
 
+// SDKGenerator produces client libraries from an OpenAPI specification.
 type SDKGenerator struct {
 	config SDKGeneratorConfig
 	spec   *OpenAPISpec
@@ -153,7 +157,7 @@ type SDKGenerator struct {
 
 func NewSDKGenerator(spec *OpenAPISpec, config SDKGeneratorConfig) *SDKGenerator {
 	if config.Version == "" {
-		config.Version = "1.0.0"
+		config.Version = APIVersion
 	}
 	return &SDKGenerator{config: config, spec: spec}
 }
@@ -326,6 +330,7 @@ func SwaggerUIHandler() http.HandlerFunc {
 
 // SDKRegistry manages generators for multiple languages.
 
+// SDKRegistry holds per-language SDK generators backed by a shared OpenAPI specification.
 type SDKRegistry struct {
 	generators map[SDKLanguage]*SDKGenerator
 	spec       *OpenAPISpec

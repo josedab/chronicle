@@ -6,6 +6,7 @@ import (
 
 // OpenAPI 3.0 specification types.
 
+// OpenAPISpec represents a complete OpenAPI 3.0 specification document.
 type OpenAPISpec struct {
 	OpenAPI    string                      `json:"openapi"`
 	Info       OpenAPIInfo                 `json:"info"`
@@ -14,6 +15,7 @@ type OpenAPISpec struct {
 	Components *OpenAPIComponents          `json:"components,omitempty"`
 }
 
+// OpenAPIInfo describes the API metadata including title, version, and contact.
 type OpenAPIInfo struct {
 	Title       string         `json:"title"`
 	Description string         `json:"description"`
@@ -22,17 +24,20 @@ type OpenAPIInfo struct {
 	Contact     OpenAPIContact `json:"contact,omitempty"`
 }
 
+// OpenAPIContact holds contact information for the API maintainer.
 type OpenAPIContact struct {
 	Name  string `json:"name,omitempty"`
 	URL   string `json:"url,omitempty"`
 	Email string `json:"email,omitempty"`
 }
 
+// OpenAPIServer describes a server hosting the API.
 type OpenAPIServer struct {
 	URL         string `json:"url"`
 	Description string `json:"description,omitempty"`
 }
 
+// OpenAPIPathItem groups the HTTP operations available on a single path.
 type OpenAPIPathItem struct {
 	Get    *OpenAPIOperation `json:"get,omitempty"`
 	Post   *OpenAPIOperation `json:"post,omitempty"`
@@ -40,6 +45,7 @@ type OpenAPIPathItem struct {
 	Delete *OpenAPIOperation `json:"delete,omitempty"`
 }
 
+// OpenAPIOperation describes a single HTTP operation on a path.
 type OpenAPIOperation struct {
 	OperationID string                      `json:"operationId"`
 	Summary     string                      `json:"summary"`
@@ -50,6 +56,7 @@ type OpenAPIOperation struct {
 	Responses   map[string]*OpenAPIResponse `json:"responses"`
 }
 
+// OpenAPIParameter describes a single operation parameter (query, path, header, or cookie).
 type OpenAPIParameter struct {
 	Name        string         `json:"name"`
 	In          string         `json:"in"`
@@ -58,21 +65,25 @@ type OpenAPIParameter struct {
 	Schema      *OpenAPISchema `json:"schema,omitempty"`
 }
 
+// OpenAPIRequestBody describes a request body for an operation.
 type OpenAPIRequestBody struct {
 	Description string                       `json:"description,omitempty"`
 	Required    bool                         `json:"required,omitempty"`
 	Content     map[string]*OpenAPIMediaType `json:"content"`
 }
 
+// OpenAPIMediaType describes a media type with an optional schema.
 type OpenAPIMediaType struct {
 	Schema *OpenAPISchema `json:"schema,omitempty"`
 }
 
+// OpenAPIResponse describes a single response from an API operation.
 type OpenAPIResponse struct {
 	Description string                       `json:"description"`
 	Content     map[string]*OpenAPIMediaType `json:"content,omitempty"`
 }
 
+// OpenAPISchema defines the data types used in the API (parameters, request bodies, responses).
 type OpenAPISchema struct {
 	Type        string                    `json:"type,omitempty"`
 	Format      string                    `json:"format,omitempty"`
@@ -85,12 +96,14 @@ type OpenAPISchema struct {
 	Ref         string                    `json:"$ref,omitempty"`
 }
 
+// OpenAPIComponents holds reusable schema definitions referenced by $ref.
 type OpenAPIComponents struct {
 	Schemas map[string]*OpenAPISchema `json:"schemas,omitempty"`
 }
 
 // OpenAPIGenerator builds an OpenAPI spec from Chronicle's API surface.
 
+// OpenAPIGeneratorConfig controls how the OpenAPI specification is generated.
 type OpenAPIGeneratorConfig struct {
 	Title               string
 	Description         string
@@ -103,12 +116,13 @@ func DefaultOpenAPIGeneratorConfig() OpenAPIGeneratorConfig {
 	return OpenAPIGeneratorConfig{
 		Title:               "Chronicle TSDB",
 		Description:         "Time-series database HTTP API",
-		Version:             "1.0.0",
+		Version:             APIVersion,
 		ServerURL:           "http://localhost:8086",
 		IncludeExperimental: false,
 	}
 }
 
+// OpenAPIGenerator builds an OpenAPI 3.0 specification from Chronicle's HTTP API surface.
 type OpenAPIGenerator struct {
 	config OpenAPIGeneratorConfig
 }
@@ -118,7 +132,7 @@ func NewOpenAPIGenerator(config OpenAPIGeneratorConfig) *OpenAPIGenerator {
 		config.Title = "Chronicle TSDB"
 	}
 	if config.Version == "" {
-		config.Version = "1.0.0"
+		config.Version = APIVersion
 	}
 	if config.ServerURL == "" {
 		config.ServerURL = "http://localhost:8086"
