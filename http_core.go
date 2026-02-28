@@ -80,6 +80,17 @@ const (
 	MaxAuthBodySize = 64 * 1024
 
 	// maxBodySize is the default body size limit applied by the global middleware.
+	//
+	// Internal packages redefine their own limits rather than importing these
+	// constants because they reside under internal/ and serve different roles:
+	//   - internal/adminui: 1 MB — admin endpoints handle small JSON payloads.
+	//   - internal/raft:   10 MB — Raft RPCs may carry full state snapshots.
+	//   - parquet_iceberg_export_iceberg.go uses inline 1<<20 (1 MB) for the
+	//     same reason as adminui.
+	//
+	// If you add a new body-size limit, prefer importing the constants above
+	// to keep limits discoverable, unless the package is internal and its
+	// limit intentionally differs from the public API defaults.
 	maxBodySize = MaxWriteBodySize
 )
 
