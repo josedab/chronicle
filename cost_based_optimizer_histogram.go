@@ -177,6 +177,11 @@ func (o *CostBasedOptimizer) estimatePlanCost(stats *TableStatistics, q *Query, 
 	case PlanIndexOnly:
 		candidate.ScanCost = float64(estimatedRows) * o.config.IndexScanCostPerRow * 0.8
 		candidate.Notes = "index-only scan"
+	case PlanColumnarBatch:
+		// Columnar batch processing: scans estimated rows but with lower per-row cost
+		// due to cache-friendly column layout and vectorized operations
+		candidate.ScanCost = float64(estimatedRows) * o.config.SeqScanCostPerRow * 0.3
+		candidate.Notes = "columnar vectorized batch scan"
 	}
 
 	// Sort cost (only if aggregation with grouping is needed).
@@ -186,7 +191,11 @@ func (o *CostBasedOptimizer) estimatePlanCost(stats *TableStatistics, q *Query, 
 
 	// Aggregation cost.
 	if q.Aggregation != nil {
-		candidate.AggCost = float64(estimatedRows) * o.config.AggCostPerRow
+		aggCostFactor := o.config.AggCostPerRow
+		if plan == PlanColumnarBatch {
+			aggCostFactor *= 0.2 // vectorized aggregation is ~5x faster
+		}
+		candidate.AggCost = float64(estimatedRows) * aggCostFactor
 	}
 
 	// Network cost based on output rows.
@@ -228,6 +237,8 @@ func (o *CostBasedOptimizer) ChooseBestPlan(q *Query) (*CBOPlanCandidate, error)
 		o.stats.IndexPlansChosen++
 	case PlanSeqScan:
 		o.stats.SeqPlansChosen++
+	case PlanColumnarBatch:
+		o.stats.ColumnarPlansChosen++
 	}
 	o.mu.Unlock()
 
@@ -250,6 +261,15 @@ func (o *CostBasedOptimizer) generateCandidates(stats *TableStatistics, q *Query
 	// Index-only scan when querying just tags (no value aggregation).
 	if hasFilters && q.Aggregation == nil {
 		candidates = append(candidates, o.estimatePlanCost(stats, q, PlanIndexOnly))
+	}
+
+	// Columnar batch scan for large aggregation queries.
+	rowCount := int64(100_000)
+	if stats != nil {
+		rowCount = stats.RowCount
+	}
+	if q.Aggregation != nil && rowCount >= ColumnarBatchThreshold {
+		candidates = append(candidates, o.estimatePlanCost(stats, q, PlanColumnarBatch))
 	}
 
 	return candidates

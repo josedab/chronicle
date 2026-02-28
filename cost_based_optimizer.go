@@ -226,10 +226,14 @@ func (se *SelectivityEstimator) CombinedSelectivity(stats *TableStatistics, q *Q
 type CBOPlanType string
 
 const (
-	PlanSeqScan   CBOPlanType = "seq_scan"
-	PlanIndexScan CBOPlanType = "index_scan"
-	PlanIndexOnly CBOPlanType = "index_only"
+	PlanSeqScan        CBOPlanType = "seq_scan"
+	PlanIndexScan      CBOPlanType = "index_scan"
+	PlanIndexOnly      CBOPlanType = "index_only"
+	PlanColumnarBatch  CBOPlanType = "columnar_batch"
 )
+
+// ColumnarBatchThreshold is the minimum row count to prefer columnar execution.
+const ColumnarBatchThreshold = 10000
 
 // CBOPlanCandidate represents a candidate execution plan with its estimated cost.
 type CBOPlanCandidate struct {
@@ -251,8 +255,9 @@ type CostBasedOptimizerStats struct {
 	TotalPlans       int64 `json:"total_plans"`
 	MetricsTracked   int   `json:"metrics_tracked"`
 	StaleMetrics     int   `json:"stale_metrics"`
-	IndexPlansChosen int64 `json:"index_plans_chosen"`
-	SeqPlansChosen   int64 `json:"seq_plans_chosen"`
+	IndexPlansChosen    int64 `json:"index_plans_chosen"`
+	SeqPlansChosen      int64 `json:"seq_plans_chosen"`
+	ColumnarPlansChosen int64 `json:"columnar_plans_chosen"`
 }
 
 // CostBasedOptimizer collects real statistics and uses them to choose query plans.
