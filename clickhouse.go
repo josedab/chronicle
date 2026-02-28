@@ -319,8 +319,14 @@ func (p *clickHouseQueryParser) parse() (*Query, []ClickHouseSelectField, error)
 
 	// Extract LIMIT
 	if limitMatch := limitPattern.FindStringSubmatch(sql); limitMatch != nil {
-		limit, _ := strconv.Atoi(limitMatch[1])
-		query.Limit = limit
+		limit, err := strconv.Atoi(limitMatch[1])
+		if err == nil && limit > 0 {
+			const maxLimit = 10000
+			if limit > maxLimit {
+				limit = maxLimit
+			}
+			query.Limit = limit
+		}
 	}
 
 	// Apply max result rows limit
