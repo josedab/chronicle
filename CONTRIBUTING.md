@@ -101,6 +101,24 @@ golangci-lint run ./...
 go vet ./...
 ```
 
+### Utility & Validation Targets
+
+The Makefile includes several useful targets beyond lint and test. Run `make help` to see
+the full list. Highlights:
+
+```bash
+make check-openapi      # Validate openapi.json is up-to-date
+make check-api-stability # Verify stable API symbols are tested
+make check-interface    # Check for legacy interface{} usage (should use 'any')
+make check-file-size    # Warn about Go files exceeding 800 lines
+make check-todos        # Surface technical debt markers (TODO/FIXME/HACK/XXX)
+make check-versions     # Check for Go version drift across config files
+make check-goroutine-leaks # Find go func() calls without context
+make deps-check         # Check for untidy or outdated dependencies
+make doctor             # Diagnose development environment
+make validate           # Full local CI parity — run before pushing
+```
+
 ### Code Guidelines
 
 - Follow [Effective Go](https://go.dev/doc/effective_go) guidelines
