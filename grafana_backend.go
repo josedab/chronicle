@@ -437,8 +437,16 @@ func (g *GrafanaBackend) getAnnotations(w http.ResponseWriter, r *http.Request) 
 	fromStr := r.URL.Query().Get("from")
 	toStr := r.URL.Query().Get("to")
 
-	from, _ := strconv.ParseInt(fromStr, 10, 64)
-	to, _ := strconv.ParseInt(toStr, 10, 64)
+	from, err := strconv.ParseInt(fromStr, 10, 64)
+	if err != nil || from < 0 {
+		http.Error(w, "invalid 'from' parameter", http.StatusBadRequest)
+		return
+	}
+	to, err := strconv.ParseInt(toStr, 10, 64)
+	if err != nil || to < 0 {
+		http.Error(w, "invalid 'to' parameter", http.StatusBadRequest)
+		return
+	}
 
 	g.annotationsMu.RLock()
 	defer g.annotationsMu.RUnlock()
