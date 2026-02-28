@@ -213,6 +213,8 @@ func (sess *PGSession) executeStatement(stmt string) error {
 		return sess.handleCatalogQuery(stmt)
 	case strings.HasPrefix(upper, "SELECT"):
 		return sess.handleSelect(stmt)
+	case strings.HasPrefix(upper, "COPY") && strings.Contains(upper, "FROM STDIN"):
+		return sess.handleCopyIn(stmt)
 	case strings.HasPrefix(upper, "INSERT"):
 		return sess.handleInsert(stmt)
 	case strings.HasPrefix(upper, "BEGIN") || strings.HasPrefix(upper, "START TRANSACTION"):
