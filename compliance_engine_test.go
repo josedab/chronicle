@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -299,5 +300,165 @@ func TestComplianceEngine_ReportWithEncryption(t *testing.T) {
 	// All 4 checks should pass now
 	if report.PassRate != 1.0 {
 		t.Errorf("pass rate = %f, want 1.0", report.PassRate)
+	}
+}
+
+func TestFieldEncryptor_DecryptTamperedCiphertext(t *testing.T) {
+	key := make([]byte, 32)
+	rand.Read(key)
+	fe, _ := NewFieldEncryptor(key, "k1")
+
+	encrypted, err := fe.Encrypt("secret data")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Tamper with the ciphertext by flipping the last byte
+	raw, _ := hex.DecodeString(encrypted)
+	raw[len(raw)-1] ^= 0xFF
+	tampered := hex.EncodeToString(raw)
+
+	_, err = fe.Decrypt(tampered)
+	if err == nil {
+		t.Error("expected decryption failure for tampered ciphertext")
+	}
+}
+
+func TestCheckResidency_WildcardAndEmptyPattern(t *testing.T) {
+	ce := NewComplianceEngine(ComplianceGDPR)
+
+	// Wildcard pattern matches all metrics
+	ce.AddResidencyRule(DataResidencyRule{
+		MetricPattern:  "*",
+		AllowedRegions: []string{"eu-west-1"},
+	})
+
+	v := ce.CheckResidency("any.metric", "us-east-1")
+	if v == nil {
+		t.Error("wildcard pattern should match any metric and violate for us-east-1")
+	}
+
+	v = ce.CheckResidency("any.metric", "eu-west-1")
+	if v != nil {
+		t.Error("wildcard pattern should allow eu-west-1")
+	}
+
+	// Empty pattern also matches all metrics
+	ce2 := NewComplianceEngine(ComplianceGDPR)
+	ce2.AddResidencyRule(DataResidencyRule{
+		MetricPattern:  "",
+		AllowedRegions: []string{"eu-central-1"},
+	})
+
+	v = ce2.CheckResidency("some.metric", "us-west-2")
+	if v == nil {
+		t.Error("empty pattern should match any metric and violate for us-west-2")
+	}
+
+	v = ce2.CheckResidency("some.metric", "eu-central-1")
+	if v != nil {
+		t.Error("empty pattern should allow eu-central-1")
+	}
+}
+
+func TestSetFieldEncryptor_KeySwap(t *testing.T) {
+	ce := NewComplianceEngine(ComplianceGDPR)
+
+	key1 := make([]byte, 32)
+	rand.Read(key1)
+	fe1, _ := NewFieldEncryptor(key1, "key-v1")
+
+	key2 := make([]byte, 32)
+	rand.Read(key2)
+	fe2, _ := NewFieldEncryptor(key2, "key-v2")
+
+	ce.SetFieldEncryptor(fe1)
+
+	// Encrypt with first key
+	encrypted, err := fe1.Encrypt("test data")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Swap to second key
+	ce.SetFieldEncryptor(fe2)
+
+	// Old ciphertext should not decrypt with new key
+	_, err = fe2.Decrypt(encrypted)
+	if err == nil {
+		t.Error("expected decryption failure with different key")
+	}
+
+	// New key should work for new encryptions
+	encrypted2, err := fe2.Encrypt("new data")
+	if err != nil {
+		t.Fatal(err)
+	}
+	decrypted, err := fe2.Decrypt(encrypted2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decrypted != "new data" {
+		t.Errorf("decrypted = %q, want %q", decrypted, "new data")
+	}
+}
+
+func TestAuditTrail_QueryWithSinceFilter(t *testing.T) {
+	at := NewComplianceAuditTrail(100)
+
+	// Record entries with small delays to ensure time ordering
+	at.Record("admin", "read", "resource-1", "", true)
+	time.Sleep(10 * time.Millisecond)
+	cutoff := time.Now()
+	time.Sleep(10 * time.Millisecond)
+	at.Record("admin", "write", "resource-2", "", true)
+	at.Record("admin", "delete", "resource-3", "", true)
+
+	// Query with since filter should only return entries after cutoff
+	results := at.Query("", "", cutoff)
+	if len(results) != 2 {
+		t.Errorf("expected 2 results after cutoff, got %d", len(results))
+	}
+
+	// Query without since should return all
+	results = at.Query("", "", time.Time{})
+	if len(results) != 3 {
+		t.Errorf("expected 3 total results, got %d", len(results))
+	}
+}
+
+func TestAuditTrail_NegativeMaxSize(t *testing.T) {
+	at := NewComplianceAuditTrail(-5)
+
+	// Should default to 10000
+	for i := 0; i < 20; i++ {
+		at.Record("user", "read", fmt.Sprintf("r-%d", i), "", true)
+	}
+
+	if at.Count() != 20 {
+		t.Errorf("expected 20 entries (maxSize defaulted to 10000), got %d", at.Count())
+	}
+}
+
+func TestFieldEncryptor_KeyIDAfterRotation(t *testing.T) {
+	key := make([]byte, 32)
+	rand.Read(key)
+
+	fe1, _ := NewFieldEncryptor(key, "v1")
+	if fe1.KeyID() != "v1" {
+		t.Errorf("keyID = %q, want v1", fe1.KeyID())
+	}
+
+	// Simulate rotation by creating a new encryptor with a new key
+	key2 := make([]byte, 32)
+	rand.Read(key2)
+	fe2, _ := NewFieldEncryptor(key2, "v2")
+	if fe2.KeyID() != "v2" {
+		t.Errorf("keyID = %q, want v2", fe2.KeyID())
+	}
+
+	// Original still has its key ID
+	if fe1.KeyID() != "v1" {
+		t.Errorf("original keyID changed to %q", fe1.KeyID())
 	}
 }
