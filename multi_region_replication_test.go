@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -398,5 +399,203 @@ func TestMultiRegionReplicationHTTPHandlers(t *testing.T) {
 	peers = engine.ListPeers()
 	if len(peers) != 0 {
 		t.Fatalf("expected 0 peers after removal, got %d", len(peers))
+	}
+}
+
+func TestMultiRegionReplicationEnumStrings(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"EventualConsistency", EventualConsistency.String(), "eventual"},
+		{"StrongConsistency", StrongConsistency.String(), "strong"},
+		{"LocalConsistency", LocalConsistency.String(), "local"},
+		{"QuorumConsistency", QuorumConsistency.String(), "quorum"},
+		{"UnknownConsistency", MRConsistencyLevel(99).String(), "unknown"},
+		{"LastWriterWins", MRLastWriterWins.String(), "last_writer_wins"},
+		{"HighestValue", MRHighestValue.String(), "highest_value"},
+		{"CustomMerge", MRCustomMerge.String(), "custom_merge"},
+		{"UnknownResolution", MRConflictResolution(99).String(), "unknown"},
+		{"Initializing", MRInitializing.String(), "initializing"},
+		{"Active", MRActive.String(), "active"},
+		{"Degraded", MRDegraded.String(), "degraded"},
+		{"Partitioned", MRPartitioned.String(), "partitioned"},
+		{"Recovering", MRRecovering.String(), "recovering"},
+		{"WriteEvent", MRReplicationWrite.String(), "write"},
+		{"DeleteEvent", MRReplicationDelete.String(), "delete"},
+		{"SchemaChange", MRReplicationSchemaChange.String(), "schema_change"},
+		{"Snapshot", MRReplicationSnapshot.String(), "snapshot"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.got != tc.want {
+				t.Errorf("got %q, want %q", tc.got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVectorClock_MergeWithConcurrentIncrements(t *testing.T) {
+	vc1 := MRVectorClock{"a": 5, "b": 3}
+	vc2 := MRVectorClock{"a": 3, "b": 7, "c": 2}
+
+	vc1.Merge(vc2)
+
+	if vc1["a"] != 5 {
+		t.Errorf("a: got %d, want 5", vc1["a"])
+	}
+	if vc1["b"] != 7 {
+		t.Errorf("b: got %d, want 7", vc1["b"])
+	}
+	if vc1["c"] != 2 {
+		t.Errorf("c: got %d, want 2", vc1["c"])
+	}
+}
+
+func TestMultiRegionReplication_FailoverFailback(t *testing.T) {
+	engine := newTestMultiRegionEngine(t)
+
+	engine.AddPeer("primary", "10.0.0.1:9090", "us-east-1")
+	engine.AddPeer("secondary", "10.0.0.2:9090", "us-west-2")
+
+	// Simulate writes
+	for i := 0; i < 5; i++ {
+		engine.ReplicateWrite(Point{Metric: "cpu", Value: float64(i), Timestamp: time.Now().UnixNano()})
+	}
+
+	// Create snapshot (simulate failover state capture)
+	snapshot := engine.CreateSnapshot()
+	if snapshot.EventCount != 5 {
+		t.Errorf("snapshot events = %d, want 5", snapshot.EventCount)
+	}
+	if len(snapshot.PeerStates) != 2 {
+		t.Errorf("snapshot peer states = %d, want 2", len(snapshot.PeerStates))
+	}
+
+	// Simulate failback: new engine applies snapshot
+	cfg2 := DefaultMultiRegionReplicationConfig()
+	cfg2.RegionName = "us-west-2"
+	engine2 := NewMultiRegionReplicationEngine(nil, cfg2)
+
+	if err := engine2.ApplySnapshot(snapshot); err != nil {
+		t.Fatalf("ApplySnapshot: %v", err)
+	}
+
+	if engine2.GetState() != MRActive {
+		t.Errorf("state after snapshot = %s, want active", engine2.GetState())
+	}
+
+	stats2 := engine2.Stats()
+	if stats2.TotalEventsReplicated != 5 {
+		t.Errorf("replicated events = %d, want 5", stats2.TotalEventsReplicated)
+	}
+}
+
+func TestMultiRegionReplication_SyncAfterPartition(t *testing.T) {
+	engine := newTestMultiRegionEngine(t)
+	engine.AddPeer("peer-1", "10.0.0.1:9090", "us-west-2")
+
+	// Write some events locally
+	for i := 0; i < 3; i++ {
+		engine.ReplicateWrite(Point{Metric: "cpu", Value: float64(i), Timestamp: time.Now().UnixNano()})
+	}
+
+	// Simulate incoming catch-up events from the remote peer
+	for i := 0; i < 2; i++ {
+		vc := MRVectorClock{"us-west-2": uint64(i + 1)}
+		event := MRReplicationEvent{
+			ID:           fmt.Sprintf("remote-%d", i),
+			Type:         MRReplicationWrite,
+			SourceRegion: "us-west-2",
+			Timestamp:    time.Now(),
+			VectorClock:  vc,
+			Data:         []byte(`{"metric":"cpu","value":42}`),
+		}
+		if err := engine.HandleIncomingReplication(event); err != nil {
+			t.Fatalf("HandleIncoming: %v", err)
+		}
+	}
+
+	stats := engine.Stats()
+	if stats.TotalEventsReplicated != 5 {
+		t.Errorf("total events = %d, want 5", stats.TotalEventsReplicated)
+	}
+}
+
+func TestMultiRegionReplication_SplitBrain(t *testing.T) {
+	// Simulate split-brain: two regions write concurrently with independent vector clocks
+	cfg1 := DefaultMultiRegionReplicationConfig()
+	cfg1.RegionName = "us-east-1"
+	engine1 := NewMultiRegionReplicationEngine(nil, cfg1)
+
+	cfg2 := DefaultMultiRegionReplicationConfig()
+	cfg2.RegionName = "us-west-2"
+	engine2 := NewMultiRegionReplicationEngine(nil, cfg2)
+
+	engine1.AddPeer("west", "10.0.0.2:9090", "us-west-2")
+	engine2.AddPeer("east", "10.0.0.1:9090", "us-east-1")
+
+	// Both write independently (partition)
+	engine1.ReplicateWrite(Point{Metric: "cpu", Value: 50, Timestamp: time.Now().UnixNano()})
+	engine2.ReplicateWrite(Point{Metric: "cpu", Value: 60, Timestamp: time.Now().UnixNano()})
+
+	// Heal partition: exchange events
+	snap1 := engine1.CreateSnapshot()
+	snap2 := engine2.CreateSnapshot()
+
+	for _, ev := range snap2.Events {
+		engine1.HandleIncomingReplication(ev)
+	}
+	for _, ev := range snap1.Events {
+		engine2.HandleIncomingReplication(ev)
+	}
+
+	stats1 := engine1.Stats()
+	stats2 := engine2.Stats()
+
+	if stats1.ConflictsDetected == 0 {
+		t.Error("expected conflicts detected in engine1")
+	}
+	if stats2.ConflictsDetected == 0 {
+		t.Error("expected conflicts detected in engine2")
+	}
+}
+
+func TestMultiRegionReplication_SnapshotIdempotent(t *testing.T) {
+	engine := newTestMultiRegionEngine(t)
+	engine.AddPeer("peer-1", "10.0.0.1:9090", "us-west-2")
+	engine.ReplicateWrite(Point{Metric: "cpu", Value: 42, Timestamp: time.Now().UnixNano()})
+
+	snapshot := engine.CreateSnapshot()
+
+	// Apply same snapshot twice - should not duplicate events
+	engine2 := NewMultiRegionReplicationEngine(nil, DefaultMultiRegionReplicationConfig())
+	engine2.ApplySnapshot(snapshot)
+	engine2.ApplySnapshot(snapshot)
+
+	stats := engine2.Stats()
+	if stats.TotalEventsReplicated != 1 {
+		t.Errorf("expected 1 event after idempotent apply, got %d", stats.TotalEventsReplicated)
+	}
+}
+
+func TestMultiRegionReplication_ReplicationLag(t *testing.T) {
+	engine := newTestMultiRegionEngine(t)
+	engine.AddPeer("peer-1", "10.0.0.1:9090", "us-west-2")
+
+	engine.ReplicateWrite(Point{Metric: "cpu", Value: 42, Timestamp: time.Now().UnixNano()})
+
+	lag, err := engine.GetReplicationLag("peer-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lag < 0 {
+		t.Errorf("expected non-negative lag, got %v", lag)
+	}
+
+	_, err = engine.GetReplicationLag("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent peer")
 	}
 }
