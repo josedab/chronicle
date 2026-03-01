@@ -357,3 +357,183 @@ func TestDefaultPrivacyFederationConfig(t *testing.T) {
 		t.Errorf("expected MinAggregationSize 10, got %d", config.MinAggregationSize)
 	}
 }
+
+func TestAddNoise_GaussianVarianceDistribution(t *testing.T) {
+	db := &DB{}
+	config := DefaultPrivacyFederationConfig()
+	config.NoiseType = NoiseTypeGaussian
+	pf := NewPrivacyFederation(db, config)
+
+	epsilon := 1.0
+	sensitivity := 1.0
+	sigma := sensitivity / epsilon * math.Sqrt(2*math.Log(1.25/config.Delta))
+
+	const n = 10000
+	samples := make([]float64, n)
+	for i := range samples {
+		samples[i] = pf.addNoise(0, epsilon, sensitivity)
+	}
+
+	var sum, sumSq float64
+	for _, s := range samples {
+		sum += s
+		sumSq += s * s
+	}
+	mean := sum / float64(n)
+	variance := sumSq/float64(n) - mean*mean
+
+	if math.Abs(mean) > 0.5 {
+		t.Errorf("Gaussian noise mean should be near 0, got %f", mean)
+	}
+	expectedVar := sigma * sigma
+	if math.Abs(variance-expectedVar)/expectedVar > 0.3 {
+		t.Errorf("Gaussian noise variance expected ~%f, got %f", expectedVar, variance)
+	}
+}
+
+func TestCalculateSensitivity_AvgRecordCountZero(t *testing.T) {
+	db := &DB{}
+	config := DefaultPrivacyFederationConfig()
+	pf := NewPrivacyFederation(db, config)
+
+	// With recordCount=0, should fallback to SensitivityBound (no division by zero)
+	sens := pf.calculateSensitivity(AggregationTypeAvg, 0)
+	if sens != config.SensitivityBound {
+		t.Errorf("expected sensitivity %f for avg with 0 records, got %f", config.SensitivityBound, sens)
+	}
+
+	// With positive recordCount, should be SensitivityBound / recordCount
+	sens = pf.calculateSensitivity(AggregationTypeAvg, 100)
+	expected := config.SensitivityBound / 100.0
+	if math.Abs(sens-expected) > 1e-9 {
+		t.Errorf("expected sensitivity %f for avg with 100 records, got %f", expected, sens)
+	}
+}
+
+func TestCalculateSensitivity_MinMax(t *testing.T) {
+	db := &DB{}
+	config := DefaultPrivacyFederationConfig()
+	pf := NewPrivacyFederation(db, config)
+
+	for _, agg := range []AggregationType{AggregationTypeMin, AggregationTypeMax} {
+		sens := pf.calculateSensitivity(agg, 100)
+		if sens != config.SensitivityBound {
+			t.Errorf("expected sensitivity %f for %s, got %f", config.SensitivityBound, agg, sens)
+		}
+	}
+}
+
+func TestConsumeBudget_MissingBudgetEntry(t *testing.T) {
+	db := &DB{}
+	pf := NewPrivacyFederation(db, DefaultPrivacyFederationConfig())
+
+	// No sources registered, so no budgets exist
+	err := pf.consumeBudget([]string{"nonexistent"}, 0.1)
+	if err == nil {
+		t.Error("expected error when budget entry is missing")
+	}
+}
+
+func TestShouldSuppressGroup_AlwaysFalse(t *testing.T) {
+	db := &DB{}
+	pf := NewPrivacyFederation(db, DefaultPrivacyFederationConfig())
+
+	pf.RegisterSource(&FederatedSource{
+		ID:   "src1",
+		Name: "Test",
+		PrivacyPolicy: &PrivacyPolicy{
+			MinAggregationSize: 100,
+		},
+	})
+
+	query := &FederatedQuery{
+		Sources: []string{"src1"},
+	}
+
+	// Current implementation always returns false
+	if pf.shouldSuppressGroup("any_group", query) {
+		t.Error("shouldSuppressGroup should return false (current stub implementation)")
+	}
+}
+
+func TestLaplaceSample_ZeroScale(t *testing.T) {
+	// With scale=0, noise should be 0
+	for i := 0; i < 100; i++ {
+		s := laplaceSample(0)
+		if s != 0 {
+			t.Errorf("laplaceSample(0) should be 0, got %f", s)
+		}
+	}
+}
+
+func TestConcurrentConsumeBudget(t *testing.T) {
+	db := &DB{}
+	config := DefaultPrivacyFederationConfig()
+	config.TotalPrivacyBudget = 1.0
+	config.PrivacyBudgetPerQuery = 0.1
+
+	pf := NewPrivacyFederation(db, config)
+	pf.RegisterSource(&FederatedSource{ID: "src1", Name: "Test"})
+
+	// Run concurrent budget consumptions
+	const goroutines = 20
+	errs := make(chan error, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			errs <- pf.consumeBudget([]string{"src1"}, 0.1)
+		}()
+	}
+
+	var successCount, errorCount int
+	for i := 0; i < goroutines; i++ {
+		if err := <-errs; err != nil {
+			errorCount++
+		} else {
+			successCount++
+		}
+	}
+
+	// Budget allows exactly 10 successful calls (1.0 / 0.1)
+	if successCount > 10 {
+		t.Errorf("expected at most 10 successful budget consumptions, got %d", successCount)
+	}
+	if successCount+errorCount != goroutines {
+		t.Errorf("expected %d total calls, got %d", goroutines, successCount+errorCount)
+	}
+}
+
+func TestRefreshExpiredBudgets(t *testing.T) {
+	db := &DB{}
+	config := DefaultPrivacyFederationConfig()
+	config.BudgetRefreshInterval = time.Millisecond
+	pf := NewPrivacyFederation(db, config)
+
+	pf.RegisterSource(&FederatedSource{ID: "src1", Name: "Test"})
+
+	// Consume some budget
+	pf.consumeBudget([]string{"src1"}, 5.0)
+
+	// Verify budget was consumed
+	status := pf.GetBudgetStatus()
+	if status["src1"].UsedBudget != 5.0 {
+		t.Fatalf("expected 5.0 used budget, got %f", status["src1"].UsedBudget)
+	}
+
+	// Set expiration in the past
+	pf.mu.Lock()
+	pf.budgets["src1"].NextRefresh = time.Now().Add(-time.Second)
+	pf.mu.Unlock()
+
+	// Refresh
+	pf.refreshExpiredBudgets()
+
+	// Budget should be reset
+	status = pf.GetBudgetStatus()
+	if status["src1"].UsedBudget != 0 {
+		t.Errorf("expected 0 used budget after refresh, got %f", status["src1"].UsedBudget)
+	}
+	if status["src1"].QueryCount != 0 {
+		t.Errorf("expected 0 query count after refresh, got %d", status["src1"].QueryCount)
+	}
+}
