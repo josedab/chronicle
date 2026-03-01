@@ -2,6 +2,9 @@ package encoding
 
 import (
 	"bytes"
+	"encoding/binary"
+	"fmt"
+	"math"
 	"testing"
 )
 
@@ -468,5 +471,225 @@ func TestGorillaSpecialValues(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDelta_MonotonicTimestamps(t *testing.T) {
+	// Simulate monotonically increasing timestamps with constant delta
+	values := make([]int64, 100)
+	for i := range values {
+		values[i] = int64(i) * 1000000000 // 1s intervals in nanos
+	}
+
+	encoded := EncodeDelta(values)
+	decoded, err := DecodeDelta(encoded)
+	if err != nil {
+		t.Fatalf("DecodeDelta failed: %v", err)
+	}
+
+	for i, v := range values {
+		if decoded[i] != v {
+			t.Errorf("value[%d]: got %d, want %d", i, decoded[i], v)
+		}
+	}
+
+	// Constant-delta sequences should compress very well
+	rawSize := len(values) * 8
+	if len(encoded) >= rawSize {
+		t.Errorf("compressed size %d should be less than raw %d for monotonic data", len(encoded), rawSize)
+	}
+}
+
+func TestDelta_OutOfOrderWithNegativeDeltas(t *testing.T) {
+	values := []int64{100, 200, 150, 300, 50, 400}
+
+	encoded := EncodeDelta(values)
+	decoded, err := DecodeDelta(encoded)
+	if err != nil {
+		t.Fatalf("DecodeDelta failed: %v", err)
+	}
+
+	for i, v := range values {
+		if decoded[i] != v {
+			t.Errorf("value[%d]: got %d, want %d", i, decoded[i], v)
+		}
+	}
+}
+
+func TestDelta_SingleValue(t *testing.T) {
+	values := []int64{42}
+	encoded := EncodeDelta(values)
+	decoded, err := DecodeDelta(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != 1 || decoded[0] != 42 {
+		t.Errorf("expected [42], got %v", decoded)
+	}
+}
+
+func TestDelta_RepeatedValues(t *testing.T) {
+	values := make([]int64, 50)
+	for i := range values {
+		values[i] = 999
+	}
+
+	encoded := EncodeDelta(values)
+	decoded, err := DecodeDelta(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, v := range values {
+		if decoded[i] != v {
+			t.Errorf("value[%d]: got %d, want %d", i, decoded[i], v)
+		}
+	}
+}
+
+func TestDelta_TooShortData(t *testing.T) {
+	_, err := DecodeDelta([]byte{1, 2})
+	if err == nil {
+		t.Error("expected error for too short data")
+	}
+}
+
+func TestGorilla_NaNInfValues(t *testing.T) {
+	values := []float64{
+		math.NaN(),
+		math.Inf(1),
+		math.Inf(-1),
+		0,
+		math.SmallestNonzeroFloat64,
+	}
+
+	encoded := EncodeGorilla(values)
+	decoded, err := DecodeGorilla(encoded)
+	if err != nil {
+		t.Fatalf("DecodeGorilla failed: %v", err)
+	}
+
+	if len(decoded) != len(values) {
+		t.Fatalf("length mismatch: got %d, want %d", len(decoded), len(values))
+	}
+
+	// NaN != NaN, so check with math.IsNaN
+	if !math.IsNaN(decoded[0]) {
+		t.Errorf("value[0]: expected NaN, got %f", decoded[0])
+	}
+	if !math.IsInf(decoded[1], 1) {
+		t.Errorf("value[1]: expected +Inf, got %f", decoded[1])
+	}
+	if !math.IsInf(decoded[2], -1) {
+		t.Errorf("value[2]: expected -Inf, got %f", decoded[2])
+	}
+	if decoded[3] != 0 {
+		t.Errorf("value[3]: expected 0, got %f", decoded[3])
+	}
+	if decoded[4] != math.SmallestNonzeroFloat64 {
+		t.Errorf("value[4]: expected SmallestNonzeroFloat64, got %e", decoded[4])
+	}
+}
+
+func TestGorilla_SingleValue(t *testing.T) {
+	values := []float64{3.14}
+	encoded := EncodeGorilla(values)
+	decoded, err := DecodeGorilla(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != 1 || decoded[0] != 3.14 {
+		t.Errorf("expected [3.14], got %v", decoded)
+	}
+}
+
+func TestGorilla_TooShortData(t *testing.T) {
+	_, err := DecodeGorilla([]byte{1, 2})
+	if err == nil {
+		t.Error("expected error for too short data")
+	}
+}
+
+func TestDictionary_HighCardinality(t *testing.T) {
+	dict := NewStringDictionary()
+
+	// Add many unique strings
+	const n = 70000
+	for i := 0; i < n; i++ {
+		s := fmt.Sprintf("value_%d", i)
+		idx := dict.Add(s)
+		if idx == 0 {
+			t.Fatalf("non-empty string should not return index 0 at i=%d", i)
+		}
+	}
+
+	// Verify deduplication
+	for i := 0; i < 100; i++ {
+		s := fmt.Sprintf("value_%d", i)
+		idx1 := dict.Add(s)
+		idx2 := dict.Add(s)
+		if idx1 != idx2 {
+			t.Errorf("duplicate string should return same index: %d != %d", idx1, idx2)
+		}
+	}
+}
+
+func TestDictionary_WriteReadHighCardinality(t *testing.T) {
+	dict := NewStringDictionary()
+	const n = 1000
+	for i := 0; i < n; i++ {
+		dict.Add(fmt.Sprintf("key_%d", i))
+	}
+
+	buf := &bytes.Buffer{}
+	if err := dict.WriteTo(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	reader := bytes.NewReader(buf.Bytes())
+	restored, err := ReadStringDictionary(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(restored.items) != n {
+		t.Errorf("expected %d items, got %d", n, len(restored.items))
+	}
+}
+
+func TestDictionary_ReadStringRefOutOfRange(t *testing.T) {
+	dict := NewStringDictionary()
+	dict.Add("only_one")
+
+	// Write an out-of-range index
+	buf := &bytes.Buffer{}
+	binary.Write(buf, binary.LittleEndian, uint32(999))
+
+	reader := bytes.NewReader(buf.Bytes())
+	_, err := dict.ReadStringRef(reader)
+	if err == nil {
+		t.Error("expected error for out-of-range index")
+	}
+}
+
+func TestCodec_RawFloat64Empty(t *testing.T) {
+	encoded := EncodeRawFloat64([]float64{})
+	decoded, err := DecodeRawFloat64(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != 0 {
+		t.Errorf("expected empty, got %d", len(decoded))
+	}
+}
+
+func TestCodec_RawInt64Empty(t *testing.T) {
+	encoded := EncodeRawInt64([]int64{})
+	decoded, err := DecodeRawInt64(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != 0 {
+		t.Errorf("expected empty, got %d", len(decoded))
 	}
 }
