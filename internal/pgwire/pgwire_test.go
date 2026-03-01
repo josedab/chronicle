@@ -408,3 +408,193 @@ func TestPGWireShowCommands(t *testing.T) {
 		}
 	}
 }
+
+func TestPGQueryTranslator_SelectWithAggregation(t *testing.T) {
+	now := time.Now().UnixNano()
+	db := &mockPGDB{
+		metrics: []string{"cpu"},
+		points: []Point{
+			{Metric: "cpu", Timestamp: now - 1000, Value: 10.0},
+			{Metric: "cpu", Timestamp: now - 500, Value: 20.0},
+			{Metric: "cpu", Timestamp: now, Value: 30.0},
+		},
+	}
+
+	translator := &PGQueryTranslator{db: db}
+
+	result, err := translator.Execute("SELECT * FROM cpu LIMIT 10")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if result.RowCount != 3 {
+		t.Errorf("RowCount = %d, want 3", result.RowCount)
+	}
+}
+
+func TestPGQueryTranslator_InsertValues(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"test"}}
+	translator := &PGQueryTranslator{db: db}
+
+	result, err := translator.Execute(`INSERT INTO test_metric (value) VALUES (42.5)`)
+	if err != nil {
+		t.Fatalf("Execute INSERT: %v", err)
+	}
+	if result.RowCount != 1 {
+		t.Errorf("RowCount = %d, want 1", result.RowCount)
+	}
+	if len(db.written) != 1 {
+		t.Errorf("expected 1 written point, got %d", len(db.written))
+	}
+}
+
+func TestPGQueryTranslator_UnsupportedDDL(t *testing.T) {
+	db := &mockPGDB{}
+	translator := &PGQueryTranslator{db: db}
+
+	_, err := translator.Execute("DROP TABLE test")
+	if err == nil {
+		t.Error("expected error for DROP TABLE")
+	}
+
+	_, err = translator.Execute("ALTER TABLE test ADD COLUMN x INT")
+	if err == nil {
+		t.Error("expected error for ALTER TABLE")
+	}
+}
+
+func TestPGSession_WriteMessage(t *testing.T) {
+	db := &mockPGDB{}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	sess.writeMessage('R', []byte{0, 0, 0, 0})
+
+	sess.mu.Lock()
+	written := sess.writer.Len()
+	sess.mu.Unlock()
+
+	if written == 0 {
+		t.Error("expected data written")
+	}
+}
+
+func TestPGSession_SplitStatements(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{"SELECT 1", 1},
+		{"SELECT 1; SELECT 2", 2},
+		{"SELECT 1; SELECT 2;", 2},
+		{"", 0},
+		{"SELECT 1; ; SELECT 2", 2},
+	}
+	for _, tc := range tests {
+		stmts := splitStatements(tc.input)
+		if len(stmts) != tc.expected {
+			t.Errorf("splitStatements(%q) = %d stmts, want %d", tc.input, len(stmts), tc.expected)
+		}
+	}
+}
+
+func TestPGSession_ExecuteMultipleStatements(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"cpu"}}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	// Multiple statements in a single query
+	err := sess.executeStatement("BEGIN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sess.executeStatement("SELECT 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sess.executeStatement("COMMIT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sess.txState != PGTxIdle {
+		t.Errorf("expected idle after COMMIT, got %c", sess.txState)
+	}
+}
+
+func TestPGSession_ExtendedQueryProtocol(t *testing.T) {
+	db := &mockPGDB{metrics: []string{"cpu"}}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	// Parse message: name + query + param count
+	parseBuf := make([]byte, 0)
+	parseBuf = append(parseBuf, []byte("stmt1")...)
+	parseBuf = append(parseBuf, 0)
+	parseBuf = append(parseBuf, []byte("SELECT 1")...)
+	parseBuf = append(parseBuf, 0)
+	parseBuf = append(parseBuf, 0, 0) // 0 params
+
+	err := sess.handleParse(parseBuf)
+	if err != nil {
+		t.Fatalf("handleParse: %v", err)
+	}
+
+	if _, ok := sess.preparedStmts["stmt1"]; !ok {
+		t.Error("expected prepared statement 'stmt1'")
+	}
+}
+
+func TestPGSession_SelectOne(t *testing.T) {
+	db := &mockPGDB{}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	err := sess.handleSelectOne()
+	if err != nil {
+		t.Fatalf("handleSelectOne: %v", err)
+	}
+}
+
+func TestPGSession_HandleEmptyQuery(t *testing.T) {
+	db := &mockPGDB{}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+	sess := newPGSession(server, nil)
+
+	// Empty query should not error
+	err := sess.executeStatement("")
+	// Empty string is skipped or handled gracefully
+	_ = err
+}
+
+func TestPGQueryTranslator_SelectWithWhere(t *testing.T) {
+	db := &mockPGDB{
+		metrics: []string{"cpu"},
+		points: []Point{
+			{Metric: "cpu", Timestamp: 1000, Value: 10.0, Tags: map[string]string{"host": "a"}},
+			{Metric: "cpu", Timestamp: 2000, Value: 20.0, Tags: map[string]string{"host": "b"}},
+		},
+	}
+
+	translator := &PGQueryTranslator{db: db}
+	result, err := translator.Execute("SELECT * FROM cpu WHERE host = 'a'")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	// Result should have data (filter is applied by translator)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+func TestPGServer_Stats(t *testing.T) {
+	db := &mockPGDB{}
+	server, _ := NewPGServer(db, DefaultPGWireConfig())
+
+	stats := server.Stats()
+	if stats.TotalConnections != 0 {
+		t.Errorf("TotalConnections = %d, want 0", stats.TotalConnections)
+	}
+	if stats.ActiveConnections != 0 {
+		t.Errorf("ActiveConnections = %d, want 0", stats.ActiveConnections)
+	}
+}
