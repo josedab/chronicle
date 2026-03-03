@@ -4,6 +4,8 @@ Thank you for your interest in contributing to Chronicle! This document provides
 
 ## Getting Started
 
+> **New contributor?** Start with the **[Contributor Onboarding Guide](docs/CONTRIBUTOR_ONBOARDING.md)** — a 30-minute walkthrough covering architecture, key files, and how to add features.
+
 ### Prerequisites
 
 - Go 1.24 or later
@@ -76,7 +78,7 @@ make test-cover-pkg PKG=./internal/query/...
 
 ### Performance Tips
 
-`make test` and `make test-ci` run with the race detector (`-race`) explicitly.
+`make test` and `make test-race-short` run with the race detector (`-race`) explicitly.
 Other targets like `make test-short` do not include the race detector, giving you
 faster iteration. To opt-in to race detection for any target:
 
@@ -85,6 +87,14 @@ GOFLAGS=-race make test-short  # Add race detector to test-short
 make test-race                 # Short tests WITH race detector (~45s, best pre-push check)
 make test-fast                 # Internal packages only (~5s, TDD loop)
 make test-verbose TEST=TestMyThing  # Single test with verbose output
+```
+
+### File Watchers
+
+```bash
+make watch          # Watch files, run fast tests on change (TDD mode)
+make watch-lint     # Watch files, run fast linters on change
+make watch-all      # Watch files, run full check (vet + fmt + tests) on change
 ```
 
 ### Code Style
