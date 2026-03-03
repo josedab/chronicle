@@ -1,8 +1,9 @@
-.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy help
+.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-race-short test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run debug watch watch-lint watch-all check-versions doctor new-test test-changed check-file-size check-file-size-strict lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy test-file help
 
 GO ?= go
 MIN_GO_VERSION := 1.24
 
+##@ Setup
 all: lint test build ## Run lint, test, and build
 
 quickstart: setup install-hooks doctor ## One-command setup for new contributors
@@ -36,8 +37,12 @@ preflight: ## Validate development environment
 	@echo "✓ Go $$($(GO) version | grep -oE 'go[0-9]+\.[0-9]+\.[0-9]+') detected"
 	@echo "✓ Pre-flight checks passed"
 
+##@ Development
+
 build: ## Build the package
 	$(GO) build ./...
+
+##@ Testing
 
 test: ## Run tests with race detector
 	$(GO) test -race -count=1 ./...
@@ -80,9 +85,11 @@ endif
 test-integration: ## Run all tests including integration
 	$(GO) test -race -tags integration ./...
 
-test-ci: ## Run the same checks as CI (vet + all tests + race)
+test-race-short: ## Run vet + short tests with race detector (quick pre-push check)
 	$(GO) vet ./...
 	$(GO) test -race -short ./...
+
+test-ci: test-race-short ## Deprecated: use test-race-short instead
 
 test-examples: ## Verify all examples compile (and optionally run with 5s timeout)
 	@echo "Building examples..."
@@ -182,6 +189,8 @@ install-hooks: ## Install git pre-commit and commit-msg hooks
 
 GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo "$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest")
 
+##@ Linting
+
 lint: ## Run linters
 	$(GO) vet ./...
 	$(GOLANGCI_LINT) run
@@ -220,6 +229,8 @@ fmt-check: ## Check if code is formatted (dry-run, no changes)
 	fi
 	@echo "✓ All files are properly formatted"
 
+##@ Benchmarks & Profiling
+
 bench: ## Run benchmarks
 	$(GO) test -bench=. -benchmem ./...
 
@@ -255,6 +266,8 @@ profile-mem: ## Run benchmarks with memory profiling
 	@echo "  View interactively:  go tool pprof -http=:8081 mem.prof"
 	@echo "  View in terminal:    go tool pprof mem.prof"
 
+##@ Build & Clean
+
 clean: ## Clean build artifacts
 	rm -f coverage.out coverage.html benchmark-results.txt
 	rm -f *.db *.db.wal
@@ -271,6 +284,8 @@ clean-all: clean ## Deep clean (build artifacts + profiles + caches)
 wasm: ## Build WASM module
 	@./scripts/build-wasm.sh
 
+##@ Development Server
+
 dev: preflight ## Run development HTTP server (quick-start)
 	@echo "Starting Chronicle dev server..."
 	@echo "  API: http://localhost:8080"
@@ -278,6 +293,13 @@ dev: preflight ## Run development HTTP server (quick-start)
 	$(GO) run ./examples/http-server
 
 run: dev ## Alias for make dev
+
+debug: preflight ## Run dev server with debug logging enabled
+	@echo "Starting Chronicle dev server (debug mode)..."
+	@echo "  API: http://localhost:8080"
+	@echo "  Log level: debug"
+	@echo "  Press Ctrl+C to stop"
+	CHRONICLE_LOG_LEVEL=debug $(GO) run ./examples/http-server
 
 watch: ## Watch .go files and run tests on change (TDD mode)
 	@if command -v reflex >/dev/null 2>&1; then \
@@ -293,6 +315,36 @@ watch: ## Watch .go files and run tests on change (TDD mode)
 		echo "  sudo apt-get install inotify-tools            (Linux)"; \
 		exit 1; \
 	fi
+
+watch-lint: ## Watch .go files and run lint on change
+	@if command -v reflex >/dev/null 2>&1; then \
+		echo "Watching for .go file changes (lint)... Press Ctrl+C to stop"; \
+		reflex -r '\.go$$' -s -- make lint-fast; \
+	elif command -v fswatch >/dev/null 2>&1; then \
+		echo "Watching for .go file changes (lint)... Press Ctrl+C to stop"; \
+		fswatch -o --include '\.go$$' --exclude '.*' . | xargs -n1 -I{} make lint-fast; \
+	else \
+		echo "No file watcher found. Install one of:"; \
+		echo "  go install github.com/cespare/reflex@latest   (recommended)"; \
+		echo "  brew install fswatch                          (macOS)"; \
+		exit 1; \
+	fi
+
+watch-all: ## Watch .go files and run check (vet + fmt + tests) on change
+	@if command -v reflex >/dev/null 2>&1; then \
+		echo "Watching for .go file changes (full check)... Press Ctrl+C to stop"; \
+		reflex -r '\.go$$' -s -- make check; \
+	elif command -v fswatch >/dev/null 2>&1; then \
+		echo "Watching for .go file changes (full check)... Press Ctrl+C to stop"; \
+		fswatch -o --include '\.go$$' --exclude '.*' . | xargs -n1 -I{} make check; \
+	else \
+		echo "No file watcher found. Install one of:"; \
+		echo "  go install github.com/cespare/reflex@latest   (recommended)"; \
+		echo "  brew install fswatch                          (macOS)"; \
+		exit 1; \
+	fi
+
+##@ Tools & Setup
 
 vuln: ## Check for vulnerabilities
 	govulncheck ./...
@@ -347,6 +399,8 @@ setup-grafana: ## Install Grafana plugin dependencies (cd grafana-plugin && npm 
 	cd grafana-plugin && npm install
 	@echo "✓ Grafana plugin dependencies installed"
 
+##@ CI & Validation
+
 release-check: ## Run all checks before a release (vet + lint + full tests + vuln + interface + API stability)
 	$(GO) vet ./...
 	$(GOLANGCI_LINT) run
@@ -389,6 +443,8 @@ check-openapi: ## Validate openapi.json is up-to-date
 		exit 1; \
 	fi
 	@rm -f openapi.json.bak
+
+##@ Diagnostics
 
 doctor: ## Diagnose development environment
 	@echo "═══════════════════════════════════════════════════"
@@ -530,6 +586,27 @@ check-file-size: ## Warn about Go files exceeding 800 lines
 		echo "✓ All Go files are under 800 lines"; \
 	fi
 
+check-file-size-strict: ## Warn about Go files approaching 800-line limit (>700 lines)
+	@echo "Checking for large Go files (>700 lines = approaching limit, >800 = over)..."
+	@WARN=0; OVER=0; \
+	for f in $$(find . -name '*.go' -not -path './vendor/*' -not -name '*_test.go' | sort); do \
+		LINES=$$(wc -l < "$$f" | tr -d ' '); \
+		if [ "$$LINES" -gt 800 ]; then \
+			echo "  ✗ $$f: $$LINES lines (over limit)"; \
+			OVER=$$((OVER + 1)); \
+		elif [ "$$LINES" -gt 700 ]; then \
+			echo "  ⚠ $$f: $$LINES lines (approaching limit)"; \
+			WARN=$$((WARN + 1)); \
+		fi; \
+	done; \
+	if [ "$$OVER" -gt 0 ] || [ "$$WARN" -gt 0 ]; then \
+		echo ""; \
+		if [ "$$OVER" -gt 0 ]; then echo "$$OVER file(s) exceed 800 lines."; fi; \
+		if [ "$$WARN" -gt 0 ]; then echo "$$WARN file(s) between 700-800 lines (approaching limit)."; fi; \
+	else \
+		echo "✓ All Go files are under 700 lines"; \
+	fi
+
 new-test: ## Scaffold a new test file (usage: make new-test FILE=my_feature)
 ifndef FILE
 	$(error FILE is required. Usage: make new-test FILE=my_feature)
@@ -609,6 +686,22 @@ endif
 tidy: ## Run go mod tidy
 	$(GO) mod tidy
 
+test-file: ## Run all tests in a file (usage: make test-file FILE=my_feature)
+ifndef FILE
+	$(error FILE is required. Usage: make test-file FILE=my_feature)
+endif
+	@TEST_FILE="$(FILE)_test.go"; \
+	if [ ! -f "$$TEST_FILE" ]; then \
+		echo "ERROR: $$TEST_FILE not found"; exit 1; \
+	fi; \
+	FUNCS=$$(grep -oE '^func (Test[A-Za-z0-9_]+)' "$$TEST_FILE" | sed 's/^func //'); \
+	if [ -z "$$FUNCS" ]; then \
+		echo "No test functions found in $$TEST_FILE"; exit 1; \
+	fi; \
+	PATTERN=$$(echo "$$FUNCS" | paste -sd'|' -); \
+	echo "Running tests from $$TEST_FILE: $$PATTERN"; \
+	$(GO) test -v -count=1 -run "$$PATTERN" .
+
 test-all: ## Run all tests without race detector (faster iteration)
 	$(GO) test -count=1 ./...
 
@@ -624,6 +717,9 @@ validate: ## Full local CI parity — run before pushing
 	@echo "✓ All validation checks passed"
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@awk 'BEGIN {FS = ":.*?## "} /^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0,5)} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .DEFAULT_GOAL := help
