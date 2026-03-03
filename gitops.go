@@ -262,7 +262,21 @@ func (g *GitOpsEngine) LoadFromDirectory(dir string) ([]GitOpsResource, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		filePath := filepath.Join(dir, entry.Name())
+		// Resolve symlinks and verify the real path stays within the directory
+		realPath, err := filepath.EvalSymlinks(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve symlink %s: %w", entry.Name(), err)
+		}
+		realDir, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			return nil, fmt.Errorf("resolve directory: %w", err)
+		}
+		if !strings.HasPrefix(realPath, realDir+string(os.PathSeparator)) && realPath != realDir {
+			return nil, fmt.Errorf("path traversal detected: %s resolves outside directory", entry.Name())
+		}
+
+		data, err := os.ReadFile(realPath)
 		if err != nil {
 			return nil, fmt.Errorf("read file %s: %w", entry.Name(), err)
 		}
