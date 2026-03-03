@@ -11,7 +11,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -68,6 +69,11 @@ type Config struct {
 	// ClickHouse configures ClickHouse-compatible HTTP interface.
 	// If nil or Enabled is false, ClickHouse protocol is disabled.
 	ClickHouse *ClickHouseConfig
+
+	// LogLevel controls the logging verbosity. Supported values: "debug", "info",
+	// "warn", "error". Default: "info". Can be overridden by the CHRONICLE_LOG_LEVEL
+	// environment variable.
+	LogLevel string
 
 	// Deprecated: use Storage.MaxMemory.
 	MaxMemory int64
@@ -180,65 +186,91 @@ type HTTPConfig struct {
 // normalize populates grouped config from legacy fields when needed.
 func (c *Config) normalize() {
 	if c.Storage.MaxMemory == 0 && c.MaxMemory != 0 {
-		log.Println("[WARN] chronicle: Config.MaxMemory is deprecated, use Config.Storage.MaxMemory instead")
+		slog.Warn("Config.MaxMemory is deprecated, use Config.Storage.MaxMemory instead")
 		c.Storage.MaxMemory = c.MaxMemory
 	}
 	if c.Storage.MaxStorageBytes == 0 && c.MaxStorageBytes != 0 {
-		log.Println("[WARN] chronicle: Config.MaxStorageBytes is deprecated, use Config.Storage.MaxStorageBytes instead")
+		slog.Warn("Config.MaxStorageBytes is deprecated, use Config.Storage.MaxStorageBytes instead")
 		c.Storage.MaxStorageBytes = c.MaxStorageBytes
 	}
 	if c.Storage.PartitionDuration == 0 && c.PartitionDuration != 0 {
-		log.Println("[WARN] chronicle: Config.PartitionDuration is deprecated, use Config.Storage.PartitionDuration instead")
+		slog.Warn("Config.PartitionDuration is deprecated, use Config.Storage.PartitionDuration instead")
 		c.Storage.PartitionDuration = c.PartitionDuration
 	}
 	if c.Storage.BufferSize == 0 && c.BufferSize != 0 {
-		log.Println("[WARN] chronicle: Config.BufferSize is deprecated, use Config.Storage.BufferSize instead")
+		slog.Warn("Config.BufferSize is deprecated, use Config.Storage.BufferSize instead")
 		c.Storage.BufferSize = c.BufferSize
 	}
 	if c.WAL.SyncInterval == 0 && c.SyncInterval != 0 {
-		log.Println("[WARN] chronicle: Config.SyncInterval is deprecated, use Config.WAL.SyncInterval instead")
+		slog.Warn("Config.SyncInterval is deprecated, use Config.WAL.SyncInterval instead")
 		c.WAL.SyncInterval = c.SyncInterval
 	}
 	if c.WAL.WALMaxSize == 0 && c.WALMaxSize != 0 {
-		log.Println("[WARN] chronicle: Config.WALMaxSize is deprecated, use Config.WAL.WALMaxSize instead")
+		slog.Warn("Config.WALMaxSize is deprecated, use Config.WAL.WALMaxSize instead")
 		c.WAL.WALMaxSize = c.WALMaxSize
 	}
 	if c.WAL.WALRetain == 0 && c.WALRetain != 0 {
-		log.Println("[WARN] chronicle: Config.WALRetain is deprecated, use Config.WAL.WALRetain instead")
+		slog.Warn("Config.WALRetain is deprecated, use Config.WAL.WALRetain instead")
 		c.WAL.WALRetain = c.WALRetain
 	}
 	if c.Retention.RetentionDuration == 0 && c.RetentionDuration != 0 {
-		log.Println("[WARN] chronicle: Config.RetentionDuration is deprecated, use Config.Retention.RetentionDuration instead")
+		slog.Warn("Config.RetentionDuration is deprecated, use Config.Retention.RetentionDuration instead")
 		c.Retention.RetentionDuration = c.RetentionDuration
 	}
 	if len(c.Retention.DownsampleRules) == 0 && len(c.DownsampleRules) > 0 {
-		log.Println("[WARN] chronicle: Config.DownsampleRules is deprecated, use Config.Retention.DownsampleRules instead")
+		slog.Warn("Config.DownsampleRules is deprecated, use Config.Retention.DownsampleRules instead")
 		c.Retention.DownsampleRules = c.DownsampleRules
 	}
 	if c.Retention.CompactionWorkers == 0 && c.CompactionWorkers != 0 {
-		log.Println("[WARN] chronicle: Config.CompactionWorkers is deprecated, use Config.Retention.CompactionWorkers instead")
+		slog.Warn("Config.CompactionWorkers is deprecated, use Config.Retention.CompactionWorkers instead")
 		c.Retention.CompactionWorkers = c.CompactionWorkers
 	}
 	if c.Retention.CompactionInterval == 0 && c.CompactionInterval != 0 {
-		log.Println("[WARN] chronicle: Config.CompactionInterval is deprecated, use Config.Retention.CompactionInterval instead")
+		slog.Warn("Config.CompactionInterval is deprecated, use Config.Retention.CompactionInterval instead")
 		c.Retention.CompactionInterval = c.CompactionInterval
 	}
 	if c.Query.QueryTimeout == 0 && c.QueryTimeout != 0 {
-		log.Println("[WARN] chronicle: Config.QueryTimeout is deprecated, use Config.Query.QueryTimeout instead")
+		slog.Warn("Config.QueryTimeout is deprecated, use Config.Query.QueryTimeout instead")
 		c.Query.QueryTimeout = c.QueryTimeout
 	}
 	if !c.HTTP.HTTPEnabled && c.HTTPEnabled {
-		log.Println("[WARN] chronicle: Config.HTTPEnabled is deprecated, use Config.HTTP.HTTPEnabled instead")
+		slog.Warn("Config.HTTPEnabled is deprecated, use Config.HTTP.HTTPEnabled instead")
 		c.HTTP.HTTPEnabled = c.HTTPEnabled
 	}
 	if c.HTTP.HTTPPort == 0 && c.HTTPPort != 0 {
-		log.Println("[WARN] chronicle: Config.HTTPPort is deprecated, use Config.HTTP.HTTPPort instead")
+		slog.Warn("Config.HTTPPort is deprecated, use Config.HTTP.HTTPPort instead")
 		c.HTTP.HTTPPort = c.HTTPPort
 	}
 	if !c.HTTP.PrometheusRemoteWriteEnabled && c.PrometheusRemoteWriteEnabled {
-		log.Println("[WARN] chronicle: Config.PrometheusRemoteWriteEnabled is deprecated, use Config.HTTP.PrometheusRemoteWriteEnabled instead")
+		slog.Warn("Config.PrometheusRemoteWriteEnabled is deprecated, use Config.HTTP.PrometheusRemoteWriteEnabled instead")
 		c.HTTP.PrometheusRemoteWriteEnabled = c.PrometheusRemoteWriteEnabled
 	}
+}
+
+// initLogLevel configures the default slog handler based on LogLevel.
+// The CHRONICLE_LOG_LEVEL environment variable overrides the Config value.
+func (c *Config) initLogLevel() {
+	level := c.LogLevel
+	if env := os.Getenv("CHRONICLE_LOG_LEVEL"); env != "" {
+		level = env
+	}
+	if level == "" {
+		return
+	}
+	var sl slog.Level
+	switch strings.ToLower(level) {
+	case "debug":
+		sl = slog.LevelDebug
+	case "info":
+		sl = slog.LevelInfo
+	case "warn":
+		sl = slog.LevelWarn
+	case "error":
+		sl = slog.LevelError
+	default:
+		return
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: sl})))
 }
 
 // syncLegacyFields mirrors grouped config into legacy fields for compatibility.
@@ -369,6 +401,7 @@ func (c Config) NormalizedCopy() Config {
 // describing all problems found. It normalizes legacy fields before validating.
 // A nil return means the configuration is valid.
 func (c *Config) Validate() error {
+	c.initLogLevel()
 	c.normalize()
 
 	var errs []error
@@ -427,13 +460,13 @@ func (c *Config) Validate() error {
 	if c.Auth != nil && c.Auth.Enabled {
 		for _, key := range c.Auth.APIKeys {
 			if !strings.HasPrefix(key, "$2") {
-				log.Println("[WARN] chronicle: plaintext API key detected. Use chronicle.HashAPIKey() to generate bcrypt-hashed keys for improved security.")
+				slog.Warn("plaintext API key detected, use chronicle.HashAPIKey() for bcrypt-hashed keys")
 				break
 			}
 		}
 		for _, key := range c.Auth.ReadOnlyKeys {
 			if !strings.HasPrefix(key, "$2") {
-				log.Println("[WARN] chronicle: plaintext read-only API key detected. Use chronicle.HashAPIKey() to generate bcrypt-hashed keys for improved security.")
+				slog.Warn("plaintext read-only API key detected, use chronicle.HashAPIKey() for bcrypt-hashed keys")
 				break
 			}
 		}
