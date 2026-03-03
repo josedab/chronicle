@@ -423,7 +423,10 @@ func (e *StreamProcessingEngine) ProcessEvent(pipelineID string, event *StreamEv
 	for _, op := range p.Operators {
 		var next []*StreamEvent
 		for _, ev := range events {
-			result, err := op.Process(context.Background(), ev)
+			// Use a timeout context to prevent unbounded operator execution
+			opCtx, opCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			result, err := op.Process(opCtx, ev)
+			opCancel()
 			if err != nil {
 				atomic.AddInt64(&e.totalErrors, 1)
 				p.mu.Lock()
