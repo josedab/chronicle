@@ -306,13 +306,13 @@ func (e *MigrationEngine) loop() {
 	// Derive a context that cancels when the engine stops.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
+	go func(stopCh <-chan struct{}) {
 		select {
-		case <-e.stopCh:
+		case <-stopCh:
 			cancel()
 		case <-ctx.Done():
 		}
-	}()
+	}(e.stopCh)
 
 	interval := e.config.CheckInterval
 	if interval <= 0 {

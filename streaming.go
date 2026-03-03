@@ -241,7 +241,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 		// Read commands from client
 		var readerWg sync.WaitGroup
 		readerWg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer readerWg.Done()
 			defer cancel()
 			for {
@@ -294,7 +294,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 					h.sendError(conn, "unknown command: "+cmd.Type)
 				}
 			}
-		}()
+		}(ctx)
 
 		// Wait for context cancellation
 		<-ctx.Done()

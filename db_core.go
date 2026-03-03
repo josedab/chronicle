@@ -88,16 +88,16 @@ func (lm *lifecycleManager) startReplication(cfg *ReplicationConfig) {
 func (lm *lifecycleManager) startBackgroundWorkers(compactionWorkers int, compactionInterval time.Duration) {
 	for i := 0; i < compactionWorkers; i++ {
 		lm.workerWg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer lm.workerWg.Done()
-			lm.db.compactionWorker(lm.ctx)
-		}()
+			lm.db.compactionWorker(ctx)
+		}(lm.ctx)
 	}
 	lm.workerWg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer lm.workerWg.Done()
-		lm.db.backgroundWorker(lm.ctx)
-	}()
+		lm.db.backgroundWorker(ctx)
+	}(lm.ctx)
 }
 
 func (lm *lifecycleManager) stop() {

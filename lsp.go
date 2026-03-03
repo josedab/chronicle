@@ -215,18 +215,18 @@ func (s *LSPServer) Start() error {
 	}
 
 	s.wg.Add(2)
-	go func() {
+	go func(ctx context.Context) {
 		defer s.wg.Done()
 		s.refreshSchemaCache()
-	}()
+	}(s.ctx)
 
-	go func() {
+	go func(ctx context.Context) {
 		defer s.wg.Done()
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				select {
-				case <-s.ctx.Done():
+				case <-ctx.Done():
 					return
 				default:
 					slog.Error("LSP accept error", "err", err)
@@ -235,7 +235,7 @@ func (s *LSPServer) Start() error {
 			}
 			go s.handleConnection(conn)
 		}
-	}()
+	}(s.ctx)
 
 	slog.Info("LSP server started", "port", s.config.Port)
 	return nil

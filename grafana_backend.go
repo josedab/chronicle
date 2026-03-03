@@ -199,12 +199,12 @@ func (g *GrafanaBackend) Start() error {
 	}
 
 	g.wg.Add(1)
-	go func() {
+	go func(srv *http.Server) {
 		defer g.wg.Done()
-		if err := g.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("grafana backend server error", "err", err)
 		}
-	}()
+	}(g.server)
 
 	return nil
 }

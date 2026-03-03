@@ -105,13 +105,13 @@ func (e *PromQLRecordingRuleEngine) EvaluateRule(rule PromQLRecordingRule) error
 // Start begins periodic evaluation of all recording rules.
 func (e *PromQLRecordingRuleEngine) Start() {
 	e.wg.Add(1)
-	go func() {
+	go func(stopCh <-chan struct{}) {
 		defer e.wg.Done()
 		ticker := time.NewTicker(time.Second * 15)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-e.stopCh:
+			case <-stopCh:
 				return
 			case <-ticker.C:
 				e.mu.RLock()
@@ -124,7 +124,7 @@ func (e *PromQLRecordingRuleEngine) Start() {
 				}
 			}
 		}
-	}()
+	}(e.stopCh)
 }
 
 // Stop halts the recording rule engine and waits for the goroutine to finish.

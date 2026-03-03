@@ -129,14 +129,14 @@ func (r *CloudRelay) Start() {
 	// whereas closing the done channel lets each loop finish its current
 	// iteration before exiting.
 	r.wg.Add(2)
-	go func() {
+	go func(done <-chan struct{}) {
 		defer r.wg.Done()
 		r.flushLoop()
-	}()
-	go func() {
+	}(r.done)
+	go func(done <-chan struct{}) {
 		defer r.wg.Done()
 		r.heartbeatLoop()
-	}()
+	}(r.done)
 }
 
 // Stop gracefully shuts down the relay, flushing remaining data.

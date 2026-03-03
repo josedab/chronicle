@@ -410,12 +410,12 @@ func (o *K8sOperator) startHealthServer() error {
 	}
 
 	o.wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer o.wg.Done()
 		if err := o.healthServer.ListenAndServe(); err != http.ErrServerClosed {
 			slog.Error("health server error", "err", err)
 		}
-	}()
+	}(o.ctx)
 
 	return nil
 }
@@ -474,12 +474,12 @@ func (o *K8sOperator) startMetricsServer() error {
 	}
 
 	o.wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer o.wg.Done()
 		if err := o.metricsServer.ListenAndServe(); err != http.ErrServerClosed {
 			slog.Error("metrics server error", "err", err)
 		}
-	}()
+	}(o.ctx)
 
 	return nil
 }

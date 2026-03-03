@@ -209,10 +209,10 @@ func (c *DistributedQueryCoordinator) Execute(ctx context.Context, q *Query, nod
 	}
 
 	// Wait for all goroutines, then close channel
-	go func() {
+	go func(ctx context.Context) {
 		wg.Wait()
 		close(resultCh)
-	}()
+	}(queryCtx)
 
 	// Gather: collect partial results
 	var partials []PartialResult

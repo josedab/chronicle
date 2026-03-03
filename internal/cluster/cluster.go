@@ -36,12 +36,12 @@ func (c *Cluster) Start() error {
 		}
 
 		c.wg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer c.wg.Done()
 			if err := c.server.ListenAndServe(); err != http.ErrServerClosed {
 				slog.Error("cluster server error", "err", err)
 			}
-		}()
+		}(c.ctx)
 	}
 
 	for _, seed := range c.config.Seeds {

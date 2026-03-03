@@ -42,12 +42,12 @@ func (m *EdgeMesh) Start() error {
 		}
 
 		m.wg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer m.wg.Done()
 			if err := m.server.ListenAndServe(); err != http.ErrServerClosed {
 				slog.Error("edge mesh server error", "err", err)
 			}
-		}()
+		}(m.ctx)
 	}
 
 	if m.config.EnableMDNS {

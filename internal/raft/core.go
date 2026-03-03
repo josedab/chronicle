@@ -348,12 +348,12 @@ func (rn *RaftNode) Start() error {
 		}
 
 		rn.wg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer rn.wg.Done()
 			if err := rn.server.ListenAndServe(); err != http.ErrServerClosed {
 				slog.Error("raft server error", "err", err)
 			}
-		}()
+		}(rn.ctx)
 	}
 
 	rn.wg.Add(1)

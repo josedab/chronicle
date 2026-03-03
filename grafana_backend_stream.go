@@ -40,7 +40,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 	// Read commands from client
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer wg.Done()
 		defer cancel()
 		for {
@@ -86,7 +86,7 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
 			}
 		}
-	}()
+	}(ctx)
 
 	<-ctx.Done()
 	wg.Wait()

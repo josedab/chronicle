@@ -199,19 +199,19 @@ func (osm *OfflineSyncManager) Start() {
 	osm.mu.Unlock()
 
 	osm.wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer osm.wg.Done()
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-osm.ctx.Done():
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				// Periodic maintenance: nothing to do without network I/O.
 			}
 		}
-	}()
+	}(osm.ctx)
 }
 
 // Stop gracefully shuts down the offline sync manager.

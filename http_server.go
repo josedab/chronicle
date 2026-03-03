@@ -79,12 +79,12 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	s := &httpServer{srv: srv, rl: rl}
 
 	s.wg.Add(1)
-	go func() {
+	go func(srv *http.Server) {
 		defer s.wg.Done()
 		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			slog.Error("http server error", "err", err)
 		}
-	}()
+	}(srv)
 
 	return s, nil
 }

@@ -306,14 +306,14 @@ func (em *EdgeMesh) Start() error {
 	}
 
 	em.wg.Add(2)
-	go func() {
+	go func(stopCh <-chan struct{}) {
 		defer em.wg.Done()
 		em.gossipLoop()
-	}()
-	go func() {
+	}(em.stopCh)
+	go func(stopCh <-chan struct{}) {
 		defer em.wg.Done()
 		em.healthCheckLoop()
-	}()
+	}(em.stopCh)
 
 	return nil
 }

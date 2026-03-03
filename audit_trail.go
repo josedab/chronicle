@@ -568,7 +568,7 @@ func (se *SIEMExporter) flushLocked() error {
 // StartBackgroundFlush runs periodic flushing until stopCh is closed.
 func (se *SIEMExporter) StartBackgroundFlush() {
 	se.wg.Add(1)
-	go func() {
+	go func(stopCh <-chan struct{}) {
 		defer se.wg.Done()
 		ticker := time.NewTicker(se.flushInterval)
 		defer ticker.Stop()
@@ -576,12 +576,12 @@ func (se *SIEMExporter) StartBackgroundFlush() {
 			select {
 			case <-ticker.C:
 				flushQuietly(se)
-			case <-se.stopCh:
+			case <-stopCh:
 				flushQuietly(se)
 				return
 			}
 		}
-	}()
+	}(se.stopCh)
 }
 
 // Stop stops the background flush loop and waits for it to finish.

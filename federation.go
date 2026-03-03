@@ -206,10 +206,10 @@ func (f *Federation) Query(ctx context.Context, query *Query) (*FederatedResult,
 	}
 
 	// Wait for all queries to complete
-	go func() {
+	go func(ctx context.Context) {
 		wg.Wait()
 		close(results)
-	}()
+	}(ctx)
 
 	// Collect results
 	return f.mergeResults(results, len(remotes)+1)
