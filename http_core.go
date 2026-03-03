@@ -2,7 +2,6 @@ package chronicle
 
 import (
 	"context"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -328,12 +327,8 @@ func extractAPIKey(r *http.Request) string {
 		return key
 	}
 
-	// Query parameter support removed for security: API keys in URLs
-	// appear in server logs, browser history, proxy logs, and Referer headers.
-	// Use Authorization or X-API-Key headers instead.
-	if key := r.URL.Query().Get("api_key"); key != "" {
-		log.Println("[WARN] chronicle: API key passed via query parameter is deprecated and will be ignored; use Authorization or X-API-Key header")
-	}
+	// Query parameter API keys are not supported for security reasons:
+	// they appear in server logs, browser history, proxy logs, and Referer headers.
 
 	return ""
 }
