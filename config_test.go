@@ -506,3 +506,214 @@ func TestConfig_Validate_EncryptionWithPassword(t *testing.T) {
 		t.Errorf("encryption with password should be valid, got: %v", err)
 	}
 }
+
+func TestConfig_DeprecationNormalization(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(*Config)
+		check func(*testing.T, *Config)
+	}{
+		{
+			name: "MaxMemory migrates to Storage.MaxMemory",
+			setup: func(c *Config) {
+				c.MaxMemory = 128 * 1024 * 1024
+				c.Storage.MaxMemory = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Storage.MaxMemory != 128*1024*1024 {
+					t.Errorf("Storage.MaxMemory = %d, want %d", c.Storage.MaxMemory, 128*1024*1024)
+				}
+			},
+		},
+		{
+			name: "MaxStorageBytes migrates to Storage.MaxStorageBytes",
+			setup: func(c *Config) {
+				c.MaxStorageBytes = 1 << 30
+				c.Storage.MaxStorageBytes = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Storage.MaxStorageBytes != 1<<30 {
+					t.Errorf("Storage.MaxStorageBytes = %d, want %d", c.Storage.MaxStorageBytes, 1<<30)
+				}
+			},
+		},
+		{
+			name: "PartitionDuration migrates to Storage.PartitionDuration",
+			setup: func(c *Config) {
+				c.PartitionDuration = 2 * time.Hour
+				c.Storage.PartitionDuration = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Storage.PartitionDuration != 2*time.Hour {
+					t.Errorf("Storage.PartitionDuration = %v, want %v", c.Storage.PartitionDuration, 2*time.Hour)
+				}
+			},
+		},
+		{
+			name: "BufferSize migrates to Storage.BufferSize",
+			setup: func(c *Config) {
+				c.BufferSize = 5000
+				c.Storage.BufferSize = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Storage.BufferSize != 5000 {
+					t.Errorf("Storage.BufferSize = %d, want %d", c.Storage.BufferSize, 5000)
+				}
+			},
+		},
+		{
+			name: "SyncInterval migrates to WAL.SyncInterval",
+			setup: func(c *Config) {
+				c.SyncInterval = 5 * time.Second
+				c.WAL.SyncInterval = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.WAL.SyncInterval != 5*time.Second {
+					t.Errorf("WAL.SyncInterval = %v, want %v", c.WAL.SyncInterval, 5*time.Second)
+				}
+			},
+		},
+		{
+			name: "WALMaxSize migrates to WAL.WALMaxSize",
+			setup: func(c *Config) {
+				c.WALMaxSize = 256 * 1024 * 1024
+				c.WAL.WALMaxSize = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.WAL.WALMaxSize != 256*1024*1024 {
+					t.Errorf("WAL.WALMaxSize = %d, want %d", c.WAL.WALMaxSize, 256*1024*1024)
+				}
+			},
+		},
+		{
+			name: "WALRetain migrates to WAL.WALRetain",
+			setup: func(c *Config) {
+				c.WALRetain = 5
+				c.WAL.WALRetain = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.WAL.WALRetain != 5 {
+					t.Errorf("WAL.WALRetain = %d, want %d", c.WAL.WALRetain, 5)
+				}
+			},
+		},
+		{
+			name: "RetentionDuration migrates to Retention.RetentionDuration",
+			setup: func(c *Config) {
+				c.RetentionDuration = 24 * time.Hour
+				c.Retention.RetentionDuration = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Retention.RetentionDuration != 24*time.Hour {
+					t.Errorf("Retention.RetentionDuration = %v, want %v", c.Retention.RetentionDuration, 24*time.Hour)
+				}
+			},
+		},
+		{
+			name: "DownsampleRules migrates to Retention.DownsampleRules",
+			setup: func(c *Config) {
+				c.DownsampleRules = []DownsampleRule{{SourceResolution: time.Minute}}
+				c.Retention.DownsampleRules = nil
+			},
+			check: func(t *testing.T, c *Config) {
+				if len(c.Retention.DownsampleRules) != 1 {
+					t.Errorf("Retention.DownsampleRules len = %d, want 1", len(c.Retention.DownsampleRules))
+				}
+			},
+		},
+		{
+			name: "CompactionWorkers migrates to Retention.CompactionWorkers",
+			setup: func(c *Config) {
+				c.CompactionWorkers = 4
+				c.Retention.CompactionWorkers = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Retention.CompactionWorkers != 4 {
+					t.Errorf("Retention.CompactionWorkers = %d, want %d", c.Retention.CompactionWorkers, 4)
+				}
+			},
+		},
+		{
+			name: "CompactionInterval migrates to Retention.CompactionInterval",
+			setup: func(c *Config) {
+				c.CompactionInterval = 15 * time.Minute
+				c.Retention.CompactionInterval = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Retention.CompactionInterval != 15*time.Minute {
+					t.Errorf("Retention.CompactionInterval = %v, want %v", c.Retention.CompactionInterval, 15*time.Minute)
+				}
+			},
+		},
+		{
+			name: "QueryTimeout migrates to Query.QueryTimeout",
+			setup: func(c *Config) {
+				c.QueryTimeout = time.Minute
+				c.Query.QueryTimeout = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Query.QueryTimeout != time.Minute {
+					t.Errorf("Query.QueryTimeout = %v, want %v", c.Query.QueryTimeout, time.Minute)
+				}
+			},
+		},
+		{
+			name: "HTTPEnabled migrates to HTTP.HTTPEnabled",
+			setup: func(c *Config) {
+				c.HTTPEnabled = true
+				c.HTTP.HTTPEnabled = false
+			},
+			check: func(t *testing.T, c *Config) {
+				if !c.HTTP.HTTPEnabled {
+					t.Error("HTTP.HTTPEnabled should be true after normalization")
+				}
+			},
+		},
+		{
+			name: "HTTPPort migrates to HTTP.HTTPPort",
+			setup: func(c *Config) {
+				c.HTTPPort = 9090
+				c.HTTP.HTTPPort = 0
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.HTTP.HTTPPort != 9090 {
+					t.Errorf("HTTP.HTTPPort = %d, want %d", c.HTTP.HTTPPort, 9090)
+				}
+			},
+		},
+		{
+			name: "PrometheusRemoteWriteEnabled migrates to HTTP.PrometheusRemoteWriteEnabled",
+			setup: func(c *Config) {
+				c.PrometheusRemoteWriteEnabled = true
+				c.HTTP.PrometheusRemoteWriteEnabled = false
+			},
+			check: func(t *testing.T, c *Config) {
+				if !c.HTTP.PrometheusRemoteWriteEnabled {
+					t.Error("HTTP.PrometheusRemoteWriteEnabled should be true after normalization")
+				}
+			},
+		},
+		{
+			name: "new field set takes precedence over deprecated",
+			setup: func(c *Config) {
+				c.MaxMemory = 64 * 1024 * 1024
+				c.Storage.MaxMemory = 256 * 1024 * 1024
+			},
+			check: func(t *testing.T, c *Config) {
+				if c.Storage.MaxMemory != 256*1024*1024 {
+					t.Errorf("Storage.MaxMemory = %d, want %d (new field should take precedence)", c.Storage.MaxMemory, 256*1024*1024)
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{Path: "/test/path.db"}
+			tt.setup(&cfg)
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("Validate() error = %v", err)
+			}
+			tt.check(t, &cfg)
+		})
+	}
+}
