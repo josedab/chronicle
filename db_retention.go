@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"time"
 )
@@ -59,6 +60,7 @@ func (db *DB) applyRetention() {
 	db.mu.Lock()
 	removed := db.index.RemovePartitionsBefore(cutoff)
 	db.mu.Unlock()
+	slog.Debug("retention policy applied", "cutoff", cutoff, "partitions_removed", removed)
 	if removed {
 		db.scheduleCompaction()
 	}

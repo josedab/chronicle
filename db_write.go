@@ -13,6 +13,7 @@ package chronicle
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -84,6 +85,7 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 
 	n := db.buffer.AddAndLen(p)
 	if n >= db.buffer.capacity {
+		slog.Debug("buffer flush triggered", "buffered_points", n, "capacity", db.buffer.capacity)
 		if err := db.Flush(); err != nil {
 			return err
 		}

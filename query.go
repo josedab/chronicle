@@ -12,6 +12,7 @@ package chronicle
 
 import (
 	"context"
+	"log/slog"
 	"time"
 )
 
@@ -104,6 +105,13 @@ func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 	partitions := db.findPartitionsLocked(q.Start, q.End)
 	allowed := db.index.FilterSeries(q.Metric, q.Tags)
 	db.mu.RUnlock()
+
+	slog.Debug("query plan",
+		"metric", q.Metric,
+		"partitions", len(partitions),
+		"series", len(allowed),
+		"has_aggregation", q.Aggregation != nil,
+	)
 
 	if q.Aggregation != nil {
 		buckets := newAggBuckets(db.config.Storage.MaxMemory)
