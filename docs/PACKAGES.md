@@ -79,10 +79,48 @@ Then 44+ engine types can implement it uniformly.
 - ✅ 19 internal packages extracted
 - ✅ `STABLE_API.md` documents the ~20 core types users should depend on
 - ✅ `FEATURE_MATURITY.md` honestly labels stubs
+- ✅ All bare `go func()` goroutines now pass ctx/stopCh explicitly
+
+### Extraction Pattern (follow for each group)
+
+Every root-to-internal extraction follows the same pattern established by `internal/raft/`:
+
+1. **Define an interface** in the internal package (e.g., `StorageEngine`) that
+   abstracts the `*DB` dependency. Include only the methods the group actually calls.
+2. **Define local types** for `Point`, `Query`, `Result` in the internal package
+   (or accept them as generic parameters).
+3. **Move implementation files** to `internal/<group>/`, changing `package chronicle`
+   to `package <group>`.
+4. **Create a bridge file** in root (e.g., `<group>_bridge.go`) with:
+   - Type aliases (`type X = <group>.X`) for backward compatibility
+   - An adapter struct that implements the internal interface using `*DB`
+   - Re-exported constructors (`NewX = <group>.NewX`)
+5. **Move test files** to the internal package or keep integration tests in root.
+6. **Verify**: `go build ./...` and `go test ./...` must pass.
+
+### Self-Containment Analysis
+
+Groups ranked by extraction safety (lower external reference count = safer):
+
+| Group | Files | External Refs | Risk | Notes |
+|-------|-------|--------------|------|-------|
+| `zk_query_*` | 2 | 0 (experimental) | Low | Build-tagged experimental |
+| `nl_query_*` | 2 | 0 (experimental) | Low | Build-tagged experimental |
+| `zero_copy_query_*` | 1 | 0 | Low | Already has internal/zerocopy |
+| `nl_dashboard_*` | 2 | 1 | Low | Only integration test refs |
+| `tinyml_*` | 2 | 3 | Medium | Used by auto_ml, ml_inference |
+| `blockchain_audit_*` | 2 | 2+ | High | Exposed via db_features accessor |
+| `federated_learning_*` | 2 | 3+ | High | Deep Query/Point coupling |
+| `streaming_*` | 20 | many | High | Large, interconnected |
+| `query_*` | 18 | many | High | Core feature, widely referenced |
+| `promql_*` | 13 | many | High | Core feature, widely referenced |
 
 ### Next Steps (v0.2.0)
-1. Migrate all remaining FeatureManager features to FeatureRegistry
-2. Extract query parsers (PromQL, CQL, SQL) to `internal/query/` sub-packages
-3. Extract HTTP routes to `internal/http/` package
-4. Reduce root package to <50 exported types via type aliases
-5. Add CI check: fail if new exported types added to root without approval
+1. Extract `zk_query_*` → `internal/zkquery/` (safest, zero external refs)
+2. Extract `nl_query_*` → `internal/nlquery/` (zero external refs)
+3. Extract `nl_dashboard_*` → `internal/nldashboard/` (minimal external refs)
+4. Migrate all remaining FeatureManager features to FeatureRegistry
+5. Extract query parsers (PromQL, CQL, SQL) to `internal/query/` sub-packages
+6. Extract HTTP routes to `internal/http/` package
+7. Reduce root package to <50 exported types via type aliases
+8. Add CI check: fail if new exported types added to root without approval
