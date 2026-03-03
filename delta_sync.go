@@ -320,6 +320,10 @@ func NewDeltaSyncManager(db *DB, config DeltaSyncConfig) (*DeltaSyncManager, err
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if config.InsecureSkipVerify {
+		if os.Getenv("CHRONICLE_ALLOW_INSECURE") != "true" {
+			cancel()
+			return nil, errors.New("InsecureSkipVerify requires CHRONICLE_ALLOW_INSECURE=true environment variable; do not use in production")
+		}
 		log.Println("[WARN] chronicle: DeltaSync InsecureSkipVerify is enabled. TLS certificate validation is disabled, making connections vulnerable to MITM attacks. Do not use in production.")
 	}
 
