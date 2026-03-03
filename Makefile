@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate help
+.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run watch check-versions doctor new-test test-changed check-file-size lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy help
 
 GO ?= go
 MIN_GO_VERSION := 1.24
@@ -180,30 +180,32 @@ install-hooks: ## Install git pre-commit and commit-msg hooks
 		echo "ERROR: Hook installation failed."; exit 1; \
 	fi
 
+GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo "$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest")
+
 lint: ## Run linters
 	$(GO) vet ./...
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
+	$(GOLANGCI_LINT) run
 
 lint-ci: ## Run linters matching exact CI configuration
 	$(GO) vet ./...
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --timeout=5m
+	$(GOLANGCI_LINT) run --timeout=5m
 
 lint-fix: ## Auto-fix all fixable lint issues
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fix
+	$(GOLANGCI_LINT) run --fix
 	gofmt -s -w .
 	$(GO) run golang.org/x/tools/cmd/goimports@latest -w .
 
 lint-changed: ## Lint only modified files (fast iteration)
 	@if ! git rev-parse --verify HEAD~1 >/dev/null 2>&1; then \
 		echo "No previous commit to compare against; running full lint"; \
-		$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run; \
+		$(GOLANGCI_LINT) run; \
 	else \
 		echo "Linting changes since HEAD~1..."; \
-		$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --new-from-rev=HEAD~1; \
+		$(GOLANGCI_LINT) run --new-from-rev=HEAD~1; \
 	fi
 
 lint-fast: ## Run only fast linters (~5s, matches VS Code config)
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fast
+	$(GOLANGCI_LINT) run --fast
 
 fmt: ## Format code
 	gofmt -s -w .
@@ -347,7 +349,7 @@ setup-grafana: ## Install Grafana plugin dependencies (cd grafana-plugin && npm 
 
 release-check: ## Run all checks before a release (vet + lint + full tests + vuln + interface + API stability)
 	$(GO) vet ./...
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
+	$(GOLANGCI_LINT) run
 	$(GO) test -race -short ./...
 	@$(MAKE) check-interface
 	@$(MAKE) check-api-stability
@@ -604,11 +606,17 @@ endif
 		fi; \
 	fi
 
+tidy: ## Run go mod tidy
+	$(GO) mod tidy
+
+test-all: ## Run all tests without race detector (faster iteration)
+	$(GO) test -count=1 ./...
+
 validate: ## Full local CI parity — run before pushing
 	@echo "═══ Full validation (local CI parity) ═══"
 	@echo ""
 	$(GO) vet ./...
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
+	$(GOLANGCI_LINT) run
 	$(GO) test -short -count=1 ./...
 	@$(MAKE) check-file-size
 	@$(MAKE) check-generate
