@@ -17,31 +17,32 @@ Thank you for your interest in contributing to Chronicle! This document provides
    cd chronicle
    ```
 
-2. Install development dependencies:
+2. Run the one-command setup:
+   ```bash
+   make quickstart
+   ```
+   This single command handles everything: installs dev tools (`golangci-lint`,
+   `goimports`, etc.), installs git hooks, downloads dependencies, verifies the
+   build, and runs smoke tests. You're ready to go when you see `✓ Ready!`.
+
+   <details>
+   <summary>Manual setup (if you prefer step-by-step)</summary>
+
    ```bash
    go mod download
    go mod tidy
    make setup
-   ```
-
-3. Verify the setup:
-   ```bash
+   make install-hooks
    go build ./...
    go test ./...
    ```
-
-4. Install the pre-commit hook (recommended):
-   ```bash
-   make install-hooks
-   ```
-   This installs two hooks:
-   - **pre-commit**: runs `go vet` and fast tests (~15s) before each commit
-   - **commit-msg**: enforces [Conventional Commits](https://www.conventionalcommits.org/) format
+   </details>
 
    > **Note on `.pre-commit-config.yaml`**: If you see this file in the repo, it's an
    > optional alternative for teams that use the Python `pre-commit` framework
    > (`pip install pre-commit && pre-commit install`). **The canonical setup is
-   > `make install-hooks`** — it requires no extra tooling and is what CI expects.
+   > `make install-hooks`** (included in `make quickstart`) — it requires no extra
+   > tooling and is what CI expects.
 
 ## Development Workflow
 

@@ -1,70 +1,7 @@
 # Development Guide
 
-This is the single entry point for Chronicle development workflows. It links to detailed guides where they exist.
-
-## Quick Start
-
-```bash
-# Clone and setup
-git clone https://github.com/chronicle-db/chronicle.git
-cd chronicle
-make setup          # Install dev tools (golangci-lint, goimports, etc.)
-make install-hooks  # Install pre-commit + commit-msg hooks
-
-# Run a dev server instantly
-make dev            # Starts HTTP server on http://localhost:8080
-
-# Validate your environment
-make doctor         # Check Go, tools, hooks, and module state
-```
-
-## Environment Setup
-
-### Prerequisites
-
-- **Go 1.24+** (see `.mise.toml` for exact version)
-- **Git**
-
-### Optional: mise (recommended)
-
-[mise](https://mise.jdx.dev/) manages tool versions automatically:
-
-```bash
-mise install    # Installs exact Go version + all dev tools
-mise run check  # Quick validation
-```
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and uncomment as needed. See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for full documentation.
-
-### VS Code
-
-The repository includes `.vscode/` configuration with Go linting, test flags, and debugger launch configs. Recommended extensions are listed in `.vscode/extensions.json`.
-
-## Testing
-
-Choose the right test speed for your workflow:
-
-| Command | Time | What it runs | When to use |
-|---------|------|-------------|-------------|
-| `make test-fast` | ~5s | Internal packages only | TDD fast iteration ⚡ |
-| `make check` | ~15s | `go vet` + internal tests | Pre-commit validation ⚡ |
-| `make test-short` | ~20s | All tests, short mode | Quick full-suite run |
-| `make quickcheck` | ~25s | `go vet` + all short tests | Before pushing |
-| `make test` | ~60s | All tests + race detector | CI-level confidence |
-| `make cover` | ~60s | Coverage summary + threshold check | Coverage review |
-| `make test-cover` | ~60s | All tests + HTML coverage | Detailed coverage |
-
-```bash
-# Run a single test
-go test -run TestMyFeature -count=1 -v
-
-# Run tests in a specific file's directory
-go test -v ./internal/encoding/...
-```
-
-See [TESTING.md](TESTING.md) for writing tests, test helpers, fixtures, and debugging tips.
+> **New here?** Start with **[CONTRIBUTING.md](../CONTRIBUTING.md)** for setup, workflow,
+> and contribution guidelines. This page covers **advanced topics** only.
 
 ## Debugging
 
@@ -86,7 +23,7 @@ dlv test . -- -test.run TestMyFeature
 dlv debug ./examples/http-server
 ```
 
-## Benchmarks
+## Benchmarks &amp; Profiling
 
 ```bash
 # Run all benchmarks
@@ -99,24 +36,24 @@ make benchmark
 
 See [BENCHMARKS.md](BENCHMARKS.md) for benchmark methodology and historical results.
 
-## Profiling
+## Environment Setup
+
+### Optional: mise (recommended)
+
+[mise](https://mise.jdx.dev/) manages tool versions automatically:
 
 ```bash
-# CPU profile
-go test -cpuprofile=cpu.prof -bench=BenchmarkWrite .
-go tool pprof cpu.prof
-
-# Memory profile
-go test -memprofile=mem.prof -bench=BenchmarkWrite .
-go tool pprof mem.prof
+mise install    # Installs exact Go version + all dev tools
+mise run check  # Quick validation
 ```
 
-## Linting & Formatting
+### Environment Variables
 
-```bash
-make lint   # go vet + golangci-lint
-make fmt    # gofmt + goimports
-```
+Copy `.env.example` to `.env` and uncomment as needed. See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for full documentation.
+
+### VS Code
+
+The repository includes `.vscode/` configuration with Go linting, test flags, and debugger launch configs. Recommended extensions are listed in `.vscode/extensions.json`.
 
 ## Code Coverage
 
@@ -128,24 +65,16 @@ make test-cover    # HTML coverage report (opens coverage.html)
 
 CI enforces a 70% coverage threshold. Run `make cover` locally to check before pushing.
 
-## Pre-commit Hooks
-
-```bash
-make install-hooks  # Installs pre-commit + commit-msg hooks
-```
-
-The hooks enforce:
-- **pre-commit**: `go vet` + fast tests (~15s)
-- **commit-msg**: [Conventional Commits](https://www.conventionalcommits.org/) format
-
 ## Useful Make Targets
 
+Run `make help` for the full list. Highlights for advanced workflows:
+
 ```bash
-make help           # List all targets
 make doctor         # Diagnose dev environment issues
 make check-versions # Check Go version consistency across configs
 make vuln           # Check for known vulnerabilities
 make release-check  # Full pre-release validation
+make validate       # Full local CI parity — run before pushing
 ```
 
 ## Project Navigation
@@ -154,6 +83,7 @@ Chronicle has a flat package structure with ~300 root-level files. See [CODE_MAP
 
 ## Further Reading
 
+- [../CONTRIBUTING.md](../CONTRIBUTING.md) — **Start here**: setup, workflow, and guidelines
 - [TESTING.md](TESTING.md) — Test patterns, helpers, and debugging
 - [BENCHMARKS.md](BENCHMARKS.md) — Benchmark methodology and results
 - [FAQ.md](FAQ.md) — Frequently asked questions

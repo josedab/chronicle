@@ -99,8 +99,21 @@ result, _ := db.Execute(&Query{Metric: "cpu"})
 
 ## Test File Template
 
-Use this pattern when creating a new test file. It follows Chronicle conventions:
-table-driven tests, `t.Run` subtests, and the shared `setupTestDB` helper.
+### Scaffolding with make new-test
+
+The fastest way to create a new test file is with the `make new-test` scaffold command:
+
+```bash
+make new-test FILE=my_feature
+# ✓ Created my_feature_test.go with table-driven test scaffold
+```
+
+This generates a file following Chronicle conventions (table-driven tests, `t.Run`
+subtests, `setupTestDB` helper). Edit the generated file to fill in your test logic.
+
+### Manual template
+
+Use this pattern when creating a new test file by hand:
 
 ```go
 package chronicle
