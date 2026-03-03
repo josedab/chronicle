@@ -191,6 +191,10 @@ func (qa *QueryAssistant) localTranslate(input string, _ string) *TranslateRespo
 		} else if fn == "minimum" {
 			fn = "min"
 		}
+		// Defense in depth: validate fn against allowed SQL aggregate functions
+		if fn != "max" && fn != "min" {
+			return nil
+		}
 		metric := matches[2]
 		amount := matches[3]
 		unit := matches[4]
