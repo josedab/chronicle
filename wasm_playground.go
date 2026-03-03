@@ -303,7 +303,7 @@ func (p *Playground) formatCQLResult(result any, duration time.Duration) Playgro
 	}
 
 	var generic any
-	json.Unmarshal(data, &generic)
+	_ = json.Unmarshal(data, &generic) //nolint:errcheck // re-parsing just-marshaled data for generic representation
 
 	return PlaygroundQueryResponse{
 		Columns:  []string{"result"},

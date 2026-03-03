@@ -191,7 +191,7 @@ func (qc *WASMQueryConsole) executeCQL(query string) *WASMConsoleResult {
 	}
 
 	var generic any
-	json.Unmarshal(data, &generic)
+	_ = json.Unmarshal(data, &generic) //nolint:errcheck // re-parsing just-marshaled data for generic representation
 
 	return &WASMConsoleResult{
 		Columns:  []string{"result"},
