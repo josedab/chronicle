@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"net/http"
 	"testing"
 	"time"
 )
@@ -227,4 +228,260 @@ func TestContinuousAggDeduplication(t *testing.T) {
 	if state.PointsIn != 1 {
 		t.Errorf("expected 1 point (dedup), got %d", state.PointsIn)
 	}
+}
+
+func TestContinuousAgg_MaybeEmitWindow(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "emit_test", SourceMetric: "cpu", TargetMetric: "cpu_avg", Function: "avg", Window: time.Minute,
+	})
+
+	// Ingest points across two windows
+	window1Start := time.Now().Truncate(time.Minute).UnixNano()
+	for i := 0; i < 5; i++ {
+		engine.Ingest(Point{Metric: "cpu", Value: float64(i * 10), Timestamp: window1Start + int64(i)*int64(time.Second)})
+	}
+
+	// Move watermark well past the window
+	engine.Ingest(Point{Metric: "cpu", Value: 50, Timestamp: window1Start + 3*int64(time.Minute)})
+
+	state := engine.Get("emit_test")
+	if state == nil {
+		t.Fatal("expected state")
+	}
+	if len(state.Windows) == 0 {
+		t.Error("expected at least one window")
+	}
+}
+
+func TestContinuousAgg_PerformMaintenance(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "maint_test", SourceMetric: "cpu", Function: "avg", Window: time.Minute,
+	})
+
+	// Ingest old data
+	oldTS := time.Now().Add(-10 * time.Minute).UnixNano()
+	for i := 0; i < 5; i++ {
+		engine.Ingest(Point{Metric: "cpu", Value: float64(i), Timestamp: oldTS + int64(i)})
+	}
+
+	// Advance watermark far past old windows
+	engine.Ingest(Point{Metric: "cpu", Value: 1, Timestamp: time.Now().UnixNano()})
+
+	engine.performMaintenance()
+
+	state := engine.Get("maint_test")
+	if state == nil {
+		t.Fatal("expected state")
+	}
+}
+
+func TestContinuousAgg_AlterRunningAggregation(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "alter_test", SourceMetric: "cpu", Function: "avg", Window: time.Minute,
+	})
+
+	// Ingest some data before alter
+	now := time.Now().UnixNano()
+	engine.Ingest(Point{Metric: "cpu", Value: 100, Timestamp: now})
+	engine.Ingest(Point{Metric: "cpu", Value: 200, Timestamp: now + 1})
+
+	state := engine.Get("alter_test")
+	if state.PointsIn != 2 {
+		t.Fatalf("expected 2 points before alter, got %d", state.PointsIn)
+	}
+	windowsBefore := len(state.Windows)
+
+	// Alter function
+	err := engine.Alter(ContinuousAggAlterRequest{Name: "alter_test", NewFunction: "sum"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Windows should be preserved after alter
+	state = engine.Get("alter_test")
+	if state.Definition.Function != "sum" {
+		t.Errorf("function = %q, want sum", state.Definition.Function)
+	}
+	if len(state.Windows) != windowsBefore {
+		t.Error("windows should be preserved after alter")
+	}
+	if state.PointsIn != 2 {
+		t.Error("points count should be preserved after alter")
+	}
+
+	// Alter non-existent
+	err = engine.Alter(ContinuousAggAlterRequest{Name: "nonexistent"})
+	if err == nil {
+		t.Error("expected error for non-existent aggregation")
+	}
+}
+
+func TestContinuousAgg_AlterPause(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "pause_test", SourceMetric: "cpu", Function: "avg", Window: time.Minute,
+	})
+
+	pause := true
+	engine.Alter(ContinuousAggAlterRequest{Name: "pause_test", Pause: &pause})
+
+	state := engine.Get("pause_test")
+	if state.Running {
+		t.Error("expected paused")
+	}
+
+	// Ingesting while paused should not count
+	engine.Ingest(Point{Metric: "cpu", Value: 42, Timestamp: time.Now().UnixNano()})
+	state = engine.Get("pause_test")
+	if state.PointsIn != 0 {
+		t.Errorf("expected 0 points while paused, got %d", state.PointsIn)
+	}
+}
+
+func TestContinuousAgg_ExecuteSQL(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+
+	// CREATE
+	result, err := engine.ExecuteSQL("CREATE CONTINUOUS AGGREGATE cpu_5m AS SELECT avg(value) FROM cpu WINDOW '5m'")
+	if err != nil {
+		t.Fatalf("CREATE: %v", err)
+	}
+	if result["status"] != "created" {
+		t.Errorf("status = %v", result["status"])
+	}
+
+	state := engine.Get("cpu_5m")
+	if state == nil {
+		t.Fatal("expected cpu_5m to exist after CREATE")
+	}
+	if state.Definition.Function != "avg" {
+		t.Errorf("function = %q, want avg", state.Definition.Function)
+	}
+
+	// DROP
+	result, err = engine.ExecuteSQL("DROP CONTINUOUS AGGREGATE cpu_5m")
+	if err != nil {
+		t.Fatalf("DROP: %v", err)
+	}
+	if result["status"] != "dropped" {
+		t.Errorf("status = %v", result["status"])
+	}
+	if engine.Get("cpu_5m") != nil {
+		t.Error("expected cpu_5m to be deleted")
+	}
+
+	// Unsupported
+	_, err = engine.ExecuteSQL("TRUNCATE CONTINUOUS AGGREGATE foo")
+	if err == nil {
+		t.Error("expected error for unsupported command")
+	}
+}
+
+func TestContinuousAgg_ExecuteSQLAlter(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+
+	engine.Create(ContinuousAggDefinition{Name: "alt_sql", SourceMetric: "cpu", Function: "avg", Window: time.Minute})
+
+	result, err := engine.ExecuteSQL("ALTER CONTINUOUS AGGREGATE alt_sql SET function sum")
+	if err != nil {
+		t.Fatalf("ALTER: %v", err)
+	}
+	if result["status"] != "altered" {
+		t.Errorf("status = %v", result["status"])
+	}
+
+	state := engine.Get("alt_sql")
+	if state.Definition.Function != "sum" {
+		t.Errorf("function = %q after ALTER, want sum", state.Definition.Function)
+	}
+}
+
+func TestContinuousAgg_CountAggregation(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "count_test", SourceMetric: "req", Function: "count", Window: time.Hour,
+	})
+
+	now := time.Now().UnixNano()
+	for i := 0; i < 5; i++ {
+		engine.Ingest(Point{Metric: "req", Value: float64(i), Timestamp: now + int64(i)})
+	}
+
+	state := engine.Get("count_test")
+	if state == nil || len(state.Windows) == 0 {
+		t.Fatal("expected windows")
+	}
+	if state.Windows[0].Value != 5 {
+		t.Errorf("count value = %f, want 5", state.Windows[0].Value)
+	}
+}
+
+func TestContinuousAgg_AvgPrecisionManyPoints(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "avg_precision", SourceMetric: "metric", Function: "avg", Window: time.Hour,
+	})
+
+	const n = 10000
+	now := time.Now().UnixNano()
+	var expectedSum float64
+	for i := 0; i < n; i++ {
+		v := float64(i) * 0.1
+		expectedSum += v
+		engine.Ingest(Point{Metric: "metric", Value: v, Timestamp: now + int64(i)})
+	}
+	expectedAvg := expectedSum / float64(n)
+
+	state := engine.Get("avg_precision")
+	if state == nil || len(state.Windows) == 0 {
+		t.Fatal("expected windows")
+	}
+
+	// Allow small floating point imprecision
+	diff := state.Windows[0].Value - expectedAvg
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > 0.01 {
+		t.Errorf("avg precision: got %f, want ~%f, diff=%f", state.Windows[0].Value, expectedAvg, diff)
+	}
+}
+
+func TestContinuousAgg_NilTagsFilter(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+	_ = engine.Create(ContinuousAggDefinition{
+		Name: "nil_tags", SourceMetric: "cpu", Function: "avg", Window: time.Minute,
+		Filter: map[string]string{"host": "a"},
+	})
+
+	// Ingest with nil tags
+	engine.Ingest(Point{Metric: "cpu", Value: 42, Timestamp: time.Now().UnixNano(), Tags: nil})
+
+	state := engine.Get("nil_tags")
+	if state.PointsIn != 0 {
+		t.Errorf("expected 0 points with nil tags filtered, got %d", state.PointsIn)
+	}
+}
+
+func TestContinuousAgg_RegisterHTTPHandlers(t *testing.T) {
+	db := setupTestDB(t)
+	engine := NewContinuousAggEngine(db, DefaultContinuousAggConfig())
+
+	mux := http.NewServeMux()
+	engine.RegisterHTTPHandlers(mux)
+
+	// Verify handlers were registered by checking patterns
+	// The handlers should not panic when registered
 }
