@@ -361,9 +361,6 @@ func (cp *SaaSControlPlane) TenantMiddleware(next http.HandlerFunc) http.Handler
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("X-API-Key")
 		if key == "" {
-			key = r.URL.Query().Get("api_key")
-		}
-		if key == "" {
 			http.Error(w, "missing API key", http.StatusUnauthorized)
 			return
 		}
