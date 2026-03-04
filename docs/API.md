@@ -7,6 +7,8 @@ This document describes the Chronicle HTTP API endpoints available when `HTTPEna
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
+| `/health/ready` | GET | Readiness probe |
+| `/health/live` | GET | Liveness probe |
 | `/write` | POST | Write points (InfluxDB line protocol) |
 | `/query` | POST | Execute SQL-like query |
 | `/api/v1/query` | GET/POST | Prometheus-compatible instant query |
@@ -19,10 +21,19 @@ This document describes the Chronicle HTTP API endpoints available when `HTTPEna
 | `/prometheus/write` | POST | Prometheus remote write |
 | `/graphql` | POST | GraphQL API |
 | `/graphql/playground` | GET | Interactive GraphQL playground |
-| `/api/v1/export` | POST | Export data (JSON, CSV, Parquet) |
+| `/api/v1/studio/export` | POST | Export data from Chronicle Studio |
+| `/api/v1/catalog/export` | GET | Export metrics catalog |
+| `/api/v1/iceberg/export` | POST | Export data in Iceberg format |
 | `/api/v1/forecast` | POST | Generate time-series forecasts |
 | `/api/v1/histogram` | GET/POST | Histogram data and observations |
-| `/api/v1/labels` | GET | List label names (Prometheus-compatible) |
+| `/api/v1/prom/labels` | GET | List label names (Prometheus-compatible) |
+| `/api/v1/cql` | POST | Execute a CQL query |
+| `/api/v1/cql/validate` | POST | Validate CQL syntax |
+| `/api/v1/cql/explain` | POST | Explain a CQL query plan |
+| `/api/v1/anomalies` | GET | List detected anomalies |
+| `/api/v1/anomalies/stats` | GET | Anomaly detection statistics |
+| `/api/v1/anomalies/baseline/{metric}` | GET | Get baseline for a metric |
+| `/api/v1/incidents` | GET | List correlated incidents |
 | `/metrics` | GET | List registered metric names |
 
 ---
@@ -38,6 +49,52 @@ Returns the health status of the Chronicle instance.
 {
   "status": "ok"
 }
+```
+
+### GET /health/ready
+
+Readiness probe — indicates whether the instance is ready to accept traffic. Used by Kubernetes and load balancers to determine when to route requests to this instance.
+
+**Response (200 OK):**
+```json
+{
+  "status": "ready"
+}
+```
+
+**Response (503 Service Unavailable):**
+```json
+{
+  "status": "not_ready"
+}
+```
+
+**Example:**
+```bash
+curl -s http://localhost:8086/health/ready
+```
+
+### GET /health/live
+
+Liveness probe — indicates whether the instance is alive and should not be restarted. Used by Kubernetes to detect deadlocked or unresponsive instances.
+
+**Response (200 OK):**
+```json
+{
+  "status": "live"
+}
+```
+
+**Response (503 Service Unavailable):**
+```json
+{
+  "status": "not_live"
+}
+```
+
+**Example:**
+```bash
+curl -s http://localhost:8086/health/live
 ```
 
 ---
@@ -578,35 +635,27 @@ Health check with details.
 
 ## Export API
 
-### POST /api/v1/export
+Export endpoints are available through different subsystems:
 
-Export time-series data in various formats.
+### POST /api/v1/studio/export
 
-**Content-Type:** `application/json`
+Export time-series data via Chronicle Studio.
 
-**Request Body:**
-```json
-{
-  "metric": "cpu",
-  "start": 1609459200000000000,
-  "end": 1609462800000000000,
-  "format": "json"
-}
-```
+### GET /api/v1/catalog/export
 
-**Parameters:**
-- `metric` (required): Metric name to export
-- `start` (optional): Start timestamp (nanoseconds)
-- `end` (optional): End timestamp (nanoseconds)
-- `format`: Output format — `json`, `csv`, or `parquet`
+Export the metrics catalog.
 
-**Response:** `200 OK` with exported data in the requested format
+### POST /api/v1/iceberg/export
+
+Export data in Apache Iceberg format.
+
+All export endpoints accept format parameters and return `200 OK` with the exported data.
 
 ---
 
 ## Labels API
 
-### GET /api/v1/labels
+### GET /api/v1/prom/labels
 
 List all known label names (Prometheus-compatible).
 
@@ -616,6 +665,207 @@ List all known label names (Prometheus-compatible).
   "status": "success",
   "data": ["__name__", "host", "region", "instance"]
 }
+```
+
+---
+
+## CQL Query Engine
+
+Chronicle Query Language (CQL) provides a SQL-like interface for querying time-series data with time-series-specific extensions.
+
+### POST /api/v1/cql
+
+Execute a CQL query.
+
+**Content-Type:** `text/plain`
+
+**Request Body:**
+```
+SELECT metric, avg(value) FROM metrics WHERE time > now() - 1h GROUP BY metric
+```
+
+**Response (200 OK):**
+```json
+{
+  "columns": ["metric", "avg"],
+  "rows": [
+    ["cpu", 42.5],
+    ["memory", 78.2]
+  ]
+}
+```
+
+**Status Codes:**
+- `200 OK`: Query executed successfully
+- `400 Bad Request`: Invalid CQL syntax or query error
+- `405 Method Not Allowed`: Only POST is accepted
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/cql \
+  -d "SELECT * FROM cpu WHERE host = 'server01' LIMIT 10"
+```
+
+### POST /api/v1/cql/validate
+
+Validate CQL query syntax without executing it.
+
+**Content-Type:** `text/plain`
+
+**Request Body:**
+```
+SELECT metric FROM metrics WHERE time > now() - 1h
+```
+
+**Response (valid):**
+```json
+{
+  "valid": true
+}
+```
+
+**Response (invalid):**
+```json
+{
+  "valid": false,
+  "error": "unexpected token at position 12"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/cql/validate \
+  -d "SELECT * FROM cpu"
+```
+
+### POST /api/v1/cql/explain
+
+Get the query execution plan for a CQL query.
+
+**Content-Type:** `text/plain`
+
+**Request Body:**
+```
+SELECT avg(value) FROM cpu WHERE host = 'server01' GROUP BY time(5m)
+```
+
+**Response (200 OK):**
+```json
+{
+  "plan": "Scan(cpu) → Filter(host=server01) → GroupBy(5m) → Aggregate(avg)",
+  "estimated_cost": 150
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/cql/explain \
+  -d "SELECT avg(value) FROM cpu GROUP BY time(5m)"
+```
+
+---
+
+## Anomaly Detection
+
+### GET /api/v1/anomalies
+
+List detected anomalies from the streaming anomaly pipeline.
+
+**Query Parameters:**
+- `metric` (optional): Filter by metric name
+- `since` (optional): Return anomalies after this timestamp (RFC 3339 format)
+- `limit` (optional): Maximum number of results (default: 100)
+
+**Response (200 OK):**
+```json
+[
+  {
+    "metric": "cpu",
+    "value": 98.5,
+    "expected": 45.0,
+    "score": 3.2,
+    "timestamp": "2026-01-15T10:30:00Z",
+    "tags": {"host": "server01"}
+  }
+]
+```
+
+**Example:**
+```bash
+curl "http://localhost:8086/api/v1/anomalies?metric=cpu&since=2026-01-15T00:00:00Z&limit=50"
+```
+
+### GET /api/v1/anomalies/stats
+
+Get anomaly detection pipeline statistics.
+
+**Response (200 OK):**
+```json
+{
+  "total_anomalies": 42,
+  "metrics_monitored": 15,
+  "detection_rate": 0.03
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/anomalies/stats
+```
+
+### GET /api/v1/anomalies/baseline/{metric}
+
+Get the statistical baseline for a specific metric.
+
+**Path Parameters:**
+- `metric` (required): Metric name
+
+**Response (200 OK):**
+```json
+{
+  "metric": "cpu",
+  "mean": 45.2,
+  "stddev": 12.3,
+  "q1": 35.0,
+  "median": 44.5,
+  "q3": 55.0
+}
+```
+
+**Status Codes:**
+- `200 OK`: Baseline returned
+- `400 Bad Request`: Metric name not provided
+- `404 Not Found`: No baseline exists for the metric
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/anomalies/baseline/cpu
+```
+
+---
+
+## Incidents
+
+### GET /api/v1/incidents
+
+List correlated incidents from the anomaly correlation engine. Incidents group related anomalies across metrics that share a common root cause.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "inc-001",
+    "anomalies": ["cpu_spike", "memory_pressure"],
+    "severity": "critical",
+    "created_at": "2026-01-15T10:30:00Z",
+    "status": "active"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/incidents
 ```
 
 ---
