@@ -223,7 +223,19 @@ func (t *TemplatedLLM) buildTemplateData(prompt string, intent questionIntent, e
 		t.parseEvidence(data, evidence)
 	}
 
+	// Sanitize all values to prevent template injection
+	for k, v := range data {
+		data[k] = sanitizeTemplateValue(v)
+	}
+
 	return data
+}
+
+// sanitizeTemplateValue strips Go template delimiters to prevent template injection.
+func sanitizeTemplateValue(s string) string {
+	s = strings.ReplaceAll(s, "{{", "")
+	s = strings.ReplaceAll(s, "}}", "")
+	return s
 }
 
 // parseEvidence extracts structured data from evidence strings.
