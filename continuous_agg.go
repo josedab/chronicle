@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strings"
@@ -197,12 +198,14 @@ func (e *ContinuousAggEngine) maybeEmitWindow(state *ContinuousAggState) {
 		w := &state.Windows[i]
 		// Window is closed when watermark has moved past window end
 		if watermark > w.End+windowNanos {
-			_ = e.db.Write(Point{ //nolint:errcheck // best-effort materialized write
+			if err := e.db.Write(Point{ //nolint:errcheck // best-effort materialized write
 				Metric:    state.Definition.TargetMetric,
 				Value:     w.Value,
 				Timestamp: w.End,
 				Tags:      map[string]string{"__agg__": state.Definition.Function},
-			})
+			}); err != nil {
+				log.Printf("continuous agg: best-effort materialized write failed: %v", err)
+			}
 		}
 	}
 }

@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -532,12 +533,14 @@ func (e *DeclarativeAlertingEngine) RunTest(tc AlertTestCase) *AlertTestResult {
 					ts = t.UnixNano()
 				}
 			}
-			_ = e.db.Write(Point{ //nolint:errcheck // best-effort alert dispatch
+			if err := e.db.Write(Point{ //nolint:errcheck // best-effort alert dispatch
 				Metric:    def.Spec.Metric,
 				Tags:      def.Spec.Tags,
 				Value:     tp.Value,
 				Timestamp: ts,
-			})
+			}); err != nil {
+				log.Printf("declarative alerting: best-effort alert write failed: %v", err)
+			}
 		}
 		flushQuietly(e.db)
 	}

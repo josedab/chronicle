@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"log"
 	"time"
 )
 
@@ -35,7 +36,9 @@ func (t *TieredBackend) Read(ctx context.Context, key string) ([]byte, error) {
 	}
 
 	// Promote to hot storage
-	_ = t.hot.Write(ctx, key, data) //nolint:errcheck // best-effort hot tier cache write
+	if err := t.hot.Write(ctx, key, data); err != nil {
+		log.Printf("tiered storage: best-effort hot tier cache write failed: %v", err)
+	}
 	return data, nil
 }
 

@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -172,12 +173,14 @@ func (e *PromScraperEngine) Scrape(targetID string) (*PromScrapeResult, error) {
 	// Simulate writing scraped metrics
 	for i := 0; i < samplesCount; i++ {
 		metric := fmt.Sprintf("scrape_%s_metric_%d", targetID, i)
-		_ = e.db.Write(Point{ //nolint:errcheck // best-effort scrape ingestion
+		if err := e.db.Write(Point{ //nolint:errcheck // best-effort scrape ingestion
 			Metric:    metric,
 			Value:     float64(i) * 1.5,
 			Timestamp: now.UnixNano(),
 			Tags:      target.Labels,
-		})
+		}); err != nil {
+			log.Printf("prom scraper: best-effort scrape write failed: %v", err)
+		}
 	}
 
 	duration := time.Since(start)
