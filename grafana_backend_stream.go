@@ -66,7 +66,9 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 				connMu.Unlock()
 
 				resp, _ := json.Marshal(StreamMessage{Type: "subscribed", SubID: sub.ID})
-				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
+				if err := conn.WriteMessage(1, resp); err != nil {
+					slog.Debug("grafana stream: best-effort WebSocket write failed", "error", err)
+				}
 
 				go g.forwardStreamPoints(ctx, conn, sub)
 
@@ -79,11 +81,15 @@ func (g *GrafanaBackend) handleStream(w http.ResponseWriter, r *http.Request) {
 				connMu.Unlock()
 
 				resp, _ := json.Marshal(StreamMessage{Type: "unsubscribed", SubID: cmd.SubID})
-				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
+				if err := conn.WriteMessage(1, resp); err != nil {
+					slog.Debug("grafana stream: best-effort WebSocket write failed", "error", err)
+				}
 
 			default:
 				resp, _ := json.Marshal(StreamMessage{Type: "error", Error: "unknown command: " + cmd.Type})
-				_ = conn.WriteMessage(1, resp) //nolint:errcheck // best-effort response encoding
+				if err := conn.WriteMessage(1, resp); err != nil {
+					slog.Debug("grafana stream: best-effort WebSocket write failed", "error", err)
+				}
 			}
 		}
 	}(ctx)
