@@ -391,7 +391,7 @@ make help
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and the [Contributor Onboarding Guide](docs/CONTRIBUTOR_ONBOARDING.md) for a 30-minute architecture walkthrough. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and the [Contributor Onboarding Guide](docs/CONTRIBUTOR_ONBOARDING.md) for a 30-minute architecture walkthrough. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating. For release notes and version history, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Security
 
