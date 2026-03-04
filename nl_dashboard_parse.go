@@ -285,13 +285,17 @@ func (e *NLDashboardEngine) convertTargets(targets []*TargetSpec) []map[string]a
 		if len(target.Tags) > 0 {
 			filters := make([]string, 0)
 			for k, v := range target.Tags {
-				filters = append(filters, fmt.Sprintf(`%s="%s"`, k, v))
+				filters = append(filters, fmt.Sprintf(`%s="%s"`, sanitizeIdentifier(k), escapeSQL(v)))
 			}
 			query = fmt.Sprintf("%s{%s}", query, strings.Join(filters, ", "))
 		}
 
 		if len(target.GroupBy) > 0 {
-			query = fmt.Sprintf("%s by (%s)", query, strings.Join(target.GroupBy, ", "))
+			sanitized := make([]string, len(target.GroupBy))
+			for i, g := range target.GroupBy {
+				sanitized[i] = sanitizeIdentifier(g)
+			}
+			query = fmt.Sprintf("%s by (%s)", query, strings.Join(sanitized, ", "))
 		}
 
 		t["expr"] = query
