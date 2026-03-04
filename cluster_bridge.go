@@ -12,21 +12,49 @@ import (
 	"github.com/chronicle-db/chronicle/internal/cluster"
 )
 
-// Type aliases re-export cluster types for backward compatibility.
+// Cluster is the cluster coordinator managing node membership and consensus.
 type Cluster = cluster.Cluster
+
+// ClusteredDB wraps a DB with clustering capabilities.
 type ClusteredDB = cluster.ClusteredDB
+
+// ClusterConfig holds configuration for cluster setup.
 type ClusterConfig = cluster.ClusterConfig
+
+// ClusterNode represents a single node in the cluster.
 type ClusterNode = cluster.ClusterNode
+
+// ClusterStats contains runtime statistics for the cluster.
 type ClusterStats = cluster.ClusterStats
+
+// ClusterEventListener receives notifications about cluster events.
 type ClusterEventListener = cluster.ClusterEventListener
+
+// ReplicationMode specifies how writes are replicated across nodes.
 type ReplicationMode = cluster.ReplicationMode
+
+// NodeState is the current state of a cluster node (follower, candidate, leader).
 type NodeState = cluster.NodeState
+
+// LogEntry is a single entry in the cluster replication log.
 type LogEntry = cluster.LogEntry
+
+// LogEntryType identifies the type of a log entry (write, config, noop).
 type LogEntryType = cluster.LogEntryType
+
+// VoteRequest is a request message for leader election.
 type VoteRequest = cluster.VoteRequest
+
+// VoteResponse is a response message for leader election.
 type VoteResponse = cluster.VoteResponse
+
+// AppendEntriesRequest is a request to replicate log entries to a follower.
 type AppendEntriesRequest = cluster.AppendEntriesRequest
+
+// AppendEntriesResponse is the response to an append-entries replication request.
 type AppendEntriesResponse = cluster.AppendEntriesResponse
+
+// GossipMessage is a message exchanged via the gossip protocol for membership.
 type GossipMessage = cluster.GossipMessage
 
 // Re-export constants.
