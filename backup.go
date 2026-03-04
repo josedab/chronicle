@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -321,6 +322,17 @@ func (bm *BackupManager) DeleteBackup(ctx context.Context, backupID string) erro
 		if record.ID == backupID {
 			// Remove file
 			if record.FilePath != "" {
+				absFilePath, err := filepath.Abs(record.FilePath)
+				if err != nil {
+					return fmt.Errorf("invalid backup file path: %w", err)
+				}
+				absDestDir, err := filepath.Abs(bm.config.DestinationPath)
+				if err != nil {
+					return fmt.Errorf("invalid backup destination path: %w", err)
+				}
+				if !strings.HasPrefix(absFilePath, absDestDir+string(os.PathSeparator)) {
+					return fmt.Errorf("backup file path is outside backup directory")
+				}
 				os.Remove(record.FilePath)
 			} else if bm.config.StorageBackend != nil {
 				bm.config.StorageBackend.Delete(ctx, record.ID)
