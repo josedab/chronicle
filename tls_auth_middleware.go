@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"crypto/rand"
 	"net/http"
 	"os"
@@ -491,7 +492,9 @@ func (m *AuthManager) handleCreateToken(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		log.Printf("chronicle: json encode error: %v", err)
+	}
 }
 
 func (m *AuthManager) handleListTokens(w http.ResponseWriter, _ *http.Request) {
@@ -505,7 +508,9 @@ func (m *AuthManager) handleListTokens(w http.ResponseWriter, _ *http.Request) {
 		tokens = []APITokenInfo{}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tokens)
+	if err := json.NewEncoder(w).Encode(tokens); err != nil {
+		log.Printf("chronicle: json encode error: %v", err)
+	}
 }
 
 func (m *AuthManager) handleRevokeToken(w http.ResponseWriter, r *http.Request) {
@@ -527,7 +532,9 @@ func (m *AuthManager) handleRevokeToken(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "revoked", "id": tokenID})
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "revoked", "id": tokenID}); err != nil {
+		log.Printf("chronicle: json encode error: %v", err)
+	}
 }
 
 func (m *AuthManager) handleAuthStatus(w http.ResponseWriter, _ *http.Request) {
