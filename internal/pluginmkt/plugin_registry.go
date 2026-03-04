@@ -655,7 +655,18 @@ func (r *PluginRegistry) downloadPlugin(ctx context.Context, meta *MarketplacePl
 
 func (r *PluginRegistry) loadFromDisk(installed *InstalledPlugin) (Plugin, error) {
 	pluginID := installed.Metadata.ID
+
+	// Validate pluginID to prevent path traversal
+	cleanID := filepath.Clean(pluginID)
+	if cleanID != pluginID || strings.Contains(pluginID, "..") || strings.ContainsRune(pluginID, os.PathSeparator) || (os.PathSeparator != '/' && strings.ContainsRune(pluginID, '/')) {
+		return nil, fmt.Errorf("invalid plugin ID: %s", pluginID)
+	}
 	pluginPath := filepath.Join(r.config.PluginsDir, pluginID, pluginID+".so")
+	absPluginsDir, _ := filepath.Abs(r.config.PluginsDir)
+	absPluginPath, _ := filepath.Abs(pluginPath)
+	if !strings.HasPrefix(absPluginPath, absPluginsDir+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("invalid plugin ID: %s", pluginID)
+	}
 
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
 
