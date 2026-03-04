@@ -51,7 +51,14 @@ func main() {
 	})
 
 	log.Printf("[%s] role=%s listening on :%s", nodeName, role, port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      nil,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }
 
 func generateData(db *chronicle.DB, node string) {

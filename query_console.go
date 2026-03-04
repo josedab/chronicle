@@ -84,6 +84,7 @@ func (qc *QueryConsole) ListenAndServe() error {
 		Handler:      qc.corsMiddleware(qc.mux),
 		ReadTimeout:  qc.config.ReadTimeout,
 		WriteTimeout: qc.config.WriteTimeout,
+		IdleTimeout:  120 * time.Second,
 	}
 	return srv.ListenAndServe()
 }
