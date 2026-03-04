@@ -49,7 +49,11 @@ func (m *DeltaSyncManager) splitIntoBatches(points []Point) []DeltaBatch {
 
 		// Calculate checksum
 		if m.config.EnableChecksum {
-			batch.Checksum = m.calculateBatchChecksum(batch)
+			checksum, err := m.calculateBatchChecksum(batch)
+			if err != nil {
+				return nil
+			}
+			batch.Checksum = checksum
 		}
 
 		batches = append(batches, batch)
@@ -104,10 +108,13 @@ func (m *DeltaSyncManager) deltaDecode(points []Point) []Point {
 	return decoded
 }
 
-func (m *DeltaSyncManager) calculateBatchChecksum(batch DeltaBatch) string {
-	data, _ := json.Marshal(batch.Points)
+func (m *DeltaSyncManager) calculateBatchChecksum(batch DeltaBatch) (string, error) {
+	data, err := json.Marshal(batch.Points)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal batch for checksum: %w", err)
+	}
 	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString(hash[:]), nil
 }
 
 func (m *DeltaSyncManager) sendBatch(batch DeltaBatch) error {
@@ -310,7 +317,10 @@ func (m *DeltaSyncManager) applyBatch(batch DeltaBatch) error {
 
 	// Verify checksum
 	if m.config.EnableChecksum && batch.Checksum != "" {
-		expected := m.calculateBatchChecksum(DeltaBatch{Points: batch.Points})
+		expected, err := m.calculateBatchChecksum(DeltaBatch{Points: batch.Points})
+		if err != nil {
+			return fmt.Errorf("checksum calculation failed: %w", err)
+		}
 		if expected != batch.Checksum {
 			return errors.New("checksum mismatch")
 		}

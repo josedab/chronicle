@@ -375,8 +375,14 @@ func TestDeltaSyncManager_Checksum(t *testing.T) {
 		},
 	}
 
-	checksum1 := manager.calculateBatchChecksum(batch)
-	checksum2 := manager.calculateBatchChecksum(batch)
+	checksum1, err := manager.calculateBatchChecksum(batch)
+	if err != nil {
+		t.Fatalf("calculateBatchChecksum failed: %v", err)
+	}
+	checksum2, err := manager.calculateBatchChecksum(batch)
+	if err != nil {
+		t.Fatalf("calculateBatchChecksum failed: %v", err)
+	}
 
 	if checksum1 != checksum2 {
 		t.Error("Checksums should be deterministic")
@@ -384,7 +390,10 @@ func TestDeltaSyncManager_Checksum(t *testing.T) {
 
 	// Modify and verify different checksum
 	batch.Points[0].Value = 99.0
-	checksum3 := manager.calculateBatchChecksum(batch)
+	checksum3, err := manager.calculateBatchChecksum(batch)
+	if err != nil {
+		t.Fatalf("calculateBatchChecksum failed: %v", err)
+	}
 
 	if checksum1 == checksum3 {
 		t.Error("Checksum should change when data changes")
