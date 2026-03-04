@@ -14,68 +14,166 @@ import (
 	"github.com/chronicle-db/chronicle/internal/raft"
 )
 
-// Type aliases re-export raft types for backward compatibility.
+// RaftNode is the core Raft consensus node.
 type RaftNode = raft.RaftNode
+
+// RaftConfig holds configuration for a Raft node.
 type RaftConfig = raft.RaftConfig
+
+// RaftPeer represents a peer in the Raft cluster.
 type RaftPeer = raft.RaftPeer
+
+// RaftRole is the current role of a Raft node (follower, candidate, leader).
 type RaftRole = raft.RaftRole
+
+// RaftLogEntryType indicates the type of a Raft log entry.
 type RaftLogEntryType = raft.RaftLogEntryType
+
+// RaftLogEntry is a single entry in the Raft log.
 type RaftLogEntry = raft.RaftLogEntry
+
+// RaftCommand represents a replicated command in the Raft log.
 type RaftCommand = raft.RaftCommand
+
+// RaftPeerState tracks the replication state of a peer.
 type RaftPeerState = raft.RaftPeerState
+
+// RaftProposal is a proposed change submitted to the Raft leader.
 type RaftProposal = raft.RaftProposal
+
+// RaftEventListener receives notifications about Raft state changes.
 type RaftEventListener = raft.RaftEventListener
+
+// RaftLog is the persistent append-only log used by Raft.
 type RaftLog = raft.RaftLog
+
+// RaftTransport handles network communication between Raft nodes.
 type RaftTransport = raft.RaftTransport
+
+// RaftStats contains runtime statistics for a Raft node.
 type RaftStats = raft.RaftStats
+
+// RaftSnapshot is a point-in-time snapshot of Raft state.
 type RaftSnapshot = raft.RaftSnapshot
+
+// RaftCluster manages a multi-node Raft cluster.
 type RaftCluster = raft.RaftCluster
 
-// RPC types
+// PreVoteRPCRequest is the request message for a Raft pre-vote round.
 type PreVoteRPCRequest = raft.PreVoteRPCRequest
+
+// PreVoteRPCResponse is the response message for a Raft pre-vote round.
 type PreVoteRPCResponse = raft.PreVoteRPCResponse
+
+// RequestVoteRPCRequest is the request message for a Raft leader election vote.
 type RequestVoteRPCRequest = raft.RequestVoteRPCRequest
+
+// RequestVoteRPCResponse is the response message for a Raft leader election vote.
 type RequestVoteRPCResponse = raft.RequestVoteRPCResponse
+
+// AppendEntriesRPCRequest is the request message for appending entries to a follower.
 type AppendEntriesRPCRequest = raft.AppendEntriesRPCRequest
+
+// AppendEntriesRPCResponse is the response message for an append-entries RPC.
 type AppendEntriesRPCResponse = raft.AppendEntriesRPCResponse
+
+// InstallSnapshotRPCRequest is the request message for installing a snapshot on a follower.
 type InstallSnapshotRPCRequest = raft.InstallSnapshotRPCRequest
+
+// InstallSnapshotRPCResponse is the response message for a snapshot installation.
 type InstallSnapshotRPCResponse = raft.InstallSnapshotRPCResponse
+
+// ForwardProposalRequest is a request to forward a client proposal to the leader.
 type ForwardProposalRequest = raft.ForwardProposalRequest
 
-// Membership types
+// MembershipChangeType indicates the type of cluster membership change (add/remove).
 type MembershipChangeType = raft.MembershipChangeType
+
+// MembershipChange describes a pending cluster membership modification.
 type MembershipChange = raft.MembershipChange
 
-// Edge types
+// RaftStateMachine is the state machine driven by committed Raft log entries.
 type RaftStateMachine = raft.RaftStateMachine
+
+// RaftReadConsistency specifies the consistency level for read operations.
 type RaftReadConsistency = raft.RaftReadConsistency
+
+// RaftHealthStatus reports the health of a Raft node.
 type RaftHealthStatus = raft.RaftHealthStatus
+
+// RaftHealthChecker monitors Raft node health.
 type RaftHealthChecker = raft.RaftHealthChecker
+
+// RaftEdgeConfig configures Raft for edge/constrained deployments.
 type RaftEdgeConfig = raft.RaftEdgeConfig
+
+// RaftLatencyTracker measures inter-node communication latency.
 type RaftLatencyTracker = raft.RaftLatencyTracker
+
+// RaftClusterTopology describes the current cluster membership and layout.
 type RaftClusterTopology = raft.RaftClusterTopology
+
+// RaftNodeInfo contains metadata about a single Raft node.
 type RaftNodeInfo = raft.RaftNodeInfo
 
-// Hardening types
+// SnapshotManagerConfig configures the snapshot manager.
 type SnapshotManagerConfig = raft.SnapshotManagerConfig
+
+// SnapshotMeta holds metadata for a stored snapshot.
 type SnapshotMeta = raft.SnapshotMeta
+
+// ManagedSnapshot is a snapshot managed by the snapshot lifecycle system.
 type ManagedSnapshot = raft.ManagedSnapshot
+
+// SnapshotManager handles snapshot creation, retention, and restoration.
 type SnapshotManager = raft.SnapshotManager
+
+// SnapshotTransferConfig configures snapshot transfer between nodes.
 type SnapshotTransferConfig = raft.SnapshotTransferConfig
+
+// SnapshotChunk is a chunk of snapshot data for streaming transfer.
 type SnapshotChunk = raft.SnapshotChunk
+
+// SnapshotTransfer manages streaming snapshot transfers between nodes.
 type SnapshotTransfer = raft.SnapshotTransfer
+
+// LogCompactorConfig configures the Raft log compaction policy.
 type LogCompactorConfig = raft.LogCompactorConfig
+
+// CompactionResult contains the outcome of a log compaction operation.
 type CompactionResult = raft.CompactionResult
+
+// LogCompactor compacts the Raft log by removing applied entries.
 type LogCompactor = raft.LogCompactor
+
+// JointConsensusConfig configures the joint consensus protocol for safe membership changes.
 type JointConsensusConfig = raft.JointConsensusConfig
+
+// JointPhase is the current phase of a joint consensus transition.
 type JointPhase = raft.JointPhase
+
+// TransitionStatus reports the status of a membership transition.
 type TransitionStatus = raft.TransitionStatus
+
+// ClusterConfiguration describes the set of nodes in a cluster configuration.
 type ClusterConfiguration = raft.ClusterConfiguration
+
+// MembershipTransition tracks an in-progress membership change.
 type MembershipTransition = raft.MembershipTransition
+
+// JointConsensus implements the joint consensus protocol for cluster reconfiguration.
 type JointConsensus = raft.JointConsensus
+
+// LeaderTransferState tracks the state of a leadership transfer operation.
 type LeaderTransferState = raft.LeaderTransferState
+
+// ConsensusEventType indicates the type of consensus event.
 type ConsensusEventType = raft.ConsensusEventType
+
+// ConsensusEvent is an event emitted during consensus operations.
 type ConsensusEvent = raft.ConsensusEvent
+
+// ConsensusVerifier validates the correctness of consensus protocol operations.
 type ConsensusVerifier = raft.ConsensusVerifier
 
 // Re-export constants.
