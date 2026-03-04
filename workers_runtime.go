@@ -359,10 +359,13 @@ func (d *D1Backend) Write(ctx context.Context, p Point) error {
 	d.writeCount++
 	d.mu.Unlock()
 
-	tagsJSON, _ := json.Marshal(p.Tags)
+	tagsJSON, err := json.Marshal(p.Tags)
+	if err != nil {
+		return fmt.Errorf("marshal tags: %w", err)
+	}
 	sql := fmt.Sprintf(
 		"INSERT INTO points (metric, tags, value, timestamp) VALUES ('%s', '%s', %f, %d)",
-		escapeSQL(p.Metric), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
+		escapeSQL(sanitizeIdentifier(p.Metric)), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
 
 	return d.execute(ctx, sql)
 }
@@ -396,12 +399,15 @@ func (d *D1Backend) writeBatchChunk(ctx context.Context, points []Point) error {
 
 	var values string
 	for i, p := range points {
-		tagsJSON, _ := json.Marshal(p.Tags)
+		tagsJSON, err := json.Marshal(p.Tags)
+		if err != nil {
+			return fmt.Errorf("marshal tags: %w", err)
+		}
 		if i > 0 {
 			values += ", "
 		}
 		values += fmt.Sprintf("('%s', '%s', %f, %d)",
-			escapeSQL(p.Metric), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
+			escapeSQL(sanitizeIdentifier(p.Metric)), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
 	}
 
 	sql := "INSERT INTO points (metric, tags, value, timestamp) VALUES " + values
@@ -448,14 +454,26 @@ func (d *D1Backend) Query(ctx context.Context, q *Query) (*WorkersQueryResult, e
 	for _, row := range result.Results {
 		var tags map[string]string
 		if tagsStr, ok := row["tags"].(string); ok && tagsStr != "" {
-			json.Unmarshal([]byte(tagsStr), &tags)
+			_ = json.Unmarshal([]byte(tagsStr), &tags) //nolint:errcheck // best-effort tag parsing; empty tags on failure
 		}
 
+		metric, ok := row["metric"].(string)
+		if !ok {
+			continue
+		}
+		value, ok := row["value"].(float64)
+		if !ok {
+			continue
+		}
+		tsFloat, ok := row["timestamp"].(float64)
+		if !ok {
+			continue
+		}
 		p := Point{
-			Metric:    row["metric"].(string),
+			Metric:    metric,
 			Tags:      tags,
-			Value:     row["value"].(float64),
-			Timestamp: int64(row["timestamp"].(float64)),
+			Value:     value,
+			Timestamp: int64(tsFloat),
 		}
 		points = append(points, p)
 	}
@@ -476,7 +494,10 @@ func (d *D1Backend) execute(ctx context.Context, sql string) error {
 		d.accountID, d.databaseID)
 
 	body := map[string]string{"sql": sql}
-	jsonBody, _ := json.Marshal(body)
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
@@ -512,7 +533,10 @@ func (d *D1Backend) query(ctx context.Context, sql string) (*D1QueryResult, erro
 		d.accountID, d.databaseID)
 
 	body := map[string]string{"sql": sql}
-	jsonBody, _ := json.Marshal(body)
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
@@ -529,7 +553,10 @@ func (d *D1Backend) query(ctx context.Context, sql string) (*D1QueryResult, erro
 	defer resp.Body.Close()
 
 	var d1Resp D1Response
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
 	if err := json.Unmarshal(respBody, &d1Resp); err != nil {
 		return nil, err
 	}
