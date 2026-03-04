@@ -16,6 +16,7 @@ import (
 	"time"
 )
 
+// IcebergExportStatus reports the current state and cumulative statistics of the Iceberg export pipeline.
 type IcebergExportStatus struct {
 	Running        bool      `json:"running"`
 	TotalExports   int64     `json:"total_exports"`

@@ -152,6 +152,7 @@ import (
 	"time"
 )
 
+// Client is the Chronicle HTTP API client.
 type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
@@ -166,6 +167,7 @@ func NewClient(baseURL string) *Client {
 
 func DefaultClient() *Client { return NewClient("%s") }
 
+// Point represents a single time-series data point.
 type Point struct {
 	Metric    string            `+"`"+`json:"metric"`+"`"+`
 	Value     float64           `+"`"+`json:"value"`+"`"+`
@@ -173,10 +175,12 @@ type Point struct {
 	Tags      map[string]string `+"`"+`json:"tags,omitempty"`+"`"+`
 }
 
+// QueryRequest specifies which metric to query.
 type QueryRequest struct {
 	Metric string `+"`"+`json:"metric"`+"`"+`
 }
 
+// QueryResponse contains the data points returned by a query.
 type QueryResponse struct {
 	Points []Point `+"`"+`json:"points"`+"`"+`
 }

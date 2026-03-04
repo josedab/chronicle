@@ -426,6 +426,7 @@ type RegoPolicy struct {
 	Rules   []RegoRule `json:"rules"`
 }
 
+// RegoRule represents a single rule within a RegoPolicy, including its name, default value, and body expression.
 type RegoRule struct {
 	Name    string `json:"name"`
 	Default bool   `json:"default"`

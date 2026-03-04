@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// MergeOption is a functional option that configures the behavior of a branch merge operation.
 type MergeOption func(*mergeOptions)
 
 type mergeOptions struct {
