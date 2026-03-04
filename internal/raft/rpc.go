@@ -12,6 +12,9 @@ import (
 )
 
 // maxBodySize is the maximum allowed request body size for Raft RPCs (10MB).
+// This is intentionally larger than the root-level MaxQueryBodySize (1MB) because
+// Raft RPCs carry log entries, snapshots, and replication data that can be
+// significantly larger than user-facing query payloads.
 const maxBodySize = 10 << 20
 
 func (rn *RaftNode) sendPreVote(peer *RaftPeerState, term, lastLogIndex, lastLogTerm uint64) bool {

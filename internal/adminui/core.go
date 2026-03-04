@@ -6,6 +6,10 @@ import (
 )
 
 // maxBodySize is the maximum allowed request body size for admin endpoints (1MB).
+// This is intentionally separate from the root-level MaxQueryBodySize constant.
+// Admin endpoints handle configuration, queries, and schema changes that are
+// typically small JSON payloads, so 1MB is sufficient. The package-local constant
+// avoids coupling admin UI to the public API surface.
 const maxBodySize = 1 << 20
 
 // NewAdminUI creates an admin UI instance.
