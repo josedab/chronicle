@@ -99,7 +99,16 @@ func main() {
 	go func() {
 		addr := fmt.Sprintf(":%d", httpPort+1)
 		log.Printf("🌐 Gateway API listening on %s", addr)
-		http.ListenAndServe(addr, mux)
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      mux,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 30 * time.Second,
+			IdleTimeout:  120 * time.Second,
+		}
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("Gateway API server error: %v", err)
+		}
 	}()
 
 	log.Printf("✅ Gateway ready. Chronicle HTTP API on :%d, Gateway API on :%d", httpPort, httpPort+1)
