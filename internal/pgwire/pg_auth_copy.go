@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -451,6 +452,7 @@ func (sess *PGSession) authenticateSession() error {
 	case "scram-sha-256":
 		return sess.handleSCRAMAuth()
 	default:
+		log.Printf("[WARN] pgwire: cleartext password authentication is deprecated and insecure. Configure AuthMethod=\"scram-sha-256\" for SCRAM-SHA-256 authentication.")
 		return sess.authenticateCleartext()
 	}
 }
