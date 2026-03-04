@@ -39,24 +39,6 @@ func (fm *FeatureManager) SchemaRegistry() *SchemaRegistry {
 	return fm.schemaRegistry
 }
 
-// CQLEngine returns the CQL query engine.
-// Observability returns the observability suite.
-// MaterializedViews returns the V1 materialized view engine.
-//
-// Deprecated: Use [FeatureManager.MaterializedViewsV2] instead.
-// ChaosInjector returns the fault injector.
-// OfflineSync returns the offline sync manager.
-// AnomalyPipeline returns the streaming anomaly detection pipeline.
-// AnomalyCorrelation returns the anomaly correlation engine.
-// CloudRelay returns the cloud relay agent.
-// Playground returns the query playground.
-// QueryPlanner returns the adaptive query planner.
-// ConnectorHub returns the connector hub.
-// Autoscaler returns the predictive autoscaler.
-// NotebookEngine returns the notebook engine.
-// SaaSControlPlane returns the SaaS control plane.
-// GitOpsEngine returns the GitOps engine.
-// FederatedMLTrainer returns the federated ML trainer.
 // EdgeMesh returns the edge mesh network manager.
 func (fm *FeatureManager) EdgeMesh() *EdgeMesh {
 	fm.edgeMeshOnce.Do(func() {
@@ -65,10 +47,6 @@ func (fm *FeatureManager) EdgeMesh() *EdgeMesh {
 	return fm.edgeMesh
 }
 
-// QueryCompiler returns the unified query compiler.
-// EdgePlatform returns the edge platform manager.
-// TSRAG returns the time-series RAG engine.
-// PluginRegistry returns the plugin registry.
 // PluginMarketplace returns the plugin marketplace.
 func (fm *FeatureManager) PluginMarketplace() *PluginMarketplace {
 	fm.pluginMarketplaceOnce.Do(func() {
