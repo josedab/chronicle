@@ -227,6 +227,7 @@ func (p *Playground) handlePlaygroundQuery(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, MaxQueryBodySize)
 	var req PlaygroundQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)

@@ -417,6 +417,7 @@ func (m *WASMMarketplace) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, MaxQueryBodySize)
 		var req struct {
 			Name string `json:"name"`
 		}
@@ -437,6 +438,7 @@ func (m *WASMMarketplace) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, MaxQueryBodySize)
 		var req struct {
 			Name string `json:"name"`
 		}
