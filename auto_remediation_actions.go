@@ -324,7 +324,7 @@ func (e *AutoRemediationEngine) findMatchingRules(anomaly *DetectedAnomaly) []*A
 
 		// Check metric pattern
 		if rule.MetricPattern != "" && rule.MetricPattern != anomaly.Metric {
-			// TODO: Support wildcards/regex
+			// TODO(#14): Support wildcards/regex in metric pattern matching
 			continue
 		}
 
