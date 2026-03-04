@@ -88,12 +88,14 @@ func (lm *lifecycleManager) startReplication(cfg *ReplicationConfig) {
 func (lm *lifecycleManager) startBackgroundWorkers(compactionWorkers int, compactionInterval time.Duration) {
 	for i := 0; i < compactionWorkers; i++ {
 		lm.workerWg.Add(1)
+		// Compaction worker: waits for compaction triggers and merges partitions to reclaim space and improve query performance.
 		go func(ctx context.Context) {
 			defer lm.workerWg.Done()
 			lm.db.compactionWorker(ctx)
 		}(lm.ctx)
 	}
 	lm.workerWg.Add(1)
+	// Background maintenance worker: periodically runs retention enforcement, downsampling, and scheduled compaction.
 	go func(ctx context.Context) {
 		defer lm.workerWg.Done()
 		lm.db.backgroundWorker(ctx)
