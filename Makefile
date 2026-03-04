@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-race-short test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run debug watch watch-lint watch-all check-versions doctor new-test test-changed check-file-size check-file-size-strict lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy test-file help
+.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-race-short test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run debug watch watch-lint watch-all check-versions doctor new-test test-changed check-file-size check-file-size-strict lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy test-file mutation-test help
 
 GO ?= go
 MIN_GO_VERSION := 1.24
@@ -143,6 +143,11 @@ endif
 	@$(GO) test -short -coverprofile=coverage.out -covermode=atomic $(PKG)
 	@$(GO) tool cover -func=coverage.out
 	@rm -f coverage.out
+
+mutation-test: ## Run mutation testing to validate test quality
+	@command -v go-mutesting >/dev/null 2>&1 || { echo "Installing go-mutesting..."; $(GO) install github.com/zimmski/go-mutesting/cmd/go-mutesting@latest; }
+	@echo "Running mutation tests (this may take a while)..."
+	go-mutesting ./...
 
 vet: ## Run go vet
 	$(GO) vet ./...
