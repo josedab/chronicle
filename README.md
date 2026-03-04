@@ -6,6 +6,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/chronicle-db/chronicle.svg)](https://pkg.go.dev/github.com/chronicle-db/chronicle)
 [![Go Report Card](https://goreportcard.com/badge/github.com/chronicle-db/chronicle)](https://goreportcard.com/report/github.com/chronicle-db/chronicle)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/chronicle-db/chronicle)](https://github.com/chronicle-db/chronicle/blob/main/go.mod)
 [![codecov](https://codecov.io/gh/chronicle-db/chronicle/branch/main/graph/badge.svg)](https://codecov.io/gh/chronicle-db/chronicle)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/chronicle-db/chronicle/actions/workflows/ci.yml/badge.svg)](https://github.com/chronicle-db/chronicle/actions/workflows/ci.yml)
