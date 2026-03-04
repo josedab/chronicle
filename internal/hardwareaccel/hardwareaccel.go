@@ -2,6 +2,7 @@ package hardwareaccel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -330,7 +331,7 @@ func (sdk *HardwareAccelSDK) Close() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("errors closing devices: %v", errs)
+		return fmt.Errorf("errors closing devices: %w", errors.Join(errs...))
 	}
 	return nil
 }
