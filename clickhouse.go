@@ -105,6 +105,12 @@ func (s *ClickHouseServer) handleRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Validate query type against whitelist
+	if !s.isAllowedQueryType(query) {
+		s.writeError(w, fmt.Errorf("query type not allowed"), http.StatusForbidden)
+		return
+	}
+
 	// Handle special system queries
 	if s.handleSystemQuery(w, query, format) {
 		return
@@ -124,6 +130,20 @@ func (s *ClickHouseServer) handleRequest(w http.ResponseWriter, r *http.Request)
 type ClickHouseColumn struct {
 	Name string
 	Type string
+}
+
+// allowedQueryPrefixes defines the set of allowed query statement types.
+var allowedQueryPrefixes = []string{"select", "show", "insert", "use", "set"}
+
+// isAllowedQueryType checks if the query starts with an allowed statement type.
+func (s *ClickHouseServer) isAllowedQueryType(query string) bool {
+	q := strings.ToLower(strings.TrimSpace(query))
+	for _, prefix := range allowedQueryPrefixes {
+		if strings.HasPrefix(q, prefix+" ") || strings.HasPrefix(q, prefix+";") || q == prefix {
+			return true
+		}
+	}
+	return false
 }
 
 // handleSystemQuery handles ClickHouse system queries that don't touch data.
