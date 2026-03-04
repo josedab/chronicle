@@ -13,30 +13,70 @@ import (
 	"github.com/chronicle-db/chronicle/internal/anomaly"
 )
 
-// Type aliases re-export anomaly types for backward compatibility.
+// AnomalyConfig holds configuration for the anomaly detection system.
 type AnomalyConfig = anomaly.AnomalyConfig
+
+// AnomalyModel identifies the ML model used for anomaly detection.
 type AnomalyModel = anomaly.AnomalyModel
+
+// AnomalyDetector detects anomalies in time-series data using configured models.
 type AnomalyDetector = anomaly.AnomalyDetector
+
+// AnomalyResult contains the outcome of an anomaly detection evaluation.
 type AnomalyResult = anomaly.AnomalyResult
+
+// AnomalyStats contains runtime statistics for the anomaly detection system.
 type AnomalyStats = anomaly.AnomalyStats
+
+// ContributingFactor identifies a factor that contributed to an anomaly.
 type ContributingFactor = anomaly.ContributingFactor
+
+// Prediction is a forecasted value produced by an anomaly model.
 type Prediction = anomaly.Prediction
+
+// IsolationForest implements the Isolation Forest anomaly detection algorithm.
 type IsolationForest = anomaly.IsolationForest
+
+// IsolationTree is a single tree within an Isolation Forest ensemble.
 type IsolationTree = anomaly.IsolationTree
+
+// IsolationNode is a node within an Isolation Tree.
 type IsolationNode = anomaly.IsolationNode
+
+// LSTMModel implements LSTM-based anomaly detection.
 type LSTMModel = anomaly.LSTMModel
+
+// Autoencoder implements autoencoder-based anomaly detection.
 type Autoencoder = anomaly.Autoencoder
+
+// TransformerModel implements transformer-based anomaly detection.
 type TransformerModel = anomaly.TransformerModel
+
+// StatisticalModel implements classical statistical anomaly detection.
 type StatisticalModel = anomaly.StatisticalModel
 
-// Classification types
+// AnomalyType classifies the kind of anomaly detected (spike, dip, drift, etc.).
 type AnomalyType = anomaly.AnomalyType
+
+// AnomalySeverity indicates the severity level of a detected anomaly.
 type AnomalySeverity = anomaly.AnomalySeverity
+
+// ClassifiedAnomaly is an anomaly that has been classified by type and severity.
 type ClassifiedAnomaly = anomaly.ClassifiedAnomaly
+
+// PatternAnalysis contains the results of pattern analysis on detected anomalies.
 type PatternAnalysis = anomaly.PatternAnalysis
+
+// Remediation describes a recommended action to address a detected anomaly.
 type Remediation = anomaly.Remediation
+
+// AnomalyClassifier classifies detected anomalies by type and severity.
 type AnomalyClassifier = anomaly.AnomalyClassifier
+
+// AnomalyClassifierConfig holds configuration for the anomaly classifier.
 type AnomalyClassifierConfig = anomaly.AnomalyClassifierConfig
+
+// RemediationRule defines a rule for automated anomaly remediation.
 type RemediationRule = anomaly.RemediationRule
 
 // Re-export constants.
