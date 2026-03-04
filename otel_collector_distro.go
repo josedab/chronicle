@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -423,7 +424,8 @@ func (cd *OTelCollectorDistro) RegisterHTTPHandlers(mux *http.ServeMux) {
 			req.Pipeline = "metrics/default"
 		}
 		if err := cd.Ingest(r.Context(), req.Pipeline, req.Points); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("otel ingest error: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)

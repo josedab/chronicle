@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"sync"
@@ -329,7 +330,8 @@ func (e *ContinuousProfilingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.IngestProfile(p); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Printf("profile ingest error: %v", err)
+			http.Error(w, "failed to ingest profile", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -347,7 +349,8 @@ func (e *ContinuousProfilingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := e.IngestPyroscope(req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Printf("pyroscope ingest error: %v", err)
+			http.Error(w, "failed to ingest profile", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusOK)

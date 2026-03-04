@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -424,7 +425,8 @@ func (m *WASMMarketplace) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := m.InstallPlugin(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Printf("plugin install error: %v", err)
+			http.Error(w, "failed to install plugin", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -443,7 +445,8 @@ func (m *WASMMarketplace) RegisterHTTPHandlers(mux *http.ServeMux) {
 			return
 		}
 		if err := m.UninstallPlugin(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Printf("plugin uninstall error: %v", err)
+			http.Error(w, "failed to uninstall plugin", http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusOK)

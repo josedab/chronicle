@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -386,7 +387,8 @@ func (e *SchemaCompatEngine) RegisterSchemaCompatHTTPHandlers(mux *http.ServeMux
 		}
 		desc, err := e.DescribeMetricSchema(metric)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			log.Printf("schema describe error: %v", err)
+			http.Error(w, "metric not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

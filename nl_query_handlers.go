@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -577,14 +578,15 @@ func (e *NLQueryEngine) NLQueryHandler() func(w ResponseWriter, r *Request) {
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(400)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 			return
 		}
 
 		response, err := e.QueryWithConversation(r.Context(), req.ConversationID, req.Query)
 		if err != nil {
+			log.Printf("nl query error: %v", err)
 			w.WriteHeader(500)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 			return
 		}
 

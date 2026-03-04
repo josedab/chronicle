@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net"
 	"net/http"
@@ -236,15 +237,16 @@ func (g *GRPCIngestionEngine) handleOTLPExport(w http.ResponseWriter, r *http.Re
 	batch, err := g.decodeOTLPMetricsRequest(body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid metrics request"})
 		return
 	}
 
 	engine := NewOTLPProtoEngine(g.db, DefaultOTLPProtoConfig())
 	result, err := engine.IngestBatch(batch)
 	if err != nil {
+		log.Printf("grpc ingest batch error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 		return
 	}
 

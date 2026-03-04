@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"math"
 	"net/http"
 	"sort"
@@ -509,7 +510,8 @@ func (p *EdgeFederationProtocol) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		result, err := p.ExecuteFederatedQuery(r.Context(), &q)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("federated query error: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
