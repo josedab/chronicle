@@ -14,50 +14,136 @@ import (
 	cq "github.com/chronicle-db/chronicle/internal/continuousquery"
 )
 
-// Type aliases for backward compatibility.
+// ContinuousQueryConfig holds configuration for the continuous query engine.
 type ContinuousQueryConfig = cq.ContinuousQueryConfig
+
+// StateBackendType identifies the storage backend for query state.
 type StateBackendType = cq.StateBackendType
+
+// ContinuousQueryEngine manages the lifecycle of continuous queries.
 type ContinuousQueryEngine = cq.ContinuousQueryEngine
+
+// ContinuousQueryV2 represents a v2 continuous query definition.
 type ContinuousQueryV2 = cq.ContinuousQueryV2
+
+// CQState is the lifecycle state of a continuous query.
 type CQState = cq.CQState
+
+// CQConfig holds per-query configuration for a continuous query.
 type CQConfig = cq.CQConfig
+
+// OutputMode controls how query results are emitted (append, complete, update).
 type OutputMode = cq.OutputMode
+
+// TriggerConfig configures when a continuous query fires.
 type TriggerConfig = cq.TriggerConfig
+
+// TriggerType specifies the trigger strategy for a continuous query.
 type TriggerType = cq.TriggerType
+
+// SinkConfig configures the output destination for query results.
 type SinkConfig = cq.SinkConfig
+
+// CQStats contains runtime statistics for a continuous query.
 type CQStats = cq.CQStats
+
+// QueryPlan is the logical execution plan for a continuous query.
 type QueryPlan = cq.QueryPlan
+
+// PlanNode is a single node in a query execution plan tree.
 type PlanNode = cq.PlanNode
+
+// PlanNodeType identifies the operation type of a plan node.
 type PlanNodeType = cq.PlanNodeType
+
+// CQOperator processes records in a continuous query pipeline.
 type CQOperator = cq.CQOperator
+
+// Record is a single data record flowing through the query pipeline.
 type Record = cq.Record
+
+// MaterializedView is a continuously maintained query result set.
 type MaterializedView = cq.MaterializedView
+
+// CQColumnDef defines a column in a materialized view.
 type CQColumnDef = cq.CQColumnDef
+
+// RefreshMode controls how a materialized view is refreshed (incremental or full).
 type RefreshMode = cq.RefreshMode
+
+// ViewData holds the materialized data for a view.
 type ViewData = cq.ViewData
+
+// QueryStateManager manages persistent state for continuous queries.
 type QueryStateManager = cq.QueryStateManager
+
+// WatermarkTracker tracks event-time watermarks for out-of-order handling.
 type WatermarkTracker = cq.WatermarkTracker
+
+// CQQueryOptimizer optimizes continuous query execution plans.
 type CQQueryOptimizer = cq.CQQueryOptimizer
+
+// OptimizationRule is a plan transformation rule applied by the optimizer.
 type OptimizationRule = cq.OptimizationRule
+
+// CQMetrics collects metrics about continuous query execution.
 type CQMetrics = cq.CQMetrics
+
+// QueryCheckpoint is a saved checkpoint for fault-tolerant query recovery.
 type QueryCheckpoint = cq.QueryCheckpoint
+
+// PredicatePushdownRule pushes filter predicates closer to data sources.
 type PredicatePushdownRule = cq.PredicatePushdownRule
+
+// ProjectionPushdownRule pushes column projections closer to data sources.
 type ProjectionPushdownRule = cq.ProjectionPushdownRule
+
+// JoinReorderRule reorders join operations for better performance.
 type JoinReorderRule = cq.JoinReorderRule
+
+// AggregationOptimizationRule optimizes aggregation operations.
 type AggregationOptimizationRule = cq.AggregationOptimizationRule
+
+// ScanOperator reads records from a data source.
 type ScanOperator = cq.ScanOperator
+
+// FilterOperator removes records that do not match a predicate.
 type FilterOperator = cq.FilterOperator
+
+// ProjectOperator selects or transforms columns in each record.
 type ProjectOperator = cq.ProjectOperator
+
+// AggregateOperator groups and aggregates records.
 type AggregateOperator = cq.AggregateOperator
+
+// WindowOperator applies windowed computations over record streams.
 type WindowOperator = cq.WindowOperator
+
+// WindowBuffer holds records for a single window instance.
 type WindowBuffer = cq.WindowBuffer
+
+// SinkOperator writes processed records to an output destination.
 type SinkOperator = cq.SinkOperator
+
+// PassthroughOperator forwards records without modification.
 type PassthroughOperator = cq.PassthroughOperator
+
+// CQEngineStats contains aggregate statistics for the query engine.
 type CQEngineStats = cq.CQEngineStats
+
+// StreamJoinConfig configures a stream-to-stream join operation.
 type StreamJoinConfig = cq.StreamJoinConfig
+
+// StreamJoinType specifies the type of stream join (inner, left, outer).
 type StreamJoinType = cq.StreamJoinType
+
+// PartitionedQuery is a query that executes across data partitions.
 type PartitionedQuery = cq.PartitionedQuery
+
+// QueryPartition represents one partition of a distributed query.
 type QueryPartition = cq.QueryPartition
+
+// KeyRange defines a contiguous key range for partitioned queries.
 type KeyRange = cq.KeyRange
 
 // Constant aliases.
