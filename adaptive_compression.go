@@ -7,26 +7,64 @@ package chronicle
 
 import "github.com/chronicle-db/chronicle/internal/compression"
 
-// Type aliases from internal/compression.
+// AdaptiveCompressionConfig holds configuration for the adaptive compression engine.
 type AdaptiveCompressionConfig = compression.AdaptiveCompressionConfig
+
+// AdaptiveCompressionEngine selects optimal codecs based on data characteristics.
 type AdaptiveCompressionEngine = compression.AdaptiveCompressionEngine
+
+// CodecType identifies a compression codec (gorilla, delta-delta, zstd, etc.).
 type CodecType = compression.CodecType
+
+// DataCharacteristics describes the statistical properties of a data column.
 type DataCharacteristics = compression.DataCharacteristics
+
+// CompressionStats contains compression performance statistics.
 type CompressionStats = compression.CompressionStats
+
+// CodecPerformance records the measured performance of a codec on a workload.
 type CodecPerformance = compression.CodecPerformance
+
+// ColumnProfile describes the data profile of a column for codec selection.
 type ColumnProfile = compression.ColumnProfile
+
+// ColumnType classifies a column's data distribution (monotonic, sparse, gaussian, etc.).
 type ColumnType = compression.ColumnType
+
+// AutoProfiler automatically profiles columns to determine their data characteristics.
 type AutoProfiler = compression.AutoProfiler
+
+// CodecRecommendation is a recommended codec for a column based on profiling.
 type CodecRecommendation = compression.CodecRecommendation
+
+// CodecRegistry manages available compression codecs.
 type CodecRegistry = compression.CodecRegistry
+
+// CodecEncoder encodes and decodes data using a specific codec.
 type CodecEncoder = compression.CodecEncoder
+
+// PartitionCodecHeader stores per-partition codec metadata.
 type PartitionCodecHeader = compression.PartitionCodecHeader
+
+// CodecSelectionModel uses machine learning to select optimal codecs.
 type CodecSelectionModel = compression.CodecSelectionModel
+
+// BanditStrategy identifies the multi-armed bandit strategy for codec selection.
 type BanditStrategy = compression.BanditStrategy
+
+// ColumnBandit applies bandit algorithms to learn the best codec per column.
 type ColumnBandit = compression.ColumnBandit
+
+// WorkloadLearner learns workload patterns to improve codec selection over time.
 type WorkloadLearner = compression.WorkloadLearner
+
+// AdaptiveCompressionV3Config holds configuration for the v3 adaptive compressor.
 type AdaptiveCompressionV3Config = compression.AdaptiveCompressionV3Config
+
+// AdaptiveCompressorV3 is the third-generation adaptive compression engine.
 type AdaptiveCompressorV3 = compression.AdaptiveCompressorV3
+
+// AdaptiveCompressionV3Stats contains statistics for the v3 compression engine.
 type AdaptiveCompressionV3Stats = compression.AdaptiveCompressionV3Stats
 
 // Codec constants from internal/compression.
