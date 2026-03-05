@@ -94,6 +94,9 @@ type PrivacyFederation struct {
 	// Privacy budget tracking per tenant/source
 	budgets map[string]*PrivacyBudget
 
+	// Rényi DP accountant for tighter composition bounds
+	renyiAccountant *RenyiDPAccountant
+
 	// Registered federated sources
 	sources map[string]*FederatedSource
 
@@ -218,13 +221,14 @@ func NewPrivacyFederation(db *DB, config PrivacyFederationConfig) *PrivacyFedera
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &PrivacyFederation{
-		db:       db,
-		config:   config,
-		budgets:  make(map[string]*PrivacyBudget),
-		sources:  make(map[string]*FederatedSource),
-		auditLog: make([]*PrivacyAuditEntry, 0),
-		ctx:      ctx,
-		cancel:   cancel,
+		db:              db,
+		config:          config,
+		budgets:         make(map[string]*PrivacyBudget),
+		renyiAccountant: NewRenyiDPAccountant(),
+		sources:         make(map[string]*FederatedSource),
+		auditLog:        make([]*PrivacyAuditEntry, 0),
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 }
 
@@ -513,9 +517,23 @@ func (p *PrivacyFederation) addNoise(value, epsilon, sensitivity float64) float6
 	switch p.config.NoiseType {
 	case NoiseTypeLaplace:
 		noise = laplaceSample(scale)
+		// Track with Rényi DP accountant
+		if p.renyiAccountant != nil {
+			p.renyiAccountant.AccountLaplace(scale, sensitivity, DPQueryRecord{
+				Epsilon:     epsilon,
+				Sensitivity: sensitivity,
+			})
+		}
 	case NoiseTypeGaussian:
 		sigma := scale * math.Sqrt(2*math.Log(1.25/p.config.Delta))
 		noise = gaussianSample(sigma)
+		if p.renyiAccountant != nil {
+			p.renyiAccountant.AccountGaussian(sigma, sensitivity, DPQueryRecord{
+				Epsilon:     epsilon,
+				Delta:       p.config.Delta,
+				Sensitivity: sensitivity,
+			})
+		}
 	default:
 		noise = laplaceSample(scale)
 	}
@@ -585,6 +603,18 @@ func (p *PrivacyFederation) GetBudgetStatus() map[string]*PrivacyBudget {
 	return status
 }
 
+// GetComposedPrivacyBound returns the composed (ε,δ)-DP guarantee using Rényi DP.
+func (p *PrivacyFederation) GetComposedPrivacyBound() (epsilon, delta float64) {
+	if p.renyiAccountant == nil {
+		return 0, 0
+	}
+	return p.renyiAccountant.GetEpsilonDelta(p.config.Delta)
+}
+
+// GetRenyiAccountant returns the Rényi DP accountant for external access.
+func (p *PrivacyFederation) GetRenyiAccountant() *RenyiDPAccountant {
+	return p.renyiAccountant
+}
 // GetAuditLog returns recent audit entries.
 func (p *PrivacyFederation) GetAuditLog(limit int) []*PrivacyAuditEntry {
 	p.mu.RLock()

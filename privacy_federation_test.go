@@ -537,3 +537,57 @@ func TestRefreshExpiredBudgets(t *testing.T) {
 		t.Errorf("expected 0 query count after refresh, got %d", status["src1"].QueryCount)
 	}
 }
+
+func TestPrivacyFederation_RenyiDPWiring(t *testing.T) {
+	db := setupTestDB(t)
+	cfg := DefaultPrivacyFederationConfig()
+	pf := NewPrivacyFederation(db, cfg)
+
+	// Verify accountant is initialized
+	acc := pf.GetRenyiAccountant()
+	if acc == nil {
+		t.Fatal("expected non-nil Rényi DP accountant")
+	}
+	if acc.TotalQueries() != 0 {
+		t.Fatal("expected 0 queries initially")
+	}
+
+	// Register a source and execute a query to trigger noise + accounting
+	pf.RegisterSource(&FederatedSource{
+		ID:     "test-src",
+		Name:   "Test Source",
+		Status: FederatedSourceStatusActive,
+	})
+
+	// Write test data
+	now := time.Now().UnixNano()
+	for i := 0; i < 20; i++ {
+		db.Write(Point{Metric: "test_metric", Value: float64(i), Timestamp: now + int64(i)})
+	}
+	db.Flush()
+
+	query := &FederatedQuery{
+		ID:        "q1",
+		Metric:    "test_metric",
+		Sources:   []string{"test-src"},
+		Aggregation: AggregationTypeCount,
+		TimeRange: TimeRange{Start: now - 1000, End: now + 100},
+	}
+
+	_, err := pf.Execute(query)
+	if err != nil {
+		t.Fatalf("execute query: %v", err)
+	}
+
+	// Verify Rényi accountant tracked the noise
+	if acc.TotalQueries() == 0 {
+		t.Error("expected Rényi accountant to have tracked at least one query")
+	}
+
+	// Verify composed bound
+	eps, delta := pf.GetComposedPrivacyBound()
+	if delta != cfg.Delta {
+		t.Errorf("expected delta %f, got %f", cfg.Delta, delta)
+	}
+	_ = eps // eps should be positive after queries
+}
