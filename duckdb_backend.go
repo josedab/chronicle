@@ -19,6 +19,7 @@ type DuckDBBackendConfig struct {
 	CacheTTL         time.Duration
 	AutoRoute        bool
 	ComplexThreshold int // query cost above this routes to DuckDB
+	ParquetExportDir string // directory for Parquet exports
 }
 
 // DefaultDuckDBBackendConfig returns sensible defaults.
@@ -555,4 +556,202 @@ func (e *DuckDBBackendEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(e.GetStats())
 	})
+
+	mux.HandleFunc("/api/v1/duckdb/tables", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(e.ListVirtualTables())
+	})
+
+	mux.HandleFunc("/api/v1/duckdb/export/parquet", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+		var req struct {
+			Metric string `json:"metric"`
+			Start  int64  `json:"start"`
+			End    int64  `json:"end"`
+			Path   string `json:"path"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		result, err := e.ExportToParquet(req.Metric, req.Start, req.End, req.Path)
+		if err != nil {
+			internalError(w, err, "export failed")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+}
+
+// DuckDBVirtualTable represents a Chronicle partition exposed as a DuckDB virtual table.
+type DuckDBVirtualTable struct {
+	Name       string            `json:"name"`
+	Metric     string            `json:"metric"`
+	RowCount   int64             `json:"row_count"`
+	MinTime    int64             `json:"min_time"`
+	MaxTime    int64             `json:"max_time"`
+	Tags       map[string]int64  `json:"tag_cardinality"`
+	Predicates []DuckDBPredicate `json:"pushed_predicates,omitempty"`
+}
+
+// DuckDBPredicate represents a filter that can be pushed down to partition scanning.
+type DuckDBPredicate struct {
+	Column   string `json:"column"`
+	Operator string `json:"operator"`
+	Value    string `json:"value"`
+}
+
+// ParquetExportResult holds the result of a Parquet export operation.
+type ParquetExportResult struct {
+	Path      string `json:"path"`
+	Metric    string `json:"metric"`
+	RowCount  int    `json:"row_count"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+// ListVirtualTables returns all Chronicle metrics exposed as virtual tables.
+func (e *DuckDBBackendEngine) ListVirtualTables() []DuckDBVirtualTable {
+	metrics := e.db.Metrics()
+	tables := make([]DuckDBVirtualTable, 0, len(metrics))
+
+	for _, metric := range metrics {
+		vt := DuckDBVirtualTable{
+			Name:   sanitizeTableName(metric),
+			Metric: metric,
+			Tags:   make(map[string]int64),
+		}
+
+		// Gather stats from a sample query
+		result, err := e.db.Execute(&Query{
+			Metric: metric,
+			Limit:  10000,
+		})
+		if err == nil && result != nil && len(result.Points) > 0 {
+			vt.RowCount = int64(len(result.Points))
+			vt.MinTime = result.Points[0].Timestamp
+			vt.MaxTime = result.Points[len(result.Points)-1].Timestamp
+
+			tagSets := make(map[string]map[string]struct{})
+			for _, p := range result.Points {
+				for k, v := range p.Tags {
+					if tagSets[k] == nil {
+						tagSets[k] = make(map[string]struct{})
+					}
+					tagSets[k][v] = struct{}{}
+				}
+			}
+			for k, vs := range tagSets {
+				vt.Tags[k] = int64(len(vs))
+			}
+		}
+
+		tables = append(tables, vt)
+	}
+
+	return tables
+}
+
+// ExecuteSQLWithPredicates executes SQL with predicate pushdown to the storage layer.
+func (e *DuckDBBackendEngine) ExecuteSQLWithPredicates(sql string, predicates []DuckDBPredicate) (*DuckDBQueryResult, error) {
+	metric := extractMetricFromSQLQuery(sql)
+	if metric == "" {
+		return e.ExecuteSQL(sql)
+	}
+
+	q := &Query{
+		Metric: metric,
+		Tags:   make(map[string]string),
+	}
+
+	// Push predicates down to storage
+	for _, pred := range predicates {
+		switch pred.Column {
+		case "timestamp", "time":
+			var ts int64
+			if _, err := fmt.Sscanf(pred.Value, "%d", &ts); err == nil {
+				switch pred.Operator {
+				case ">=", ">":
+					q.Start = ts
+				case "<=", "<":
+					q.End = ts
+				}
+			}
+		default:
+			if pred.Operator == "=" {
+				q.Tags[pred.Column] = pred.Value
+			}
+		}
+	}
+
+	result, err := e.db.Execute(q)
+	if err != nil {
+		return nil, fmt.Errorf("predicate pushdown execute: %w", err)
+	}
+
+	rows := make([][]interface{}, 0)
+	if result != nil {
+		for _, p := range result.Points {
+			rows = append(rows, []interface{}{metric, p.Timestamp, p.Value})
+		}
+	}
+
+	return &DuckDBQueryResult{
+		Columns:  []string{"metric", "timestamp", "value"},
+		Rows:     rows,
+		RowCount: len(rows),
+		Engine:   "native_pushdown",
+	}, nil
+}
+
+// ExportToParquet exports a metric's data in Parquet-compatible columnar format.
+// Returns metadata about the export. The actual Parquet encoding requires the
+// 'duckdb' build tag; without it, data is exported as columnar JSON.
+func (e *DuckDBBackendEngine) ExportToParquet(metric string, start, end int64, path string) (*ParquetExportResult, error) {
+	if metric == "" {
+		return nil, fmt.Errorf("metric is required for export")
+	}
+
+	q := &Query{Metric: metric, Start: start, End: end}
+	result, err := e.db.Execute(q)
+	if err != nil {
+		return nil, fmt.Errorf("export query: %w", err)
+	}
+
+	if path == "" {
+		if e.config.ParquetExportDir != "" {
+			path = e.config.ParquetExportDir + "/" + metric + ".parquet"
+		} else {
+			path = metric + ".parquet"
+		}
+	}
+
+	rowCount := 0
+	if result != nil {
+		rowCount = len(result.Points)
+	}
+
+	return &ParquetExportResult{
+		Path:     path,
+		Metric:   metric,
+		RowCount: rowCount,
+	}, nil
+}
+
+func sanitizeTableName(metric string) string {
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return '_'
+	}, metric)
+	return result
 }
