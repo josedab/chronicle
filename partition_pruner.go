@@ -181,3 +181,49 @@ func (e *PartitionPrunerEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		json.NewEncoder(w).Encode(e.ListPartitions())
 	})
 }
+
+// PruneWithBloomFilters extends time-range pruning with bloom-filter-based tag predicate pruning.
+func (e *PartitionPrunerEngine) PruneWithBloomFilters(q *Query, blooms map[string]*PartitionBloomFilter) PruneResult {
+	// First: time-range pruning
+	timeResult := e.Prune(q)
+
+	if len(blooms) == 0 || q == nil || len(q.Tags) == 0 {
+		return timeResult
+	}
+
+	// Second: tag predicate pruning via bloom filters
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	bloomPruned := 0
+	for _, p := range e.partitions {
+		// Skip already time-pruned partitions
+		if (q.End != 0 && p.StartTime >= q.End) || (q.Start != 0 && p.EndTime <= q.Start) {
+			continue
+		}
+
+		bf, hasBF := blooms[p.ID]
+		if !hasBF {
+			continue
+		}
+
+		for key, value := range q.Tags {
+			if !bf.MayContain(key, value) {
+				bloomPruned++
+				break
+			}
+		}
+	}
+
+	e.totalPruned += int64(bloomPruned)
+	if e.totalScanned > int64(bloomPruned) {
+		e.totalScanned -= int64(bloomPruned)
+	}
+
+	return PruneResult{
+		TotalPartitions:   timeResult.TotalPartitions,
+		PrunedPartitions:  timeResult.PrunedPartitions + bloomPruned,
+		ScannedPartitions: timeResult.ScannedPartitions - bloomPruned,
+		Reason:            "time_range+bloom_filter",
+	}
+}
