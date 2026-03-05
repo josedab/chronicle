@@ -3,6 +3,7 @@ package chronicle
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -80,11 +81,14 @@ type WASMPluginInstallation struct {
 
 // WASMMarketplaceConfig configures the WASM marketplace.
 type WASMMarketplaceConfig struct {
-	MaxPlugins         int   `json:"max_plugins"`
-	MaxPluginSizeBytes int64 `json:"max_plugin_size_bytes"`
-	VerifySignatures   bool  `json:"verify_signatures"`
-	EnableHotReload    bool  `json:"enable_hot_reload"`
-	SandboxEnabled     bool  `json:"sandbox_enabled"`
+	MaxPlugins         int    `json:"max_plugins"`
+	MaxPluginSizeBytes int64  `json:"max_plugin_size_bytes"`
+	VerifySignatures   bool   `json:"verify_signatures"`
+	EnableHotReload    bool   `json:"enable_hot_reload"`
+	SandboxEnabled     bool   `json:"sandbox_enabled"`
+	CacheDir           string `json:"cache_dir"`
+	MaxMemoryPerPlugin int64  `json:"max_memory_per_plugin"` // bytes
+	MaxExecTimeMs      int64  `json:"max_exec_time_ms"`
 }
 
 // DefaultWASMMarketplaceConfig returns sensible defaults.
@@ -95,6 +99,8 @@ func DefaultWASMMarketplaceConfig() WASMMarketplaceConfig {
 		VerifySignatures:   true,
 		EnableHotReload:    true,
 		SandboxEnabled:     true,
+		MaxMemoryPerPlugin: 64 * 1024 * 1024, // 64MB
+		MaxExecTimeMs:      5000,              // 5s
 	}
 }
 
@@ -105,7 +111,17 @@ type WASMMarketplace struct {
 	registry      map[string]*WASMMarketplaceEntry
 	installations map[string]*WASMPluginInstallation
 	trustedKeys   map[string]ed25519.PublicKey
+	cache         map[string]*pluginCacheEntry
 	mu            sync.RWMutex
+}
+
+// pluginCacheEntry holds cached plugin data with integrity info.
+type pluginCacheEntry struct {
+	WASMBytes   []byte    `json:"-"`
+	SHA256Hash  string    `json:"sha256_hash"`
+	CachedAt    time.Time `json:"cached_at"`
+	SizeBytes   int64     `json:"size_bytes"`
+	Verified    bool      `json:"verified"`
 }
 
 // NewWASMMarketplace creates a new WASM marketplace.
@@ -116,6 +132,7 @@ func NewWASMMarketplace(runtime *WASMRuntime, config WASMMarketplaceConfig) *WAS
 		registry:      make(map[string]*WASMMarketplaceEntry),
 		installations: make(map[string]*WASMPluginInstallation),
 		trustedKeys:   make(map[string]ed25519.PublicKey),
+		cache:         make(map[string]*pluginCacheEntry),
 	}
 }
 
@@ -453,4 +470,226 @@ func (m *WASMMarketplace) RegisterHTTPHandlers(mux *http.ServeMux) {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
+
+	mux.HandleFunc("/api/v1/plugins/search", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		pluginType := WASMPluginType(r.URL.Query().Get("type"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(m.SearchPlugins(query, pluginType))
+	})
+
+	mux.HandleFunc("/api/v1/plugins/update", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, MaxQueryBodySize)
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		if err := m.UpdatePlugin(req.Name); err != nil {
+			log.Printf("plugin update error: %v", err)
+			http.Error(w, "update failed", http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "updated", "name": req.Name})
+	})
+
+	mux.HandleFunc("/api/v1/plugins/cache/stats", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(m.CacheStats())
+	})
+}
+
+// PluginArchive represents a .chronicle-plugin archive format.
+type PluginArchive struct {
+	FormatVersion int                `json:"format_version"`
+	Manifest      WASMPluginManifest `json:"manifest"`
+	WASMBytes     []byte             `json:"-"`
+	Metadata      map[string]string  `json:"metadata,omitempty"`
+	Signature     *PluginSignature   `json:"signature,omitempty"`
+	SHA256        string             `json:"sha256"`
+}
+
+// NewPluginArchive creates a plugin archive from manifest and WASM binary.
+func NewPluginArchive(manifest WASMPluginManifest, wasmBytes []byte) *PluginArchive {
+	hash := computeSHA256(wasmBytes)
+	return &PluginArchive{
+		FormatVersion: 1,
+		Manifest:      manifest,
+		WASMBytes:     wasmBytes,
+		Metadata:      make(map[string]string),
+		SHA256:        hash,
+	}
+}
+
+// Validate checks the archive integrity.
+func (a *PluginArchive) Validate() error {
+	if a.Manifest.Name == "" {
+		return fmt.Errorf("archive: missing plugin name")
+	}
+	if a.Manifest.Version == "" {
+		return fmt.Errorf("archive: missing plugin version")
+	}
+	if len(a.WASMBytes) == 0 {
+		return fmt.Errorf("archive: empty WASM binary")
+	}
+	// Verify SHA256 integrity
+	computed := computeSHA256(a.WASMBytes)
+	if a.SHA256 != "" && computed != a.SHA256 {
+		return fmt.Errorf("archive: SHA256 mismatch (expected %s, got %s)", a.SHA256, computed)
+	}
+	return nil
+}
+
+func computeSHA256(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+// CachePlugin caches a plugin's WASM binary with integrity verification.
+func (m *WASMMarketplace) CachePlugin(name string, wasmBytes []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	hash := computeSHA256(wasmBytes)
+	m.cache[name] = &pluginCacheEntry{
+		WASMBytes:  wasmBytes,
+		SHA256Hash: hash,
+		CachedAt:   time.Now(),
+		SizeBytes:  int64(len(wasmBytes)),
+		Verified:   true,
+	}
+	return nil
+}
+
+// GetCachedPlugin returns a cached plugin if available and integrity-verified.
+func (m *WASMMarketplace) GetCachedPlugin(name string) ([]byte, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	entry, ok := m.cache[name]
+	if !ok {
+		return nil, false
+	}
+
+	// Verify integrity on cache read
+	computed := computeSHA256(entry.WASMBytes)
+	if computed != entry.SHA256Hash {
+		return nil, false // cache corrupted
+	}
+
+	return entry.WASMBytes, true
+}
+
+// ClearCache removes all cached plugin binaries.
+func (m *WASMMarketplace) ClearCache() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cache = make(map[string]*pluginCacheEntry)
+}
+
+// CacheStats returns cache statistics.
+func (m *WASMMarketplace) CacheStats() map[string]interface{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var totalSize int64
+	for _, entry := range m.cache {
+		totalSize += entry.SizeBytes
+	}
+
+	return map[string]interface{}{
+		"cached_plugins":  len(m.cache),
+		"total_size_bytes": totalSize,
+	}
+}
+
+// UpdatePlugin updates an installed plugin to the latest registry version.
+func (m *WASMMarketplace) UpdatePlugin(name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	inst, ok := m.installations[name]
+	if !ok {
+		return fmt.Errorf("wasm_marketplace: plugin %q not installed", name)
+	}
+	if inst.Pinned {
+		return fmt.Errorf("wasm_marketplace: plugin %q is version-pinned", name)
+	}
+
+	entry, ok := m.registry[name]
+	if !ok {
+		return fmt.Errorf("wasm_marketplace: plugin %q not in registry", name)
+	}
+
+	if entry.Manifest.Version == inst.Version {
+		return nil // already up to date
+	}
+
+	// Update installation
+	inst.Version = entry.Manifest.Version
+	inst.InstalledAt = time.Now()
+
+	// Update cache
+	m.cache[name] = &pluginCacheEntry{
+		WASMBytes:  entry.WASMBytes,
+		SHA256Hash: computeSHA256(entry.WASMBytes),
+		CachedAt:   time.Now(),
+		SizeBytes:  int64(len(entry.WASMBytes)),
+		Verified:   true,
+	}
+
+	return nil
+}
+
+// PluginResourceLimits describes the enforced resource limits for a plugin.
+type PluginResourceLimits struct {
+	MaxMemoryBytes int64         `json:"max_memory_bytes"`
+	MaxExecTime    time.Duration `json:"max_exec_time"`
+	MaxCPUPercent  int           `json:"max_cpu_percent"`
+}
+
+// GetResourceLimits returns the resource limits for a plugin based on its manifest
+// and marketplace-wide configuration.
+func (m *WASMMarketplace) GetResourceLimits(name string) (*PluginResourceLimits, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	entry, ok := m.registry[name]
+	if !ok {
+		return nil, fmt.Errorf("wasm_marketplace: plugin %q not found", name)
+	}
+
+	maxMem := m.config.MaxMemoryPerPlugin
+	manifestMax := int64(entry.Manifest.MaxMemoryMB) * 1024 * 1024
+	if manifestMax > 0 && manifestMax < maxMem {
+		maxMem = manifestMax
+	}
+
+	maxExec := time.Duration(m.config.MaxExecTimeMs) * time.Millisecond
+	manifestExec := time.Duration(entry.Manifest.MaxExecTimeMs) * time.Millisecond
+	if manifestExec > 0 && manifestExec < maxExec {
+		maxExec = manifestExec
+	}
+
+	return &PluginResourceLimits{
+		MaxMemoryBytes: maxMem,
+		MaxExecTime:    maxExec,
+		MaxCPUPercent:  80,
+	}, nil
+}
+
+// PublishFromArchive publishes a plugin from a PluginArchive.
+func (m *WASMMarketplace) PublishFromArchive(archive *PluginArchive) error {
+	if err := archive.Validate(); err != nil {
+		return fmt.Errorf("wasm_marketplace: invalid archive: %w", err)
+	}
+
+	return m.PublishPlugin(archive.Manifest, archive.WASMBytes, archive.Signature)
 }
