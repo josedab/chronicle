@@ -35,6 +35,26 @@ This document describes the Chronicle HTTP API endpoints available when `HTTPEna
 | `/api/v1/anomalies/baseline/{metric}` | GET | Get baseline for a metric |
 | `/api/v1/incidents` | GET | List correlated incidents |
 | `/metrics` | GET | List registered metric names |
+| `/api/v1/views` | GET | List materialized views |
+| `/api/v2/views` | GET | List materialized views (v2) |
+| `/api/v1/planner/stats` | GET | Query planner statistics |
+| `/api/v1/connectors` | GET | List connector hub connectors |
+| `/api/v1/connectors/drivers` | GET | List available connector drivers |
+| `/api/v1/notebooks` | GET | List notebooks |
+| `/api/v1/compile` | POST | Compile a query to an execution plan |
+| `/api/v1/compile/stats` | GET | Query compiler statistics |
+| `/api/v1/rag/ask` | POST | Ask a natural-language question (RAG) |
+| `/api/v1/rag/stats` | GET | RAG engine statistics |
+| `/api/v1/plugins` | GET | List registered plugins |
+| `/api/v1/fleet/agents` | GET | List fleet agents |
+| `/api/v1/fleet/stats` | GET | Fleet manager statistics |
+| `/api/v1/retention/stats` | GET | Smart retention statistics |
+| `/api/v1/retention/profiles` | GET | List retention profiles |
+| `/api/v1/retention/evaluate` | POST | Evaluate retention recommendations |
+| `/api/v1/hardening/run` | POST | Run production hardening checks |
+| `/api/v1/hardening/summary` | GET | Hardening suite summary |
+| `/openapi.json` | GET | OpenAPI 3.0 specification (auto-generated) |
+| `/swagger` | GET | Swagger UI for interactive API exploration |
 
 ---
 
@@ -641,15 +661,116 @@ Export endpoints are available through different subsystems:
 
 Export time-series data via Chronicle Studio.
 
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "metric": "cpu",
+  "start": 1609459200000000000,
+  "end": 1609462800000000000,
+  "format": "csv",
+  "tags": {"host": "server01"},
+  "limit": 10000
+}
+```
+
+**Parameters:**
+- `metric` (required): Metric name to export
+- `start` (optional): Start timestamp (nanoseconds)
+- `end` (optional): End timestamp (nanoseconds)
+- `format` (optional): Output format — `json`, `csv`, `parquet` (default: `json`)
+- `tags` (optional): Tag filters
+- `limit` (optional): Maximum number of points
+
+**Response (200 OK):**
+```json
+{
+  "format": "csv",
+  "rows": 1500,
+  "data": "timestamp,value,host\n1609459200000000000,0.64,server01\n..."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/studio/export \
+  -H "Content-Type: application/json" \
+  -d '{"metric":"cpu","format":"json","limit":100}'
+```
+
 ### GET /api/v1/catalog/export
 
 Export the metrics catalog.
 
+**Query Parameters:**
+- `format` (optional): Output format — `json`, `csv` (default: `json`)
+
+**Response (200 OK):**
+```json
+{
+  "metrics": [
+    {
+      "name": "cpu",
+      "type": "gauge",
+      "labels": ["host", "region"],
+      "description": "CPU usage percentage",
+      "unit": "percent"
+    }
+  ],
+  "total": 15
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:8086/api/v1/catalog/export?format=json"
+```
+
 ### POST /api/v1/iceberg/export
 
-Export data in Apache Iceberg format.
+Export data in Apache Iceberg format for lakehouse integration.
 
-All export endpoints accept format parameters and return `200 OK` with the exported data.
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "metric": "cpu",
+  "start": 1609459200000000000,
+  "end": 1609462800000000000,
+  "catalog": "default",
+  "namespace": "chronicle",
+  "table": "cpu_metrics"
+}
+```
+
+**Parameters:**
+- `metric` (required): Metric name to export
+- `start` / `end` (optional): Time range (nanosecond timestamps)
+- `catalog` (optional): Iceberg catalog name (default: `default`)
+- `namespace` (optional): Iceberg namespace
+- `table` (optional): Target table name
+
+**Response (200 OK):**
+```json
+{
+  "status": "completed",
+  "records_exported": 50000,
+  "bytes_written": 2048576,
+  "table": "chronicle.cpu_metrics",
+  "snapshot_id": "snap-001"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/iceberg/export \
+  -H "Content-Type: application/json" \
+  -d '{"metric":"cpu","catalog":"default","table":"cpu_export"}'
+```
+
+All export endpoints return `200 OK` on success or `400 Bad Request` for invalid parameters.
 
 ---
 
@@ -880,3 +1001,488 @@ List all registered metric names.
 ```json
 ["cpu", "memory", "disk", "network"]
 ```
+
+---
+
+## Materialized Views
+
+### GET /api/v1/views
+
+List all materialized views (v1).
+
+**Response (200 OK):**
+```json
+[
+  {
+    "name": "avg_cpu_5m",
+    "query": "SELECT avg(value) FROM cpu GROUP BY time(5m)",
+    "status": "active",
+    "last_refresh": "2026-01-15T10:30:00Z"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/views
+```
+
+### GET /api/v2/views
+
+List all materialized views (v2 engine with incremental refresh support).
+
+**Response (200 OK):**
+```json
+[
+  {
+    "name": "avg_cpu_5m",
+    "query": "SELECT avg(value) FROM cpu GROUP BY time(5m)",
+    "status": "active",
+    "refresh_mode": "incremental",
+    "last_refresh": "2026-01-15T10:30:00Z"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v2/views
+```
+
+---
+
+## Query Planner
+
+### GET /api/v1/planner/stats
+
+Get query planner statistics including cache hit rates and optimization metrics.
+
+**Response (200 OK):**
+```json
+{
+  "queries_planned": 1500,
+  "cache_hits": 1200,
+  "cache_misses": 300,
+  "avg_plan_time_ms": 2.5
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/planner/stats
+```
+
+---
+
+## Connector Hub
+
+### GET /api/v1/connectors
+
+List all registered connectors.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "pg-source-1",
+    "driver": "postgres",
+    "status": "running",
+    "direction": "source"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/connectors
+```
+
+### GET /api/v1/connectors/drivers
+
+List available connector drivers.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "name": "postgres",
+    "type": "source",
+    "version": "1.0.0"
+  },
+  {
+    "name": "kafka",
+    "type": "sink",
+    "version": "1.0.0"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/connectors/drivers
+```
+
+---
+
+## Notebooks
+
+### GET /api/v1/notebooks
+
+List all notebooks.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "nb-001",
+    "title": "CPU Analysis",
+    "created_at": "2026-01-15T10:00:00Z",
+    "cells": 5
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/notebooks
+```
+
+---
+
+## Query Compiler
+
+### POST /api/v1/compile
+
+Compile a query into an execution plan without executing it.
+
+**Content-Type:** `text/plain`
+
+**Request Body:**
+```
+SELECT avg(value) FROM cpu WHERE host = 'server01' GROUP BY time(5m)
+```
+
+**Response (200 OK):**
+```json
+{
+  "plan": "Scan(cpu) → Filter(host=server01) → GroupBy(5m) → Aggregate(avg)",
+  "estimated_cost": 120,
+  "optimizations_applied": ["predicate_pushdown", "projection_pruning"]
+}
+```
+
+**Status Codes:**
+- `200 OK`: Compilation successful
+- `400 Bad Request`: Invalid query syntax
+- `405 Method Not Allowed`: Only POST is accepted
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/compile \
+  -d "SELECT avg(value) FROM cpu GROUP BY time(5m)"
+```
+
+### GET /api/v1/compile/stats
+
+Get query compiler statistics.
+
+**Response (200 OK):**
+```json
+{
+  "total_compilations": 500,
+  "cache_hits": 350,
+  "avg_compile_time_ms": 1.2
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/compile/stats
+```
+
+---
+
+## Time-Series RAG
+
+### POST /api/v1/rag/ask
+
+Ask a natural-language question about your time-series data using Retrieval-Augmented Generation.
+
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "question": "What caused the CPU spike yesterday at 3pm?",
+  "context_window": "24h",
+  "max_results": 5
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "answer": "The CPU spike at 15:00 correlates with a deployment event...",
+  "sources": [
+    {
+      "metric": "cpu",
+      "timestamp": "2026-01-14T15:00:00Z",
+      "value": 98.5
+    }
+  ],
+  "confidence": 0.85
+}
+```
+
+**Status Codes:**
+- `200 OK`: Answer generated
+- `400 Bad Request`: Invalid request body
+- `405 Method Not Allowed`: Only POST is accepted
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/rag/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What is the average CPU usage today?"}'
+```
+
+### GET /api/v1/rag/stats
+
+Get RAG engine statistics.
+
+**Response (200 OK):**
+```json
+{
+  "total_queries": 200,
+  "avg_response_time_ms": 450,
+  "cache_hit_rate": 0.3
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/rag/stats
+```
+
+---
+
+## Plugin Registry
+
+### GET /api/v1/plugins
+
+List all registered plugins.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "name": "custom-aggregator",
+    "version": "1.2.0",
+    "status": "active",
+    "type": "aggregation"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/plugins
+```
+
+---
+
+## Fleet Manager
+
+### GET /api/v1/fleet/agents
+
+List all fleet agents.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "agent-001",
+    "hostname": "edge-node-1",
+    "status": "healthy",
+    "last_heartbeat": "2026-01-15T10:29:55Z",
+    "version": "1.0.0"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/fleet/agents
+```
+
+### GET /api/v1/fleet/stats
+
+Get fleet manager statistics.
+
+**Response (200 OK):**
+```json
+{
+  "total_agents": 50,
+  "healthy_agents": 48,
+  "unhealthy_agents": 2,
+  "avg_heartbeat_latency_ms": 120
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/fleet/stats
+```
+
+---
+
+## Smart Retention
+
+### GET /api/v1/retention/stats
+
+Get smart retention engine statistics.
+
+**Response (200 OK):**
+```json
+{
+  "metrics_managed": 15,
+  "profiles_active": 3,
+  "bytes_reclaimed": 1073741824,
+  "last_evaluation": "2026-01-15T10:00:00Z"
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/retention/stats
+```
+
+### GET /api/v1/retention/profiles
+
+List all retention profiles.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "name": "default",
+    "retention": "30d",
+    "downsample_after": "7d",
+    "metrics_matched": 10
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/retention/profiles
+```
+
+### POST /api/v1/retention/evaluate
+
+Evaluate retention recommendations for the current data.
+
+**Response (200 OK):**
+```json
+{
+  "recommendations": [
+    {
+      "metric": "cpu",
+      "current_retention": "90d",
+      "suggested_retention": "30d",
+      "estimated_savings_bytes": 536870912
+    }
+  ]
+}
+```
+
+**Status Codes:**
+- `200 OK`: Evaluation complete
+- `405 Method Not Allowed`: Only POST is accepted
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/retention/evaluate
+```
+
+---
+
+## Production Hardening
+
+### POST /api/v1/hardening/run
+
+Run all production hardening checks.
+
+**Response (200 OK):**
+```json
+{
+  "checks": [
+    {
+      "name": "wal_sync",
+      "status": "pass",
+      "details": "WAL sync is enabled"
+    },
+    {
+      "name": "tls_enabled",
+      "status": "fail",
+      "details": "TLS is not configured"
+    }
+  ],
+  "passed": 8,
+  "failed": 2,
+  "total": 10
+}
+```
+
+**Status Codes:**
+- `200 OK`: Checks completed
+- `405 Method Not Allowed`: Only POST is accepted
+
+**Example:**
+```bash
+curl -X POST http://localhost:8086/api/v1/hardening/run
+```
+
+### GET /api/v1/hardening/summary
+
+Get a summary of the last hardening check results.
+
+**Response (200 OK):**
+```json
+{
+  "score": 80,
+  "passed": 8,
+  "failed": 2,
+  "last_run": "2026-01-15T10:30:00Z"
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8086/api/v1/hardening/summary
+```
+
+---
+
+## API Discovery
+
+### GET /openapi.json
+
+Returns the auto-generated OpenAPI 3.0 specification for the Chronicle API. Use this to generate client SDKs, import into Postman, or integrate with API gateways.
+
+**Response:** `200 OK` with `application/json` OpenAPI 3.0.3 document.
+
+**Example:**
+```bash
+curl http://localhost:8086/openapi.json
+```
+
+### GET /swagger
+
+Serves an interactive Swagger UI for exploring and testing the API.
+
+**Example:**
+
+Open `http://localhost:8086/swagger` in a browser.
+
+> **Note:** Both `/openapi.json` and `/swagger` are registered automatically when the HTTP server starts. No additional configuration is required.
