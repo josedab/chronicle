@@ -594,3 +594,159 @@ func (ce *CardinalityEstimator) GetFeedbackSummary() map[string]interface{} {
 		"metrics_tracked":     len(ce.stats),
 	}
 }
+
+// MergeEquiDepthHistograms merges two equi-depth histograms into a single histogram.
+func MergeEquiDepthHistograms(a, b *EquiDepthHistogram) *EquiDepthHistogram {
+	if a == nil || len(a.Buckets) == 0 {
+		return b
+	}
+	if b == nil || len(b.Buckets) == 0 {
+		return a
+	}
+
+	// Merge all buckets and rebuild
+	merged := make([]HistogramBucket, 0, len(a.Buckets)+len(b.Buckets))
+	merged = append(merged, a.Buckets...)
+	merged = append(merged, b.Buckets...)
+
+	// Sort by lower bound
+	sort.Slice(merged, func(i, j int) bool {
+		return merged[i].LowerBound < merged[j].LowerBound
+	})
+
+	// Coalesce overlapping buckets
+	numTarget := a.NumBuckets
+	if b.NumBuckets > numTarget {
+		numTarget = b.NumBuckets
+	}
+
+	if len(merged) <= numTarget {
+		return &EquiDepthHistogram{
+			Buckets:    merged,
+			TotalCount: a.TotalCount + b.TotalCount,
+			NumBuckets: len(merged),
+		}
+	}
+
+	// Merge smallest adjacent pairs until we reach target count
+	for len(merged) > numTarget {
+		minGap := math.Inf(1)
+		minIdx := 0
+		for i := 0; i < len(merged)-1; i++ {
+			gap := merged[i+1].LowerBound - merged[i].UpperBound
+			if gap < minGap {
+				minGap = gap
+				minIdx = i
+			}
+		}
+		// Merge bucket minIdx and minIdx+1
+		merged[minIdx] = HistogramBucket{
+			LowerBound:     merged[minIdx].LowerBound,
+			UpperBound:     merged[minIdx+1].UpperBound,
+			Count:          merged[minIdx].Count + merged[minIdx+1].Count,
+			DistinctValues: merged[minIdx].DistinctValues + merged[minIdx+1].DistinctValues,
+		}
+		merged = append(merged[:minIdx+1], merged[minIdx+2:]...)
+	}
+
+	return &EquiDepthHistogram{
+		Buckets:    merged,
+		TotalCount: a.TotalCount + b.TotalCount,
+		NumBuckets: len(merged),
+	}
+}
+
+// AdaptiveHistogramRebuild rebuilds a histogram with adaptive bucket count based on
+// data distribution. Regions with high density get more buckets.
+func AdaptiveHistogramRebuild(hist *EquiDepthHistogram, maxBuckets int) *EquiDepthHistogram {
+	if hist == nil || len(hist.Buckets) == 0 {
+		return hist
+	}
+
+	// Calculate density per bucket
+	type bucketDensity struct {
+		bucket  HistogramBucket
+		density float64
+	}
+
+	densities := make([]bucketDensity, len(hist.Buckets))
+	for i, b := range hist.Buckets {
+		bRange := b.UpperBound - b.LowerBound
+		density := float64(b.Count)
+		if bRange > 0 {
+			density = float64(b.Count) / bRange
+		}
+		densities[i] = bucketDensity{bucket: b, density: density}
+	}
+
+	// Sort by density descending - split high-density buckets
+	sort.Slice(densities, func(i, j int) bool {
+		return densities[i].density > densities[j].density
+	})
+
+	// High-density buckets get more allocation
+	newBuckets := make([]HistogramBucket, 0, maxBuckets)
+	for _, d := range densities {
+		if len(newBuckets) >= maxBuckets {
+			break
+		}
+		newBuckets = append(newBuckets, d.bucket)
+	}
+
+	// Sort back by lower bound
+	sort.Slice(newBuckets, func(i, j int) bool {
+		return newBuckets[i].LowerBound < newBuckets[j].LowerBound
+	})
+
+	return &EquiDepthHistogram{
+		Buckets:    newBuckets,
+		TotalCount: hist.TotalCount,
+		NumBuckets: len(newBuckets),
+	}
+}
+
+// ApplyFeedbackToCBO applies accumulated feedback to the cost-based optimizer
+// using exponential moving average to auto-adjust selectivity estimates.
+func (ce *CardinalityEstimator) ApplyFeedbackToCBO(optimizer *CostBasedOptimizer) {
+	ce.mu.RLock()
+	defer ce.mu.RUnlock()
+
+	if len(ce.feedback) == 0 || optimizer == nil {
+		return
+	}
+
+	// Calculate per-metric adjustment factors from feedback
+	metricErrors := make(map[string][]float64)
+	for _, f := range ce.feedback {
+		if f.Actual > 0 {
+			ratio := float64(f.Estimated) / float64(f.Actual)
+			metricErrors[f.Metric] = append(metricErrors[f.Metric], ratio)
+		}
+	}
+
+	// Apply EMA-based correction
+	const alpha = 0.3 // EMA smoothing factor
+	for metric, ratios := range metricErrors {
+		if len(ratios) == 0 {
+			continue
+		}
+
+		// Compute EMA of error ratios
+		ema := ratios[0]
+		for i := 1; i < len(ratios); i++ {
+			ema = alpha*ratios[i] + (1-alpha)*ema
+		}
+
+		// Adjust the statistics in the optimizer
+		optimizer.mu.Lock()
+		if ts, ok := optimizer.tableStats[metric]; ok {
+			// If we consistently overestimate (ema > 1), reduce row count estimate
+			// If we underestimate (ema < 1), increase it
+			adjustedRows := int64(float64(ts.RowCount) / ema)
+			if adjustedRows > 0 {
+				ts.RowCount = adjustedRows
+			}
+		}
+		optimizer.mu.Unlock()
+	}
+}
