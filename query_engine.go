@@ -10,12 +10,18 @@ import (
 // QueryEngine provides additional query functionality on top of the DB.
 // It wraps the DB's Execute methods with additional validation and cost estimation.
 type QueryEngine struct {
-	db *DB
+	db  *DB
+	cbo *CostBasedOptimizer
 }
 
 // NewQueryEngine creates a new query engine wrapping the given database.
 func NewQueryEngine(db *DB) *QueryEngine {
 	return &QueryEngine{db: db}
+}
+
+// NewQueryEngineWithCBO creates a query engine with cost-based optimizer integration.
+func NewQueryEngineWithCBO(db *DB, cbo *CostBasedOptimizer) *QueryEngine {
+	return &QueryEngine{db: db, cbo: cbo}
 }
 
 // Execute runs a query and returns results. Delegates to DB.Execute.
@@ -224,6 +230,7 @@ func (qe *QueryEngine) ScanWithPredicate(ctx context.Context, q *Query, pred *Pr
 }
 
 // ExecuteAdaptive selects the best execution path based on data characteristics.
+// When a CostBasedOptimizer is configured, it uses CBO plan selection.
 func (qe *QueryEngine) ExecuteAdaptive(ctx context.Context, q *Query) (*Result, ExecutionPath, error) {
 	if err := qe.ValidateQuery(q); err != nil {
 		return nil, PathRowOriented, err
@@ -232,6 +239,11 @@ func (qe *QueryEngine) ExecuteAdaptive(ctx context.Context, q *Query) (*Result, 
 	if q.Aggregation == nil {
 		result, err := qe.db.ExecuteContext(ctx, q)
 		return result, PathRowOriented, err
+	}
+
+	// Use CBO-driven path selection when available
+	if qe.cbo != nil {
+		return qe.executeCBOAdaptive(ctx, q)
 	}
 
 	cost := qe.EstimateQueryCost(q)
@@ -246,6 +258,69 @@ func (qe *QueryEngine) ExecuteAdaptive(ctx context.Context, q *Query) (*Result, 
 	default:
 		return qe.executeParallelColumnar(ctx, q)
 	}
+}
+
+// executeCBOAdaptive uses the cost-based optimizer to choose the execution path.
+func (qe *QueryEngine) executeCBOAdaptive(ctx context.Context, q *Query) (*Result, ExecutionPath, error) {
+	plan, err := qe.cbo.ChooseBestPlan(q)
+	if err != nil {
+		// Fallback to heuristic path on CBO error
+		cost := qe.EstimateQueryCost(q)
+		estimatedPoints := int(cost.EstimatedSeries) * cost.EstimatedPartitions
+		if estimatedPoints < 500 {
+			result, execErr := qe.db.ExecuteContext(ctx, q)
+			return result, PathRowOriented, execErr
+		}
+		return qe.ExecuteVectorized(ctx, q)
+	}
+
+	switch plan.Plan {
+	case PlanColumnarBatch:
+		return qe.executeColumnarBatch(ctx, q, plan)
+	case PlanIndexScan, PlanIndexOnly:
+		return qe.ExecuteVectorized(ctx, q)
+	default:
+		result, execErr := qe.db.ExecuteContext(ctx, q)
+		return result, PathRowOriented, execErr
+	}
+}
+
+// executeColumnarBatch uses columnar batch processing driven by CBO plan.
+func (qe *QueryEngine) executeColumnarBatch(ctx context.Context, q *Query, plan *CBOPlanCandidate) (*Result, ExecutionPath, error) {
+	rawQ := &Query{
+		Metric: q.Metric,
+		Tags:   q.Tags,
+		Start:  q.Start,
+		End:    q.End,
+	}
+	rawResult, err := qe.db.ExecuteContext(ctx, rawQ)
+	if err != nil {
+		return nil, PathColumnar, err
+	}
+	if len(rawResult.Points) == 0 {
+		return &Result{}, PathColumnar, nil
+	}
+
+	// Determine worker count based on estimated rows
+	workers := int(plan.EstimatedRows) / 50000
+	if workers < 2 {
+		workers = 2
+	}
+	if workers > 8 {
+		workers = 8
+	}
+
+	pa := NewParallelBatchAggregator(workers, DefaultBatchSize)
+	aggVal := pa.AggregateBatches(rawResult.Points, q.Aggregation.Function)
+
+	ts := rawResult.Points[len(rawResult.Points)-1].Timestamp
+	return &Result{
+		Points: []Point{{
+			Metric:    q.Metric,
+			Value:     aggVal,
+			Timestamp: ts,
+		}},
+	}, PathColumnar, nil
 }
 
 func (qe *QueryEngine) executeParallelColumnar(ctx context.Context, q *Query) (*Result, ExecutionPath, error) {
