@@ -591,3 +591,174 @@ func escapePromLabel(v string) string {
 	v = strings.ReplaceAll(v, "\n", `\n`)
 	return v
 }
+
+// GeneratePodDisruptionBudget generates a PDB YAML for the Chronicle cluster.
+func GeneratePodDisruptionBudget(name, namespace string, replicas int) string {
+	minAvailable := replicas / 2
+	if minAvailable < 1 {
+		minAvailable = 1
+	}
+	return fmt.Sprintf(`apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: %s-pdb
+  namespace: %s
+  labels:
+    app.kubernetes.io/name: chronicle
+    app.kubernetes.io/instance: %s
+spec:
+  minAvailable: %d
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chronicle
+      app.kubernetes.io/instance: %s
+`, name, namespace, name, minAvailable, name)
+}
+
+// GenerateGrafanaDashboardConfigMap generates a ConfigMap with a Grafana dashboard JSON.
+func GenerateGrafanaDashboardConfigMap(name, namespace string) string {
+	dashboardJSON := `{
+  "dashboard": {
+    "title": "Chronicle Database",
+    "panels": [
+      {"title": "Write Rate", "type": "graph", "targets": [{"expr": "rate(chronicle_writes_total[5m])"}]},
+      {"title": "Query Latency p99", "type": "graph", "targets": [{"expr": "histogram_quantile(0.99, rate(chronicle_query_duration_seconds_bucket[5m]))"}]},
+      {"title": "Active Partitions", "type": "stat", "targets": [{"expr": "chronicle_partitions_active"}]},
+      {"title": "Memory Usage", "type": "graph", "targets": [{"expr": "chronicle_memory_bytes"}]},
+      {"title": "WAL Size", "type": "stat", "targets": [{"expr": "chronicle_wal_size_bytes"}]},
+      {"title": "Compaction Rate", "type": "graph", "targets": [{"expr": "rate(chronicle_compactions_total[5m])"}]}
+    ]
+  }
+}`
+	escapedJSON := strings.ReplaceAll(dashboardJSON, "\n", "\n    ")
+	return fmt.Sprintf(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: %s-grafana-dashboard
+  namespace: %s
+  labels:
+    app.kubernetes.io/name: chronicle
+    app.kubernetes.io/instance: %s
+    grafana_dashboard: "1"
+data:
+  chronicle-dashboard.json: |
+    %s
+`, name, namespace, name, escapedJSON)
+}
+
+// CanaryUpgradeConfig configures canary deployment strategy for rolling upgrades.
+type CanaryUpgradeConfig struct {
+	CanaryReplicas int           `json:"canary_replicas"`
+	StableReplicas int           `json:"stable_replicas"`
+	AnalysisPeriod time.Duration `json:"analysis_period"`
+	MaxErrorRate   float64       `json:"max_error_rate"`
+	NewImage       string        `json:"new_image"`
+}
+
+// GenerateCanaryStatefulSet generates a canary StatefulSet for rolling upgrades.
+func GenerateCanaryStatefulSet(name, namespace string, spec ChronicleSpec, canary CanaryUpgradeConfig) string {
+	image := canary.NewImage
+	if image == "" {
+		image = spec.Image
+	}
+	replicas := canary.CanaryReplicas
+	if replicas <= 0 {
+		replicas = 1
+	}
+
+	return fmt.Sprintf(`apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: %s-canary
+  namespace: %s
+  labels:
+    app.kubernetes.io/name: chronicle
+    app.kubernetes.io/instance: %s
+    chronicle.io/role: canary
+spec:
+  serviceName: %s-canary
+  replicas: %d
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chronicle
+      app.kubernetes.io/instance: %s
+      chronicle.io/role: canary
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chronicle
+        app.kubernetes.io/instance: %s
+        chronicle.io/role: canary
+    spec:
+      containers:
+        - name: chronicle
+          image: %s
+          ports:
+            - containerPort: 8080
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+`, name, namespace, name, name, replicas, name, name, image)
+}
+
+// GenerateNetworkPolicy generates a NetworkPolicy restricting traffic to Chronicle pods.
+func GenerateNetworkPolicy(name, namespace string) string {
+	return fmt.Sprintf(`apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: %s-network-policy
+  namespace: %s
+  labels:
+    app.kubernetes.io/name: chronicle
+    app.kubernetes.io/instance: %s
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: chronicle
+      app.kubernetes.io/instance: %s
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: chronicle
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+`, name, namespace, name, name)
+}
+
+// GenerateAllResources generates all K8s resources for a Chronicle cluster.
+func GenerateAllResources(name, namespace string, spec ChronicleSpec) map[string]string {
+	resources := make(map[string]string)
+	resources["statefulset"] = GenerateDeployment(spec, name, namespace)
+	resources["service"] = GenerateService(name, namespace, 8080)
+	resources["pdb"] = GeneratePodDisruptionBudget(name, namespace, spec.Replicas)
+	resources["grafana-dashboard"] = GenerateGrafanaDashboardConfigMap(name, namespace)
+	resources["network-policy"] = GenerateNetworkPolicy(name, namespace)
+
+	if spec.Monitoring.Enabled {
+		resources["service-monitor"] = GenerateServiceMonitor(name, namespace, spec.Monitoring)
+	}
+	if spec.AutoScaling.Enabled {
+		resources["hpa"] = GenerateHPA(name, namespace, spec.AutoScaling)
+	}
+	if spec.Backup.Enabled {
+		resources["backup-cronjob"] = GenerateBackupCronJob(name, namespace, spec.Backup)
+	}
+
+	return resources
+}
