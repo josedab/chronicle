@@ -16,18 +16,84 @@ type TraceMetricsPipelineConfig struct {
 	AutoGenerateSLIs     bool          `json:"auto_generate_slis"`
 	EnableCorrelation    bool          `json:"enable_correlation"`
 	MaxServicesTracked   int           `json:"max_services_tracked"`
+	MaxOperationsPerSvc  int           `json:"max_operations_per_service"`
+	MaxCardinalityTotal  int           `json:"max_cardinality_total"`
+	ExemplarLinkEnabled  bool          `json:"exemplar_link_enabled"`
+	WindowDurations      []time.Duration `json:"window_durations"`
 }
 
 // DefaultTraceMetricsPipelineConfig returns sensible defaults.
 func DefaultTraceMetricsPipelineConfig() TraceMetricsPipelineConfig {
 	return TraceMetricsPipelineConfig{
-		Enabled:            true,
-		CollectionInterval: 30 * time.Second,
-		HistogramBuckets:   []float64{5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000},
-		AutoGenerateSLIs:   true,
-		EnableCorrelation:  true,
-		MaxServicesTracked: 1000,
+		Enabled:             true,
+		CollectionInterval:  30 * time.Second,
+		HistogramBuckets:    []float64{5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000},
+		AutoGenerateSLIs:    true,
+		EnableCorrelation:   true,
+		MaxServicesTracked:  1000,
+		MaxOperationsPerSvc: 500,
+		MaxCardinalityTotal: 50000,
+		ExemplarLinkEnabled: true,
+		WindowDurations:     []time.Duration{1 * time.Minute, 5 * time.Minute, 15 * time.Minute},
 	}
+}
+
+// SpanProcessor is a pluggable interface for processing spans before RED metric extraction.
+type SpanProcessor interface {
+	// ProcessSpan processes a span and returns whether it should be included in metrics.
+	ProcessSpan(span *Span) bool
+	// Name returns the processor name.
+	Name() string
+}
+
+// FilterSpanProcessor filters spans by service/operation patterns.
+type FilterSpanProcessor struct {
+	IncludeServices []string
+	ExcludeServices []string
+}
+
+func (f *FilterSpanProcessor) Name() string { return "filter" }
+
+func (f *FilterSpanProcessor) ProcessSpan(span *Span) bool {
+	if len(f.ExcludeServices) > 0 {
+		for _, svc := range f.ExcludeServices {
+			if span.Service == svc {
+				return false
+			}
+		}
+	}
+	if len(f.IncludeServices) > 0 {
+		for _, svc := range f.IncludeServices {
+			if span.Service == svc {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// SamplingSpanProcessor samples spans at a configurable rate.
+type SamplingSpanProcessor struct {
+	SampleRate float64
+	counter    int64
+}
+
+func (s *SamplingSpanProcessor) Name() string { return "sampling" }
+
+func (s *SamplingSpanProcessor) ProcessSpan(_ *Span) bool {
+	s.counter++
+	return float64(s.counter%100) < s.SampleRate*100
+}
+
+// ExemplarRecord links a metric to a specific trace for drill-down.
+type ExemplarRecord struct {
+	TraceID   string    `json:"trace_id"`
+	SpanID    string    `json:"span_id"`
+	Service   string    `json:"service"`
+	Operation string    `json:"operation"`
+	Value     float64   `json:"value"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // REDMetrics holds Rate, Errors, Duration metrics for a service/operation.
@@ -83,6 +149,9 @@ type TraceMetricsPipeline struct {
 	redMetrics   map[string]*REDMetrics // key: service:operation
 	topology     *ServiceTopology
 	durations    map[string][]float64   // key: service:operation -> duration samples
+	exemplars    map[string][]ExemplarRecord // key: service:operation -> recent exemplars
+	processors   []SpanProcessor
+	cardinality  int // current total unique service:operation keys
 
 	running      bool
 	stopCh       chan struct{}
@@ -108,8 +177,16 @@ func NewTraceMetricsPipeline(
 			Services: make(map[string]*ServiceNode),
 		},
 		durations: make(map[string][]float64),
+		exemplars: make(map[string][]ExemplarRecord),
 		stopCh:    make(chan struct{}),
 	}
+}
+
+// AddProcessor adds a span processor to the pipeline.
+func (p *TraceMetricsPipeline) AddProcessor(proc SpanProcessor) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.processors = append(p.processors, proc)
 }
 
 // Start starts the background pipeline processing.
@@ -159,14 +236,38 @@ func (p *TraceMetricsPipeline) processLoop() {
 }
 
 // ProcessSpan processes a single span and updates RED metrics.
+// Runs through registered span processors before metric extraction.
 func (p *TraceMetricsPipeline) ProcessSpan(span Span) {
+	// Run through span processors
+	for _, proc := range p.processors {
+		if !proc.ProcessSpan(&span) {
+			return // filtered out
+		}
+	}
+
 	key := span.Service + ":" + span.Name
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// Enforce cardinality limits
 	red, exists := p.redMetrics[key]
 	if !exists {
+		if p.cardinality >= p.config.MaxCardinalityTotal {
+			return // cardinality limit reached
+		}
+		// Check per-service operation limit
+		svcOpCount := 0
+		prefix := span.Service + ":"
+		for k := range p.redMetrics {
+			if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
+				svcOpCount++
+			}
+		}
+		if p.config.MaxOperationsPerSvc > 0 && svcOpCount >= p.config.MaxOperationsPerSvc {
+			return // per-service cardinality limit
+		}
+
 		red = &REDMetrics{
 			Service:     span.Service,
 			Operation:   span.Name,
@@ -175,6 +276,7 @@ func (p *TraceMetricsPipeline) ProcessSpan(span Span) {
 			DurationMax: math.Inf(-1),
 		}
 		p.redMetrics[key] = red
+		p.cardinality++
 	}
 
 	red.RequestCount++
@@ -220,6 +322,30 @@ func (p *TraceMetricsPipeline) ProcessSpan(span Span) {
 	// Cap sample size
 	if len(p.durations[key]) > 10000 {
 		p.durations[key] = p.durations[key][len(p.durations[key])-10000:]
+	}
+
+	// Exemplar linking: record exemplar for high-latency or error spans
+	if p.config.ExemplarLinkEnabled && (isError || durationMs > red.DurationP95) {
+		exemplar := ExemplarRecord{
+			TraceID:   span.TraceID,
+			SpanID:    span.SpanID,
+			Service:   span.Service,
+			Operation: span.Name,
+			Value:     durationMs,
+			Timestamp: time.Now(),
+		}
+		exemplars := p.exemplars[key]
+		if len(exemplars) >= 10 {
+			exemplars = exemplars[1:] // keep last 10 exemplars
+		}
+		p.exemplars[key] = append(exemplars, exemplar)
+
+		// Link to correlation engine
+		if p.correlation != nil && p.config.EnableCorrelation {
+			p.correlation.LinkExemplar("trace_duration_p99",
+				map[string]string{"service": span.Service, "operation": span.Name},
+				span.TraceID)
+		}
 	}
 
 	// Update topology
@@ -409,6 +535,42 @@ func (p *TraceMetricsPipeline) GetTopology() *ServiceTopology {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.topology
+}
+
+// GetExemplars returns exemplar records for a service/operation.
+func (p *TraceMetricsPipeline) GetExemplars(service, operation string) []ExemplarRecord {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	key := service + ":" + operation
+	exemplars := p.exemplars[key]
+	result := make([]ExemplarRecord, len(exemplars))
+	copy(result, exemplars)
+	return result
+}
+
+// CardinalityStats returns current cardinality information.
+func (p *TraceMetricsPipeline) CardinalityStats() map[string]int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	svcCounts := make(map[string]int)
+	for key := range p.redMetrics {
+		parts := key
+		if idx := len(parts) - 1; idx > 0 {
+			for i, c := range parts {
+				if c == ':' {
+					svcCounts[parts[:i]]++
+					break
+				}
+			}
+		}
+	}
+
+	return map[string]int{
+		"total_keys":         p.cardinality,
+		"max_allowed":        p.config.MaxCardinalityTotal,
+		"unique_services":    len(svcCounts),
+	}
 }
 
 // GenerateSLIs auto-generates SLI definitions from the trace topology.
