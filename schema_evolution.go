@@ -17,6 +17,7 @@ type SchemaEvolutionConfig struct {
 	BreakingChangeAlerts bool
 	AlertWebhookURL      string
 	LazyMigration        bool
+	CompatibilityMode    SchemaCompatibilityMode
 }
 
 // DefaultSchemaEvolutionConfig returns sensible defaults.
@@ -28,7 +29,16 @@ func DefaultSchemaEvolutionConfig() SchemaEvolutionConfig {
 		MaxVersions:          100,
 		BreakingChangeAlerts: true,
 		LazyMigration:        true,
+		CompatibilityMode:    CompatBackward,
 	}
+}
+
+// EvolutionCompatibilityResult describes whether a schema change is compatible.
+type EvolutionCompatibilityResult struct {
+	Compatible bool     `json:"compatible"`
+	Mode       string   `json:"mode"`
+	Errors     []string `json:"errors,omitempty"`
+	Warnings   []string `json:"warnings,omitempty"`
 }
 
 // SchemaChangeType represents the type of schema change.
@@ -314,6 +324,143 @@ func (e *SchemaEvolutionEngine) GetStats() SchemaEvolutionStats {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.stats
+}
+
+// CheckCompatibility verifies if a schema change is compatible under the configured mode.
+func (e *SchemaEvolutionEngine) CheckCompatibility(metric string, newTags map[string]string) *EvolutionCompatibilityResult {
+	mode := e.config.CompatibilityMode
+
+	if mode == CompatNone {
+		return &EvolutionCompatibilityResult{Compatible: true, Mode: mode.String()}
+	}
+
+	e.mu.RLock()
+	versions := e.versions[metric]
+	e.mu.RUnlock()
+
+	if len(versions) == 0 {
+		return &EvolutionCompatibilityResult{Compatible: true, Mode: mode.String()}
+	}
+
+	current := versions[len(versions)-1]
+	diff := e.computeDiff(current, newTags)
+	if diff == nil {
+		return &EvolutionCompatibilityResult{Compatible: true, Mode: mode.String()}
+	}
+
+	result := &EvolutionCompatibilityResult{Mode: mode.String(), Compatible: true}
+
+	switch mode {
+	case CompatBackward:
+		// New schema must read old data: removing tags breaks backward compat
+		if len(diff.RemovedTags) > 0 {
+			result.Compatible = false
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("backward incompatible: removing tags %v breaks readers using new schema", diff.RemovedTags))
+		}
+		if diff.ChangedTypes != nil {
+			for tag, types := range diff.ChangedTypes {
+				result.Compatible = false
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("backward incompatible: tag %q type changed from %s to %s", tag, types[0], types[1]))
+			}
+		}
+		if len(diff.AddedTags) > 0 {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("added tags %v (backward compatible)", diff.AddedTags))
+		}
+
+	case CompatForward:
+		// Old schema must read new data: adding tags breaks forward compat
+		if len(diff.AddedTags) > 0 {
+			result.Compatible = false
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("forward incompatible: adding tags %v breaks readers using old schema", diff.AddedTags))
+		}
+		if diff.ChangedTypes != nil {
+			for tag, types := range diff.ChangedTypes {
+				result.Compatible = false
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("forward incompatible: tag %q type changed from %s to %s", tag, types[0], types[1]))
+			}
+		}
+		if len(diff.RemovedTags) > 0 {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("removed tags %v (forward compatible)", diff.RemovedTags))
+		}
+
+	case CompatFull:
+		// Both backward and forward: no adds, no removes, no type changes
+		if len(diff.AddedTags) > 0 {
+			result.Compatible = false
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("full incompatible: adding tags %v", diff.AddedTags))
+		}
+		if len(diff.RemovedTags) > 0 {
+			result.Compatible = false
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("full incompatible: removing tags %v", diff.RemovedTags))
+		}
+		if diff.ChangedTypes != nil {
+			for tag, types := range diff.ChangedTypes {
+				result.Compatible = false
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("full incompatible: tag %q type changed from %s to %s", tag, types[0], types[1]))
+			}
+		}
+	}
+
+	return result
+}
+
+// SetCompatibilityMode updates the compatibility mode for the engine.
+func (e *SchemaEvolutionEngine) SetCompatibilityMode(mode SchemaCompatibilityMode) {
+	e.config.CompatibilityMode = mode
+}
+
+// GetCompatibilityMode returns the current compatibility mode.
+func (e *SchemaEvolutionEngine) GetCompatibilityMode() SchemaCompatibilityMode {
+	return e.config.CompatibilityMode
+}
+
+func (e *SchemaEvolutionEngine) computeDiffFromVersion(version EvolutionVersion, newTags map[string]string) *SchemaDiff {
+	return e.computeDiff(version, newTags)
+}
+
+// SchemaAuditEntry records a schema change event for audit trail.
+type SchemaAuditEntry struct {
+	Timestamp  time.Time        `json:"timestamp"`
+	Metric     string           `json:"metric"`
+	ChangeType SchemaChangeType `json:"change_type"`
+	OldVersion int              `json:"old_version"`
+	NewVersion int              `json:"new_version"`
+	Diff       *SchemaDiff      `json:"diff"`
+	Applied    bool             `json:"applied"`
+	Reason     string           `json:"reason,omitempty"`
+}
+
+// GetAuditLog returns the schema change audit log.
+func (e *SchemaEvolutionEngine) GetAuditLog() []SchemaAuditEntry {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	entries := make([]SchemaAuditEntry, 0, len(e.changes))
+	for _, change := range e.changes {
+		entry := SchemaAuditEntry{
+			Timestamp:  change.DetectedAt,
+			Metric:     change.Metric,
+			ChangeType: change.ChangeType,
+			OldVersion: change.OldVersion,
+			NewVersion: change.NewVersion,
+			Diff:       change.Diff,
+			Applied:    change.Applied,
+		}
+		if change.Breaking {
+			entry.Reason = "breaking change"
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 func (e *SchemaEvolutionEngine) computeDiff(current EvolutionVersion, newTags map[string]string) *SchemaDiff {
