@@ -143,6 +143,9 @@ func (s *PGServer) handleSession(sess *PGSession) {
 			sess.flush()
 		case PGMsgFlush:
 			sess.flush()
+		case PGMsgClose:
+			sess.handleClose(payload)
+			sess.flush()
 		default:
 			// Unknown message: skip
 		}

@@ -29,6 +29,10 @@ func (m *mockPGDB) Write(p Point) error {
 	m.written = append(m.written, p)
 	return nil
 }
+func (m *mockPGDB) WriteBatch(points []Point) error {
+	m.written = append(m.written, points...)
+	return nil
+}
 func (m *mockPGDB) Metrics() []string { return m.metrics }
 
 func TestDefaultPGWireConfig(t *testing.T) {

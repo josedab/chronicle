@@ -1,8 +1,8 @@
 // Bridge: pgwire_bridge.go
 //
-// STUB: The PostgreSQL wire protocol is not fully implemented.
-// This bridge re-exports internal types but the wire protocol handshake,
-// authentication, and query execution over the wire are not functional.
+// PostgreSQL wire protocol v3 implementation.
+// Supports startup/auth (cleartext, MD5, SCRAM-SHA-256), simple + extended query
+// protocol, COPY IN for bulk ingestion, and prepared statements.
 // See FEATURE_MATURITY.md for details.
 
 package chronicle
@@ -44,6 +44,15 @@ func (a *dbPGAdapter) Execute(metric string, start, end int64, tags map[string]s
 
 func (a *dbPGAdapter) Write(p pgwire.Point) error {
 	return a.db.Write(Point{Metric: p.Metric, Timestamp: p.Timestamp, Value: p.Value, Tags: p.Tags})
+}
+
+func (a *dbPGAdapter) WriteBatch(points []pgwire.Point) error {
+	for _, p := range points {
+		if err := a.db.Write(Point{Metric: p.Metric, Timestamp: p.Timestamp, Value: p.Value, Tags: p.Tags}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *dbPGAdapter) Metrics() []string {

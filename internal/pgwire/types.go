@@ -27,6 +27,7 @@ type QueryResult struct {
 type PGDB interface {
 	Execute(metric string, start, end int64, tags map[string]string, limit int) (*QueryResult, error)
 	Write(p Point) error
+	WriteBatch(points []Point) error
 	Metrics() []string
 }
 

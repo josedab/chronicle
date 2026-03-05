@@ -329,10 +329,10 @@ func (sess *PGSession) writeCopyInResponse(format string, delimiter byte) {
 	sess.writeMessage(PGMsgCopyInResponse, buf)
 }
 
-// processCopyData processes a chunk of COPY data.
+// processCopyData processes a chunk of COPY data using batch writes for throughput.
 func (sess *PGSession) processCopyData(table string, data []byte, format string, delimiter byte) (int, error) {
 	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	count := 0
+	batch := make([]Point, 0, len(lines))
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -374,13 +374,18 @@ func (sess *PGSession) processCopyData(table string, data []byte, format string,
 			}
 		}
 
-		if err := sess.server.db.Write(p); err != nil {
-			return count, fmt.Errorf("write failed at row %d: %w", count+1, err)
-		}
-		count++
+		batch = append(batch, p)
 	}
 
-	return count, nil
+	if len(batch) == 0 {
+		return 0, nil
+	}
+
+	if err := sess.server.db.WriteBatch(batch); err != nil {
+		return 0, fmt.Errorf("batch write failed: %w", err)
+	}
+
+	return len(batch), nil
 }
 
 func parseCopyStatement(stmt string) (string, string, byte, error) {

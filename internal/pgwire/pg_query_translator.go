@@ -320,9 +320,26 @@ func (sess *PGSession) handleBind(payload []byte) error {
 	if sess.portals == nil {
 		sess.portals = make(map[string]*portalEntry)
 	}
+
+	// Extract parameter values from remaining payload
+	var params []string
+	if len(parts) >= 3 {
+		remaining := parts[2]
+		// Parse parameter format codes and values from binary payload
+		// Simplified: extract null-terminated string parameters
+		paramParts := strings.Split(remaining, "\x00")
+		for _, p := range paramParts {
+			p = strings.TrimSpace(p)
+			if len(p) > 0 {
+				params = append(params, p)
+			}
+		}
+	}
+
 	sess.portals[portalName] = &portalEntry{
-		name: portalName,
-		stmt: stmt,
+		name:   portalName,
+		stmt:   stmt,
+		params: params,
 	}
 	sess.mu.Unlock()
 
@@ -389,5 +406,34 @@ func (sess *PGSession) handleExecute(payload []byte) error {
 		return nil
 	}
 
-	return sess.executeStatement(portal.stmt.query)
+	// Substitute parameters in the query
+	query := portal.stmt.query
+	for i, param := range portal.params {
+		placeholder := fmt.Sprintf("$%d", i+1)
+		query = strings.ReplaceAll(query, placeholder, param)
+	}
+
+	return sess.executeStatement(query)
+}
+
+// handleClose processes a Close message for the extended query protocol.
+func (sess *PGSession) handleClose(payload []byte) {
+	if len(payload) < 2 {
+		sess.writeMessage('3', nil) // CloseComplete
+		return
+	}
+
+	closeType := payload[0] // 'S' for statement, 'P' for portal
+	name := strings.TrimRight(string(payload[1:]), "\x00")
+
+	sess.mu.Lock()
+	switch closeType {
+	case 'S':
+		delete(sess.preparedStmts, name)
+	case 'P':
+		delete(sess.portals, name)
+	}
+	sess.mu.Unlock()
+
+	sess.writeMessage('3', nil) // CloseComplete
 }
