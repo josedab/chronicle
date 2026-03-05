@@ -21,8 +21,9 @@ type Partition struct {
 	offset int64
 	length int64
 
-	loaded bool
-	mu     sync.RWMutex
+	loaded      bool
+	bloomFilter *PartitionBloomFilter
+	mu          sync.RWMutex
 }
 
 // ID returns the partition identifier.
@@ -81,6 +82,17 @@ func (p *Partition) SeriesData() map[string]*SeriesData {
 	return p.series
 }
 
+// BloomFilter returns the partition's bloom filter for tag existence checks.
+// Returns nil if the bloom filter hasn't been initialized.
+func (p *Partition) BloomFilter() *PartitionBloomFilter {
+	return p.bloomFilter
+}
+
+// InitBloomFilter initializes the bloom filter with expected capacity.
+func (p *Partition) InitBloomFilter(expectedItems int, fpRate float64) {
+	p.bloomFilter = NewPartitionBloomFilter(expectedItems, fpRate)
+}
+
 // SeriesData stores compressed data for a series.
 type SeriesData struct {
 	Series     Series
@@ -130,6 +142,14 @@ func (p *Partition) Append(points []Point, index *Index) error {
 			p.maxTime = point.Timestamp
 		}
 		p.pointCount++
+
+		// Populate bloom filter with tag key-value pairs
+		if p.bloomFilter != nil && len(point.Tags) > 0 {
+			for k, v := range point.Tags {
+				p.bloomFilter.Add(k, v)
+				p.bloomFilter.AddKey(k)
+			}
+		}
 	}
 
 	return nil

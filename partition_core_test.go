@@ -113,3 +113,64 @@ func TestPartitionCore(t *testing.T) {
 		}
 	})
 }
+
+func TestPartition_BloomFilterAutoPopulate(t *testing.T) {
+	db := setupTestDB(t)
+	idx := db.index
+
+	p := &Partition{
+		id:     1,
+		series: make(map[string]*SeriesData),
+	}
+	p.InitBloomFilter(1000, 0.01)
+
+	points := []Point{
+		{Metric: "cpu", Tags: map[string]string{"host": "web01", "region": "us-east"}, Timestamp: 1000, Value: 50},
+		{Metric: "cpu", Tags: map[string]string{"host": "web02", "region": "eu-west"}, Timestamp: 2000, Value: 60},
+	}
+
+	err := p.Append(points, idx)
+	if err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	bf := p.BloomFilter()
+	if bf == nil {
+		t.Fatal("expected bloom filter")
+	}
+
+	// Tags should be in the bloom filter
+	if !bf.MayContain("host", "web01") {
+		t.Error("bloom filter should contain host=web01")
+	}
+	if !bf.MayContain("region", "eu-west") {
+		t.Error("bloom filter should contain region=eu-west")
+	}
+	if !bf.MayContainKey("host") {
+		t.Error("bloom filter should contain key 'host'")
+	}
+	if bf.Count() != 4 {
+		t.Errorf("expected 4 items in bloom filter, got %d", bf.Count())
+	}
+}
+
+func TestPartition_BloomFilterNilSafe(t *testing.T) {
+	db := setupTestDB(t)
+	idx := db.index
+
+	p := &Partition{
+		id:     1,
+		series: make(map[string]*SeriesData),
+	}
+	// No bloom filter initialized — Append should still work
+
+	err := p.Append([]Point{
+		{Metric: "cpu", Tags: map[string]string{"host": "web01"}, Timestamp: 1000, Value: 50},
+	}, idx)
+	if err != nil {
+		t.Fatalf("append without bloom should work: %v", err)
+	}
+	if p.BloomFilter() != nil {
+		t.Error("bloom filter should be nil when not initialized")
+	}
+}
