@@ -32,10 +32,12 @@ func (m IncrementalRefreshMode) String() string {
 
 // IncrementalViewConfig configures incremental materialized view maintenance.
 type IncrementalViewConfig struct {
-	RefreshMode        IncrementalRefreshMode `json:"refresh_mode"`
-	AutoRefreshOnCompact bool                 `json:"auto_refresh_on_compact"`
-	DeltaRetention     time.Duration          `json:"delta_retention"`
-	MaxDeltaEntries    int                    `json:"max_delta_entries"`
+	RefreshMode          IncrementalRefreshMode `json:"refresh_mode"`
+	AutoRefreshOnCompact bool                   `json:"auto_refresh_on_compact"`
+	DeltaRetention       time.Duration          `json:"delta_retention"`
+	MaxDeltaEntries      int                    `json:"max_delta_entries"`
+	StalenessThreshold   time.Duration          `json:"staleness_threshold"`
+	InvalidateOnSchema   bool                   `json:"invalidate_on_schema_change"`
 }
 
 // DefaultIncrementalViewConfig returns sensible defaults.
@@ -45,6 +47,8 @@ func DefaultIncrementalViewConfig() IncrementalViewConfig {
 		AutoRefreshOnCompact: true,
 		DeltaRetention:       24 * time.Hour,
 		MaxDeltaEntries:      100000,
+		StalenessThreshold:   5 * time.Minute,
+		InvalidateOnSchema:   true,
 	}
 }
 
@@ -104,12 +108,15 @@ type IncrementalViewDefinition struct {
 
 // incrementalViewRuntime holds state for an incremental view.
 type incrementalViewRuntime struct {
-	def          IncrementalViewDefinition
-	aggStates    map[string]*ViewAggState // key: groupBy values concatenated
-	watermark    uint64                   // LSN watermark
-	deltaLog     []DeltaLogEntry
-	lastRefresh  time.Time
-	mu           sync.Mutex
+	def            IncrementalViewDefinition
+	aggStates      map[string]*ViewAggState // key: groupBy values concatenated
+	watermark      uint64                   // LSN watermark
+	deltaLog       []DeltaLogEntry
+	lastRefresh    time.Time
+	invalidated    bool                     // true if schema change detected
+	schemaVersion  int                      // track source schema version
+	stale          bool                     // true if staleness threshold exceeded
+	mu             sync.Mutex
 }
 
 // IncrementalViewEngine manages incremental materialized view maintenance.
@@ -195,6 +202,7 @@ func (e *IncrementalViewEngine) DisableView(name string) error {
 }
 
 // RefreshView manually refreshes a view (REFRESH VIEW).
+// If the view was invalidated by a schema change, forces a full refresh.
 func (e *IncrementalViewEngine) RefreshView(ctx context.Context, name string) error {
 	e.mu.RLock()
 	vr, exists := e.views[name]
@@ -206,6 +214,19 @@ func (e *IncrementalViewEngine) RefreshView(ctx context.Context, name string) er
 
 	if !vr.def.Enabled {
 		return fmt.Errorf("incremental_view: view %q is disabled", name)
+	}
+
+	// Force full refresh if schema was invalidated
+	vr.mu.Lock()
+	forceFullRefresh := vr.invalidated
+	if forceFullRefresh {
+		vr.invalidated = false
+		vr.stale = false
+	}
+	vr.mu.Unlock()
+
+	if forceFullRefresh {
+		return e.fullRefresh(ctx, vr)
 	}
 
 	switch vr.def.RefreshMode {
@@ -507,6 +528,8 @@ func (e *IncrementalViewEngine) GetViewState(name string) (*IncrementalViewState
 		PendingDeltas: len(vr.deltaLog),
 		GroupCount:    len(vr.aggStates),
 		LastRefresh:   vr.lastRefresh,
+		Invalidated:   vr.invalidated,
+		Stale:         vr.stale,
 	}, nil
 }
 
@@ -522,6 +545,67 @@ type IncrementalViewState struct {
 	PendingDeltas int                    `json:"pending_deltas"`
 	GroupCount    int                    `json:"group_count"`
 	LastRefresh   time.Time              `json:"last_refresh"`
+	Invalidated   bool                   `json:"invalidated"`
+	Stale         bool                   `json:"stale"`
+}
+
+// OnSchemaChange is called when the source metric's schema changes.
+// It invalidates affected views, forcing a full refresh on next access.
+func (e *IncrementalViewEngine) OnSchemaChange(metric string, changeType string) {
+	if !e.config.InvalidateOnSchema {
+		return
+	}
+
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	for _, vr := range e.views {
+		if vr.def.SourceMetric != metric {
+			continue
+		}
+		vr.mu.Lock()
+		vr.invalidated = true
+		vr.schemaVersion++
+		vr.mu.Unlock()
+	}
+}
+
+// CheckStaleness checks all views for staleness and marks them accordingly.
+func (e *IncrementalViewEngine) CheckStaleness() map[string]bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	result := make(map[string]bool)
+	now := time.Now()
+
+	for name, vr := range e.views {
+		vr.mu.Lock()
+		if e.config.StalenessThreshold > 0 && now.Sub(vr.lastRefresh) > e.config.StalenessThreshold {
+			vr.stale = true
+		} else {
+			vr.stale = false
+		}
+		result[name] = vr.stale
+		vr.mu.Unlock()
+	}
+	return result
+}
+
+// IsStale returns whether a specific view is stale.
+func (e *IncrementalViewEngine) IsStale(name string) bool {
+	e.mu.RLock()
+	vr, exists := e.views[name]
+	e.mu.RUnlock()
+	if !exists {
+		return false
+	}
+	vr.mu.Lock()
+	defer vr.mu.Unlock()
+
+	if e.config.StalenessThreshold > 0 && time.Since(vr.lastRefresh) > e.config.StalenessThreshold {
+		vr.stale = true
+	}
+	return vr.stale || vr.invalidated
 }
 
 // ListViews returns all view names.
