@@ -360,6 +360,7 @@ func (m *DeltaSyncManager) Start() {
 	}
 
 	m.wg.Add(1)
+	// syncLoop runs the background delta synchronization loop.
 	go m.syncLoop()
 }
 

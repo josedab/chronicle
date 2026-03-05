@@ -200,6 +200,7 @@ func NewPolicyEngine(db *DB, config *PolicyEngineConfig) (*PolicyEngine, error) 
 
 	// Start background workers
 	pe.wg.Add(1)
+	// auditWorker drains the audit channel and persists entries to the audit log.
 	go pe.auditWorker()
 
 	return pe, nil

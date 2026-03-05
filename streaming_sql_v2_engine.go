@@ -66,11 +66,11 @@ func (e *StreamingSQLV2Engine) Start() error {
 	}
 	e.running = true
 	e.stopCh = make(chan struct{})
-	go e.triggerLoop()
-	go e.expiryLoop()
-	go e.joinCleanupLoop()
+	go e.triggerLoop()       // fires window triggers on schedule
+	go e.expiryLoop()        // evicts expired window state
+	go e.joinCleanupLoop()   // removes stale join buffers
 	if e.config.ExactlyOnceEnabled {
-		go e.checkpointLoop()
+		go e.checkpointLoop() // persists exactly-once checkpoints
 	}
 	return nil
 }

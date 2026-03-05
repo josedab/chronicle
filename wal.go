@@ -73,6 +73,7 @@ func NewWAL(path string, syncInterval time.Duration, maxSize int64, retain int, 
 	}
 
 	wal.wg.Add(1)
+	// syncLoop periodically flushes buffered WAL entries to disk.
 	go wal.syncLoop()
 
 	return wal, nil
