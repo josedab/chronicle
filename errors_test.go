@@ -88,7 +88,7 @@ func TestWALSyncError(t *testing.T) {
 	flushErr := errors.New("flush error")
 	syncErr := errors.New("sync error")
 
-	// Test with both errors
+	// Test with both errors — both should be reachable via errors.Is
 	err := &WALSyncError{FlushErr: flushErr, SyncErr: syncErr}
 	if !errors.Is(err, ErrWALSync) {
 		t.Error("expected error to match ErrWALSync")
@@ -96,9 +96,15 @@ func TestWALSyncError(t *testing.T) {
 	if err.Error() == "" {
 		t.Error("expected non-empty error message")
 	}
+	if !errors.Is(err, flushErr) {
+		t.Error("expected errors.Is to find FlushErr")
+	}
+	if !errors.Is(err, syncErr) {
+		t.Error("expected errors.Is to find SyncErr")
+	}
 	unwrapped := err.Unwrap()
-	if unwrapped != flushErr {
-		t.Error("expected to unwrap to flush error first")
+	if len(unwrapped) != 2 {
+		t.Errorf("expected 2 unwrapped errors, got %d", len(unwrapped))
 	}
 
 	// Test with only flush error
@@ -106,8 +112,11 @@ func TestWALSyncError(t *testing.T) {
 	if err2.Error() == "" {
 		t.Error("expected non-empty error message")
 	}
-	if err2.Unwrap() != flushErr {
-		t.Error("expected to unwrap to flush error")
+	if !errors.Is(err2, flushErr) {
+		t.Error("expected errors.Is to find FlushErr")
+	}
+	if len(err2.Unwrap()) != 1 {
+		t.Errorf("expected 1 unwrapped error, got %d", len(err2.Unwrap()))
 	}
 
 	// Test with only sync error
@@ -115,14 +124,20 @@ func TestWALSyncError(t *testing.T) {
 	if err3.Error() == "" {
 		t.Error("expected non-empty error message")
 	}
-	if err3.Unwrap() != syncErr {
-		t.Error("expected to unwrap to sync error")
+	if !errors.Is(err3, syncErr) {
+		t.Error("expected errors.Is to find SyncErr")
+	}
+	if len(err3.Unwrap()) != 1 {
+		t.Errorf("expected 1 unwrapped error, got %d", len(err3.Unwrap()))
 	}
 
 	// Test with no errors
 	err4 := &WALSyncError{}
 	if err4.Error() == "" {
 		t.Error("expected non-empty error message")
+	}
+	if len(err4.Unwrap()) != 0 {
+		t.Errorf("expected 0 unwrapped errors, got %d", len(err4.Unwrap()))
 	}
 }
 

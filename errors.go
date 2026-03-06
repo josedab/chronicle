@@ -19,6 +19,9 @@ var (
 	// ErrInvalidQuery is returned for malformed queries.
 	ErrInvalidQuery = errors.New("invalid query")
 
+	// ErrQueryCanceled is returned when a query is canceled via context.
+	ErrQueryCanceled = errors.New("query canceled")
+
 	// ErrSchemaValidation is returned when a point fails schema validation.
 	ErrSchemaValidation = errors.New("schema validation failed")
 
@@ -30,6 +33,12 @@ var (
 
 	// ErrWALSync is returned when WAL sync operations fail.
 	ErrWALSync = errors.New("WAL sync failed")
+
+	// ErrStorageRead is returned when a storage read operation fails.
+	ErrStorageRead = errors.New("storage read failed")
+
+	// ErrStorageWrite is returned when a storage write operation fails.
+	ErrStorageWrite = errors.New("storage write failed")
 
 	// ErrUnsupportedOperation is returned when a storage operation isn't supported.
 	ErrUnsupportedOperation = errors.New("operation not supported")
@@ -79,6 +88,8 @@ func (e *QueryError) Is(target error) bool {
 		return target == ErrMemoryBudgetExceeded
 	case QueryErrorTypeInvalid:
 		return target == ErrInvalidQuery
+	case QueryErrorTypeCanceled:
+		return target == ErrQueryCanceled
 	}
 	return false
 }
@@ -141,6 +152,10 @@ func (e *StorageError) Is(target error) bool {
 		return target == ErrStorageCorruption
 	case StorageErrorTypeSync:
 		return target == ErrWALSync
+	case StorageErrorTypeRead:
+		return target == ErrStorageRead
+	case StorageErrorTypeWrite:
+		return target == ErrStorageWrite
 	}
 	return false
 }
@@ -174,11 +189,18 @@ func (e *WALSyncError) Error() string {
 	return "WAL sync failed"
 }
 
-func (e *WALSyncError) Unwrap() error {
+// Unwrap returns all underlying errors for errors.Is/As chain traversal.
+// When both FlushErr and SyncErr are present, both are returned so
+// neither is hidden from callers using errors.Is or errors.As.
+func (e *WALSyncError) Unwrap() []error {
+	var errs []error
 	if e.FlushErr != nil {
-		return e.FlushErr
+		errs = append(errs, e.FlushErr)
 	}
-	return e.SyncErr
+	if e.SyncErr != nil {
+		errs = append(errs, e.SyncErr)
+	}
+	return errs
 }
 
 // Is implements error matching for WALSyncError.
