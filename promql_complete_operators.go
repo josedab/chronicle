@@ -51,6 +51,12 @@ const (
 	PromQLFuncResets
 	PromQLFuncPredictLinear
 	PromQLFuncLastOverTime
+	PromQLFuncSgn
+	PromQLFuncHoltWinters
+	PromQLFuncHistogramCount
+	PromQLFuncHistogramSum
+	PromQLFuncHistogramAvg
+	PromQLFuncHistogramFraction
 )
 
 // PromQLBinaryOp represents a binary operation between two expressions.
@@ -101,6 +107,18 @@ func (op PromQLAggOp) StringExtended() string {
 		return "vector"
 	case PromQLFuncScalar:
 		return "scalar"
+	case PromQLFuncSgn:
+		return "sgn"
+	case PromQLFuncHoltWinters:
+		return "holt_winters"
+	case PromQLFuncHistogramCount:
+		return "histogram_count"
+	case PromQLFuncHistogramSum:
+		return "histogram_sum"
+	case PromQLFuncHistogramAvg:
+		return "histogram_avg"
+	case PromQLFuncHistogramFraction:
+		return "histogram_fraction"
 	default:
 		return op.String()
 	}

@@ -111,6 +111,12 @@ func EvalRangeFunction(fn PromQLRangeFunc, samples []PromQLSample, rangeMs int64
 		return evalPredictLinear(samples, rangeMs)
 	case RangeFuncLastOverTime:
 		return evalLastOverTime(samples)
+	case RangeFuncHoltWinters:
+		return EvalHoltWinters(samples, 0.5, 0.5)
+	case RangeFuncAbsentOverTime:
+		return EvalAbsentOverTime(samples)
+	case RangeFuncPresentOverTime:
+		return EvalPresentOverTime(samples)
 	default:
 		return math.NaN()
 	}
