@@ -294,9 +294,21 @@ func (s *PromQLComplianceSuite) RunAll() []PromQLComplianceTest {
 		{"func_month", "month(timestamp(up))", "function"},
 		{"func_year", "year(timestamp(up))", "function"},
 
+		// Math functions (continued)
+		{"func_sgn", "sgn(temperature)", "function"},
+
 		// Sort functions
 		{"func_sort", "sort(http_requests_total)", "function"},
 		{"func_sort_desc", "sort_desc(http_requests_total)", "function"},
+
+		// Holt-Winters
+		{"func_holt_winters", "holt_winters(http_requests_total[5m], 0.5, 0.5)", "range_function"},
+
+		// Native histogram functions
+		{"func_histogram_count", "histogram_count(http_request_duration)", "function"},
+		{"func_histogram_sum", "histogram_sum(http_request_duration)", "function"},
+		{"func_histogram_avg", "histogram_avg(http_request_duration)", "function"},
+		{"func_histogram_fraction", "histogram_fraction(0, 0.5, http_request_duration)", "function"},
 
 		// Binary operations
 		{"bin_add", "metric_a + metric_b", "binary"},

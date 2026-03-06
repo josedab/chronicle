@@ -53,7 +53,7 @@ var extendedPromQLFunctions = []string{
 	"quantile_over_time", "last_over_time",
 	"predict_linear", "holt_winters",
 	"histogram_count", "histogram_sum", "histogram_avg", "histogram_fraction",
-	"ceil", "floor", "round", "abs",
+	"ceil", "floor", "round", "abs", "sgn",
 	"clamp_max", "clamp_min", "clamp",
 	"delta", "idelta", "increase", "irate", "deriv",
 	"vector", "scalar",
@@ -208,6 +208,92 @@ func (p *PromQLCompleteParser) parseExtendedFunction(expr, fnName string) (*Prom
 			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
 		}
 		return query, nil
+	case "holt_winters":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("holt_winters requires 3 arguments (vector, sf, tf)")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[0]))
+		if err != nil {
+			return nil, fmt.Errorf("holt_winters: %w", err)
+		}
+		query.Function = PromQLFuncHoltWinters
+		if query.Aggregation == nil {
+			query.Aggregation = &PromQLAggregation{Op: PromQLAggRate}
+		}
+		return query, nil
+	case "clamp":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("clamp requires 3 arguments (vector, min, max)")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[0]))
+		if err != nil {
+			return nil, fmt.Errorf("clamp: %w", err)
+		}
+		query.Function = PromQLFuncClamp
+		return query, nil
+	case "clamp_min":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("clamp_min requires 2 arguments")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[0]))
+		if err != nil {
+			return nil, fmt.Errorf("clamp_min: %w", err)
+		}
+		query.Function = PromQLFuncClampMin
+		return query, nil
+	case "clamp_max":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("clamp_max requires 2 arguments")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[0]))
+		if err != nil {
+			return nil, fmt.Errorf("clamp_max: %w", err)
+		}
+		query.Function = PromQLFuncClampMax
+		return query, nil
+	case "sgn":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("sgn: %w", err)
+		}
+		query.Function = PromQLFuncSgn
+		return query, nil
+	case "histogram_count":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("histogram_count: %w", err)
+		}
+		query.Function = PromQLFuncHistogramCount
+		return query, nil
+	case "histogram_sum":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("histogram_sum: %w", err)
+		}
+		query.Function = PromQLFuncHistogramSum
+		return query, nil
+	case "histogram_avg":
+		query, err := p.ParseComplete(strings.TrimSpace(inner))
+		if err != nil {
+			return nil, fmt.Errorf("histogram_avg: %w", err)
+		}
+		query.Function = PromQLFuncHistogramAvg
+		return query, nil
+	case "histogram_fraction":
+		parts := splitPromQLArgs(inner)
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("histogram_fraction requires 3 arguments (lower, upper, vector)")
+		}
+		query, err := p.ParseComplete(strings.TrimSpace(parts[2]))
+		if err != nil {
+			return nil, fmt.Errorf("histogram_fraction: %w", err)
+		}
+		query.Function = PromQLFuncHistogramFraction
+		return query, nil
 	default:
 		// For aggregation operators and simple functions, parse inner expression
 		query, err := p.ParseComplete(strings.TrimSpace(inner))
@@ -228,6 +314,20 @@ func (p *PromQLCompleteParser) parseExtendedFunction(expr, fnName string) (*Prom
 			query.Aggregation = &PromQLAggregation{Op: PromQLAggGroup}
 		case "count_values":
 			query.Aggregation = &PromQLAggregation{Op: PromQLAggCountValues}
+		case "sort":
+			query.Function = PromQLFuncSortAsc
+		case "sort_desc":
+			query.Function = PromQLFuncSortDesc
+		case "abs":
+			query.Function = PromQLFuncAbs
+		case "ceil":
+			query.Function = PromQLFuncCeil
+		case "floor":
+			query.Function = PromQLFuncFloor
+		case "round":
+			query.Function = PromQLFuncRound
+		case "timestamp":
+			query.Function = PromQLFuncTimestamp
 		}
 		return query, nil
 	}
@@ -363,7 +463,9 @@ func PromQLMathApply(fn string, values []float64) []float64 {
 		case "log10":
 			result[i] = math.Log10(v)
 		case "sgn":
-			if v > 0 {
+			if math.IsNaN(v) {
+				result[i] = math.NaN()
+			} else if v > 0 {
 				result[i] = 1
 			} else if v < 0 {
 				result[i] = -1

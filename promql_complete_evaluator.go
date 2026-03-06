@@ -74,6 +74,10 @@ func (e *PromQLEvaluator) Evaluate(expr string, start, end int64) (*PromQLEvalRe
 				Scalar: floatPtr(1),
 			}, nil
 		}
+		// vector(n) always returns a value regardless of data presence
+		if pq.Aggregation != nil && pq.Aggregation.Op == PromQLFuncVector {
+			return &PromQLEvalResult{Scalar: floatPtr(1)}, nil
+		}
 		return &PromQLEvalResult{}, nil
 	}
 
@@ -82,8 +86,13 @@ func (e *PromQLEvaluator) Evaluate(expr string, start, end int64) (*PromQLEvalRe
 		return e.applyExtendedAgg(pq, points, start, end)
 	}
 
-	// Return raw points as series
-	return pointsToEvalResult(points), nil
+	// Apply scalar functions (sgn, clamp, sort, etc.)
+	result := pointsToEvalResult(points)
+	if pq.Function != 0 {
+		result = e.applyScalarFunction(pq.Function, result)
+	}
+
+	return result, nil
 }
 
 func floatPtr(v float64) *float64 { return &v }
@@ -155,8 +164,79 @@ func (e *PromQLEvaluator) applyExtendedAgg(pq *PromQLQuery, points []Point, star
 	case PromQLAggGroup:
 		return e.evalGroup(groups), nil
 	default:
+		// For range functions (rate, irate, delta, etc.), apply function to each series
+		if pq.Function != 0 {
+			return e.evalRangeFunc(pq.Function, points, start, end), nil
+		}
 		// For standard aggregations, the DB already handled it via ToChronicleQuery
 		return pointsToEvalResult(points), nil
+	}
+}
+
+// evalRangeFunc applies a PromQL range function to points grouped by series.
+func (e *PromQLEvaluator) evalRangeFunc(fn PromQLAggOp, points []Point, start, end int64) *PromQLEvalResult {
+	// Group points by series key
+	seriesMap := make(map[string]*PromQLResultSeries)
+	seriesOrder := make([]string, 0)
+	for _, p := range points {
+		key := p.Metric
+		s, ok := seriesMap[key]
+		if !ok {
+			s = &PromQLResultSeries{Metric: p.Metric, Labels: p.Tags}
+			seriesMap[key] = s
+			seriesOrder = append(seriesOrder, key)
+		}
+		s.Samples = append(s.Samples, PromQLSample{Timestamp: p.Timestamp, Value: p.Value})
+	}
+
+	rangeMs := end - start
+	if rangeMs <= 0 {
+		rangeMs = 300000 // default 5m
+	}
+
+	rangeFn := mapFuncToRangeFunc(fn)
+
+	result := &PromQLEvalResult{}
+	for _, key := range seriesOrder {
+		s := seriesMap[key]
+		val := EvalRangeFunction(rangeFn, s.Samples, rangeMs)
+		result.Series = append(result.Series, PromQLResultSeries{
+			Metric:  s.Metric,
+			Labels:  s.Labels,
+			Value:   val,
+			Samples: []PromQLSample{{Timestamp: end, Value: val}},
+		})
+	}
+	return result
+}
+
+// mapFuncToRangeFunc maps a PromQLAggOp function ID to a PromQLRangeFunc.
+func mapFuncToRangeFunc(fn PromQLAggOp) PromQLRangeFunc {
+	switch fn {
+	case PromQLAggRate:
+		return RangeFuncRate
+	case PromQLFuncIrate:
+		return RangeFuncIrate
+	case PromQLFuncIncrease:
+		return RangeFuncIncrease
+	case PromQLFuncDelta:
+		return RangeFuncDelta
+	case PromQLFuncIdelta:
+		return RangeFuncIdelta
+	case PromQLFuncDeriv:
+		return RangeFuncDeriv
+	case PromQLFuncChanges:
+		return RangeFuncChanges
+	case PromQLFuncResets:
+		return RangeFuncResets
+	case PromQLFuncPredictLinear:
+		return RangeFuncPredictLinear
+	case PromQLFuncLastOverTime:
+		return RangeFuncLastOverTime
+	case PromQLFuncHoltWinters:
+		return RangeFuncHoltWinters
+	default:
+		return RangeFuncRate
 	}
 }
 
@@ -486,4 +566,63 @@ func exprToString(q *PromQLQuery) string {
 		return ""
 	}
 	return q.Metric
+}
+
+// applyScalarFunction applies a scalar function to all series values in a result.
+func (e *PromQLEvaluator) applyScalarFunction(fn PromQLAggOp, result *PromQLEvalResult) *PromQLEvalResult {
+	switch fn {
+	case PromQLFuncSgn:
+		for i := range result.Series {
+			result.Series[i].Value = EvalSgn(result.Series[i].Value)
+			for j := range result.Series[i].Samples {
+				result.Series[i].Samples[j].Value = EvalSgn(result.Series[i].Samples[j].Value)
+			}
+		}
+	case PromQLFuncClamp:
+		for i := range result.Series {
+			result.Series[i].Value = EvalClamp(result.Series[i].Value, 0, 100)
+			for j := range result.Series[i].Samples {
+				result.Series[i].Samples[j].Value = EvalClamp(result.Series[i].Samples[j].Value, 0, 100)
+			}
+		}
+	case PromQLFuncClampMin:
+		for i := range result.Series {
+			result.Series[i].Value = EvalClampMin(result.Series[i].Value, 0)
+			for j := range result.Series[i].Samples {
+				result.Series[i].Samples[j].Value = EvalClampMin(result.Series[i].Samples[j].Value, 0)
+			}
+		}
+	case PromQLFuncClampMax:
+		for i := range result.Series {
+			result.Series[i].Value = EvalClampMax(result.Series[i].Value, 100)
+			for j := range result.Series[i].Samples {
+				result.Series[i].Samples[j].Value = EvalClampMax(result.Series[i].Samples[j].Value, 100)
+			}
+		}
+	case PromQLFuncCeil:
+		for i := range result.Series {
+			result.Series[i].Value = math.Ceil(result.Series[i].Value)
+		}
+	case PromQLFuncFloor:
+		for i := range result.Series {
+			result.Series[i].Value = math.Floor(result.Series[i].Value)
+		}
+	case PromQLFuncRound:
+		for i := range result.Series {
+			result.Series[i].Value = math.Round(result.Series[i].Value)
+		}
+	case PromQLFuncAbs:
+		for i := range result.Series {
+			result.Series[i].Value = math.Abs(result.Series[i].Value)
+		}
+	case PromQLFuncSortAsc:
+		sort.Slice(result.Series, func(a, b int) bool {
+			return result.Series[a].Value < result.Series[b].Value
+		})
+	case PromQLFuncSortDesc:
+		sort.Slice(result.Series, func(a, b int) bool {
+			return result.Series[a].Value > result.Series[b].Value
+		})
+	}
+	return result
 }
