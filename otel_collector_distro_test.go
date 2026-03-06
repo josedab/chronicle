@@ -179,3 +179,288 @@ func TestCollectorDistroDisabled(t *testing.T) {
 		t.Errorf("disabled collector should start without error: %v", err)
 	}
 }
+
+func TestCollectorDistro_ValidatePipelines(t *testing.T) {
+	db := setupTestDB(t)
+	cfg := DefaultOTelCollectorDistroConfig()
+	cd := NewOTelCollectorDistro(db, cfg)
+
+	// Default config should be valid
+	errs := cd.ValidatePipelines()
+	if len(errs) > 0 {
+		t.Errorf("default config should be valid, got errors: %v", errs)
+	}
+
+	// Add a pipeline referencing a non-existent receiver
+	cd.AddCollectorPipeline(CollectorPipeline{
+		Name:       "bad/pipeline",
+		SignalType: "metrics",
+		Receivers:  []string{"nonexistent_receiver"},
+		Exporters:  []string{"chronicle"},
+		Enabled:    true,
+	})
+	errs = cd.ValidatePipelines()
+	if len(errs) == 0 {
+		t.Error("expected validation errors for bad pipeline")
+	}
+
+	// Add pipeline with invalid signal type
+	cd.AddCollectorPipeline(CollectorPipeline{
+		Name:       "invalid/signal",
+		SignalType: "unknown",
+		Receivers:  []string{"otlp"},
+		Exporters:  []string{"chronicle"},
+		Enabled:    true,
+	})
+	errs = cd.ValidatePipelines()
+	found := false
+	for _, e := range errs {
+		if len(e) > 0 {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected validation error for invalid signal type")
+	}
+}
+
+func TestCollectorDistro_E2E_DataFlow(t *testing.T) {
+	db := setupTestDB(t)
+	cfg := DefaultOTelCollectorDistroConfig()
+	cd := NewOTelCollectorDistro(db, cfg)
+
+	if err := cd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cd.Stop()
+
+	// Ingest data through the pipeline
+	now := time.Now().UnixNano()
+	points := make([]Point, 100)
+	for i := 0; i < 100; i++ {
+		points[i] = Point{
+			Metric:    "e2e_test_metric",
+			Value:     float64(i),
+			Tags:      map[string]string{"env": "test", "host": "localhost"},
+			Timestamp: now + int64(i*1000),
+		}
+	}
+
+	err := cd.Ingest(context.Background(), "metrics/default", points)
+	if err != nil {
+		t.Fatalf("E2E ingest failed: %v", err)
+	}
+
+	stats := cd.GetStats()
+	received := stats["total_received"].(uint64)
+	exported := stats["total_exported"].(uint64)
+	if received != 100 {
+		t.Errorf("expected 100 received, got %d", received)
+	}
+	if exported != 100 {
+		t.Errorf("expected 100 exported, got %d", exported)
+	}
+
+	// Verify data actually reached the DB
+	db.Flush()
+	result, err := db.Execute(&Query{Metric: "e2e_test_metric"})
+	if err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if len(result.Points) == 0 {
+		t.Error("expected data to reach DB after E2E ingest")
+	}
+}
+
+func TestCollectorDistro_PipelineManagement(t *testing.T) {
+	db := setupTestDB(t)
+	cfg := DefaultOTelCollectorDistroConfig()
+	cd := NewOTelCollectorDistro(db, cfg)
+
+	initialCount := len(cd.config.Pipelines)
+
+	cd.AddCollectorPipeline(CollectorPipeline{
+		Name: "custom/metrics", SignalType: "metrics",
+		Receivers: []string{"otlp"}, Exporters: []string{"chronicle"},
+		Enabled: true,
+	})
+	if len(cd.config.Pipelines) != initialCount+1 {
+		t.Error("pipeline not added")
+	}
+
+	removed := cd.RemoveCollectorPipeline("custom/metrics")
+	if !removed {
+		t.Error("pipeline not removed")
+	}
+	if len(cd.config.Pipelines) != initialCount {
+		t.Error("pipeline count mismatch after removal")
+	}
+
+	removed = cd.RemoveCollectorPipeline("nonexistent")
+	if removed {
+		t.Error("should not remove nonexistent pipeline")
+	}
+}
+
+func TestCollectorDistro_GenerateHelmChart(t *testing.T) {
+	db := setupTestDB(t)
+	cd := NewOTelCollectorDistro(db, DefaultOTelCollectorDistroConfig())
+
+	chart := cd.GenerateHelmChart()
+	if chart["Chart.yaml"] == "" {
+		t.Error("expected Chart.yaml")
+	}
+	if chart["templates/configmap.yaml"] == "" {
+		t.Error("expected templates/configmap.yaml")
+	}
+	if chart["templates/service.yaml"] == "" {
+		t.Error("expected templates/service.yaml")
+	}
+}
+
+func TestCollectorDistro_GenerateDeployment(t *testing.T) {
+	db := setupTestDB(t)
+	cd := NewOTelCollectorDistro(db, DefaultOTelCollectorDistroConfig())
+
+	manifest := cd.GenerateK8sDeploymentManifest()
+	if manifest == "" {
+		t.Error("expected non-empty deployment manifest")
+	}
+	if !otelContainsStr(manifest, "replicas: 2") {
+		t.Error("expected replicas in deployment manifest")
+	}
+}
+
+func otelContainsStr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
+func TestCollectorDistro_StatsD_Config(t *testing.T) {
+	cfg := DefaultOTelCollectorDistroConfig()
+
+	// Verify StatsD receiver is in the config
+	found := false
+	for _, r := range cfg.Receivers {
+		if r.Type == OTelReceiverStatsD {
+			found = true
+			if r.Endpoint != "0.0.0.0:8125" {
+				t.Errorf("expected StatsD endpoint 0.0.0.0:8125, got %s", r.Endpoint)
+			}
+		}
+	}
+	if !found {
+		t.Error("StatsD receiver not found in default config")
+	}
+}
+
+func TestParseStatsDLine(t *testing.T) {
+	tests := []struct {
+		name       string
+		line       string
+		wantName   string
+		wantValue  float64
+		wantType   string
+		wantTags   map[string]string
+		wantErr    bool
+	}{
+		{
+			name: "simple_counter",
+			line: "page.views:1|c",
+			wantName: "page.views", wantValue: 1, wantType: "c",
+		},
+		{
+			name: "gauge",
+			line: "cpu.usage:72.5|g",
+			wantName: "cpu.usage", wantValue: 72.5, wantType: "g",
+		},
+		{
+			name: "timer",
+			line: "request.latency:320|ms",
+			wantName: "request.latency", wantValue: 320, wantType: "ms",
+		},
+		{
+			name: "counter_with_sample_rate",
+			line: "page.views:1|c|@0.5",
+			wantName: "page.views", wantValue: 2, wantType: "c", // 1/0.5 = 2
+		},
+		{
+			name: "gauge_with_tags",
+			line: "disk.free:54321|g|#host:web01,region:us-east",
+			wantName: "disk.free", wantValue: 54321, wantType: "g",
+			wantTags: map[string]string{"host": "web01", "region": "us-east"},
+		},
+		{
+			name: "counter_with_tags_and_sample",
+			line: "http.requests:5|c|@0.1|#method:GET,status:200",
+			wantName: "http.requests", wantValue: 50, wantType: "c", // 5/0.1 = 50
+			wantTags: map[string]string{"method": "GET", "status": "200"},
+		},
+		{
+			name: "negative_gauge",
+			line: "temperature:-10|g",
+			wantName: "temperature", wantValue: -10, wantType: "g",
+		},
+		{name: "empty_line", line: "", wantErr: true},
+		{name: "no_colon", line: "justmetric", wantErr: true},
+		{name: "no_type", line: "metric:42", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, err := ParseStatsDLine(tt.line)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if m.Name != tt.wantName {
+				t.Errorf("name: got %q, want %q", m.Name, tt.wantName)
+			}
+			if m.Value != tt.wantValue {
+				t.Errorf("value: got %f, want %f", m.Value, tt.wantValue)
+			}
+			if m.MetricType != tt.wantType {
+				t.Errorf("type: got %q, want %q", m.MetricType, tt.wantType)
+			}
+			if tt.wantTags != nil {
+				for k, v := range tt.wantTags {
+					if m.Tags[k] != v {
+						t.Errorf("tag %s: got %q, want %q", k, m.Tags[k], v)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestStatsDToPoints(t *testing.T) {
+	lines := []string{
+		"page.views:1|c",
+		"cpu.usage:72.5|g|#host:web01",
+		"invalid line",
+		"request.latency:320|ms|#service:api",
+	}
+
+	points, errs := StatsDToPoints(lines, "statsd.")
+	if len(errs) != 1 {
+		t.Errorf("expected 1 error, got %d", len(errs))
+	}
+	if len(points) != 3 {
+		t.Fatalf("expected 3 points, got %d", len(points))
+	}
+	if points[0].Metric != "statsd.page.views" {
+		t.Errorf("expected prefixed metric, got %s", points[0].Metric)
+	}
+	if points[1].Tags["host"] != "web01" {
+		t.Error("expected tag host=web01")
+	}
+}

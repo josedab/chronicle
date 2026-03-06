@@ -561,6 +561,130 @@ func (e *s3Exporter) Export(_ context.Context, points []Point) error {
 func (e *s3Exporter) Name() string           { return e.name }
 func (e *s3Exporter) Type() OTelExporterType { return OTelExporterS3 }
 
+// --- StatsD Line Protocol Parser ---
+
+// StatsDMetric represents a parsed StatsD metric line.
+type StatsDMetric struct {
+	Name       string            `json:"name"`
+	Value      float64           `json:"value"`
+	MetricType string            `json:"metric_type"` // c(ounter), g(auge), ms(timer), h(istogram), s(et)
+	SampleRate float64           `json:"sample_rate"`
+	Tags       map[string]string `json:"tags,omitempty"`
+}
+
+// ParseStatsDLine parses a single StatsD line protocol message.
+// Format: <metric>:<value>|<type>[|@<sample_rate>][|#<tag1>:<val1>,<tag2>:<val2>]
+func ParseStatsDLine(line string) (*StatsDMetric, error) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, fmt.Errorf("statsd: empty line")
+	}
+
+	// Split metric name from rest
+	colonIdx := strings.Index(line, ":")
+	if colonIdx < 1 {
+		return nil, fmt.Errorf("statsd: missing colon separator in %q", line)
+	}
+
+	m := &StatsDMetric{
+		Name:       line[:colonIdx],
+		SampleRate: 1.0,
+		Tags:       make(map[string]string),
+	}
+
+	rest := line[colonIdx+1:]
+
+	// Split by pipe
+	parts := strings.Split(rest, "|")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("statsd: missing type in %q", line)
+	}
+
+	// Parse value
+	valStr := strings.TrimSpace(parts[0])
+	// Handle increment/decrement for counters
+	if valStr == "" {
+		m.Value = 1
+	} else {
+		val, err := statsdParseFloat(valStr)
+		if err != nil {
+			return nil, fmt.Errorf("statsd: invalid value %q: %w", valStr, err)
+		}
+		m.Value = val
+	}
+
+	// Parse type
+	m.MetricType = strings.TrimSpace(parts[1])
+
+	// Parse optional sample rate and tags
+	for _, part := range parts[2:] {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, "@") {
+			sr, err := statsdParseFloat(part[1:])
+			if err == nil && sr > 0 {
+				m.SampleRate = sr
+			}
+		} else if strings.HasPrefix(part, "#") {
+			tagStr := part[1:]
+			for _, tag := range strings.Split(tagStr, ",") {
+				kv := strings.SplitN(tag, ":", 2)
+				if len(kv) == 2 {
+					m.Tags[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+				} else if len(kv) == 1 && kv[0] != "" {
+					m.Tags[strings.TrimSpace(kv[0])] = ""
+				}
+			}
+		}
+	}
+
+	// Adjust value by sample rate for counters
+	if m.MetricType == "c" && m.SampleRate > 0 && m.SampleRate < 1.0 {
+		m.Value /= m.SampleRate
+	}
+
+	return m, nil
+}
+
+// parseFloat parses a float64, handling +/- prefixes.
+func statsdParseFloat(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty string")
+	}
+	var val float64
+	_, err := fmt.Sscanf(s, "%f", &val)
+	return val, err
+}
+
+// StatsDToPoints converts a batch of StatsD lines to Chronicle Points.
+func StatsDToPoints(lines []string, prefix string) ([]Point, []error) {
+	var points []Point
+	var errs []error
+	now := time.Now().UnixNano()
+
+	for _, line := range lines {
+		m, err := ParseStatsDLine(line)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		metricName := m.Name
+		if prefix != "" {
+			metricName = prefix + metricName
+		}
+
+		points = append(points, Point{
+			Metric:    metricName,
+			Value:     m.Value,
+			Tags:      m.Tags,
+			Timestamp: now,
+		})
+	}
+
+	return points, errs
+}
+
 // AddCollectorPipeline adds a pipeline to the running collector.
 func (cd *OTelCollectorDistro) AddCollectorPipeline(pipeline CollectorPipeline) {
 	cd.mu.Lock()
@@ -595,19 +719,81 @@ func (cd *OTelCollectorDistro) AddExporter(e CollectorExporter) {
 	cd.exporters[e.Name()] = e
 }
 
-// GenerateDockerfile returns a Dockerfile for the Chronicle collector distribution.
+// ValidatePipelines checks that all pipeline references are valid.
+func (cd *OTelCollectorDistro) ValidatePipelines() []string {
+	cd.mu.RLock()
+	defer cd.mu.RUnlock()
+
+	var errors []string
+
+	receiverNames := make(map[string]bool)
+	for _, r := range cd.config.Receivers {
+		receiverNames[r.Name] = true
+	}
+	processorNames := make(map[string]bool)
+	for _, p := range cd.config.Processors {
+		processorNames[p.Name] = true
+	}
+	exporterNames := make(map[string]bool)
+	for _, e := range cd.config.Exporters {
+		exporterNames[e.Name] = true
+	}
+
+	for _, p := range cd.config.Pipelines {
+		if !p.Enabled {
+			continue
+		}
+		if len(p.Receivers) == 0 {
+			errors = append(errors, fmt.Sprintf("pipeline %q has no receivers", p.Name))
+		}
+		if len(p.Exporters) == 0 {
+			errors = append(errors, fmt.Sprintf("pipeline %q has no exporters", p.Name))
+		}
+		for _, r := range p.Receivers {
+			if !receiverNames[r] {
+				errors = append(errors, fmt.Sprintf("pipeline %q references unknown receiver %q", p.Name, r))
+			}
+		}
+		for _, pr := range p.Processors {
+			if !processorNames[pr] {
+				errors = append(errors, fmt.Sprintf("pipeline %q references unknown processor %q", p.Name, pr))
+			}
+		}
+		for _, ex := range p.Exporters {
+			if !exporterNames[ex] {
+				errors = append(errors, fmt.Sprintf("pipeline %q references unknown exporter %q", p.Name, ex))
+			}
+		}
+		validSignals := map[string]bool{"metrics": true, "traces": true, "logs": true}
+		if !validSignals[p.SignalType] {
+			errors = append(errors, fmt.Sprintf("pipeline %q has invalid signal type %q", p.Name, p.SignalType))
+		}
+	}
+
+	return errors
+}
+
+// GenerateDockerfile returns a multi-arch Dockerfile for the Chronicle collector distribution.
 func (cd *OTelCollectorDistro) GenerateDockerfile() string {
-	return `FROM golang:1.22-alpine AS builder
+	return `# Multi-arch Dockerfile for Chronicle Collector
+# Build: docker buildx build --platform linux/amd64,linux/arm64 -t chronicle-collector .
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /chronicle-collector ./cmd/chronicle-collector
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /chronicle-collector ./cmd/chronicle-collector
 
 FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates tzdata
 COPY --from=builder /chronicle-collector /usr/local/bin/chronicle-collector
-EXPOSE 4317 4318 8888
+EXPOSE 4317 4318 8888 8125
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:8888/health || exit 1
 ENTRYPOINT ["/usr/local/bin/chronicle-collector"]
 `
 }
@@ -616,6 +802,7 @@ ENTRYPOINT ["/usr/local/bin/chronicle-collector"]
 func (cd *OTelCollectorDistro) GenerateHelmValues() map[string]interface{} {
 	return map[string]interface{}{
 		"replicaCount": 1,
+		"mode":         "deployment", // deployment or daemonset
 		"image": map[string]interface{}{
 			"repository": "chronicle-db/chronicle-collector",
 			"tag":        "latest",
@@ -624,8 +811,10 @@ func (cd *OTelCollectorDistro) GenerateHelmValues() map[string]interface{} {
 		"service": map[string]interface{}{
 			"type": "ClusterIP",
 			"ports": map[string]interface{}{
-				"grpc": 4317,
-				"http": 4318,
+				"grpc":    4317,
+				"http":    4318,
+				"metrics": 8888,
+				"statsd":  8125,
 			},
 		},
 		"resources": map[string]interface{}{
@@ -638,8 +827,75 @@ func (cd *OTelCollectorDistro) GenerateHelmValues() map[string]interface{} {
 				"memory": "128Mi",
 			},
 		},
-		"config": cd.GetConfig(),
+		"serviceAccount": map[string]interface{}{
+			"create": true,
+			"name":   "chronicle-collector",
+		},
+		"podAnnotations": map[string]interface{}{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   "8888",
+		},
+		"tolerations": []interface{}{},
+		"nodeSelector": map[string]interface{}{},
+		"affinity":     map[string]interface{}{},
+		"config":       cd.GetConfig(),
 	}
+}
+
+// GenerateHelmChart returns a complete Helm chart structure as a map of filename to content.
+func (cd *OTelCollectorDistro) GenerateHelmChart() map[string]string {
+	chart := make(map[string]string)
+
+	chart["Chart.yaml"] = `apiVersion: v2
+name: chronicle-collector
+description: Chronicle OpenTelemetry Collector Distribution
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - opentelemetry
+  - observability
+  - metrics
+  - traces
+  - logs
+`
+
+	chart["templates/configmap.yaml"] = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    app: {{ .Release.Name }}
+data:
+  collector-config.json: |
+    {{ .Values.config | toJson }}
+`
+
+	chart["templates/service.yaml"] = `apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.ports.grpc }}
+    targetPort: otlp-grpc
+    protocol: TCP
+    name: otlp-grpc
+  - port: {{ .Values.service.ports.http }}
+    targetPort: otlp-http
+    protocol: TCP
+    name: otlp-http
+  - port: {{ .Values.service.ports.metrics }}
+    targetPort: metrics
+    protocol: TCP
+    name: metrics
+  selector:
+    app: {{ .Release.Name }}
+`
+	return chart
 }
 
 // GenerateK8sDaemonSetManifest returns a K8s DaemonSet YAML manifest.
@@ -651,6 +907,7 @@ metadata:
   namespace: monitoring
   labels:
     app: chronicle-collector
+    app.kubernetes.io/component: collector
 spec:
   selector:
     matchLabels:
@@ -659,10 +916,16 @@ spec:
     metadata:
       labels:
         app: chronicle-collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8888"
     spec:
+      serviceAccountName: chronicle-collector
       containers:
       - name: collector
         image: chronicle-db/chronicle-collector:latest
+        args:
+        - --config=/etc/chronicle/config.json
         ports:
         - containerPort: 4317
           name: otlp-grpc
@@ -673,6 +936,9 @@ spec:
         - containerPort: 8888
           name: metrics
           protocol: TCP
+        - containerPort: 8125
+          name: statsd
+          protocol: UDP
         resources:
           limits:
             cpu: 500m
@@ -682,9 +948,93 @@ spec:
             memory: 128Mi
         livenessProbe:
           httpGet:
-            path: /api/v1/collector/stats
+            path: /health
             port: 8888
           initialDelaySeconds: 5
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8888
+          initialDelaySeconds: 3
           periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/chronicle
+      volumes:
+      - name: config
+        configMap:
+          name: chronicle-collector-config
+      tolerations:
+      - operator: Exists
+`
+}
+
+// GenerateK8sDeploymentManifest returns a K8s Deployment YAML manifest.
+func (cd *OTelCollectorDistro) GenerateK8sDeploymentManifest() string {
+	return `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chronicle-collector
+  namespace: monitoring
+  labels:
+    app: chronicle-collector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chronicle-collector
+  template:
+    metadata:
+      labels:
+        app: chronicle-collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8888"
+    spec:
+      serviceAccountName: chronicle-collector
+      containers:
+      - name: collector
+        image: chronicle-db/chronicle-collector:latest
+        args:
+        - --config=/etc/chronicle/config.json
+        ports:
+        - containerPort: 4317
+          name: otlp-grpc
+        - containerPort: 4318
+          name: otlp-http
+        - containerPort: 8888
+          name: metrics
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8888
+          initialDelaySeconds: 5
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8888
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/chronicle
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: config
+        configMap:
+          name: chronicle-collector-config
+      - name: data
+        emptyDir:
+          sizeLimit: 5Gi
 `
 }
