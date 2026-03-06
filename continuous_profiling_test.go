@@ -171,3 +171,46 @@ func TestPyroscopeToProfileType(t *testing.T) {
 		}
 	}
 }
+
+func TestContinuousProfilingEngine_PartitionStoreIntegration(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewProfileStore(db, DefaultProfileConfig())
+	engine := NewContinuousProfilingEngine(db, store, DefaultContinuousProfilingConfig())
+
+	// Verify partition store is initialized
+	ps := engine.PartitionStore()
+	if ps == nil {
+		t.Fatal("expected non-nil partition store")
+	}
+
+	// Ingest a profile with span_id
+	p := Profile{
+		Type:      ProfileTypeCPU,
+		Data:      []byte("fake pprof data"),
+		Timestamp: time.Now().UnixNano(),
+		Labels:    map[string]string{"service": "api-server", "span_id": "span-123", "trace_id": "trace-abc"},
+	}
+	err := engine.IngestProfile(p)
+	if err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
+
+	// Verify it's in the partition store
+	stats := ps.Stats()
+	total, ok := stats["total_profiles"].(int)
+	if !ok || total != 1 {
+		t.Errorf("expected 1 profile in partition store, got %v", stats["total_profiles"])
+	}
+
+	// Verify span linkage
+	profiles := ps.QueryBySpan("span-123")
+	if len(profiles) != 1 {
+		t.Errorf("expected 1 profile linked to span, got %d", len(profiles))
+	}
+
+	// Verify correlation by service
+	corr := ps.CorrelateMetricSpikeToProfiles("api-server", p.Timestamp, ProfileTypeCPU, int64(time.Hour))
+	if corr == nil {
+		t.Error("expected non-nil correlation result")
+	}
+}

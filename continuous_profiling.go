@@ -89,10 +89,11 @@ func DefaultContinuousProfilingConfig() ContinuousProfilingConfig {
 // ContinuousProfilingEngine extends ProfileStore with Pyroscope compatibility
 // and temporal correlation features.
 type ContinuousProfilingEngine struct {
-	store  *ProfileStore
-	db     *DB
-	config ContinuousProfilingConfig
-	mu     sync.RWMutex
+	store          *ProfileStore
+	partitionStore *ProfilePartitionStore
+	db             *DB
+	config         ContinuousProfilingConfig
+	mu             sync.RWMutex
 
 	// Index: service+profile_type -> timestamps for quick lookup
 	timeIndex map[string][]int64
@@ -106,11 +107,17 @@ type ContinuousProfilingEngine struct {
 // NewContinuousProfilingEngine creates a new continuous profiling engine.
 func NewContinuousProfilingEngine(db *DB, store *ProfileStore, config ContinuousProfilingConfig) *ContinuousProfilingEngine {
 	return &ContinuousProfilingEngine{
-		store:     store,
-		db:        db,
-		config:    config,
-		timeIndex: make(map[string][]int64),
+		store:          store,
+		partitionStore: NewProfilePartitionStore(DefaultProfilePartitionConfig()),
+		db:             db,
+		config:         config,
+		timeIndex:      make(map[string][]int64),
 	}
+}
+
+// PartitionStore returns the profile partition store for span-linked queries.
+func (e *ContinuousProfilingEngine) PartitionStore() *ProfilePartitionStore {
+	return e.partitionStore
 }
 
 // IngestProfile ingests a pprof-format profile.
@@ -124,6 +131,31 @@ func (e *ContinuousProfilingEngine) IngestProfile(p Profile) error {
 
 	if err := e.store.Write(p); err != nil {
 		return fmt.Errorf("continuous_profiling: write failed: %w", err)
+	}
+
+	// Also store in partition store for span-linked queries
+	if e.partitionStore != nil {
+		service := p.Labels["service"]
+		if service == "" {
+			service = "unknown"
+		}
+		sp := StoredProfile{
+			Service:     service,
+			ProfileType: p.Type,
+			StartTime:   p.Timestamp,
+			EndTime:     p.Timestamp,
+			SizeBytes:   int64(len(p.Data)),
+			Samples: []ProfileSample{
+				{
+					StackTrace: []string{"(pprof binary)"},
+					Value:      int64(len(p.Data)),
+					SpanID:     p.Labels["span_id"],
+					TraceID:    p.Labels["trace_id"],
+					Timestamp:  p.Timestamp,
+				},
+			},
+		}
+		e.partitionStore.Store(sp)
 	}
 
 	e.mu.Lock()
