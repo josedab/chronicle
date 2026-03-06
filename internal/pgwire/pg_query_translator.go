@@ -358,33 +358,30 @@ func (sess *PGSession) handleDescribe(payload []byte) {
 	descType := payload[0] // 'S' for statement, 'P' for portal
 	name := strings.TrimRight(string(payload[1:]), "\x00")
 
+	// Read query under lock, then execute and write outside lock to avoid deadlock.
+	var query string
 	sess.mu.Lock()
-	defer sess.mu.Unlock()
-
 	switch descType {
 	case 'S':
 		if stmt, ok := sess.preparedStmts[name]; ok && stmt.query != "" {
-			// Describe the statement's result columns
-			translator := &PGQueryTranslator{db: sess.server.db}
-			result, err := translator.Execute(stmt.query)
-			if err != nil {
-				sess.writeMessage(PGMsgNoData, nil)
-				return
-			}
-			sess.writeRowDescription(result.Columns)
-			return
+			query = stmt.query
 		}
 	case 'P':
 		if portal, ok := sess.portals[name]; ok && portal.stmt != nil {
-			translator := &PGQueryTranslator{db: sess.server.db}
-			result, err := translator.Execute(portal.stmt.query)
-			if err != nil {
-				sess.writeMessage(PGMsgNoData, nil)
-				return
-			}
-			sess.writeRowDescription(result.Columns)
+			query = portal.stmt.query
+		}
+	}
+	sess.mu.Unlock()
+
+	if query != "" {
+		translator := &PGQueryTranslator{db: sess.server.db}
+		result, err := translator.Execute(query)
+		if err != nil {
+			sess.writeMessage(PGMsgNoData, nil)
 			return
 		}
+		sess.writeRowDescription(result.Columns)
+		return
 	}
 	sess.writeMessage(PGMsgNoData, nil)
 }
