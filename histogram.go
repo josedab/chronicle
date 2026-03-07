@@ -194,11 +194,11 @@ func (h *Histogram) Merge(other *Histogram) error {
 
 	// Merge positive buckets
 	h.PositiveBuckets = mergeBuckets(h.PositiveSpans, h.PositiveBuckets, other.PositiveSpans, other.PositiveBuckets)
-	h.PositiveSpans = mergeSpans(h.PositiveSpans, other.PositiveSpans)
+	h.PositiveSpans = mergeSpans(h.PositiveSpans, other.PositiveSpans, h.PositiveBuckets, other.PositiveBuckets)
 
 	// Merge negative buckets
 	h.NegativeBuckets = mergeBuckets(h.NegativeSpans, h.NegativeBuckets, other.NegativeSpans, other.NegativeBuckets)
-	h.NegativeSpans = mergeSpans(h.NegativeSpans, other.NegativeSpans)
+	h.NegativeSpans = mergeSpans(h.NegativeSpans, other.NegativeSpans, h.NegativeBuckets, other.NegativeBuckets)
 
 	return nil
 }
@@ -402,21 +402,83 @@ func readBuckets(reader *bytes.Reader) ([]int64, error) {
 	return buckets, nil
 }
 
-func mergeBuckets(spans1 []BucketSpan, buckets1 []int64, spans2 []BucketSpan, buckets2 []int64) []int64 {
-	// Simplified merge - just concatenate for now
-	// A full implementation would properly interleave based on bucket indices
-	result := make([]int64, 0, len(buckets1)+len(buckets2))
-	result = append(result, buckets1...)
-	result = append(result, buckets2...)
+// expandSpans converts spans+buckets into a dense map of bucket_index→count.
+func expandSpans(spans []BucketSpan, buckets []int64) map[int32]int64 {
+	result := make(map[int32]int64, len(buckets))
+	bucketIdx := 0
+	var currentIndex int32
+
+	for _, span := range spans {
+		currentIndex += span.Offset
+		for i := uint32(0); i < span.Length; i++ {
+			if bucketIdx < len(buckets) {
+				result[currentIndex] = buckets[bucketIdx]
+				bucketIdx++
+			}
+			currentIndex++
+		}
+	}
 	return result
 }
 
-func mergeSpans(spans1, spans2 []BucketSpan) []BucketSpan {
-	// Simplified merge - just concatenate
-	result := make([]BucketSpan, 0, len(spans1)+len(spans2))
-	result = append(result, spans1...)
-	result = append(result, spans2...)
-	return result
+// compactSpans converts a dense index→count map back into spans+buckets.
+func compactSpans(counts map[int32]int64) ([]BucketSpan, []int64) {
+	if len(counts) == 0 {
+		return nil, nil
+	}
+
+	// Collect and sort indices
+	indices := make([]int32, 0, len(counts))
+	for idx := range counts {
+		indices = append(indices, idx)
+	}
+	sort.Slice(indices, func(i, j int) bool { return indices[i] < indices[j] })
+
+	var spans []BucketSpan
+	var buckets []int64
+	var prevEnd int32
+	spanStart := true
+
+	for i, idx := range indices {
+		if spanStart || idx != prevEnd {
+			offset := idx
+			if !spanStart {
+				offset = idx - prevEnd
+			}
+			spans = append(spans, BucketSpan{Offset: offset, Length: 1})
+			spanStart = false
+		} else {
+			spans[len(spans)-1].Length++
+		}
+		buckets = append(buckets, counts[idx])
+		prevEnd = idx + 1
+		_ = i
+	}
+	return spans, buckets
+}
+
+func mergeBuckets(spans1 []BucketSpan, buckets1 []int64, spans2 []BucketSpan, buckets2 []int64) []int64 {
+	m1 := expandSpans(spans1, buckets1)
+	m2 := expandSpans(spans2, buckets2)
+
+	for idx, count := range m2 {
+		m1[idx] += count
+	}
+
+	_, merged := compactSpans(m1)
+	return merged
+}
+
+func mergeSpans(spans1, spans2 []BucketSpan, buckets1, buckets2 []int64) []BucketSpan {
+	m1 := expandSpans(spans1, buckets1)
+	m2 := expandSpans(spans2, buckets2)
+
+	for idx, count := range m2 {
+		m1[idx] += count
+	}
+
+	mergedSpans, _ := compactSpans(m1)
+	return mergedSpans
 }
 
 func tagsMatch(seriesTags, queryTags map[string]string) bool {
