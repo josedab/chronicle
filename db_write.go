@@ -258,6 +258,38 @@ func (db *DB) enqueueReplication(points []Point) {
 	db.lifecycle.enqueueReplication(points)
 }
 
+// DeleteMetric removes a metric and all its series data from the database.
+// The space is not reclaimed until the next compaction.
+func (db *DB) DeleteMetric(metric string) error {
+	if db.isClosed() {
+		return ErrClosed
+	}
+	if metric == "" {
+		return fmt.Errorf("metric name must not be empty")
+	}
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if !db.index.DeleteMetric(metric) {
+		return fmt.Errorf("metric %q not found", metric)
+	}
+
+	if db.features != nil {
+		if al := db.features.AuditLog(); al != nil {
+			al.Log("delete_metric", "api", metric, "", true)
+		}
+	}
+	return nil
+}
+
+// Compact rewrites the database file to reclaim space from deleted data.
+func (db *DB) Compact() error {
+	if db.isClosed() {
+		return ErrClosed
+	}
+	return db.compact()
+}
+
 // persistPartitionData writes partition data using the configured DataStore.
 // For file-based storage, this uses the traditional offset-based approach.
 // For backend-based storage, partitions are stored as separate objects.

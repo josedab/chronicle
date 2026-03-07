@@ -208,6 +208,65 @@ func (idx *Index) RegisterSeries(metric string, tags map[string]string) Series {
 	return series
 }
 
+// DeleteMetric removes a metric and all associated series from the index.
+// It also removes matching series data from all partitions.
+func (idx *Index) DeleteMetric(metric string) bool {
+	if metric == "" {
+		return false
+	}
+
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+
+	if _, exists := idx.metrics[metric]; !exists {
+		return false
+	}
+
+	// Collect series IDs to remove
+	seriesIDs := idx.metricSeries[metric]
+	delete(idx.metricSeries, metric)
+	delete(idx.metrics, metric)
+
+	// Remove series from indexes
+	for sid := range seriesIDs {
+		s, ok := idx.seriesByID[sid]
+		if !ok {
+			continue
+		}
+		key := seriesKey(s.Metric, s.Tags)
+		delete(idx.seriesByKey, key)
+		delete(idx.seriesByID, sid)
+
+		// Remove from tag indexes
+		for k, v := range s.Tags {
+			if valueMap, ok := idx.tagSeries[k]; ok {
+				if set, ok := valueMap[v]; ok {
+					delete(set, sid)
+					if len(set) == 0 {
+						delete(valueMap, v)
+					}
+				}
+				if len(valueMap) == 0 {
+					delete(idx.tagSeries, k)
+				}
+			}
+		}
+	}
+
+	// Remove series data from partitions
+	for _, part := range idx.partitions {
+		part.mu.Lock()
+		for key, sd := range part.series {
+			if sd.Series.Metric == metric {
+				delete(part.series, key)
+			}
+		}
+		part.mu.Unlock()
+	}
+
+	return true
+}
+
 func (idx *Index) FilterSeries(metric string, tags map[string]string) map[uint64]struct{} {
 	idx.mu.RLock()
 	defer idx.mu.RUnlock()

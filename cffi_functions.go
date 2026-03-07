@@ -74,14 +74,38 @@ func chronicle_execute_sql(db C.chronicle_db_t, sqlStr *C.char) *C.char {
 
 //export chronicle_delete_metric
 func chronicle_delete_metric(db C.chronicle_db_t, metric *C.char) C.chronicle_error_t {
-	// Note: DeleteMetric not implemented in current Chronicle version
-	return C.CHRONICLE_ERR_INTERNAL
+	if db == 0 || metric == nil {
+		return C.CHRONICLE_ERR_INVALID_ARG
+	}
+
+	handle := cgo.Handle(db)
+	dbPtr, ok := getHandle(handle)
+	if !ok {
+		return C.CHRONICLE_ERR_NOT_FOUND
+	}
+
+	if err := dbPtr.DeleteMetric(C.GoString(metric)); err != nil {
+		return C.CHRONICLE_ERR_INTERNAL
+	}
+	return C.CHRONICLE_OK
 }
 
 //export chronicle_compact
 func chronicle_compact(db C.chronicle_db_t) C.chronicle_error_t {
-	// Note: Compact is an internal method in current Chronicle version
-	return C.CHRONICLE_ERR_INTERNAL
+	if db == 0 {
+		return C.CHRONICLE_ERR_INVALID_ARG
+	}
+
+	handle := cgo.Handle(db)
+	dbPtr, ok := getHandle(handle)
+	if !ok {
+		return C.CHRONICLE_ERR_NOT_FOUND
+	}
+
+	if err := dbPtr.Compact(); err != nil {
+		return C.CHRONICLE_ERR_IO
+	}
+	return C.CHRONICLE_OK
 }
 
 // stringToAggFunc converts a string aggregation name to AggFunc.
