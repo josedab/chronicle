@@ -42,6 +42,7 @@ type RecordingRulesEngine struct {
 }
 
 type ruleState struct {
+	mu           sync.Mutex
 	rule         RecordingRule
 	lastEval     time.Time
 	lastDuration time.Duration
@@ -195,12 +196,14 @@ func (rre *RecordingRulesEngine) evaluateDueRules(ctx context.Context) {
 			continue
 		}
 
-		// Check if rule is due
-		if now.Sub(state.lastEval) < state.rule.Interval {
+		state.mu.Lock()
+		due := now.Sub(state.lastEval) >= state.rule.Interval
+		state.mu.Unlock()
+
+		if !due {
 			continue
 		}
 
-		// Evaluate rule
 		go rre.evaluateRule(ctx, state)
 	}
 }
@@ -208,32 +211,36 @@ func (rre *RecordingRulesEngine) evaluateDueRules(ctx context.Context) {
 func (rre *RecordingRulesEngine) evaluateRule(ctx context.Context, state *ruleState) {
 	start := time.Now()
 
-	defer func() {
-		state.lastEval = time.Now()
-		state.lastDuration = time.Since(start)
-		state.evalCount++
-	}()
-
 	// Parse and execute query
 	query, err := rre.parser.Parse(state.rule.Query)
 	if err != nil {
+		state.mu.Lock()
+		state.lastEval = time.Now()
+		state.lastDuration = time.Since(start)
 		state.lastError = err
 		state.errorCount++
+		state.evalCount++
+		state.mu.Unlock()
 		return
 	}
 
 	result, err := rre.db.Execute(query)
 	if err != nil {
+		state.mu.Lock()
+		state.lastEval = time.Now()
+		state.lastDuration = time.Since(start)
 		state.lastError = err
 		state.errorCount++
+		state.evalCount++
+		state.mu.Unlock()
 		return
 	}
 
 	// Write results to target metric
 	now := time.Now().UnixNano()
+	var writeErr error
 	for _, point := range result.Points {
 		tags := cloneTags(point.Tags)
-		// Add rule labels
 		for k, v := range state.rule.Labels {
 			tags[k] = v
 		}
@@ -244,13 +251,22 @@ func (rre *RecordingRulesEngine) evaluateRule(ctx context.Context, state *ruleSt
 			Value:     point.Value,
 			Timestamp: now,
 		}); err != nil {
-			state.lastError = err
-			state.errorCount++
-			return
+			writeErr = err
+			break
 		}
 	}
 
-	state.lastError = nil
+	state.mu.Lock()
+	state.lastEval = time.Now()
+	state.lastDuration = time.Since(start)
+	state.evalCount++
+	if writeErr != nil {
+		state.lastError = writeErr
+		state.errorCount++
+	} else {
+		state.lastError = nil
+	}
+	state.mu.Unlock()
 }
 
 // EvaluateNow forces immediate evaluation of a rule.
@@ -264,7 +280,11 @@ func (rre *RecordingRulesEngine) EvaluateNow(ctx context.Context, name string) e
 	}
 
 	rre.evaluateRule(ctx, state)
-	return state.lastError
+
+	state.mu.Lock()
+	err := state.lastError
+	state.mu.Unlock()
+	return err
 }
 
 // Stats returns statistics for all rules.

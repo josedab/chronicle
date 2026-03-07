@@ -234,6 +234,14 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 		}
 		defer closeQuietly(conn)
 
+		// Mutex to serialize all WebSocket writes (gorilla/websocket is not concurrency-safe)
+		var writeMu sync.Mutex
+		safeWrite := func(msgType int, data []byte) error {
+			writeMu.Lock()
+			defer writeMu.Unlock()
+			return conn.WriteMessage(msgType, data)
+		}
+
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
@@ -255,7 +263,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 
 				var cmd StreamMessage
 				if err := json.Unmarshal(msg, &cmd); err != nil {
-					h.sendError(conn, "invalid message format")
+					h.sendErrorSafe(safeWrite, "invalid message format")
 					continue
 				}
 
@@ -270,12 +278,12 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 						Type:  "subscribed",
 						SubID: sub.ID,
 					})
-					if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
+					if err := safeWrite(websocket.TextMessage, resp); err != nil {
 						return
 					}
 
 					// Start forwarding points for this subscription
-					go h.forwardPoints(ctx, conn, sub)
+					go h.forwardPoints(ctx, safeWrite, sub)
 
 				case "unsubscribe":
 					connMu.Lock()
@@ -289,12 +297,12 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 						Type:  "unsubscribed",
 						SubID: cmd.SubID,
 					})
-					if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
+					if err := safeWrite(websocket.TextMessage, resp); err != nil {
 						return
 					}
 
 				default:
-					h.sendError(conn, "unknown command: "+cmd.Type)
+					h.sendErrorSafe(safeWrite, "unknown command: "+cmd.Type)
 				}
 			}
 		}(ctx)
@@ -314,7 +322,7 @@ func (h *StreamHub) WebSocketHandler() http.HandlerFunc {
 	}
 }
 
-func (h *StreamHub) forwardPoints(ctx context.Context, conn *websocket.Conn, sub *Subscription) {
+func (h *StreamHub) forwardPoints(ctx context.Context, safeWrite func(int, []byte) error, sub *Subscription) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -330,21 +338,19 @@ func (h *StreamHub) forwardPoints(ctx context.Context, conn *websocket.Conn, sub
 				SubID: sub.ID,
 				Point: &p,
 			})
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			if err := safeWrite(websocket.TextMessage, msg); err != nil {
 				return
 			}
 		}
 	}
 }
 
-func (h *StreamHub) sendError(conn *websocket.Conn, msg string) {
+func (h *StreamHub) sendErrorSafe(safeWrite func(int, []byte) error, msg string) {
 	resp, _ := json.Marshal(StreamMessage{
 		Type:  "error",
 		Error: msg,
 	})
-	if err := conn.WriteMessage(websocket.TextMessage, resp); err != nil {
-		closeQuietly(conn)
-	}
+	safeWrite(websocket.TextMessage, resp)
 }
 
 // StreamingDB wraps a DB with streaming capabilities.

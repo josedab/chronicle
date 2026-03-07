@@ -3,8 +3,10 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 )
 
 // WritePipelineConfig configures the write pipeline hooks engine.
@@ -41,10 +43,14 @@ type WritePipelineEngine struct {
 	db     *DB
 	config WritePipelineConfig
 
-	hooks    []WriteHook
-	stats    WritePipelineStats
-	running  bool
-	stopCh   chan struct{}
+	hooks   []WriteHook
+	running bool
+	stopCh  chan struct{}
+
+	// Atomic stats to avoid lock juggling in hot path
+	totalProcessed atomic.Int64
+	totalRejected  atomic.Int64
+	totalErrors    atomic.Int64
 
 	mu sync.RWMutex
 }
@@ -112,56 +118,64 @@ func (e *WritePipelineEngine) Unregister(name string) bool {
 // ProcessPre runs all "pre" hooks in order, returning the modified point or an error.
 func (e *WritePipelineEngine) ProcessPre(p Point) (Point, error) {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
+	hooks := make([]WriteHook, len(e.hooks))
+	copy(hooks, e.hooks)
+	e.mu.RUnlock()
 
 	current := p
-	for _, h := range e.hooks {
+	for _, h := range hooks {
 		if h.Phase != "pre" {
 			continue
 		}
 		result, err := h.Handler(current)
 		if err != nil {
-			e.mu.RUnlock()
-			e.mu.Lock()
-			e.stats.TotalRejected++
-			e.stats.TotalErrors++
-			e.mu.Unlock()
-			e.mu.RLock()
+			e.totalRejected.Add(1)
+			e.totalErrors.Add(1)
 			return Point{}, fmt.Errorf("hook %q rejected point: %w", h.Name, err)
 		}
 		current = result
 	}
 
-	e.mu.RUnlock()
-	e.mu.Lock()
-	e.stats.TotalProcessed++
-	e.mu.Unlock()
-	e.mu.RLock()
-
+	e.totalProcessed.Add(1)
 	return current, nil
 }
 
 // ProcessPost runs all "post" hooks (fire-and-forget).
+// Panics in individual hooks are recovered to prevent crashing the write path.
 func (e *WritePipelineEngine) ProcessPost(p Point) {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
+	hooks := make([]WriteHook, len(e.hooks))
+	copy(hooks, e.hooks)
+	e.mu.RUnlock()
 
-	for _, h := range e.hooks {
+	for _, h := range hooks {
 		if h.Phase != "post" {
 			continue
 		}
-		h.Handler(p)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("post-write hook panicked", "hook", h.Name, "panic", r)
+					e.totalErrors.Add(1)
+				}
+			}()
+			h.Handler(p)
+		}()
 	}
 }
 
 // Stats returns aggregate statistics.
 func (e *WritePipelineEngine) Stats() WritePipelineStats {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
+	hookCount := len(e.hooks)
+	e.mu.RUnlock()
 
-	s := e.stats
-	s.HookCount = len(e.hooks)
-	return s
+	return WritePipelineStats{
+		TotalProcessed: e.totalProcessed.Load(),
+		TotalRejected:  e.totalRejected.Load(),
+		TotalErrors:    e.totalErrors.Load(),
+		HookCount:      hookCount,
+	}
 }
 
 // ListHooks returns the registered hooks.
