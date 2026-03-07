@@ -170,17 +170,19 @@ func (f *FileDataStore) File() *os.File {
 // BackendDataStore implements DataStore using a StorageBackend.
 // Each partition is stored as a separate object with key "partition/{id}".
 type BackendDataStore struct {
-	backend StorageBackend
-	prefix  string
-	mu      sync.Mutex
-	size    int64 // Approximate total size
+	backend   StorageBackend
+	prefix    string
+	mu        sync.Mutex
+	size      int64              // Approximate total size
+	partSizes map[uint64]int64   // Per-partition sizes for accurate accounting
 }
 
 // NewBackendDataStore creates a DataStore backed by a StorageBackend.
 func NewBackendDataStore(backend StorageBackend, prefix string) *BackendDataStore {
 	return &BackendDataStore{
-		backend: backend,
-		prefix:  prefix,
+		backend:   backend,
+		prefix:    prefix,
+		partSizes: make(map[uint64]int64),
 	}
 }
 
@@ -208,6 +210,11 @@ func (b *BackendDataStore) WritePartition(ctx context.Context, partitionID uint6
 	}
 
 	b.mu.Lock()
+	// Subtract old size if overwriting a partition
+	if oldSize, ok := b.partSizes[partitionID]; ok {
+		b.size -= oldSize
+	}
+	b.partSizes[partitionID] = int64(len(data))
 	b.size += int64(len(data))
 	b.mu.Unlock()
 
@@ -219,7 +226,17 @@ func (b *BackendDataStore) WritePartition(ctx context.Context, partitionID uint6
 // DeletePartition removes partition data from the backend.
 func (b *BackendDataStore) DeletePartition(ctx context.Context, partitionID uint64) error {
 	key := b.partitionKey(partitionID)
-	return b.backend.Delete(ctx, key)
+	if err := b.backend.Delete(ctx, key); err != nil {
+		return err
+	}
+
+	b.mu.Lock()
+	if oldSize, ok := b.partSizes[partitionID]; ok {
+		b.size -= oldSize
+		delete(b.partSizes, partitionID)
+	}
+	b.mu.Unlock()
+	return nil
 }
 
 // Sync is a no-op for backend storage (writes are immediately persisted).

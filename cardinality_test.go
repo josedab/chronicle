@@ -173,8 +173,8 @@ func TestMakeSeriesKey(t *testing.T) {
 	}{
 		{"cpu", nil, "cpu"},
 		{"cpu", map[string]string{}, "cpu"},
-		{"cpu", map[string]string{"host": "a"}, "cpu{host=a}"},
-		{"cpu", map[string]string{"host": "a", "region": "us"}, "cpu{host=a,region=us}"},
+		{"cpu", map[string]string{"host": "a"}, "cpu|host=a"},
+		{"cpu", map[string]string{"host": "a", "region": "us"}, "cpu|host=a,region=us"},
 	}
 
 	for _, tt := range tests {

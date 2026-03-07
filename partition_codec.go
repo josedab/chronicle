@@ -237,6 +237,11 @@ func decodePartition(data []byte) (*Partition, error) {
 			}
 		}
 
+		if len(timestamps) != len(values) {
+			return nil, fmt.Errorf("partition data corruption: series %q timestamp/value count mismatch (%d vs %d)",
+				metric, len(timestamps), len(values))
+		}
+
 		series := &SeriesData{
 			Series: Series{
 				ID:     seriesID,

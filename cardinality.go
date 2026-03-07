@@ -234,13 +234,17 @@ func (ct *CardinalityTracker) RecordSeries(metric string, tags map[string]string
 }
 
 func (ct *CardinalityTracker) seriesExists(key string) bool {
-	// In a full implementation, this would check the index
-	// For now, we allow it (optimistic)
-	return false
+	if ct.db == nil || ct.db.index == nil {
+		return false
+	}
+	ct.db.mu.RLock()
+	_, exists := ct.db.index.seriesByKey[key]
+	ct.db.mu.RUnlock()
+	return exists
 }
 
 func (ct *CardinalityTracker) seriesExistsForMetric(metric, key string) bool {
-	return false
+	return ct.seriesExists(key)
 }
 
 func (ct *CardinalityTracker) getMetricCount(metric string) int64 {
@@ -489,5 +493,5 @@ func (ct *CardinalityTracker) Reset() {
 }
 
 func makeSeriesKey(metric string, tags map[string]string) string {
-	return NewSeriesKey(metric, tags).PrometheusString()
+	return seriesKey(metric, tags)
 }

@@ -91,6 +91,8 @@ func (e *SeriesDedupEngine) Stop() error {
 }
 
 // CheckDuplicate returns true if the point is a duplicate of a recently seen point.
+// Deduplication is scoped to the full series key (metric + tags) to avoid
+// incorrectly deduplicating different series with the same metric name and value.
 func (e *SeriesDedupEngine) CheckDuplicate(p Point) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -98,7 +100,8 @@ func (e *SeriesDedupEngine) CheckDuplicate(p Point) bool {
 	e.totalChecked++
 	window := e.config.DeduplicateWindow.Nanoseconds()
 
-	entries := e.recent[p.Metric]
+	key := seriesKey(p.Metric, p.Tags)
+	entries := e.recent[key]
 	for _, ent := range entries {
 		diff := p.Timestamp - ent.Timestamp
 		if diff < 0 {
@@ -111,14 +114,14 @@ func (e *SeriesDedupEngine) CheckDuplicate(p Point) bool {
 	}
 
 	// Track this point
-	e.recent[p.Metric] = append(entries, dedupEntry{
+	e.recent[key] = append(entries, dedupEntry{
 		Timestamp: p.Timestamp,
 		Value:     p.Value,
 	})
 
-	// Enforce max tracked per metric
-	if len(e.recent[p.Metric]) > e.config.MaxTracked {
-		e.recent[p.Metric] = e.recent[p.Metric][1:]
+	// Enforce max tracked per series
+	if len(e.recent[key]) > e.config.MaxTracked {
+		e.recent[key] = e.recent[key][1:]
 	}
 
 	return false
