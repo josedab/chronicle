@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"regexp"
 	"strings"
@@ -50,6 +51,7 @@ var (
 	ErrInvalidMetricName = errors.New("invalid metric name")
 	ErrInvalidTagKey     = errors.New("invalid tag key")
 	ErrInvalidTagValue   = errors.New("invalid tag value")
+	ErrInvalidValue      = errors.New("invalid point value")
 )
 
 // metricNameRegex validates metric names: alphanumeric, underscores, dots, colons
@@ -114,10 +116,13 @@ func ValidateTagValue(value string) error {
 	return nil
 }
 
-// ValidatePoint validates a point's metric name and tags.
+// ValidatePoint validates a point's metric name, tags, and value.
 func ValidatePoint(p *Point) error {
 	if err := ValidateMetricName(p.Metric); err != nil {
 		return err
+	}
+	if math.IsNaN(p.Value) || math.IsInf(p.Value, 0) {
+		return ErrInvalidValue
 	}
 	for k, v := range p.Tags {
 		if err := ValidateTagKey(k); err != nil {

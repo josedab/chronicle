@@ -131,6 +131,7 @@ func (sk SeriesKey) Equals(other SeriesKey) bool {
 }
 
 // Result holds the output of a query execution, containing the matching data points.
+// Points is always non-nil; an empty result set returns a zero-length slice.
 type Result struct {
 	Points []Point
 }
