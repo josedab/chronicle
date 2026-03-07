@@ -153,6 +153,9 @@ func (h *StreamHub) matches(sub *Subscription, p Point) bool {
 	if sub.Metric != "" && sub.Metric != p.Metric {
 		return false
 	}
+	if len(sub.Tags) > 0 && p.Tags == nil {
+		return false
+	}
 	for k, v := range sub.Tags {
 		if p.Tags[k] != v {
 			return false

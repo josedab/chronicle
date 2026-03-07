@@ -272,6 +272,7 @@ func (e *SchemaCompatEngine) SetFieldDefault(metric, field string, defaultValue 
 }
 
 // CoercePoint applies schema-on-read to a point from an older schema version.
+// Missing tags that have registered defaults are filled in.
 func (e *SchemaCompatEngine) CoercePoint(p *Point) {
 	if p == nil || !e.config.EnableAutoCoercion {
 		return
@@ -286,6 +287,12 @@ func (e *SchemaCompatEngine) CoercePoint(p *Point) {
 
 	if p.Tags == nil {
 		p.Tags = make(map[string]string)
+	}
+
+	for field, defaultVal := range defaults {
+		if _, exists := p.Tags[field]; !exists {
+			p.Tags[field] = fmt.Sprintf("%g", defaultVal)
+		}
 	}
 }
 

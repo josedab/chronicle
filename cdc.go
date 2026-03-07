@@ -86,7 +86,7 @@ func (f CDCFilter) matches(e *ChangeEvent) bool {
 		if point == nil {
 			point = e.Before
 		}
-		if point == nil {
+		if point == nil || point.Tags == nil {
 			return false
 		}
 		for k, v := range f.Tags {
