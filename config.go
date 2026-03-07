@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -495,5 +496,124 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("Encryption.Key or Encryption.KeyPassword must be set when encryption is enabled"))
 	}
 
+	// Cross-field validations
+	if c.ClickHouse != nil && c.ClickHouse.Enabled && !c.HTTP.HTTPEnabled {
+		errs = append(errs, fmt.Errorf("ClickHouse protocol requires HTTP.HTTPEnabled=true"))
+	}
+
+	if c.Auth != nil && c.Auth.Enabled && c.HTTP.HTTPEnabled {
+		// Ensure health endpoints are excluded from auth so K8s probes work
+		hasHealthExclude := false
+		for _, p := range c.Auth.ExcludePaths {
+			if p == "/health" || p == "/health/ready" || p == "/health/live" {
+				hasHealthExclude = true
+				break
+			}
+		}
+		if !hasHealthExclude {
+			slog.Warn("Auth enabled but /health endpoints are not in Auth.ExcludePaths; Kubernetes probes may fail")
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// ApplyEnvOverrides reads CHRONICLE_* environment variables and overrides
+// corresponding Config fields. Only non-empty env vars are applied.
+//
+// Supported variables:
+//
+//	CHRONICLE_PATH               - database file path
+//	CHRONICLE_LOG_LEVEL          - "debug", "info", "warn", "error"
+//	CHRONICLE_MAX_MEMORY         - max memory in bytes
+//	CHRONICLE_PARTITION_DURATION - partition span (e.g., "1h", "30m")
+//	CHRONICLE_BUFFER_SIZE        - write buffer capacity
+//	CHRONICLE_HTTP_ENABLED       - "true" or "false"
+//	CHRONICLE_HTTP_PORT          - HTTP listen port
+//	CHRONICLE_RATE_LIMIT         - requests per second (0 to disable)
+//	CHRONICLE_RETENTION          - retention duration (e.g., "168h")
+//	CHRONICLE_QUERY_TIMEOUT      - query timeout (e.g., "30s")
+//	CHRONICLE_WAL_SYNC_INTERVAL  - WAL sync interval (e.g., "1s")
+func (c *Config) ApplyEnvOverrides() error {
+	var errs []error
+
+	if v := os.Getenv("CHRONICLE_PATH"); v != "" {
+		c.Path = v
+	}
+	if v := os.Getenv("CHRONICLE_LOG_LEVEL"); v != "" {
+		c.LogLevel = v
+	}
+	if v := os.Getenv("CHRONICLE_MAX_MEMORY"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_MAX_MEMORY: %w", err))
+		} else {
+			c.Storage.MaxMemory = n
+		}
+	}
+	if v := os.Getenv("CHRONICLE_PARTITION_DURATION"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_PARTITION_DURATION: %w", err))
+		} else {
+			c.Storage.PartitionDuration = d
+		}
+	}
+	if v := os.Getenv("CHRONICLE_BUFFER_SIZE"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_BUFFER_SIZE: %w", err))
+		} else {
+			c.Storage.BufferSize = n
+		}
+	}
+	if v := os.Getenv("CHRONICLE_HTTP_ENABLED"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_HTTP_ENABLED: %w", err))
+		} else {
+			c.HTTP.HTTPEnabled = b
+		}
+	}
+	if v := os.Getenv("CHRONICLE_HTTP_PORT"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_HTTP_PORT: %w", err))
+		} else {
+			c.HTTP.HTTPPort = n
+		}
+	}
+	if v := os.Getenv("CHRONICLE_RATE_LIMIT"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_RATE_LIMIT: %w", err))
+		} else {
+			c.RateLimitPerSecond = n
+		}
+	}
+	if v := os.Getenv("CHRONICLE_RETENTION"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_RETENTION: %w", err))
+		} else {
+			c.Retention.RetentionDuration = d
+		}
+	}
+	if v := os.Getenv("CHRONICLE_QUERY_TIMEOUT"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_QUERY_TIMEOUT: %w", err))
+		} else {
+			c.Query.QueryTimeout = d
+		}
+	}
+	if v := os.Getenv("CHRONICLE_WAL_SYNC_INTERVAL"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("CHRONICLE_WAL_SYNC_INTERVAL: %w", err))
+		} else {
+			c.WAL.SyncInterval = d
+		}
+	}
 	return errors.Join(errs...)
 }

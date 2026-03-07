@@ -1,7 +1,7 @@
 package chronicle
 
 import (
-	"log"
+	"fmt"
 	"time"
 )
 
@@ -178,16 +178,14 @@ func (b *ConfigBuilder) Build() (Config, error) {
 	return b.cfg, nil
 }
 
-// MustBuild is like [ConfigBuilder.Build] but logs and returns a zero Config on
-// validation errors instead of panicking.
+// MustBuild is like [ConfigBuilder.Build] but panics on validation errors.
 //
 // Deprecated: Prefer [ConfigBuilder.Build] which returns an error for proper
 // error handling.
 func (b *ConfigBuilder) MustBuild() Config {
 	cfg, err := b.Build()
 	if err != nil {
-		log.Printf("chronicle: invalid config: %v", err)
-		return Config{}
+		panic(fmt.Sprintf("chronicle: invalid config: %v", err))
 	}
 	return cfg
 }

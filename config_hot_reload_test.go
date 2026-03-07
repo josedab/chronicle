@@ -12,13 +12,19 @@ func TestConfigReloadEngine(t *testing.T) {
 	e.Start()
 	defer e.Stop()
 
+	baseCfg := DefaultConfig(db.path)
+
 	t.Run("apply safe changes", func(t *testing.T) {
-		newCfg := Config{
-			HTTPPort:          9090,
-			RetentionDuration: 48 * time.Hour,
-			BufferSize:        2048,
+		newCfg := baseCfg
+		newCfg.HTTP.HTTPPort = 9090
+		newCfg.Retention.RetentionDuration = 48 * time.Hour
+		newCfg.Storage.BufferSize = 2048
+		newCfg.syncLegacyFields()
+
+		changes, err := e.Apply(newCfg)
+		if err != nil {
+			t.Fatalf("Apply() unexpected error: %v", err)
 		}
-		changes := e.Apply(newCfg)
 		safeCount := 0
 		for _, c := range changes {
 			if c.Applied {
@@ -31,18 +37,31 @@ func TestConfigReloadEngine(t *testing.T) {
 	})
 
 	t.Run("reject unsafe changes", func(t *testing.T) {
-		newCfg := Config{
-			HTTPPort:          9090,
-			RetentionDuration: 48 * time.Hour,
-			BufferSize:        2048,
-			Path:              "/new/path",
-			Encryption:        &EncryptionConfig{},
+		newCfg := baseCfg
+		newCfg.HTTP.HTTPPort = 9090
+		newCfg.Retention.RetentionDuration = 48 * time.Hour
+		newCfg.Storage.BufferSize = 2048
+		newCfg.Path = "/new/path"
+		newCfg.Encryption = &EncryptionConfig{}
+		newCfg.syncLegacyFields()
+
+		changes, err := e.Apply(newCfg)
+		if err != nil {
+			t.Fatalf("Apply() unexpected error: %v", err)
 		}
-		changes := e.Apply(newCfg)
 		for _, c := range changes {
 			if (c.Field == "Path" || c.Field == "Encryption") && c.Applied {
 				t.Errorf("unsafe field %s should not be applied", c.Field)
 			}
+		}
+	})
+
+	t.Run("reject invalid config", func(t *testing.T) {
+		invalidCfg := baseCfg
+		invalidCfg.Storage.MaxMemory = -1
+		_, err := e.Apply(invalidCfg)
+		if err == nil {
+			t.Error("expected error for invalid config, got nil")
 		}
 	})
 

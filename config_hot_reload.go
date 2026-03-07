@@ -156,8 +156,14 @@ func (e *ConfigReloadEngine) Diff(a, b Config) []ConfigChange {
 	return changes
 }
 
-// Apply applies a new configuration, returning changes made.
-func (e *ConfigReloadEngine) Apply(newCfg Config) []ConfigChange {
+// Apply applies a new configuration after validation, returning changes made.
+// If the new configuration is invalid, it returns an error and no changes are applied.
+func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
+	// Validate the new configuration before applying
+	if err := newCfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config reload rejected: %w", err)
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -175,7 +181,7 @@ func (e *ConfigReloadEngine) Apply(newCfg Config) []ConfigChange {
 	e.history = append(e.history, changes...)
 	e.currentCfg = newCfg
 
-	return changes
+	return changes, nil
 }
 
 // LastReload returns the time of the last reload.
