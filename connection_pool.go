@@ -55,6 +55,7 @@ type ConnectionPoolEngine struct {
 	nextID        int
 	totalAcquires int64
 	totalReleases int64
+	stopCh        chan struct{}
 
 	mu sync.RWMutex
 }
@@ -65,10 +66,11 @@ func NewConnectionPoolEngine(db *DB, cfg ConnectionPoolConfig) *ConnectionPoolEn
 		db:          db,
 		config:      cfg,
 		connections: make(map[string]*PooledConnection),
+		stopCh:      make(chan struct{}),
 	}
 }
 
-// Start starts the connection pool engine.
+// Start starts the connection pool engine and background health checker.
 func (e *ConnectionPoolEngine) Start() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -76,6 +78,7 @@ func (e *ConnectionPoolEngine) Start() error {
 		return nil
 	}
 	e.running = true
+	go e.healthCheckLoop()
 	return nil
 }
 
@@ -87,7 +90,25 @@ func (e *ConnectionPoolEngine) Stop() error {
 		return nil
 	}
 	e.running = false
+	close(e.stopCh)
 	return nil
+}
+
+func (e *ConnectionPoolEngine) healthCheckLoop() {
+	interval := e.config.HealthCheckInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			e.HealthCheck()
+		}
+	}
 }
 
 // Acquire obtains a connection for the given backend.

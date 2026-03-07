@@ -2,7 +2,9 @@ package chronicle
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -57,16 +59,10 @@ func NewHealthCheckEngine(db *DB, cfg HealthCheckConfig) *HealthCheckEngine {
 		checkers: make(map[string]func() ComponentHealth),
 		stopCh:   make(chan struct{}),
 	}
-	// Built-in components default to healthy
-	e.checkers["storage"] = func() ComponentHealth {
-		return ComponentHealth{Name: "storage", Status: "healthy", Message: "ok", LastCheck: time.Now()}
-	}
-	e.checkers["wal"] = func() ComponentHealth {
-		return ComponentHealth{Name: "wal", Status: "healthy", Message: "ok", LastCheck: time.Now()}
-	}
-	e.checkers["index"] = func() ComponentHealth {
-		return ComponentHealth{Name: "index", Status: "healthy", Message: "ok", LastCheck: time.Now()}
-	}
+	e.checkers["database"] = e.checkDatabase
+	e.checkers["storage"] = e.checkStorage
+	e.checkers["wal"] = e.checkWAL
+	e.checkers["index"] = e.checkIndex
 	return e
 }
 
@@ -138,6 +134,68 @@ func (e *HealthCheckEngine) IsLive() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.running
+}
+
+func (e *HealthCheckEngine) checkDatabase() ComponentHealth {
+	ch := ComponentHealth{Name: "database", LastCheck: time.Now()}
+	if e.db == nil {
+		ch.Status = "unhealthy"
+		ch.Message = "database handle is nil"
+		return ch
+	}
+	if e.db.isClosed() {
+		ch.Status = "unhealthy"
+		ch.Message = "database is closed"
+		return ch
+	}
+	ch.Status = "healthy"
+	ch.Message = "ok"
+	return ch
+}
+
+func (e *HealthCheckEngine) checkStorage() ComponentHealth {
+	ch := ComponentHealth{Name: "storage", LastCheck: time.Now()}
+	if e.db == nil || e.db.path == "" {
+		ch.Status = "degraded"
+		ch.Message = "no storage path configured"
+		return ch
+	}
+	info, err := os.Stat(e.db.path)
+	if err != nil {
+		ch.Status = "unhealthy"
+		ch.Message = fmt.Sprintf("storage stat failed: %v", err)
+		return ch
+	}
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("size=%d bytes", info.Size())
+	return ch
+}
+
+func (e *HealthCheckEngine) checkWAL() ComponentHealth {
+	ch := ComponentHealth{Name: "wal", LastCheck: time.Now()}
+	if e.db == nil || e.db.wal == nil {
+		ch.Status = "unhealthy"
+		ch.Message = "WAL not initialized"
+		return ch
+	}
+	pos := e.db.wal.Position()
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("position=%d bytes", pos)
+	return ch
+}
+
+func (e *HealthCheckEngine) checkIndex() ComponentHealth {
+	ch := ComponentHealth{Name: "index", LastCheck: time.Now()}
+	if e.db == nil || e.db.index == nil {
+		ch.Status = "unhealthy"
+		ch.Message = "index not initialized"
+		return ch
+	}
+	metrics := len(e.db.Metrics())
+	series := e.db.SeriesCount()
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("metrics=%d, series=%d", metrics, series)
+	return ch
 }
 
 // RegisterHTTPHandlers registers HTTP endpoints under /api/v1/health/.

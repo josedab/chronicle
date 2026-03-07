@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
+	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -149,12 +152,28 @@ type AutoscaleEngine struct {
 	totalScaleUps  int64
 	totalScaleDown int64
 
+	// Atomic counters for rate estimation (incremented externally via RecordWrite/RecordQuery)
+	writeOps atomic.Int64
+	queryOps atomic.Int64
+	// Snapshot values from the previous collection cycle for rate calculation
+	prevWriteOps int64
+	prevQueryOps int64
+	prevCollect  time.Time
+
 	onDecision func(*ScaleDecision)
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
+
+// RecordWrite increments the write operation counter.
+// Call this from the write path to enable accurate write-rate estimation.
+func (e *AutoscaleEngine) RecordWrite() { e.writeOps.Add(1) }
+
+// RecordQuery increments the query operation counter.
+// Call this from the query path to enable accurate query-rate estimation.
+func (e *AutoscaleEngine) RecordQuery() { e.queryOps.Add(1) }
 
 // NewAutoscaleEngine creates a predictive autoscaling engine.
 func NewAutoscaleEngine(db *DB, config AutoscaleConfig) *AutoscaleEngine {
@@ -188,8 +207,9 @@ func NewAutoscaleEngine(db *DB, config AutoscaleConfig) *AutoscaleEngine {
 			ScaleDimensionWriteWorkers:      config.MinWriteWorkers * 2,
 			ScaleDimensionCompactionWorkers: config.MinCompactionWorkers,
 		},
-		ctx:    ctx,
-		cancel: cancel,
+		prevCollect: time.Now(),
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 }
 
@@ -297,7 +317,6 @@ func (e *AutoscaleEngine) evaluationLoop() {
 func (e *AutoscaleEngine) collectMetrics() {
 	now := time.Now()
 
-	// Gather metrics from DB internals (simulated via db.Metrics())
 	sample := func(name string, value float64) {
 		e.mu.Lock()
 		defer e.mu.Unlock()
@@ -311,31 +330,77 @@ func (e *AutoscaleEngine) collectMetrics() {
 		}
 	}
 
-	// Collect real metrics if DB is available
+	// Collect metrics (some work even without a DB)
+	sample("write_rate", e.estimateWriteRate())
+	sample("query_rate", e.estimateQueryRate())
+	sample("memory_util", e.estimateMemoryUtil())
 	if e.db != nil {
-		sample("write_rate", e.estimateWriteRate())
-		sample("query_rate", e.estimateQueryRate())
-		sample("memory_util", e.estimateMemoryUtil())
 		sample("storage_util", e.estimateStorageUtil())
 	}
+	e.prevCollect = now
 }
 
-// estimateWriteRate returns estimated writes/sec from recent activity.
+// estimateWriteRate returns estimated writes/sec based on atomic counter delta since last collection.
 func (e *AutoscaleEngine) estimateWriteRate() float64 {
-	metrics := e.db.Metrics()
-	return float64(len(metrics)) * 0.1 // heuristic based on metric count
+	current := e.writeOps.Load()
+	elapsed := time.Since(e.prevCollect).Seconds()
+	if elapsed <= 0 {
+		return 0
+	}
+	delta := current - e.prevWriteOps
+	e.prevWriteOps = current
+	return float64(delta) / elapsed
 }
 
+// estimateQueryRate returns estimated queries/sec based on atomic counter delta since last collection.
 func (e *AutoscaleEngine) estimateQueryRate() float64 {
-	return 0.0 // placeholder — real impl reads from query engine stats
+	current := e.queryOps.Load()
+	elapsed := time.Since(e.prevCollect).Seconds()
+	if elapsed <= 0 {
+		return 0
+	}
+	delta := current - e.prevQueryOps
+	e.prevQueryOps = current
+	return float64(delta) / elapsed
 }
 
+// estimateMemoryUtil returns heap utilization as a ratio of used/total system memory.
 func (e *AutoscaleEngine) estimateMemoryUtil() float64 {
-	return 0.5 // placeholder — real impl reads runtime.MemStats
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	if e.db != nil && e.db.config.Storage.MaxMemory > 0 {
+		return float64(m.HeapInuse) / float64(e.db.config.Storage.MaxMemory)
+	}
+	if m.Sys == 0 {
+		return 0
+	}
+	return float64(m.HeapInuse) / float64(m.Sys)
 }
 
+// estimateStorageUtil returns storage utilization based on the DB file size relative to available disk.
 func (e *AutoscaleEngine) estimateStorageUtil() float64 {
-	return 0.3 // placeholder — real impl reads disk usage
+	if e.db == nil || e.db.path == "" {
+		return 0
+	}
+	info, err := os.Stat(e.db.path)
+	if err != nil {
+		return 0
+	}
+	fileSize := info.Size()
+	if fileSize <= 0 {
+		return 0
+	}
+	// Use MaxMemory as a rough proxy for target capacity if configured
+	if e.db.config.Storage.MaxMemory > 0 {
+		return float64(fileSize) / float64(e.db.config.Storage.MaxMemory)
+	}
+	// Without a cap, report raw file size as a fraction of 1GB as a heuristic
+	const oneGB = 1 << 30
+	ratio := float64(fileSize) / float64(oneGB)
+	if ratio > 1.0 {
+		ratio = 1.0
+	}
+	return ratio
 }
 
 // evaluate runs forecast-based scaling decisions.
