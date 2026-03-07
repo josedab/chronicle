@@ -205,6 +205,14 @@ func Open(path string, cfg Config) (*DB, error) {
 	return db, nil
 }
 
+// isClosed returns true if the database has been closed.
+func (db *DB) isClosed() bool {
+	db.mu.RLock()
+	c := db.closed
+	db.mu.RUnlock()
+	return c
+}
+
 // Close flushes data and closes the database.
 func (db *DB) Close() error {
 	db.mu.Lock()
@@ -217,7 +225,14 @@ func (db *DB) Close() error {
 
 	close(db.closeCh)
 
-	// Stop lifecycle services
+	// Flush buffered points BEFORE stopping HTTP so in-flight writes are persisted.
+	points := db.buffer.Drain()
+	var flushErr error
+	if len(points) > 0 {
+		flushErr = db.flush(points, true)
+	}
+
+	// Now stop lifecycle services (HTTP, replication, background workers)
 	db.lifecycle.stop()
 
 	// Stop features
@@ -226,8 +241,6 @@ func (db *DB) Close() error {
 	}
 
 	db.stopContinuousQueries()
-
-	flushErr := db.Flush()
 
 	db.mu.Lock()
 	if err := persistIndex(db.file, db.index); err != nil {

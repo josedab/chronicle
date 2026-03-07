@@ -19,6 +19,9 @@ import (
 
 // Flush writes buffered points to storage.
 func (db *DB) Flush() error {
+	if db.isClosed() {
+		return ErrClosed
+	}
 	points := db.buffer.Drain()
 	if len(points) == 0 {
 		return nil
@@ -34,6 +37,9 @@ func (db *DB) Write(p Point) error {
 
 // WriteContext writes a single point with context support for cancellation.
 func (db *DB) WriteContext(ctx context.Context, p Point) error {
+	if db.isClosed() {
+		return ErrClosed
+	}
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -117,6 +123,9 @@ func (db *DB) WriteBatch(points []Point) error {
 
 // WriteBatchContext writes multiple points with context support for cancellation.
 func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
+	if db.isClosed() {
+		return ErrClosed
+	}
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
