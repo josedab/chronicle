@@ -15,6 +15,8 @@ func applyOpenDefaults(path string, cfg *Config) error {
 	if cfg.Path == "" {
 		return errors.New("path is required")
 	}
+	// Clean up any stale compaction temp file from a prior crash
+	cleanupStaleCompaction(cfg.Path)
 	if cfg.Storage.PartitionDuration <= 0 {
 		cfg.Storage.PartitionDuration = time.Hour
 	}

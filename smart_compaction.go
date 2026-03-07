@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -158,21 +159,46 @@ func (e *SmartCompactionEngine) TriggerCompaction(partitionIDs []string) (*Compa
 	job := CompactionJob{
 		ID:         fmt.Sprintf("compact-%d", e.jobSeq),
 		Candidates: partitionIDs,
-		Status:     "completed",
+		Status:     "running",
 		InputBytes: inputBytes,
-		OutputBytes: int64(float64(inputBytes) * 0.6), // simulate 40% reduction
 		StartedAt:  time.Now(),
 	}
+
+	// Execute real compaction if DB is available
+	var compactErr error
+	if e.db != nil {
+		compactErr = e.db.Compact()
+	}
+
 	now := time.Now()
 	job.CompletedAt = &now
-	job.Duration = time.Millisecond
+	job.Duration = time.Since(job.StartedAt)
+
+	if compactErr != nil {
+		job.Status = "failed"
+		e.jobs = append(e.jobs, job)
+		return &job, compactErr
+	}
+
+	// Measure actual output size
+	job.Status = "completed"
+	if e.db != nil && e.db.path != "" {
+		if info, err := os.Stat(e.db.path); err == nil {
+			job.OutputBytes = info.Size()
+		}
+	}
+	if job.OutputBytes == 0 && inputBytes > 0 {
+		job.OutputBytes = inputBytes // fallback: no size change measured
+	}
 	if inputBytes > 0 {
 		job.CompressionRatio = float64(job.OutputBytes) / float64(inputBytes)
 	}
 
 	e.jobs = append(e.jobs, job)
 	e.stats.TotalCompactions++
-	e.stats.BytesReclaimed += inputBytes - job.OutputBytes
+	if inputBytes > job.OutputBytes {
+		e.stats.BytesReclaimed += inputBytes - job.OutputBytes
+	}
 	if e.stats.AvgCompression == 0 {
 		e.stats.AvgCompression = job.CompressionRatio
 	} else {
@@ -219,9 +245,27 @@ func (e *SmartCompactionEngine) compactLoop() {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-e.stopCh: return
-		case <-ticker.C: // auto-compact cold small partitions
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			e.autoCompactCold()
 		}
+	}
+}
+
+// autoCompactCold triggers compaction for cold partitions with low I/O impact.
+func (e *SmartCompactionEngine) autoCompactCold() {
+	e.mu.RLock()
+	var coldIDs []string
+	for _, c := range e.candidates {
+		if c.Temperature == "cold" {
+			coldIDs = append(coldIDs, c.PartitionID)
+		}
+	}
+	e.mu.RUnlock()
+
+	if len(coldIDs) > 0 && e.db != nil {
+		e.TriggerCompaction(coldIDs)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -105,6 +106,12 @@ func (db *DB) applyDownsampling() error {
 }
 
 func (db *DB) applyRule(rule DownsampleRule) error {
+	if rule.SourceResolution <= 0 || rule.TargetResolution <= 0 {
+		return nil // skip invalid rules silently
+	}
+	if len(rule.Aggregations) == 0 {
+		return nil
+	}
 	cutoff := time.Now().Add(-rule.SourceResolution * 2)
 	metrics := db.index.Metrics()
 
@@ -214,6 +221,30 @@ func (db *DB) compact() error {
 		return err
 	}
 
+	// fsync the parent directory to ensure the rename is durable
+	syncDir(filepath.Dir(db.path))
+
 	db.file, err = os.OpenFile(db.path, os.O_RDWR, 0o644)
 	return err
+}
+
+// syncDir fsyncs a directory to ensure metadata (e.g., renames) is durable.
+func syncDir(path string) {
+	d, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	_ = d.Sync()
+	d.Close()
+}
+
+// cleanupStaleCompaction removes a leftover .compact file if present.
+// This handles the case where a crash occurred during compaction after
+// the temp file was written but before it replaced the original.
+func cleanupStaleCompaction(path string) {
+	tempPath := path + ".compact"
+	if _, err := os.Stat(tempPath); err == nil {
+		slog.Warn("removing stale compaction temp file", "path", tempPath)
+		os.Remove(tempPath)
+	}
 }
