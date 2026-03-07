@@ -110,6 +110,11 @@ func (e *QueryMiddlewareEngine) Use(name string, priority int, fn QueryMiddlewar
 
 // Execute runs the query through the middleware pipeline, then executes via db.
 func (e *QueryMiddlewareEngine) Execute(q *Query) (*Result, error) {
+	return e.ExecuteWithContext(context.Background(), q)
+}
+
+// ExecuteWithContext runs the query through the middleware chain with the given context.
+func (e *QueryMiddlewareEngine) ExecuteWithContext(ctx context.Context, q *Query) (*Result, error) {
 	e.mu.RLock()
 	mws := make([]QueryMiddlewareEntry, len(e.middlewares))
 	copy(mws, e.middlewares)
@@ -117,12 +122,12 @@ func (e *QueryMiddlewareEngine) Execute(q *Query) (*Result, error) {
 
 	start := time.Now()
 
-	// Build the chain from the end — use ExecuteContext to bypass middleware routing
+	// Build the chain from the end — use ExecuteContext with the caller's context
 	final := func(q *Query) (*Result, error) {
 		if e.db != nil {
-			return e.db.ExecuteContext(context.Background(), q)
+			return e.db.ExecuteContext(ctx, q)
 		}
-		return &Result{}, nil
+		return &Result{Points: []Point{}}, nil
 	}
 
 	chain := final

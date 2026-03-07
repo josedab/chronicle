@@ -27,24 +27,18 @@ func (p *Partition) ensureLoaded(db *DB) error {
 }
 
 func (p *Partition) ensureLoadedContext(ctx context.Context, db *DB) error {
-	p.mu.RLock()
-	loaded := p.loaded
-	p.mu.RUnlock()
-	if loaded {
+	p.mu.Lock()
+	if p.loaded {
+		p.mu.Unlock()
 		return nil
 	}
+	defer p.mu.Unlock()
 
 	// Check context before potentially expensive I/O
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.loaded {
-		return nil
 	}
 
 	if p.length == 0 && p.offset == 0 {
@@ -265,14 +259,28 @@ func matchesTagFilters(seriesTags map[string]string, filters []TagFilter) bool {
 			if len(filter.Values) == 0 {
 				return false
 			}
-			re, err := regexp.Compile(filter.Values[0])
-			if err != nil || !re.MatchString(value) {
+			re := filter.compiledRe
+			if re == nil {
+				compiled, err := regexp.Compile(filter.Values[0])
+				if err != nil {
+					return false
+				}
+				re = compiled
+			}
+			if !re.MatchString(value) {
 				return false
 			}
 		case TagOpNotRegex:
 			if len(filter.Values) > 0 {
-				re, err := regexp.Compile(filter.Values[0])
-				if err == nil && re.MatchString(value) {
+				re := filter.compiledRe
+				if re == nil {
+					compiled, err := regexp.Compile(filter.Values[0])
+					if err != nil {
+						return false
+					}
+					re = compiled
+				}
+				if re.MatchString(value) {
 					return false
 				}
 			}

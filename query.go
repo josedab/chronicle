@@ -12,7 +12,9 @@ package chronicle
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"regexp"
 	"time"
 )
 
@@ -71,11 +73,39 @@ type TagFilter struct {
 	Key    string
 	Op     TagOp
 	Values []string
+
+	// compiledRe caches the compiled regex for TagOpRegex/TagOpNotRegex.
+	// Set by prepareTagFilters before query execution.
+	compiledRe *regexp.Regexp
+}
+
+const maxTagFilterRegexLen = 1024
+
+// prepareTagFilters pre-compiles regex patterns in tag filters.
+// Must be called before query execution to avoid per-series compilation.
+func prepareTagFilters(filters []TagFilter) error {
+	for i := range filters {
+		if (filters[i].Op == TagOpRegex || filters[i].Op == TagOpNotRegex) && len(filters[i].Values) > 0 {
+			pattern := filters[i].Values[0]
+			if len(pattern) > maxTagFilterRegexLen {
+				return fmt.Errorf("tag filter regex pattern too long (%d > %d)", len(pattern), maxTagFilterRegexLen)
+			}
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return fmt.Errorf("invalid tag filter regex %q: %w", pattern, err)
+			}
+			filters[i].compiledRe = re
+		}
+	}
+	return nil
 }
 
 // Execute runs a query and returns results.
 // This is a convenience wrapper around ExecuteContext with a background context.
 func (db *DB) Execute(q *Query) (*Result, error) {
+	if db.isClosed() {
+		return nil, ErrClosed
+	}
 	ctx := context.Background()
 	if db.config.Query.QueryTimeout > 0 {
 		var cancel context.CancelFunc
@@ -86,7 +116,7 @@ func (db *DB) Execute(q *Query) (*Result, error) {
 	// Route through query middleware pipeline if available
 	if db.features != nil {
 		if qm := db.features.QueryMiddleware(); qm != nil && qm.MiddlewareCount() > 0 {
-			return qm.Execute(q)
+			return qm.ExecuteWithContext(ctx, q)
 		}
 	}
 
@@ -96,7 +126,25 @@ func (db *DB) Execute(q *Query) (*Result, error) {
 // ExecuteContext runs a query with context support for cancellation and timeout.
 func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 	if q == nil {
-		return &Result{}, nil
+		return &Result{Points: []Point{}}, nil
+	}
+
+	// Pre-compile regex tag filters once before scanning partitions
+	if len(q.TagFilters) > 0 {
+		if err := prepareTagFilters(q.TagFilters); err != nil {
+			return nil, newQueryError(QueryErrorTypeInvalid, err.Error(), q, err)
+		}
+	}
+
+	// Check query cost budget (only if estimator already initialized)
+	if db.features != nil {
+		if ce := db.features.queryCost; ce != nil {
+			if allowed, est, err := ce.ShouldExecute(q); err == nil && !allowed {
+				return nil, newQueryError(QueryErrorTypeMemory,
+					fmt.Sprintf("query rejected by cost estimator: estimated cost %.2f exceeds threshold (verdict: %s)",
+						est.EstimatedCost, est.Verdict), q, nil)
+			}
+		}
 	}
 
 	q = db.tryMaterialized(q)

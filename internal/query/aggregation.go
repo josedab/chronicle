@@ -111,10 +111,36 @@ func (b *AggBuckets) Finalize(agg AggFunc, window time.Duration) []Point {
 	}
 
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Timestamp < result[j].Timestamp
+		if result[i].Timestamp != result[j].Timestamp {
+			return result[i].Timestamp < result[j].Timestamp
+		}
+		// Secondary sort by canonical tag representation for deterministic ordering
+		return canonicalTags(result[i].Tags) < canonicalTags(result[j].Tags)
 	})
 
 	return result
+}
+
+// canonicalTags returns a sorted, deterministic string representation of tags.
+func canonicalTags(tags map[string]string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteByte('|')
+		}
+		b.WriteString(k)
+		b.WriteByte('=')
+		b.WriteString(tags[k])
+	}
+	return b.String()
 }
 
 // ApplyAggState computes the final value for an aggregation state.
