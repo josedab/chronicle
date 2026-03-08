@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -282,6 +283,9 @@ func (db *DB) Close() error {
 	}
 
 	if err := db.wal.Close(); err != nil {
+		if flushErr != nil {
+			return fmt.Errorf("flush error: %v; wal close error: %w", flushErr, err)
+		}
 		return err
 	}
 	return flushErr
