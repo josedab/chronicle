@@ -198,6 +198,16 @@ func Open(path string, cfg Config) (*DB, error) {
 	// Start feature background processes
 	db.features.Start()
 
+	// Replay deprecation warnings for legacy config fields used during normalize()
+	if len(cfg.usedDeprecatedFields) > 0 {
+		dep := db.features.Deprecation()
+		if dep != nil {
+			for _, field := range cfg.usedDeprecatedFields {
+				dep.WarnIfDeprecated(field)
+			}
+		}
+	}
+
 	// Start background workers
 	db.lifecycle.startBackgroundWorkers(cfg.Retention.CompactionWorkers, cfg.Retention.CompactionInterval)
 	db.startContinuousQueries()

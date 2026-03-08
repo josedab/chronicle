@@ -108,6 +108,10 @@ type Config struct {
 	PrometheusRemoteWriteEnabled bool
 	// Legacy: no grouped replacement yet.
 	ContinuousQueries []ContinuousQuery
+
+	// usedDeprecatedFields tracks which deprecated config fields were set during normalize().
+	// This allows the DeprecationEngine to emit structured warnings after DB Open().
+	usedDeprecatedFields []string
 }
 
 // StorageConfig groups core storage settings.
@@ -186,66 +190,88 @@ type HTTPConfig struct {
 
 // normalize populates grouped config from legacy fields when needed.
 func (c *Config) normalize() {
+	c.usedDeprecatedFields = nil
 	if c.Storage.MaxMemory == 0 && c.MaxMemory != 0 {
 		slog.Warn("Config.MaxMemory is deprecated, use Config.Storage.MaxMemory instead")
 		c.Storage.MaxMemory = c.MaxMemory
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.MaxMemory")
 	}
 	if c.Storage.MaxStorageBytes == 0 && c.MaxStorageBytes != 0 {
 		slog.Warn("Config.MaxStorageBytes is deprecated, use Config.Storage.MaxStorageBytes instead")
 		c.Storage.MaxStorageBytes = c.MaxStorageBytes
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.MaxStorageBytes")
 	}
 	if c.Storage.PartitionDuration == 0 && c.PartitionDuration != 0 {
 		slog.Warn("Config.PartitionDuration is deprecated, use Config.Storage.PartitionDuration instead")
 		c.Storage.PartitionDuration = c.PartitionDuration
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.PartitionDuration")
 	}
 	if c.Storage.BufferSize == 0 && c.BufferSize != 0 {
 		slog.Warn("Config.BufferSize is deprecated, use Config.Storage.BufferSize instead")
 		c.Storage.BufferSize = c.BufferSize
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.BufferSize")
 	}
 	if c.WAL.SyncInterval == 0 && c.SyncInterval != 0 {
 		slog.Warn("Config.SyncInterval is deprecated, use Config.WAL.SyncInterval instead")
 		c.WAL.SyncInterval = c.SyncInterval
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.SyncInterval")
 	}
 	if c.WAL.WALMaxSize == 0 && c.WALMaxSize != 0 {
 		slog.Warn("Config.WALMaxSize is deprecated, use Config.WAL.WALMaxSize instead")
 		c.WAL.WALMaxSize = c.WALMaxSize
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.WALMaxSize")
 	}
 	if c.WAL.WALRetain == 0 && c.WALRetain != 0 {
 		slog.Warn("Config.WALRetain is deprecated, use Config.WAL.WALRetain instead")
 		c.WAL.WALRetain = c.WALRetain
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.WALRetain")
 	}
 	if c.Retention.RetentionDuration == 0 && c.RetentionDuration != 0 {
 		slog.Warn("Config.RetentionDuration is deprecated, use Config.Retention.RetentionDuration instead")
 		c.Retention.RetentionDuration = c.RetentionDuration
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.RetentionDuration")
 	}
 	if len(c.Retention.DownsampleRules) == 0 && len(c.DownsampleRules) > 0 {
 		slog.Warn("Config.DownsampleRules is deprecated, use Config.Retention.DownsampleRules instead")
 		c.Retention.DownsampleRules = c.DownsampleRules
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.DownsampleRules")
 	}
 	if c.Retention.CompactionWorkers == 0 && c.CompactionWorkers != 0 {
 		slog.Warn("Config.CompactionWorkers is deprecated, use Config.Retention.CompactionWorkers instead")
 		c.Retention.CompactionWorkers = c.CompactionWorkers
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.CompactionWorkers")
 	}
 	if c.Retention.CompactionInterval == 0 && c.CompactionInterval != 0 {
 		slog.Warn("Config.CompactionInterval is deprecated, use Config.Retention.CompactionInterval instead")
 		c.Retention.CompactionInterval = c.CompactionInterval
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.CompactionInterval")
 	}
 	if c.Query.QueryTimeout == 0 && c.QueryTimeout != 0 {
 		slog.Warn("Config.QueryTimeout is deprecated, use Config.Query.QueryTimeout instead")
 		c.Query.QueryTimeout = c.QueryTimeout
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.QueryTimeout")
 	}
 	if !c.HTTP.HTTPEnabled && c.HTTPEnabled {
 		slog.Warn("Config.HTTPEnabled is deprecated, use Config.HTTP.HTTPEnabled instead")
 		c.HTTP.HTTPEnabled = c.HTTPEnabled
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.HTTPEnabled")
 	}
 	if c.HTTP.HTTPPort == 0 && c.HTTPPort != 0 {
 		slog.Warn("Config.HTTPPort is deprecated, use Config.HTTP.HTTPPort instead")
 		c.HTTP.HTTPPort = c.HTTPPort
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.HTTPPort")
 	}
 	if !c.HTTP.PrometheusRemoteWriteEnabled && c.PrometheusRemoteWriteEnabled {
 		slog.Warn("Config.PrometheusRemoteWriteEnabled is deprecated, use Config.HTTP.PrometheusRemoteWriteEnabled instead")
 		c.HTTP.PrometheusRemoteWriteEnabled = c.PrometheusRemoteWriteEnabled
+		c.usedDeprecatedFields = append(c.usedDeprecatedFields, "Config.PrometheusRemoteWriteEnabled")
 	}
+}
+
+// UsedDeprecatedFields returns the list of deprecated config fields that were
+// set during normalization. Useful for post-Open() deprecation reporting.
+func (c *Config) UsedDeprecatedFields() []string {
+	return c.usedDeprecatedFields
 }
 
 // initLogLevel configures the default slog handler based on LogLevel.

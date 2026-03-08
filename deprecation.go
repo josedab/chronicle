@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -44,12 +45,14 @@ type APIDeprecationReport struct {
 
 // DeprecationEngine manages API deprecation lifecycle.
 type DeprecationEngine struct {
-	db     *DB
-	config DeprecationConfig
-	mu     sync.RWMutex
-	symbols []DeprecatedSymbol
-	running bool
-	stopCh  chan struct{}
+	db       *DB
+	config   DeprecationConfig
+	mu       sync.RWMutex
+	symbols  []DeprecatedSymbol
+	warned   map[string]bool // tracks which symbols have already been warned about
+	running  bool
+	stopCh   chan struct{}
+	warnFunc func(sym DeprecatedSymbol) // injectable for testing
 }
 
 // NewDeprecationEngine creates a new deprecation engine.
@@ -58,6 +61,7 @@ func NewDeprecationEngine(db *DB, cfg DeprecationConfig) *DeprecationEngine {
 		db:      db,
 		config:  cfg,
 		symbols: defaultDeprecatedSymbols(),
+		warned:  make(map[string]bool),
 		stopCh:  make(chan struct{}),
 	}
 	return e
@@ -87,6 +91,53 @@ func (e *DeprecationEngine) IsDeprecated(name string) (bool, *DeprecatedSymbol) 
 		}
 	}
 	return false, nil
+}
+
+// WarnIfDeprecated checks if a symbol is deprecated and emits a warning once per symbol.
+// Returns true if the symbol is deprecated.
+func (e *DeprecationEngine) WarnIfDeprecated(name string) bool {
+	if !e.config.Enabled || !e.config.WarnOnUse {
+		return false
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.warned[name] {
+		// Already warned for this symbol — still return deprecation status
+		for i := range e.symbols {
+			if e.symbols[i].Name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	for i := range e.symbols {
+		if e.symbols[i].Name == name {
+			e.warned[name] = true
+			sym := e.symbols[i]
+			if e.warnFunc != nil {
+				e.warnFunc(sym)
+			} else {
+				slog.Warn("deprecated API used",
+					"symbol", sym.Name,
+					"deprecated_since", sym.DeprecatedSince,
+					"removal_version", sym.RemovalVersion,
+					"replacement", sym.Replacement,
+					"migration", sym.Migration,
+				)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// WarningCount returns the number of unique deprecation warnings emitted.
+func (e *DeprecationEngine) WarningCount() int {
+	e.mu.RLock(); defer e.mu.RUnlock()
+	return len(e.warned)
 }
 
 // GenerateReport creates a full deprecation report.
