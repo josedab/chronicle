@@ -1,6 +1,9 @@
 package chronicle
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -101,4 +104,126 @@ func TestConfigReloadEngine(t *testing.T) {
 			t.Error("expected last reload to be non-zero")
 		}
 	})
+}
+
+func TestConfigReloadEngine_FileWatch(t *testing.T) {
+	db := setupTestDB(t)
+
+	cfgDir := t.TempDir()
+	cfgPath := filepath.Join(cfgDir, "chronicle.json")
+
+	baseCfg := DefaultConfig(db.path)
+	baseCfg.syncLegacyFields()
+	data, err := json.Marshal(baseCfg)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if err := os.WriteFile(cfgPath, data, 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	// Seed the lastModTime so the initial file doesn't trigger a reload
+	info, err := os.Stat(cfgPath)
+	if err != nil {
+		t.Fatalf("stat config file: %v", err)
+	}
+
+	reloadCh := make(chan []ConfigChange, 4)
+	e := NewConfigReloadEngine(db, ConfigReloadConfig{
+		Enabled:       true,
+		WatchInterval: 50 * time.Millisecond,
+		ConfigPath:    cfgPath,
+	})
+	e.currentCfg = baseCfg
+	e.lastModTime = info.ModTime()
+	e.onReload = func(changes []ConfigChange) {
+		select {
+		case reloadCh <- changes:
+		default:
+		}
+	}
+
+	e.Start()
+	defer e.Stop()
+
+	// Ensure mod time changes by sleeping then writing
+	time.Sleep(200 * time.Millisecond)
+	newCfg := baseCfg
+	newCfg.Retention.RetentionDuration = 72 * time.Hour
+	newCfg.RetentionDuration = 72 * time.Hour
+	data, err = json.Marshal(newCfg)
+	if err != nil {
+		t.Fatalf("marshal new config: %v", err)
+	}
+	if err := os.WriteFile(cfgPath, data, 0644); err != nil {
+		t.Fatalf("write new config: %v", err)
+	}
+
+	select {
+	case changes := <-reloadCh:
+		foundRetention := false
+		for _, c := range changes {
+			if c.Field == "RetentionDuration" && c.Applied {
+				foundRetention = true
+			}
+		}
+		if !foundRetention {
+			t.Error("expected RetentionDuration change to be applied")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for config reload")
+	}
+
+	// Verify the DB config was actually updated
+	db.mu.RLock()
+	actual := db.config.Retention.RetentionDuration
+	db.mu.RUnlock()
+	if actual != 72*time.Hour {
+		t.Errorf("expected DB retention to be 72h, got %v", actual)
+	}
+}
+
+func TestConfigReloadEngine_CheckAndReload_MissingFile(t *testing.T) {
+	db := setupTestDB(t)
+	e := NewConfigReloadEngine(db, ConfigReloadConfig{
+		Enabled:    true,
+		ConfigPath: "/nonexistent/path/config.json",
+	})
+	err := e.checkAndReload()
+	if err == nil {
+		t.Error("expected error for missing config file")
+	}
+}
+
+func TestConfigReloadEngine_CheckAndReload_InvalidJSON(t *testing.T) {
+	db := setupTestDB(t)
+	cfgPath := filepath.Join(t.TempDir(), "bad.json")
+	if err := os.WriteFile(cfgPath, []byte("{invalid json"), 0644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	e := NewConfigReloadEngine(db, ConfigReloadConfig{
+		Enabled:    true,
+		ConfigPath: cfgPath,
+	})
+	err := e.checkAndReload()
+	if err == nil {
+		t.Error("expected error for invalid JSON config")
+	}
+}
+
+func TestConfigReloadEngine_NoWatchWithoutPath(t *testing.T) {
+	db := setupTestDB(t)
+	e := NewConfigReloadEngine(db, ConfigReloadConfig{
+		Enabled:       true,
+		WatchInterval: 50 * time.Millisecond,
+	})
+	e.Start()
+	defer e.Stop()
+
+	// No path configured — should not crash, just run in manual mode
+	time.Sleep(100 * time.Millisecond)
+	stats := e.GetStats()
+	if stats.WatchErrors != 0 {
+		t.Errorf("expected 0 watch errors without path, got %d", stats.WatchErrors)
+	}
 }

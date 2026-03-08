@@ -3,7 +3,9 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -12,6 +14,7 @@ import (
 type ConfigReloadConfig struct {
 	Enabled       bool          `json:"enabled"`
 	WatchInterval time.Duration `json:"watch_interval"`
+	ConfigPath    string        `json:"config_path"`
 }
 
 // DefaultConfigReloadConfig returns sensible defaults.
@@ -33,9 +36,11 @@ type ConfigChange struct {
 
 // ConfigReloadStats holds reload statistics.
 type ConfigReloadStats struct {
-	TotalReloads int64     `json:"total_reloads"`
-	TotalChanges int64     `json:"total_changes"`
-	LastReloadAt time.Time `json:"last_reload_at"`
+	TotalReloads    int64     `json:"total_reloads"`
+	TotalChanges    int64     `json:"total_changes"`
+	LastReloadAt    time.Time `json:"last_reload_at"`
+	WatchErrors     int64     `json:"watch_errors"`
+	LastWatchError  string    `json:"last_watch_error,omitempty"`
 }
 
 // ConfigReloadEngine manages hot reloading of configuration.
@@ -45,10 +50,12 @@ type ConfigReloadEngine struct {
 	mu         sync.RWMutex
 	currentCfg Config
 	lastReload time.Time
+	lastModTime time.Time
 	stats      ConfigReloadStats
 	history    []ConfigChange
 	running    bool
 	stopCh     chan struct{}
+	onReload   func([]ConfigChange) // optional callback for testing/extensibility
 }
 
 // NewConfigReloadEngine creates a new engine.
@@ -60,7 +67,8 @@ func NewConfigReloadEngine(db *DB, cfg ConfigReloadConfig) *ConfigReloadEngine {
 	}
 }
 
-// Start starts the engine.
+// Start begins watching the config file for changes. If no ConfigPath is set,
+// the engine runs in manual-reload mode (Apply only, no file watching).
 func (e *ConfigReloadEngine) Start() {
 	e.mu.Lock()
 	if e.running {
@@ -69,9 +77,13 @@ func (e *ConfigReloadEngine) Start() {
 	}
 	e.running = true
 	e.mu.Unlock()
+
+	if e.config.ConfigPath != "" && e.config.Enabled {
+		go e.watchLoop()
+	}
 }
 
-// Stop stops the engine.
+// Stop stops the file watcher and the engine.
 func (e *ConfigReloadEngine) Stop() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -80,6 +92,80 @@ func (e *ConfigReloadEngine) Stop() {
 	}
 	e.running = false
 	close(e.stopCh)
+}
+
+// watchLoop polls the config file for modifications and applies changes.
+func (e *ConfigReloadEngine) watchLoop() {
+	interval := e.config.WatchInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			if err := e.checkAndReload(); err != nil {
+				e.mu.Lock()
+				e.stats.WatchErrors++
+				e.stats.LastWatchError = err.Error()
+				e.mu.Unlock()
+				slog.Warn("config hot reload: watch error", "error", err)
+			}
+		}
+	}
+}
+
+// checkAndReload stats the config file and reloads if it has been modified.
+func (e *ConfigReloadEngine) checkAndReload() error {
+	info, err := os.Stat(e.config.ConfigPath)
+	if err != nil {
+		return fmt.Errorf("stat config file: %w", err)
+	}
+
+	e.mu.RLock()
+	lastMod := e.lastModTime
+	e.mu.RUnlock()
+
+	if !info.ModTime().After(lastMod) {
+		return nil
+	}
+
+	data, err := os.ReadFile(e.config.ConfigPath)
+	if err != nil {
+		return fmt.Errorf("read config file: %w", err)
+	}
+
+	var newCfg Config
+	if err := json.Unmarshal(data, &newCfg); err != nil {
+		return fmt.Errorf("parse config file: %w", err)
+	}
+
+	changes, err := e.Apply(newCfg)
+	if err != nil {
+		return fmt.Errorf("apply config: %w", err)
+	}
+
+	e.mu.Lock()
+	e.lastModTime = info.ModTime()
+	e.mu.Unlock()
+
+	if len(changes) > 0 {
+		applied := 0
+		for _, c := range changes {
+			if c.Applied {
+				applied++
+			}
+		}
+		slog.Info("config hot reload: applied changes",
+			"total", len(changes), "applied", applied)
+	}
+
+	return nil
 }
 
 var configReloadSafeFields = map[string]bool{
@@ -158,8 +244,8 @@ func (e *ConfigReloadEngine) Diff(a, b Config) []ConfigChange {
 
 // Apply applies a new configuration after validation, returning changes made.
 // If the new configuration is invalid, it returns an error and no changes are applied.
+// Safe fields are applied to the running DB; unsafe fields are logged but rejected.
 func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
-	// Validate the new configuration before applying
 	if err := newCfg.Validate(); err != nil {
 		return nil, fmt.Errorf("config reload rejected: %w", err)
 	}
@@ -168,6 +254,35 @@ func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
 	defer e.mu.Unlock()
 
 	changes := e.Diff(e.currentCfg, newCfg)
+
+	// Apply safe changes to the running DB
+	for i := range changes {
+		if !changes[i].Applied {
+			continue
+		}
+		switch changes[i].Field {
+		case "RetentionDuration":
+			if e.db != nil {
+				e.db.mu.Lock()
+				e.db.config.Retention.RetentionDuration = newCfg.Retention.RetentionDuration
+				e.db.config.RetentionDuration = newCfg.Retention.RetentionDuration
+				e.db.mu.Unlock()
+			}
+		case "BufferSize":
+			if e.db != nil {
+				e.db.mu.Lock()
+				e.db.config.Storage.BufferSize = newCfg.Storage.BufferSize
+				e.db.config.BufferSize = newCfg.Storage.BufferSize
+				e.db.mu.Unlock()
+			}
+		case "RateLimitPerSecond":
+			if e.db != nil {
+				e.db.mu.Lock()
+				e.db.config.RateLimitPerSecond = newCfg.RateLimitPerSecond
+				e.db.mu.Unlock()
+			}
+		}
+	}
 
 	now := time.Now()
 	e.lastReload = now
@@ -180,6 +295,10 @@ func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
 	}
 	e.history = append(e.history, changes...)
 	e.currentCfg = newCfg
+
+	if e.onReload != nil {
+		e.onReload(changes)
+	}
 
 	return changes, nil
 }
