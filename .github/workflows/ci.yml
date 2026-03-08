@@ -59,6 +59,10 @@ jobs:
             exit 1
           fi
 
+      - name: Check per-package coverage minimums
+        if: matrix.os == 'ubuntu-latest'
+        run: ./scripts/check-coverage.sh coverage.out || echo "::warning::Some packages below coverage minimum"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

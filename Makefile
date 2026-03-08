@@ -1,4 +1,4 @@
-.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-race-short test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run debug watch watch-lint watch-all check-versions doctor new-test test-changed check-file-size check-file-size-strict lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy test-file mutation-test help
+.PHONY: all quickstart build test test-all test-verbose test-short test-fast test-failing test-pkg test-integration test-ci test-race-short test-examples lint lint-ci lint-fix lint-fast fmt fmt-check clean clean-all bench benchmark profile-cpu profile-mem check check-all quickcheck cover cover-report check-coverage test-cover-pkg vet setup setup-grafana install-hooks preflight release-check tag check-interface check-api-stability check-openapi wasm dev run debug watch watch-lint watch-all check-versions doctor new-test test-changed check-file-size check-file-size-strict lint-changed deps-check check-todos check-goroutine-leaks test-race generate check-generate run-example validate tidy test-file mutation-test help
 
 GO ?= go
 MIN_GO_VERSION := 1.24
@@ -134,6 +134,9 @@ cover: ## Print coverage summary to terminal (warns if below 70%)
 
 cover-report: ## Per-package coverage report (use -html for HTML output)
 	@./scripts/coverage.sh
+
+check-coverage: cover ## Check per-package coverage minimums
+	@./scripts/check-coverage.sh coverage.out
 
 test-cover-pkg: ## Per-package coverage for a specific package (usage: make test-cover-pkg PKG=./internal/...)
 ifndef PKG
