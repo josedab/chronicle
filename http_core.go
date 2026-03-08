@@ -231,7 +231,20 @@ func csrfProtectionMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				next(w, r)
 				return
 			}
-			// No X-Requested-With — check Origin header
+			// Content-Type: application/json cannot be sent by HTML forms,
+			// so it serves as a CSRF defense for API clients (curl, SDKs).
+			// Also allow empty/text content types for line protocol writes,
+			// as HTML forms always send application/x-www-form-urlencoded or multipart.
+			ct := r.Header.Get("Content-Type")
+			if ct == "" ||
+				strings.HasPrefix(ct, "application/json") ||
+				strings.HasPrefix(ct, "application/x-protobuf") ||
+				strings.HasPrefix(ct, "application/grpc") ||
+				strings.HasPrefix(ct, "text/plain") {
+				next(w, r)
+				return
+			}
+			// Check Origin header for browser requests
 			origin := r.Header.Get("Origin")
 			if origin == "" {
 				http.Error(w, "CSRF validation failed: missing X-Requested-With or Origin header", http.StatusForbidden)
@@ -255,8 +268,19 @@ func securityHeadersMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'")
 		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+
+		// Use a relaxed CSP for pages that serve HTML (playgrounds, admin UI),
+		// strict policy for API endpoints.
+		path := r.URL.Path
+		if strings.HasPrefix(path, "/admin") ||
+			strings.HasPrefix(path, "/graphql/playground") ||
+			strings.HasPrefix(path, "/swagger") ||
+			strings.HasPrefix(path, "/query-console") {
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+		} else {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		}
 		next(w, r)
 	}
 }
