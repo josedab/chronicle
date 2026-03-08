@@ -32,6 +32,7 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 		h = securityHeadersMiddleware(h)
 		h = csrfProtectionMiddleware(h)
 		h = bodySizeLimitMiddleware(h)
+		h = requestIDMiddleware(h)
 		h = authMiddleware(auth, h)
 		if rl != nil {
 			h = rateLimitMiddleware(rl, h)

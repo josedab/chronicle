@@ -445,6 +445,34 @@ func adminOnlyMiddleware(auth *authenticator, next http.HandlerFunc) http.Handle
 	}
 }
 
+// requestIDMiddleware generates or propagates a request ID for correlation.
+// If the client sends X-Request-ID, it is reused; otherwise a new one is generated.
+func requestIDMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			reqID = generateRequestID()
+		}
+		w.Header().Set("X-Request-ID", reqID)
+		// Store in request context for downstream handlers
+		ctx := context.WithValue(r.Context(), requestIDKey, reqID)
+		next(w, r.WithContext(ctx))
+	}
+}
+
+// contextKey type for context value keys.
+type contextKey string
+
+const requestIDKey contextKey = "request_id"
+
+// RequestIDFromContext extracts the request ID from the context.
+func RequestIDFromContext(ctx context.Context) string {
+	if id, ok := ctx.Value(requestIDKey).(string); ok {
+		return id
+	}
+	return ""
+}
+
 // middlewareWrapper wraps handlers with authentication and rate limiting
 type middlewareWrapper func(h http.HandlerFunc) http.HandlerFunc
 

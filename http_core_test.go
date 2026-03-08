@@ -1,6 +1,9 @@
 package chronicle
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -53,5 +56,51 @@ func TestHttpCore(t *testing.T) {
 		rl := newRateLimiter(10, time.Second)
 		rl.Stop()
 		rl.Stop() // should not panic
+	})
+}
+
+func TestRequestIDMiddleware(t *testing.T) {
+	t.Run("generates ID when not provided", func(t *testing.T) {
+		handler := requestIDMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			reqID := RequestIDFromContext(r.Context())
+			if reqID == "" {
+				t.Error("expected request ID in context")
+			}
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+
+		if rec.Header().Get("X-Request-ID") == "" {
+			t.Error("expected X-Request-ID response header")
+		}
+	})
+
+	t.Run("propagates client provided ID", func(t *testing.T) {
+		handler := requestIDMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			reqID := RequestIDFromContext(r.Context())
+			if reqID != "client-123" {
+				t.Errorf("expected 'client-123', got %q", reqID)
+			}
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("X-Request-ID", "client-123")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+
+		if rec.Header().Get("X-Request-ID") != "client-123" {
+			t.Errorf("expected 'client-123' in response, got %q", rec.Header().Get("X-Request-ID"))
+		}
+	})
+
+	t.Run("context returns empty when no middleware", func(t *testing.T) {
+		id := RequestIDFromContext(context.Background())
+		if id != "" {
+			t.Errorf("expected empty, got %q", id)
+		}
 	})
 }
