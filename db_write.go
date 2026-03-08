@@ -78,8 +78,10 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 	}
 
 	// Validate against schema if registry exists
-	if err := db.schemaRegistry.Validate(p); err != nil {
-		return fmt.Errorf("schema validation failed: %w", err)
+	if db.schemaRegistry != nil {
+		if err := db.schemaRegistry.Validate(p); err != nil {
+			return fmt.Errorf("schema validation failed: %w", err)
+		}
 	}
 
 	// Observe schema evolution (only if engine is already initialized)
@@ -188,8 +190,10 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 	}
 
 	// Validate all points against schema
-	if err := db.schemaRegistry.ValidateBatch(points); err != nil {
-		return fmt.Errorf("schema validation failed: %w", err)
+	if db.schemaRegistry != nil {
+		if err := db.schemaRegistry.ValidateBatch(points); err != nil {
+			return fmt.Errorf("schema validation failed: %w", err)
+		}
 	}
 
 	// Observe schema evolution for each unique metric in the batch
