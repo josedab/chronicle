@@ -167,6 +167,10 @@ func (g *OpenAPIGenerator) Generate() *OpenAPISpec {
 	g.buildHealthEndpoint(spec)
 	g.buildStreamEndpoint(spec)
 	g.buildOTLPEndpoint(spec)
+	g.buildAdminEndpoints(spec)
+	g.buildFeatureFlagEndpoints(spec)
+	g.buildCQLEndpoints(spec)
+	g.buildMetricsEndpoints(spec)
 
 	g.buildPointSchema(spec)
 	g.buildQuerySchema(spec)

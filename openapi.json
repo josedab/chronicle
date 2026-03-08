@@ -16,6 +16,260 @@
     }
   ],
   "paths": {
+    "/api/v1/admin/compact": {
+      "post": {
+        "operationId": "compactDB",
+        "summary": "Trigger storage compaction",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Compaction started"
+          },
+          "500": {
+            "description": "Compaction failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/flush": {
+      "post": {
+        "operationId": "flushDB",
+        "summary": "Flush write buffer to storage",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Flush successful"
+          },
+          "500": {
+            "description": "Flush failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/metrics": {
+      "get": {
+        "operationId": "listMetrics",
+        "summary": "List all metric names",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of metric names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/stats": {
+      "get": {
+        "operationId": "getStats",
+        "summary": "Get database statistics",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Database statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config/reload/stats": {
+      "get": {
+        "operationId": "getConfigReloadStats",
+        "summary": "Get configuration hot-reload statistics",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Reload stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cql": {
+      "post": {
+        "operationId": "executeCQL",
+        "summary": "Execute a CQL (Chronicle Query Language) query",
+        "tags": [
+          "query"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "CQL query string"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Feature disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cql/validate": {
+      "post": {
+        "operationId": "validateCQL",
+        "summary": "Validate a CQL query without executing it",
+        "tags": [
+          "query"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query is valid"
+          },
+          "400": {
+            "description": "Query is invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deprecations": {
+      "get": {
+        "operationId": "listDeprecations",
+        "summary": "List all deprecated API symbols",
+        "tags": [
+          "meta"
+        ],
+        "responses": {
+          "200": {
+            "description": "Deprecated symbols",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "deprecated_since": {
+                        "type": "string"
+                      },
+                      "migration_guide": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "removal_version": {
+                        "type": "string"
+                      },
+                      "replacement": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/export": {
       "post": {
         "operationId": "exportData",
@@ -68,6 +322,124 @@
           },
           "400": {
             "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flags": {
+      "get": {
+        "operationId": "listFeatureFlags",
+        "summary": "List all feature flags and their states",
+        "tags": [
+          "features"
+        ],
+        "responses": {
+          "200": {
+            "description": "Feature flag list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "tier": {
+                        "type": "string",
+                        "description": "stable, beta, or experimental"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flags/stats": {
+      "get": {
+        "operationId": "getFeatureFlagStats",
+        "summary": "Get feature flag statistics",
+        "tags": [
+          "features"
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flags/toggle": {
+      "post": {
+        "operationId": "toggleFeatureFlag",
+        "summary": "Enable or disable a feature flag",
+        "tags": [
+          "features"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Desired state"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Feature flag name"
+                  }
+                },
+                "required": [
+                  "name",
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Toggle successful"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Feature is protected",
             "content": {
               "application/json": {
                 "schema": {
@@ -592,23 +964,34 @@
     "schemas": {
       "Error": {
         "type": "object",
-        "description": "Error response.",
+        "description": "Standardized error response.",
         "properties": {
           "code": {
             "type": "integer",
             "description": "HTTP status code"
           },
-          "details": {
-            "type": "string",
-            "description": "Additional error details"
-          },
           "error": {
             "type": "string",
             "description": "Error message"
+          },
+          "error_type": {
+            "type": "string",
+            "description": "Error category (e.g., 'timeout', 'validation')"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Request correlation ID"
+          },
+          "status": {
+            "type": "string",
+            "description": "Always 'error'",
+            "example": "error"
           }
         },
         "required": [
-          "error"
+          "status",
+          "error",
+          "code"
         ]
       },
       "Point": {

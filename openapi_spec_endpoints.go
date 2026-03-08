@@ -75,13 +75,15 @@ func (g *OpenAPIGenerator) buildQueryResultSchema(spec *OpenAPISpec) {
 func (g *OpenAPIGenerator) buildErrorSchema(spec *OpenAPISpec) {
 	spec.Components.Schemas["Error"] = &OpenAPISchema{
 		Type:        "object",
-		Description: "Error response.",
+		Description: "Standardized error response.",
 		Properties: map[string]*OpenAPISchema{
-			"error":   {Type: "string", Description: "Error message"},
-			"code":    {Type: "integer", Description: "HTTP status code"},
-			"details": {Type: "string", Description: "Additional error details"},
+			"status":     {Type: "string", Description: "Always 'error'", Example: "error"},
+			"error":      {Type: "string", Description: "Error message"},
+			"error_type": {Type: "string", Description: "Error category (e.g., 'timeout', 'validation')"},
+			"request_id": {Type: "string", Description: "Request correlation ID"},
+			"code":       {Type: "integer", Description: "HTTP status code"},
 		},
-		Required: []string{"error"},
+		Required: []string{"status", "error", "code"},
 	}
 }
 
@@ -97,7 +99,199 @@ func (g *OpenAPIGenerator) jsonContent(schema *OpenAPISchema) map[string]*OpenAP
 	}
 }
 
-// SDK generation types and templates.
+func (g *OpenAPIGenerator) buildAdminEndpoints(spec *OpenAPISpec) {
+	spec.Paths["/api/v1/admin/metrics"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listMetrics",
+			Summary:     "List all metric names",
+			Tags:        []string{"admin"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {
+					Description: "List of metric names",
+					Content: g.jsonContent(&OpenAPISchema{
+						Type:  "array",
+						Items: &OpenAPISchema{Type: "string"},
+					}),
+				},
+			},
+		},
+	}
+	spec.Paths["/api/v1/admin/stats"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "getStats",
+			Summary:     "Get database statistics",
+			Tags:        []string{"admin"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Database statistics", Content: g.jsonContent(&OpenAPISchema{Type: "object"})},
+			},
+		},
+	}
+	spec.Paths["/api/v1/admin/flush"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "flushDB",
+			Summary:     "Flush write buffer to storage",
+			Tags:        []string{"admin"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Flush successful"},
+				"500": {Description: "Flush failed", Content: g.errorContent()},
+			},
+		},
+	}
+	spec.Paths["/api/v1/admin/compact"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "compactDB",
+			Summary:     "Trigger storage compaction",
+			Tags:        []string{"admin"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Compaction started"},
+				"500": {Description: "Compaction failed", Content: g.errorContent()},
+			},
+		},
+	}
+}
+
+func (g *OpenAPIGenerator) buildFeatureFlagEndpoints(spec *OpenAPISpec) {
+	spec.Paths["/api/v1/flags"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listFeatureFlags",
+			Summary:     "List all feature flags and their states",
+			Tags:        []string{"features"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {
+					Description: "Feature flag list",
+					Content: g.jsonContent(&OpenAPISchema{
+						Type: "array",
+						Items: &OpenAPISchema{
+							Type: "object",
+							Properties: map[string]*OpenAPISchema{
+								"name":    {Type: "string"},
+								"tier":    {Type: "string", Description: "stable, beta, or experimental"},
+								"enabled": {Type: "boolean"},
+								"reason":  {Type: "string"},
+							},
+						},
+					}),
+				},
+			},
+		},
+	}
+	spec.Paths["/api/v1/flags/stats"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "getFeatureFlagStats",
+			Summary:     "Get feature flag statistics",
+			Tags:        []string{"features"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Flag statistics", Content: g.jsonContent(&OpenAPISchema{Type: "object"})},
+			},
+		},
+	}
+	spec.Paths["/api/v1/flags/toggle"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "toggleFeatureFlag",
+			Summary:     "Enable or disable a feature flag",
+			Tags:        []string{"features"},
+			RequestBody: &OpenAPIRequestBody{
+				Required: true,
+				Content: g.jsonContent(&OpenAPISchema{
+					Type: "object",
+					Properties: map[string]*OpenAPISchema{
+						"name":    {Type: "string", Description: "Feature flag name"},
+						"enabled": {Type: "boolean", Description: "Desired state"},
+					},
+					Required: []string{"name", "enabled"},
+				}),
+			},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Toggle successful"},
+				"400": {Description: "Invalid request", Content: g.errorContent()},
+				"403": {Description: "Feature is protected", Content: g.errorContent()},
+			},
+		},
+	}
+}
+
+func (g *OpenAPIGenerator) buildCQLEndpoints(spec *OpenAPISpec) {
+	spec.Paths["/api/v1/cql"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "executeCQL",
+			Summary:     "Execute a CQL (Chronicle Query Language) query",
+			Tags:        []string{"query"},
+			RequestBody: &OpenAPIRequestBody{
+				Required: true,
+				Content: g.jsonContent(&OpenAPISchema{
+					Type: "object",
+					Properties: map[string]*OpenAPISchema{
+						"query": {Type: "string", Description: "CQL query string"},
+					},
+					Required: []string{"query"},
+				}),
+			},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Query results", Content: g.jsonContent(&OpenAPISchema{Ref: "#/components/schemas/QueryResult"})},
+				"400": {Description: "Invalid query", Content: g.errorContent()},
+				"403": {Description: "Feature disabled", Content: g.errorContent()},
+			},
+		},
+	}
+	spec.Paths["/api/v1/cql/validate"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "validateCQL",
+			Summary:     "Validate a CQL query without executing it",
+			Tags:        []string{"query"},
+			RequestBody: &OpenAPIRequestBody{
+				Required: true,
+				Content: g.jsonContent(&OpenAPISchema{
+					Type: "object",
+					Properties: map[string]*OpenAPISchema{
+						"query": {Type: "string"},
+					},
+				}),
+			},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Query is valid"},
+				"400": {Description: "Query is invalid", Content: g.errorContent()},
+			},
+		},
+	}
+}
+
+func (g *OpenAPIGenerator) buildMetricsEndpoints(spec *OpenAPISpec) {
+	spec.Paths["/api/v1/deprecations"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listDeprecations",
+			Summary:     "List all deprecated API symbols",
+			Tags:        []string{"meta"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {
+					Description: "Deprecated symbols",
+					Content: g.jsonContent(&OpenAPISchema{
+						Type: "array",
+						Items: &OpenAPISchema{
+							Type: "object",
+							Properties: map[string]*OpenAPISchema{
+								"name":             {Type: "string"},
+								"deprecated_since": {Type: "string"},
+								"removal_version":  {Type: "string"},
+								"replacement":      {Type: "string"},
+								"migration_guide":  {Type: "string"},
+							},
+						},
+					}),
+				},
+			},
+		},
+	}
+	spec.Paths["/api/v1/config/reload/stats"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "getConfigReloadStats",
+			Summary:     "Get configuration hot-reload statistics",
+			Tags:        []string{"admin"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Reload stats", Content: g.jsonContent(&OpenAPISchema{Type: "object"})},
+			},
+		},
+	}
+}
 
 // SDKLanguage represents a supported programming language for SDK generation.
 type SDKLanguage string
