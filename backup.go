@@ -495,11 +495,14 @@ func (bm *BackupManager) restoreFull(ctx context.Context, record *BackupRecord) 
 		return err
 	}
 
-	_, err = io.Copy(f, reader)
-	f.Close()
+	_, copyErr := io.Copy(f, reader)
+	closeErr := f.Close()
 
-	if err != nil {
-		return err
+	if copyErr != nil {
+		return copyErr
+	}
+	if closeErr != nil {
+		return fmt.Errorf("backup restore: flush to disk failed: %w", closeErr)
 	}
 
 	// Reopen
