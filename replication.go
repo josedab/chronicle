@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -40,13 +41,23 @@ type replicator struct {
 	allow    map[string]struct{}
 	retryer  *Retryer
 	cb       *CircuitBreaker
+
+	// Dead-letter queue for points that failed replication (e.g., circuit breaker open).
+	// Bounded to prevent OOM; oldest points are dropped when full.
+	dlqMu      sync.Mutex
+	deadLetter []Point
+	dlqMax     int
+
+	// Counters for observability
+	droppedPoints atomic.Int64
 }
 
 func newReplicator(cfg *ReplicationConfig) *replicator {
 	r := &replicator{
-		cfg:   cfg,
-		queue: make(chan Point, 10000),
-		stop:  make(chan struct{}),
+		cfg:    cfg,
+		queue:  make(chan Point, 10000),
+		stop:   make(chan struct{}),
+		dlqMax: 50000, // bounded dead letter queue: ~50k points
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 10 * time.Second
@@ -125,6 +136,16 @@ func (r *replicator) loop() {
 	for {
 		select {
 		case <-r.stop:
+			// Drain any remaining items from the queue before final flush
+			for {
+				select {
+				case p := <-r.queue:
+					batch = append(batch, p)
+				default:
+					goto done
+				}
+			}
+		done:
 			r.flush(batch)
 			return
 		case p := <-r.queue:
@@ -138,6 +159,8 @@ func (r *replicator) loop() {
 				r.flush(batch)
 				batch = batch[:0]
 			}
+			// Retry dead-letter points when circuit may have recovered
+			r.retryDLQ()
 		}
 	}
 }
@@ -183,10 +206,10 @@ func (r *replicator) flush(points []Point) {
 	})
 
 	if err != nil {
+		r.enqueueDLQ(points)
 		if err == ErrCircuitOpen {
-			slog.Warn("replication circuit breaker open, dropping points", "count", len(points))
+			slog.Warn("replication circuit breaker open, buffering points in DLQ", "count", len(points))
 		}
-		// Error already logged in sendWithRetry
 	}
 }
 
@@ -239,4 +262,54 @@ func (r *replicator) send(payload []byte) error {
 	}
 
 	return nil
+}
+
+// enqueueDLQ adds failed points to the dead-letter queue for later retry.
+// If the DLQ is full, oldest points are dropped and counted.
+func (r *replicator) enqueueDLQ(points []Point) {
+	r.dlqMu.Lock()
+	defer r.dlqMu.Unlock()
+
+	r.deadLetter = append(r.deadLetter, points...)
+
+	if len(r.deadLetter) > r.dlqMax {
+		excess := len(r.deadLetter) - r.dlqMax
+		r.deadLetter = r.deadLetter[excess:]
+		r.droppedPoints.Add(int64(excess))
+		slog.Warn("replication DLQ overflow, oldest points dropped", "dropped", excess)
+	}
+}
+
+// retryDLQ drains the dead-letter queue and attempts to re-flush those points.
+func (r *replicator) retryDLQ() {
+	r.dlqMu.Lock()
+	if len(r.deadLetter) == 0 {
+		r.dlqMu.Unlock()
+		return
+	}
+	points := r.deadLetter
+	r.deadLetter = nil
+	r.dlqMu.Unlock()
+
+	// Re-flush in batches to avoid oversized payloads
+	for len(points) > 0 {
+		end := r.cfg.BatchSize
+		if end > len(points) {
+			end = len(points)
+		}
+		r.flush(points[:end])
+		points = points[end:]
+	}
+}
+
+// DroppedPoints returns the total number of points permanently lost due to DLQ overflow.
+func (r *replicator) DroppedPoints() int64 {
+	return r.droppedPoints.Load()
+}
+
+// DLQLen returns the current number of points awaiting retry in the dead-letter queue.
+func (r *replicator) DLQLen() int {
+	r.dlqMu.Lock()
+	defer r.dlqMu.Unlock()
+	return len(r.deadLetter)
 }
