@@ -117,7 +117,7 @@ func (e *ForecastV2Engine) Stop() error {
 	return nil
 }
 
-// Predict generates a forecast for the requested metric.
+// Predict generates a forecast for the requested metric using trend-seasonal decomposition.
 func (e *ForecastV2Engine) Predict(req ForecastV2Request) (*ForecastV2Result, error) {
 	if req.Metric == "" {
 		return nil, fmt.Errorf("metric name is required")
@@ -143,8 +143,32 @@ func (e *ForecastV2Engine) Predict(req ForecastV2Request) (*ForecastV2Result, er
 		values[i] = p.Value
 	}
 
-	// Linear regression for trend
-	slope, intercept := linearRegression(values)
+	// Step 1: Detect seasonality period
+	seasonalPeriod := detectSeasonalPeriod(values)
+
+	// Step 2: Extract seasonal component via averaging
+	seasonal := extractSeasonalComponent(values, seasonalPeriod)
+
+	// Step 3: Deseasonalize
+	deseasonalized := make([]float64, len(values))
+	mode := req.SeasonalityMode
+	if mode == "" {
+		mode = e.config.SeasonalityMode
+	}
+	for i, v := range values {
+		si := seasonal[i%len(seasonal)]
+		if mode == "multiplicative" && si != 0 {
+			deseasonalized[i] = v / si
+		} else {
+			deseasonalized[i] = v - si
+		}
+	}
+
+	// Step 4: Linear regression on deseasonalized data for trend
+	slope, intercept := linearRegression(deseasonalized)
+
+	// Step 5: Compute residuals for confidence intervals
+	residualStd := computeResidualStd(values, slope, intercept, seasonal, mode)
 
 	// Detect changepoints
 	var changepoints []ForecastV2Changepoint
@@ -152,7 +176,7 @@ func (e *ForecastV2Engine) Predict(req ForecastV2Request) (*ForecastV2Result, er
 		changepoints = e.DetectChangepoints(values)
 	}
 
-	// Generate predictions with confidence intervals
+	// Step 6: Generate predictions with seasonal + trend + statistical confidence
 	n := len(values)
 	lastTS := result.Points[n-1].Timestamp
 	step := int64(time.Hour)
@@ -163,12 +187,36 @@ func (e *ForecastV2Engine) Predict(req ForecastV2Request) (*ForecastV2Result, er
 		}
 	}
 
-	confidenceWidth := (1 - e.config.ConfidenceLevel) * 2
+	// z-value for confidence level (approximation)
+	z := 1.96 // 95% default
+	if e.config.ConfidenceLevel >= 0.99 {
+		z = 2.576
+	} else if e.config.ConfidenceLevel >= 0.95 {
+		z = 1.96
+	} else if e.config.ConfidenceLevel >= 0.90 {
+		z = 1.645
+	}
+
 	predictions := make([]ForecastV2Point, horizon)
 	for i := 0; i < horizon; i++ {
 		idx := float64(n + i)
-		predicted := slope*idx + intercept
-		width := confidenceWidth * math.Abs(predicted) * float64(i+1) / float64(horizon)
+		trend := slope*idx + intercept
+
+		// Add seasonal component
+		si := 0.0
+		if len(seasonal) > 0 {
+			si = seasonal[(n+i)%len(seasonal)]
+		}
+
+		var predicted float64
+		if mode == "multiplicative" {
+			predicted = trend * si
+		} else {
+			predicted = trend + si
+		}
+
+		// Confidence interval widens with forecast horizon
+		width := z * residualStd * math.Sqrt(1+float64(i+1)/float64(n))
 
 		predictions[i] = ForecastV2Point{
 			Timestamp: lastTS + int64(i+1)*step,
@@ -178,8 +226,8 @@ func (e *ForecastV2Engine) Predict(req ForecastV2Request) (*ForecastV2Result, er
 		}
 	}
 
-	// Compute model fit (R²)
-	modelFit := computeRSquared(values, slope, intercept)
+	// Compute model fit (R²) on the full decomposition
+	modelFit := computeDecomposedRSquared(values, slope, intercept, seasonal, mode)
 
 	e.mu.Lock()
 	e.totalForecasts++
@@ -191,7 +239,7 @@ func (e *ForecastV2Engine) Predict(req ForecastV2Request) (*ForecastV2Result, er
 		Metric:          req.Metric,
 		Predictions:     predictions,
 		Changepoints:    changepoints,
-		SeasonalPattern: computeSeasonalPattern(values),
+		SeasonalPattern: seasonal,
 		TrendSlope:      slope,
 		ModelFit:        modelFit,
 	}, nil
@@ -304,32 +352,149 @@ func computeRSquared(values []float64, slope, intercept float64) float64 {
 }
 
 func computeSeasonalPattern(values []float64) []float64 {
-	if len(values) < 4 {
-		return nil
-	}
-	patternLen := 4
-	if len(values) < patternLen {
-		patternLen = len(values)
+	period := detectSeasonalPeriod(values)
+	return extractSeasonalComponent(values, period)
+}
+
+// detectSeasonalPeriod uses autocorrelation to find the dominant seasonal period.
+// Falls back to reasonable defaults when the series is too short.
+func detectSeasonalPeriod(values []float64) int {
+	n := len(values)
+	if n < 8 {
+		return minInt(n, 4)
 	}
 
-	pattern := make([]float64, patternLen)
+	// Compute mean
+	var mean float64
+	for _, v := range values {
+		mean += v
+	}
+	mean /= float64(n)
+
+	// Compute autocorrelation for lags 2..n/2
+	maxLag := n / 2
+	if maxLag > 168 { // cap at 1 week of hourly data
+		maxLag = 168
+	}
+
+	var var0 float64
+	for _, v := range values {
+		d := v - mean
+		var0 += d * d
+	}
+	if var0 == 0 {
+		return 4
+	}
+
+	bestLag := 4
+	bestCorr := -2.0
+	for lag := 2; lag <= maxLag; lag++ {
+		var corr float64
+		for i := 0; i < n-lag; i++ {
+			corr += (values[i] - mean) * (values[i+lag] - mean)
+		}
+		corr /= var0
+		if corr > bestCorr {
+			bestCorr = corr
+			bestLag = lag
+		}
+	}
+
+	if bestCorr < 0.1 {
+		return minInt(n, 4) // no strong seasonality detected
+	}
+	return bestLag
+}
+
+// extractSeasonalComponent averages values at each seasonal position to get the pattern.
+func extractSeasonalComponent(values []float64, period int) []float64 {
+	if period <= 0 || len(values) < period {
+		return nil
+	}
+
+	seasonal := make([]float64, period)
+	counts := make([]int, period)
+
+	// Compute mean
 	var mean float64
 	for _, v := range values {
 		mean += v
 	}
 	mean /= float64(len(values))
 
-	counts := make([]int, patternLen)
 	for i, v := range values {
-		idx := i % patternLen
-		pattern[idx] += v - mean
+		idx := i % period
+		seasonal[idx] += v - mean
 		counts[idx]++
 	}
-	for i := range pattern {
+
+	for i := range seasonal {
 		if counts[i] > 0 {
-			pattern[i] /= float64(counts[i])
+			seasonal[i] /= float64(counts[i])
 		}
 	}
 
-	return pattern
+	return seasonal
+}
+
+// computeResidualStd computes the standard deviation of residuals from the decomposed model.
+func computeResidualStd(values []float64, slope, intercept float64, seasonal []float64, mode string) float64 {
+	n := len(values)
+	if n <= 2 {
+		return 0
+	}
+
+	var sumSqResiduals float64
+	for i, v := range values {
+		trend := slope*float64(i) + intercept
+		si := 0.0
+		if len(seasonal) > 0 {
+			si = seasonal[i%len(seasonal)]
+		}
+		var predicted float64
+		if mode == "multiplicative" {
+			predicted = trend * si
+		} else {
+			predicted = trend + si
+		}
+		r := v - predicted
+		sumSqResiduals += r * r
+	}
+
+	return math.Sqrt(sumSqResiduals / float64(n-2))
+}
+
+// computeDecomposedRSquared computes R² for the trend+seasonal model.
+func computeDecomposedRSquared(values []float64, slope, intercept float64, seasonal []float64, mode string) float64 {
+	if len(values) <= 1 {
+		return 1.0
+	}
+
+	var mean float64
+	for _, v := range values {
+		mean += v
+	}
+	mean /= float64(len(values))
+
+	var ssTot, ssRes float64
+	for i, v := range values {
+		trend := slope*float64(i) + intercept
+		si := 0.0
+		if len(seasonal) > 0 {
+			si = seasonal[i%len(seasonal)]
+		}
+		var predicted float64
+		if mode == "multiplicative" {
+			predicted = trend * si
+		} else {
+			predicted = trend + si
+		}
+		ssTot += (v - mean) * (v - mean)
+		ssRes += (v - predicted) * (v - predicted)
+	}
+
+	if ssTot == 0 {
+		return 1.0
+	}
+	return 1.0 - ssRes/ssTot
 }
