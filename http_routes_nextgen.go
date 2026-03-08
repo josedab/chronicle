@@ -24,20 +24,41 @@ func registerFeatureRoutes(mux *http.ServeMux, registrars ...httpRouteRegistrar)
 	}
 }
 
+// featureGuard wraps an HTTP handler with a feature flag check.
+// If the feature is disabled, it returns 403 with a structured error.
+func featureGuard(db *DB, featureName string, handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if db.features != nil {
+			flags := db.features.FeatureFlags()
+			if flags != nil && !flags.IsEnabled(featureName) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(map[string]string{
+					"status":  "error",
+					"error":   fmt.Sprintf("feature %q is disabled", featureName),
+					"feature": featureName,
+				})
+				return
+			}
+		}
+		handler(w, r)
+	}
+}
+
 // setupNextGenRoutes configures next-generation feature endpoints
 func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	// CQL query endpoint
 	if db.features != nil && db.features.CQLEngine() != nil {
 		cqlEngine := db.features.CQLEngine()
-		mux.HandleFunc("/api/v1/cql", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/cql", wrap(featureGuard(db, "CQLEngine", func(w http.ResponseWriter, r *http.Request) {
 			handleCQLQuery(cqlEngine, w, r)
-		}))
-		mux.HandleFunc("/api/v1/cql/validate", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/cql/validate", wrap(featureGuard(db, "CQLEngine", func(w http.ResponseWriter, r *http.Request) {
 			handleCQLValidate(cqlEngine, w, r)
-		}))
-		mux.HandleFunc("/api/v1/cql/explain", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/cql/explain", wrap(featureGuard(db, "CQLEngine", func(w http.ResponseWriter, r *http.Request) {
 			handleCQLExplain(cqlEngine, w, r)
-		}))
+		})))
 	}
 
 	// Observability endpoints
@@ -53,9 +74,9 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	// Materialized views
 	if db.features != nil && db.features.MaterializedViews() != nil {
 		mvEngine := db.features.MaterializedViews()
-		mux.HandleFunc("/api/v1/views", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/views", wrap(featureGuard(db, "MaterializedViews", func(w http.ResponseWriter, r *http.Request) {
 			handleMaterializedViews(mvEngine, w, r)
-		}))
+		})))
 	}
 
 	// Playground
@@ -66,34 +87,34 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	// Query Planner
 	if db.features != nil && db.features.QueryPlanner() != nil {
 		qp := db.features.QueryPlanner()
-		mux.HandleFunc("/api/v1/planner/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/planner/stats", wrap(featureGuard(db, "QueryPlanner", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, qp.GetPlannerStats())
-		}))
+		})))
 	}
 
 	// Connector Hub
 	if db.features != nil && db.features.ConnectorHub() != nil {
 		hub := db.features.ConnectorHub()
-		mux.HandleFunc("/api/v1/connectors", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/connectors", wrap(featureGuard(db, "ConnectorHub", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, hub.ListConnectors())
-		}))
-		mux.HandleFunc("/api/v1/connectors/drivers", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/connectors/drivers", wrap(featureGuard(db, "ConnectorHub", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, hub.ListDrivers())
-		}))
+		})))
 	}
 
 	// Anomaly Correlation
 	if db.features != nil && db.features.AnomalyCorrelation() != nil {
 		ac := db.features.AnomalyCorrelation()
-		mux.HandleFunc("/api/v1/incidents", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/incidents", wrap(featureGuard(db, "AnomalyCorrelation", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, ac.ListIncidents())
-		}))
+		})))
 	}
 
 	// Anomaly Pipeline endpoints
 	if db.features != nil && db.features.AnomalyPipeline() != nil {
 		ap := db.features.AnomalyPipeline()
-		mux.HandleFunc("/api/v1/anomalies", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/anomalies", wrap(featureGuard(db, "AnomalyPipeline", func(w http.ResponseWriter, r *http.Request) {
 			metric := r.URL.Query().Get("metric")
 			var since time.Time
 			if s := r.URL.Query().Get("since"); s != "" {
@@ -108,11 +129,11 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				}
 			}
 			writeJSON(w, ap.ListAnomalies(metric, since, limit))
-		}))
-		mux.HandleFunc("/api/v1/anomalies/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/anomalies/stats", wrap(featureGuard(db, "AnomalyPipeline", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, ap.Stats())
-		}))
-		mux.HandleFunc("/api/v1/anomalies/baseline/", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/anomalies/baseline/", wrap(featureGuard(db, "AnomalyPipeline", func(w http.ResponseWriter, r *http.Request) {
 			metric := r.URL.Path[len("/api/v1/anomalies/baseline/"):]
 			if metric == "" {
 				http.Error(w, "metric name required", http.StatusBadRequest)
@@ -133,21 +154,21 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				"last_updated": b.lastUpdated,
 				"window_size":  len(b.values),
 			})
-		}))
+		})))
 	}
 
 	// Notebooks
 	if db.features != nil && db.features.NotebookEngine() != nil {
 		nb := db.features.NotebookEngine()
-		mux.HandleFunc("/api/v1/notebooks", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/notebooks", wrap(featureGuard(db, "NotebookEngine", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, nb.ListNotebooks())
-		}))
+		})))
 	}
 
 	// Query Compiler
 	if db.features != nil && db.features.QueryCompiler() != nil {
 		compiler := db.features.QueryCompiler()
-		mux.HandleFunc("/api/v1/compile", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/compile", wrap(featureGuard(db, "QueryCompiler", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
@@ -163,16 +184,16 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				return
 			}
 			writeJSON(w, plan)
-		}))
-		mux.HandleFunc("/api/v1/compile/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/compile/stats", wrap(featureGuard(db, "QueryCompiler", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, compiler.Stats())
-		}))
+		})))
 	}
 
 	// Time-Series RAG
 	if db.features != nil && db.features.TSRAG() != nil {
 		rag := db.features.TSRAG()
-		mux.HandleFunc("/api/v1/rag/ask", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/rag/ask", wrap(featureGuard(db, "TSRAG", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
@@ -188,37 +209,37 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				return
 			}
 			writeJSON(w, resp)
-		}))
-		mux.HandleFunc("/api/v1/rag/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/rag/stats", wrap(featureGuard(db, "TSRAG", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, rag.Stats())
-		}))
+		})))
 	}
 
 	// Plugin Registry
 	if db.features != nil && db.features.PluginRegistry() != nil {
 		registry := db.features.PluginRegistry()
-		mux.HandleFunc("/api/v1/plugins", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/plugins", wrap(featureGuard(db, "PluginRegistry", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, registry.List())
-		}))
+		})))
 	}
 
 	// Materialized Views V2
 	if db.features != nil && db.features.MaterializedViewsV2() != nil {
 		mvV2 := db.features.MaterializedViewsV2()
-		mux.HandleFunc("/api/v2/views", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v2/views", wrap(featureGuard(db, "MaterializedViewsV2", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, mvV2.ListViews())
-		}))
+		})))
 	}
 
 	// Fleet Manager
 	if db.features != nil && db.features.FleetManager() != nil {
 		fleet := db.features.FleetManager()
-		mux.HandleFunc("/api/v1/fleet/agents", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/fleet/agents", wrap(featureGuard(db, "FleetManager", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, fleet.ListAgents(""))
-		}))
-		mux.HandleFunc("/api/v1/fleet/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/fleet/stats", wrap(featureGuard(db, "FleetManager", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, fleet.Stats())
-		}))
+		})))
 	}
 
 	// OTel Distribution
@@ -234,36 +255,36 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	// Smart Retention
 	if db.features != nil && db.features.SmartRetention() != nil {
 		sr := db.features.SmartRetention()
-		mux.HandleFunc("/api/v1/retention/stats", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/retention/stats", wrap(featureGuard(db, "SmartRetention", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, sr.Stats())
-		}))
-		mux.HandleFunc("/api/v1/retention/profiles", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/retention/profiles", wrap(featureGuard(db, "SmartRetention", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, sr.ListProfiles())
-		}))
-		mux.HandleFunc("/api/v1/retention/evaluate", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/retention/evaluate", wrap(featureGuard(db, "SmartRetention", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			recs := sr.Evaluate()
 			writeJSON(w, recs)
-		}))
+		})))
 	}
 
 	// Production Hardening Suite
 	if db.features != nil && db.features.HardeningSuite() != nil {
 		hs := db.features.HardeningSuite()
-		mux.HandleFunc("/api/v1/hardening/run", wrap(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/api/v1/hardening/run", wrap(featureGuard(db, "HardeningSuite", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			results := hs.RunAll()
 			writeJSON(w, results)
-		}))
-		mux.HandleFunc("/api/v1/hardening/summary", wrap(func(w http.ResponseWriter, r *http.Request) {
+		})))
+		mux.HandleFunc("/api/v1/hardening/summary", wrap(featureGuard(db, "HardeningSuite", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, hs.Summary())
-		}))
+		})))
 	}
 
 	// Register features that implement httpRouteRegistrar via consolidated helper.

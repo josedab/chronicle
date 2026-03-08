@@ -42,6 +42,9 @@ var (
 
 	// ErrUnsupportedOperation is returned when a storage operation isn't supported.
 	ErrUnsupportedOperation = errors.New("operation not supported")
+
+	// ErrFeatureDisabled is returned when a disabled feature is accessed.
+	ErrFeatureDisabled = errors.New("feature is disabled")
 )
 
 // QueryErrorType categorizes query errors.

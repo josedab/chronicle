@@ -1,6 +1,11 @@
 package chronicle
 
-import "testing"
+import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestFeatureFlagEngine(t *testing.T) {
 	db := setupTestDB(t)
@@ -61,5 +66,65 @@ func TestFeatureFlagEngine(t *testing.T) {
 	t.Run("start stop", func(t *testing.T) {
 		e := NewFeatureFlagEngine(db, DefaultFeatureFlagConfig())
 		e.Start(); e.Start(); e.Stop(); e.Stop()
+	})
+
+	t.Run("check feature returns error when disabled", func(t *testing.T) {
+		e := NewFeatureFlagEngine(db, DefaultFeatureFlagConfig())
+		e.Disable("DB")
+		err := e.CheckFeature("DB")
+		if err == nil {
+			t.Fatal("expected error for disabled feature")
+		}
+		if !errors.Is(err, ErrFeatureDisabled) {
+			t.Errorf("expected ErrFeatureDisabled, got %v", err)
+		}
+	})
+
+	t.Run("check feature returns nil when enabled", func(t *testing.T) {
+		e := NewFeatureFlagEngine(db, DefaultFeatureFlagConfig())
+		if err := e.CheckFeature("DB"); err != nil {
+			t.Errorf("expected nil for enabled feature, got %v", err)
+		}
+	})
+}
+
+func TestFeatureGuard(t *testing.T) {
+	db := setupTestDB(t)
+
+	t.Run("allows request when feature enabled", func(t *testing.T) {
+		called := false
+		handler := featureGuard(db, "DB", func(w http.ResponseWriter, r *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		})
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		if !called {
+			t.Error("handler should have been called")
+		}
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("blocks request when feature disabled", func(t *testing.T) {
+		flags := db.FeatureFlags()
+		flags.Disable("DB")
+		defer flags.Enable("DB")
+
+		called := false
+		handler := featureGuard(db, "DB", func(w http.ResponseWriter, r *http.Request) {
+			called = true
+		})
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		if called {
+			t.Error("handler should NOT have been called")
+		}
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rec.Code)
+		}
 	})
 }

@@ -18,6 +18,7 @@ package chronicle
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"sync"
@@ -111,6 +112,14 @@ func (e *FeatureFlagEngine) IsEnabled(name string) bool {
 	e.mu.RLock(); defer e.mu.RUnlock()
 	if f, ok := e.flags[name]; ok { return f.Enabled }
 	return true // unknown features default to enabled
+}
+
+// CheckFeature returns ErrFeatureDisabled if the named feature is disabled.
+func (e *FeatureFlagEngine) CheckFeature(name string) error {
+	if !e.IsEnabled(name) {
+		return fmt.Errorf("%w: %s", ErrFeatureDisabled, name)
+	}
+	return nil
 }
 
 // Enable enables a feature.
