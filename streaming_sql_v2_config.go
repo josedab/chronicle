@@ -24,6 +24,8 @@ type StreamingSQLV2Config struct {
 	JoinBufferSize       int           `json:"join_buffer_size"`
 	JoinTimeout          time.Duration `json:"join_timeout"`
 	MaxConcurrentQueries int           `json:"max_concurrent_queries"`
+	TriggerInterval      time.Duration `json:"trigger_interval"`
+	ExpiryInterval       time.Duration `json:"expiry_interval"`
 }
 
 // DefaultStreamingSQLV2Config returns sensible defaults.
@@ -40,6 +42,8 @@ func DefaultStreamingSQLV2Config() StreamingSQLV2Config {
 		JoinBufferSize:       50000,
 		JoinTimeout:          time.Minute,
 		MaxConcurrentQueries: 100,
+		TriggerInterval:      time.Second,
+		ExpiryInterval:       30 * time.Second,
 	}
 }
 

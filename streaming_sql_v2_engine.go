@@ -89,7 +89,11 @@ func (e *StreamingSQLV2Engine) Stop() error {
 
 // triggerLoop periodically fires eligible windows based on watermark progress.
 func (e *StreamingSQLV2Engine) triggerLoop() {
-	ticker := time.NewTicker(time.Second)
+	interval := e.config.TriggerInterval
+	if interval <= 0 {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -115,7 +119,11 @@ func (e *StreamingSQLV2Engine) triggerLoop() {
 
 // expiryLoop periodically removes expired windows.
 func (e *StreamingSQLV2Engine) expiryLoop() {
-	ticker := time.NewTicker(30 * time.Second)
+	interval := e.config.ExpiryInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
