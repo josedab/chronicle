@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -322,19 +323,7 @@ func (cm *CostModel) estimateCost(plan *OptimizedQueryPlan) float64 {
 
 	var cost float64
 
-	// Estimate row count (simplified - would use statistics in production)
-	estimatedRows := int64(10000)
-	if plan.Query != nil {
-		if plan.Query.Limit > 0 {
-			estimatedRows = int64(plan.Query.Limit)
-		}
-		// Estimate based on time range
-		if plan.Query.End > 0 && plan.Query.Start > 0 {
-			hours := float64(plan.Query.End-plan.Query.Start) / float64(time.Hour)
-			estimatedRows = int64(hours * 60) // ~1 point per minute
-		}
-	}
-
+	estimatedRows := cm.estimateRowCount(plan)
 	plan.EstimatedRows = estimatedRows
 
 	// Calculate cost based on strategy
@@ -350,7 +339,11 @@ func (cm *CostModel) estimateCost(plan *OptimizedQueryPlan) float64 {
 
 	case StrategyParallelScan:
 		baseCost := float64(estimatedRows) * cm.scanCostPerRow
-		cost = baseCost/float64(plan.Parallelism) + cm.parallelOverhead
+		parallelism := plan.Parallelism
+		if parallelism <= 0 {
+			parallelism = 1
+		}
+		cost = baseCost/float64(parallelism) + cm.parallelOverhead
 
 	case StrategyHashAggregate, StrategySortAggregate:
 		cost = float64(estimatedRows) * (cm.scanCostPerRow + cm.aggregateCostPerRow)
@@ -363,6 +356,105 @@ func (cm *CostModel) estimateCost(plan *OptimizedQueryPlan) float64 {
 	plan.EstimatedTime = time.Duration(cost * float64(time.Millisecond))
 
 	return cost
+}
+
+// estimateRowCount estimates the number of rows a query will process using
+// actual DB statistics when available, falling back to heuristics.
+func (cm *CostModel) estimateRowCount(plan *OptimizedQueryPlan) int64 {
+	if plan.Query == nil {
+		return 10000
+	}
+
+	// Use explicit limit if set
+	if plan.Query.Limit > 0 {
+		return int64(plan.Query.Limit)
+	}
+
+	// Try to use index statistics from the DB for a better estimate
+	if plan.db != nil {
+		estimate := cm.estimateFromDB(plan.db, plan.Query)
+		if estimate > 0 {
+			return estimate
+		}
+	}
+
+	// Fallback: estimate based on time range
+	if plan.Query.End > 0 && plan.Query.Start > 0 {
+		hours := float64(plan.Query.End-plan.Query.Start) / float64(time.Hour)
+		estimate := int64(hours * 60)
+		if estimate > 0 {
+			return estimate
+		}
+	}
+
+	return 10000
+}
+
+// estimateFromDB uses actual index statistics for cardinality estimation.
+func (cm *CostModel) estimateFromDB(db *DB, q *Query) int64 {
+	if db.index == nil {
+		return 10000
+	}
+
+	db.index.mu.RLock()
+	defer db.index.mu.RUnlock()
+
+	// Count matching partitions in the time range
+	var partitionCount int64
+	if q.Start > 0 || q.End > 0 {
+		start := q.Start
+		end := q.End
+		if end <= 0 {
+			end = time.Now().UnixNano()
+		}
+		for _, p := range db.index.partitions {
+			if p == nil {
+				continue
+			}
+			if p.EndTime() >= start && p.StartTime() <= end {
+				partitionCount++
+			}
+		}
+	} else {
+		partitionCount = int64(len(db.index.partitions))
+	}
+
+	if partitionCount == 0 {
+		return 0
+	}
+
+	// Estimate points per partition from metric series count
+	seriesCount := int64(1)
+	if q.Metric != "" {
+		if series, ok := db.index.metricSeries[q.Metric]; ok {
+			seriesCount = int64(len(series))
+		} else {
+			return 0 // metric not found
+		}
+	} else {
+		// No metric filter — estimate all series
+		for _, s := range db.index.metricSeries {
+			seriesCount += int64(len(s))
+		}
+	}
+
+	// Heuristic: ~100 points per series per partition
+	estimate := partitionCount * seriesCount * 100
+
+	// Apply tag filter selectivity reduction
+	if len(q.Tags) > 0 {
+		selectivity := math.Pow(0.3, float64(len(q.Tags)))
+		estimate = int64(float64(estimate) * selectivity)
+	}
+	if len(q.TagFilters) > 0 {
+		selectivity := math.Pow(0.3, float64(len(q.TagFilters)))
+		estimate = int64(float64(estimate) * selectivity)
+	}
+
+	if estimate <= 0 {
+		return 1
+	}
+	return estimate
 }
 
 func (cm *CostModel) updateFromFeedback(feedback *QueryFeedback) {

@@ -225,6 +225,7 @@ type OptimizedQueryPlan struct {
 	Steps         []PlanStep        `json:"steps"`
 	Hints         []string          `json:"hints"`
 	CreatedAt     time.Time         `json:"created_at"`
+	db            *DB               // unexported: for cost model statistics access
 }
 
 // ExecutionStrategy defines how a query will be executed
@@ -312,6 +313,7 @@ func (qo *AdaptiveQueryOptimizer) createDefaultPlan(query *Query) *OptimizedQuer
 			{Name: "filter", Type: "filter", Description: "Apply time range filter"},
 		},
 		CreatedAt: time.Now(),
+		db:        qo.db,
 	}
 }
 
@@ -390,6 +392,7 @@ func (qo *AdaptiveQueryOptimizer) generateCandidatePlans(query *Query) []*Optimi
 		},
 		Parallelism: 1,
 		CreatedAt:   time.Now(),
+		db:          qo.db,
 	}
 	candidates = append(candidates, fullScan)
 
@@ -406,6 +409,7 @@ func (qo *AdaptiveQueryOptimizer) generateCandidatePlans(query *Query) []*Optimi
 			},
 			Parallelism: 1,
 			CreatedAt:   time.Now(),
+			db:          qo.db,
 		}
 		candidates = append(candidates, indexScan)
 	}
@@ -422,6 +426,7 @@ func (qo *AdaptiveQueryOptimizer) generateCandidatePlans(query *Query) []*Optimi
 			},
 			Parallelism: 1,
 			CreatedAt:   time.Now(),
+			db:          qo.db,
 		}
 		candidates = append(candidates, rangeScan)
 	}
@@ -439,6 +444,7 @@ func (qo *AdaptiveQueryOptimizer) generateCandidatePlans(query *Query) []*Optimi
 			},
 			Parallelism: 4,
 			CreatedAt:   time.Now(),
+			db:          qo.db,
 		}
 		candidates = append(candidates, parallelScan)
 	}
@@ -455,6 +461,7 @@ func (qo *AdaptiveQueryOptimizer) generateCandidatePlans(query *Query) []*Optimi
 			},
 			Parallelism: 1,
 			CreatedAt:   time.Now(),
+			db:          qo.db,
 		}
 		candidates = append(candidates, hashAgg)
 	}
