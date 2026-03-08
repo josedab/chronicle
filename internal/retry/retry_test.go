@@ -143,3 +143,87 @@ func TestComputeBackoff(t *testing.T) {
 		t.Errorf("attempt 100: expected capped at %v, got %v", max, b)
 	}
 }
+
+func TestAddJitter_NeverNegative(t *testing.T) {
+	r := NewRetryer(RetryConfig{
+		MaxAttempts:       1,
+		InitialBackoff:    time.Millisecond,
+		MaxBackoff:        time.Second,
+		BackoffMultiplier: 2.0,
+		Jitter:            1.0, // maximum jitter — could subtract up to 100%
+	})
+	for i := 0; i < 1000; i++ {
+		d := r.AddJitter(time.Millisecond)
+		if d < 0 {
+			t.Fatalf("AddJitter produced negative duration: %v", d)
+		}
+	}
+}
+
+func TestAddJitter_ZeroJitter(t *testing.T) {
+	r := NewRetryer(RetryConfig{Jitter: 0})
+	d := r.AddJitter(100 * time.Millisecond)
+	if d != 100*time.Millisecond {
+		t.Errorf("expected exact duration with 0 jitter, got %v", d)
+	}
+}
+
+func TestCircuitBreaker_HalfOpenAllowsOneProbe(t *testing.T) {
+	cb := NewCircuitBreaker(2, 10*time.Millisecond)
+
+	// Trip the breaker
+	for i := 0; i < 2; i++ {
+		cb.Execute(func() error { return errors.New("fail") })
+	}
+	if cb.State() != "open" {
+		t.Fatalf("expected open, got %s", cb.State())
+	}
+
+	// Wait for reset timeout
+	time.Sleep(15 * time.Millisecond)
+
+	// First request should be allowed (probe)
+	probeAllowed := false
+	cb.Execute(func() error {
+		probeAllowed = true
+		return errors.New("still failing")
+	})
+	if !probeAllowed {
+		t.Error("first half-open request should be allowed as probe")
+	}
+
+	// Circuit should be back to open after probe failure
+	if cb.State() != "open" {
+		t.Errorf("expected open after failed probe, got %s", cb.State())
+	}
+}
+
+func TestCircuitBreaker_HalfOpenBlocksConcurrent(t *testing.T) {
+	cb := NewCircuitBreaker(2, 10*time.Millisecond)
+
+	// Trip the breaker
+	for i := 0; i < 2; i++ {
+		cb.Execute(func() error { return errors.New("fail") })
+	}
+
+	// Wait for reset timeout
+	time.Sleep(15 * time.Millisecond)
+
+	// First call transitions to half-open and sends probe
+	err1 := cb.Execute(func() error {
+		// While probe is "in flight", second call should be rejected
+		err2 := cb.Execute(func() error { return nil })
+		if err2 != ErrCircuitOpen {
+			t.Error("concurrent request during half-open probe should be rejected")
+		}
+		return nil // probe succeeds
+	})
+	if err1 != nil {
+		t.Errorf("probe should succeed, got %v", err1)
+	}
+
+	// After successful probe, circuit should be closed
+	if cb.State() != "closed" {
+		t.Errorf("expected closed after successful probe, got %s", cb.State())
+	}
+}

@@ -102,7 +102,7 @@ func (r *Retryer) Do(ctx context.Context, op func() error) RetryResult {
 		}
 
 		// Calculate sleep duration with jitter
-		sleepDuration := r.addJitter(backoff)
+		sleepDuration := r.AddJitter(backoff)
 
 		// Wait or check for context cancellation
 		select {
@@ -144,7 +144,7 @@ func (r *Retryer) DoWithResult(ctx context.Context, op func() (any, error)) (any
 		}
 
 		// Calculate sleep duration with jitter
-		sleepDuration := r.addJitter(backoff)
+		sleepDuration := r.AddJitter(backoff)
 
 		// Wait or check for context cancellation
 		select {
@@ -163,14 +163,19 @@ func (r *Retryer) DoWithResult(ctx context.Context, op func() (any, error)) (any
 	return nil, RetryResult{Attempts: r.config.MaxAttempts, LastErr: lastErr}
 }
 
-func (r *Retryer) addJitter(d time.Duration) time.Duration {
+// AddJitter applies random jitter to a duration, clamped to non-negative.
+func (r *Retryer) AddJitter(d time.Duration) time.Duration {
 	if r.config.Jitter == 0 {
 		return d
 	}
-	// Add random jitter: d * (1 ± jitter)
+	// Add random jitter: d * (1 ± jitter), clamped to [0, ∞)
 	jitterRange := float64(d) * r.config.Jitter
 	jitter := (rand.Float64()*2 - 1) * jitterRange
-	return time.Duration(float64(d) + jitter)
+	result := time.Duration(float64(d) + jitter)
+	if result < 0 {
+		return 0
+	}
+	return result
 }
 
 // Retry is a convenience function for simple retry operations.
@@ -266,12 +271,13 @@ func toLower(c byte) byte {
 // CircuitBreaker implements a simple circuit breaker pattern.
 // It is safe for concurrent use.
 type CircuitBreaker struct {
-	mu           sync.Mutex
-	maxFailures  int
-	resetTimeout time.Duration
-	failures     int
-	lastFailure  time.Time
-	state        circuitState
+	mu            sync.Mutex
+	maxFailures   int
+	resetTimeout  time.Duration
+	failures      int
+	lastFailure   time.Time
+	state         circuitState
+	halfOpenProbe bool // true when a half-open probe request is in flight
 }
 
 type circuitState int
@@ -320,10 +326,16 @@ func (cb *CircuitBreaker) allowRequestLocked() bool {
 	case circuitOpen:
 		if time.Since(cb.lastFailure) > cb.resetTimeout {
 			cb.state = circuitHalfOpen
+			cb.halfOpenProbe = true
 			return true
 		}
 		return false
 	case circuitHalfOpen:
+		// Only one probe request allowed in half-open state
+		if cb.halfOpenProbe {
+			return false
+		}
+		cb.halfOpenProbe = true
 		return true
 	}
 	return true
@@ -333,13 +345,15 @@ func (cb *CircuitBreaker) recordResultLocked(err error) {
 	if err == nil {
 		cb.failures = 0
 		cb.state = circuitClosed
+		cb.halfOpenProbe = false
 		return
 	}
 
 	cb.failures++
 	cb.lastFailure = time.Now()
+	cb.halfOpenProbe = false
 
-	if cb.failures >= cb.maxFailures {
+	if cb.state == circuitHalfOpen || cb.failures >= cb.maxFailures {
 		cb.state = circuitOpen
 	}
 }
