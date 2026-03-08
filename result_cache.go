@@ -66,7 +66,7 @@ func NewResultCacheEngine(db *DB, cfg ResultCacheConfig) *ResultCacheEngine {
 	}
 }
 
-// Start begins the result cache engine.
+// Start begins the result cache engine and its background TTL reaper.
 func (e *ResultCacheEngine) Start() {
 	e.mu.Lock()
 	if e.running {
@@ -75,6 +75,7 @@ func (e *ResultCacheEngine) Start() {
 	}
 	e.running = true
 	e.mu.Unlock()
+	go e.reapLoop()
 }
 
 // Stop halts the result cache engine.
@@ -202,6 +203,41 @@ func (e *ResultCacheEngine) updateHitRate() {
 		return
 	}
 	e.stats.HitRate = float64(e.stats.TotalHits) / float64(total)
+}
+
+// reapLoop periodically removes expired cache entries.
+func (e *ResultCacheEngine) reapLoop() {
+	interval := e.config.TTL / 2
+	if interval < time.Second {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			e.reapExpired()
+		}
+	}
+}
+
+// reapExpired removes all entries whose TTL has elapsed.
+func (e *ResultCacheEngine) reapExpired() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	now := time.Now()
+	for hash, elem := range e.items {
+		entry := elem.Value.(*ResultCacheEntry)
+		if now.Sub(entry.CachedAt) > entry.TTL {
+			e.order.Remove(elem)
+			delete(e.items, hash)
+			e.stats.TotalEvictions++
+		}
+	}
+	e.stats.EntryCount = e.order.Len()
 }
 
 // RegisterHTTPHandlers registers result cache HTTP endpoints.

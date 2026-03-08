@@ -89,6 +89,14 @@ func (es *ExemplarStore) Write(p ExemplarPoint) error {
 		return nil
 	}
 
+	// Reject exemplars older than retention window
+	if es.config.RetentionDuration > 0 && p.Timestamp > 0 {
+		cutoff := time.Now().Add(-es.config.RetentionDuration).UnixNano()
+		if p.Timestamp < cutoff {
+			return nil
+		}
+	}
+
 	key := makeSeriesKey(p.Metric, p.Tags)
 
 	es.mu.Lock()

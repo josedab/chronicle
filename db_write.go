@@ -82,6 +82,13 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 		return fmt.Errorf("schema validation failed: %w", err)
 	}
 
+	// Observe schema evolution (only if engine is already initialized)
+	if db.features != nil {
+		if se := db.features.schemaEvolution; se != nil {
+			se.Observe(p.Metric, p.Tags)
+		}
+	}
+
 	// Track cardinality
 	if db.cardinalityTracker != nil {
 		if err := db.cardinalityTracker.TrackPoint(p); err != nil {
@@ -109,6 +116,13 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 	if db.features != nil {
 		if al := db.features.AuditLog(); al != nil {
 			al.Log("write", "api", p.Metric, "", true)
+		}
+	}
+
+	// Invalidate cached query results for this metric
+	if db.features != nil {
+		if rc := db.features.resultCache; rc != nil {
+			rc.Invalidate(p.Metric)
 		}
 	}
 
@@ -178,6 +192,19 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 		return fmt.Errorf("schema validation failed: %w", err)
 	}
 
+	// Observe schema evolution for each unique metric in the batch
+	if db.features != nil {
+		if se := db.features.schemaEvolution; se != nil {
+			seen := make(map[string]struct{}, 8)
+			for i := range points {
+				if _, ok := seen[points[i].Metric]; !ok {
+					se.Observe(points[i].Metric, points[i].Tags)
+					seen[points[i].Metric] = struct{}{}
+				}
+			}
+		}
+	}
+
 	// Check context before cardinality tracking (can be slow for large batches)
 	select {
 	case <-ctx.Done():
@@ -215,6 +242,16 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 		}
 		if al := db.features.AuditLog(); al != nil {
 			al.Log("write_batch", "api", "", fmt.Sprintf("%d points", len(points)), true)
+		}
+		// Invalidate cached query results for written metrics
+		if rc := db.features.resultCache; rc != nil {
+			seen := make(map[string]struct{}, 8)
+			for i := range points {
+				if _, ok := seen[points[i].Metric]; !ok {
+					rc.Invalidate(points[i].Metric)
+					seen[points[i].Metric] = struct{}{}
+				}
+			}
 		}
 	}
 
