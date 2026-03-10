@@ -363,11 +363,10 @@ func (d *D1Backend) Write(ctx context.Context, p Point) error {
 	if err != nil {
 		return fmt.Errorf("marshal tags: %w", err)
 	}
-	sql := fmt.Sprintf(
-		"INSERT INTO points (metric, tags, value, timestamp) VALUES ('%s', '%s', %f, %d)",
-		escapeSQL(sanitizeIdentifier(p.Metric)), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
 
-	return d.execute(ctx, sql)
+	return d.executeParams(ctx,
+		"INSERT INTO points (metric, tags, value, timestamp) VALUES (?, ?, ?, ?)",
+		[]interface{}{p.Metric, string(tagsJSON), p.Value, p.Timestamp})
 }
 
 // WriteBatch writes multiple points in a batch.
@@ -397,21 +396,23 @@ func (d *D1Backend) writeBatchChunk(ctx context.Context, points []Point) error {
 		return nil
 	}
 
-	var values string
+	// Build parameterized batch insert with placeholders
+	var placeholders string
+	params := make([]interface{}, 0, len(points)*4)
 	for i, p := range points {
 		tagsJSON, err := json.Marshal(p.Tags)
 		if err != nil {
 			return fmt.Errorf("marshal tags: %w", err)
 		}
 		if i > 0 {
-			values += ", "
+			placeholders += ", "
 		}
-		values += fmt.Sprintf("('%s', '%s', %f, %d)",
-			escapeSQL(sanitizeIdentifier(p.Metric)), escapeSQL(string(tagsJSON)), p.Value, p.Timestamp)
+		placeholders += "(?, ?, ?, ?)"
+		params = append(params, p.Metric, string(tagsJSON), p.Value, p.Timestamp)
 	}
 
-	sql := "INSERT INTO points (metric, tags, value, timestamp) VALUES " + values
-	return d.execute(ctx, sql)
+	sql := "INSERT INTO points (metric, tags, value, timestamp) VALUES " + placeholders
+	return d.executeParams(ctx, sql, params)
 }
 
 // Query executes a query against D1.
@@ -420,21 +421,23 @@ func (d *D1Backend) Query(ctx context.Context, q *Query) (*WorkersQueryResult, e
 	d.queryCount++
 	d.mu.Unlock()
 
-	// Build SQL query
-	sql := fmt.Sprintf(
-		"SELECT metric, tags, value, timestamp FROM points WHERE metric = '%s'",
-		escapeSQL(q.Metric))
+	// Build parameterized SQL query
+	sql := "SELECT metric, tags, value, timestamp FROM points WHERE metric = ?"
+	params := []interface{}{q.Metric}
 
 	if q.Start > 0 {
-		sql += fmt.Sprintf(" AND timestamp >= %d", q.Start)
+		sql += " AND timestamp >= ?"
+		params = append(params, q.Start)
 	}
 	if q.End > 0 {
-		sql += fmt.Sprintf(" AND timestamp <= %d", q.End)
+		sql += " AND timestamp <= ?"
+		params = append(params, q.End)
 	}
 
-	// Add tag filters
+	// Add tag filters using parameterized json_extract
 	for k, v := range q.Tags {
-		sql += fmt.Sprintf(" AND json_extract(tags, '$.%s') = '%s'", sanitizeIdentifier(k), escapeSQL(v))
+		sql += fmt.Sprintf(" AND json_extract(tags, '$.%s') = ?", sanitizeIdentifier(k))
+		params = append(params, v)
 	}
 
 	sql += " ORDER BY timestamp ASC"
@@ -444,7 +447,7 @@ func (d *D1Backend) Query(ctx context.Context, q *Query) (*WorkersQueryResult, e
 	}
 
 	// Execute query
-	result, err := d.query(ctx, sql)
+	result, err := d.queryParams(ctx, sql, params)
 	if err != nil {
 		return nil, err
 	}
@@ -490,10 +493,17 @@ func (d *D1Backend) Query(ctx context.Context, q *Query) (*WorkersQueryResult, e
 }
 
 func (d *D1Backend) execute(ctx context.Context, sql string) error {
+	return d.executeParams(ctx, sql, nil)
+}
+
+func (d *D1Backend) executeParams(ctx context.Context, sql string, params []interface{}) error {
 	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/d1/database/%s/query",
 		d.accountID, d.databaseID)
 
-	body := map[string]string{"sql": sql}
+	body := map[string]interface{}{"sql": sql}
+	if len(params) > 0 {
+		body["params"] = params
+	}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -529,10 +539,17 @@ func (d *D1Backend) execute(ctx context.Context, sql string) error {
 }
 
 func (d *D1Backend) query(ctx context.Context, sql string) (*D1QueryResult, error) {
+	return d.queryParams(ctx, sql, nil)
+}
+
+func (d *D1Backend) queryParams(ctx context.Context, sql string, params []interface{}) (*D1QueryResult, error) {
 	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/d1/database/%s/query",
 		d.accountID, d.databaseID)
 
-	body := map[string]string{"sql": sql}
+	body := map[string]interface{}{"sql": sql}
+	if len(params) > 0 {
+		body["params"] = params
+	}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
