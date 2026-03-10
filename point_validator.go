@@ -15,6 +15,7 @@ type PointValidatorConfig struct {
 	RejectNaN        bool          `json:"reject_nan"`
 	RejectInf        bool          `json:"reject_inf"`
 	MaxTagKeys       int           `json:"max_tag_keys"`
+	MaxTagKeyLen     int           `json:"max_tag_key_len"`
 	MaxTagValueLen   int           `json:"max_tag_value_len"`
 	MaxMetricLen     int           `json:"max_metric_len"`
 	MaxTimestampSkew time.Duration `json:"max_timestamp_skew"`
@@ -27,6 +28,7 @@ func DefaultPointValidatorConfig() PointValidatorConfig {
 		RejectNaN:        true,
 		RejectInf:        true,
 		MaxTagKeys:       64,
+		MaxTagKeyLen:     128,
 		MaxTagValueLen:   256,
 		MaxMetricLen:     256,
 		MaxTimestampSkew: 24 * time.Hour,
@@ -135,9 +137,16 @@ func (e *PointValidatorEngine) Validate(p Point) []PointValidationError {
 		})
 	}
 
-	if e.config.MaxTagValueLen > 0 {
+	if e.config.MaxTagValueLen > 0 || e.config.MaxTagKeyLen > 0 {
 		for k, v := range p.Tags {
-			if len(v) > e.config.MaxTagValueLen {
+			if e.config.MaxTagKeyLen > 0 && len(k) > e.config.MaxTagKeyLen {
+				errors = append(errors, PointValidationError{
+					Field:    "tags." + k,
+					Message:  fmt.Sprintf("tag key exceeds max length of %d", e.config.MaxTagKeyLen),
+					Severity: "error",
+				})
+			}
+			if e.config.MaxTagValueLen > 0 && len(v) > e.config.MaxTagValueLen {
 				errors = append(errors, PointValidationError{
 					Field:    "tags." + k,
 					Message:  fmt.Sprintf("tag value exceeds max length of %d", e.config.MaxTagValueLen),
@@ -201,12 +210,12 @@ func (e *PointValidatorEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/api/v1/validator/validate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var p Point
 		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		errors := e.Validate(p)
