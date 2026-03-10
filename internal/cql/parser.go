@@ -128,7 +128,10 @@ func (p *CQLParser) parseSelect() (*CQLSelectStmt, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cql: expected number after OFFSET: %w", err)
 		}
-		n, _ := strconv.Atoi(tok.Value)
+		n, err := strconv.Atoi(tok.Value)
+		if err != nil {
+			return nil, fmt.Errorf("cql: invalid OFFSET value %q: %w", tok.Value, err)
+		}
 		stmt.Offset = n
 	}
 
@@ -296,7 +299,10 @@ func (p *CQLParser) parseLimit() (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cql: expected number after LIMIT: %w", err)
 	}
-	n, _ := strconv.Atoi(tok.Value)
+	n, err := strconv.Atoi(tok.Value)
+	if err != nil {
+		return 0, fmt.Errorf("cql: invalid LIMIT value %q: %w", tok.Value, err)
+	}
 	return n, nil
 }
 
@@ -365,7 +371,10 @@ func (p *CQLParser) parsePrimary() (CQLExpr, error) {
 				return &CQLDurationExpr{Duration: dur}, nil
 			}
 		}
-		v, _ := strconv.ParseFloat(tok.Value, 64)
+		v, err := strconv.ParseFloat(tok.Value, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cql: invalid number %q: %w", tok.Value, err)
+		}
 		return &CQLLiteralExpr{Value: v, LiteralType: "number"}, nil
 	case TokenString:
 		p.advance()
