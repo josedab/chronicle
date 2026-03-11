@@ -173,6 +173,8 @@ var configReloadSafeFields = map[string]bool{
 	"RetentionDuration": true,
 	"BufferSize":        true,
 	"RateLimitPerSecond": true,
+	"LogLevel":          true,
+	"QueryTimeout":      true,
 }
 
 // Diff compares two configs and returns the changes.
@@ -229,6 +231,26 @@ func (e *ConfigReloadEngine) Diff(a, b Config) []ConfigChange {
 		})
 	}
 
+	if a.LogLevel != b.LogLevel {
+		changes = append(changes, ConfigChange{
+			Field:    "LogLevel",
+			OldValue: a.LogLevel,
+			NewValue: b.LogLevel,
+			Applied:  true,
+			Reason:   "safe to change at runtime",
+		})
+	}
+
+	if a.Query.QueryTimeout != b.Query.QueryTimeout {
+		changes = append(changes, ConfigChange{
+			Field:    "QueryTimeout",
+			OldValue: a.Query.QueryTimeout.String(),
+			NewValue: b.Query.QueryTimeout.String(),
+			Applied:  true,
+			Reason:   "safe to change at runtime",
+		})
+	}
+
 	if (a.Encryption == nil) != (b.Encryption == nil) {
 		changes = append(changes, ConfigChange{
 			Field:    "Encryption",
@@ -244,7 +266,7 @@ func (e *ConfigReloadEngine) Diff(a, b Config) []ConfigChange {
 
 // Apply applies a new configuration after validation, returning changes made.
 // If the new configuration is invalid, it returns an error and no changes are applied.
-// Safe fields are applied to the running DB; unsafe fields are logged but rejected.
+// Safe fields are applied to the running DB atomically; unsafe fields are logged but rejected.
 func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
 	if err := newCfg.Validate(); err != nil {
 		return nil, fmt.Errorf("config reload rejected: %w", err)
@@ -255,31 +277,58 @@ func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
 
 	changes := e.Diff(e.currentCfg, newCfg)
 
-	// Apply safe changes to the running DB
-	for i := range changes {
-		if !changes[i].Applied {
-			continue
+	// Apply all safe changes under a single db.mu lock to prevent torn reads
+	if e.db != nil {
+		var hasApplied bool
+		for _, c := range changes {
+			if c.Applied {
+				hasApplied = true
+				break
+			}
 		}
-		switch changes[i].Field {
-		case "RetentionDuration":
-			if e.db != nil {
-				e.db.mu.Lock()
-				e.db.config.Retention.RetentionDuration = newCfg.Retention.RetentionDuration
-				e.db.config.RetentionDuration = newCfg.Retention.RetentionDuration
-				e.db.mu.Unlock()
+		if hasApplied {
+			e.db.mu.Lock()
+			for i := range changes {
+				if !changes[i].Applied {
+					continue
+				}
+				switch changes[i].Field {
+				case "RetentionDuration":
+					e.db.config.Retention.RetentionDuration = newCfg.Retention.RetentionDuration
+					e.db.config.RetentionDuration = newCfg.Retention.RetentionDuration
+				case "BufferSize":
+					e.db.config.Storage.BufferSize = newCfg.Storage.BufferSize
+					e.db.config.BufferSize = newCfg.Storage.BufferSize
+				case "RateLimitPerSecond":
+					e.db.config.RateLimitPerSecond = newCfg.RateLimitPerSecond
+				case "LogLevel":
+					e.db.config.LogLevel = newCfg.LogLevel
+				case "QueryTimeout":
+					e.db.config.Query.QueryTimeout = newCfg.Query.QueryTimeout
+					e.db.config.QueryTimeout = newCfg.Query.QueryTimeout
+				}
 			}
-		case "BufferSize":
-			if e.db != nil {
-				e.db.mu.Lock()
-				e.db.config.Storage.BufferSize = newCfg.Storage.BufferSize
-				e.db.config.BufferSize = newCfg.Storage.BufferSize
-				e.db.mu.Unlock()
-			}
-		case "RateLimitPerSecond":
-			if e.db != nil {
-				e.db.mu.Lock()
-				e.db.config.RateLimitPerSecond = newCfg.RateLimitPerSecond
-				e.db.mu.Unlock()
+			e.db.mu.Unlock()
+
+			// Side effects outside db.mu (these don't read db.config)
+			for _, c := range changes {
+				if !c.Applied {
+					continue
+				}
+				if c.Field == "LogLevel" {
+					var level slog.Level
+					switch newCfg.LogLevel {
+					case "debug":
+						level = slog.LevelDebug
+					case "warn":
+						level = slog.LevelWarn
+					case "error":
+						level = slog.LevelError
+					default:
+						level = slog.LevelInfo
+					}
+					slog.SetLogLoggerLevel(level)
+				}
 			}
 		}
 	}
