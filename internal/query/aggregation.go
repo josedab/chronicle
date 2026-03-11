@@ -96,12 +96,13 @@ func (b *AggBuckets) Add(tags map[string]string, timestamp int64, value float64,
 }
 
 // Finalize computes final aggregated values and returns points.
-func (b *AggBuckets) Finalize(agg AggFunc, window time.Duration) []Point {
+// The percentile parameter is used only for AggPercentile.
+func (b *AggBuckets) Finalize(agg AggFunc, window time.Duration, percentile float64) []Point {
 	var result []Point
 	for groupKey, bucketMap := range b.Buckets {
 		tags := ParseGroupKey(groupKey)
 		for bucket, state := range bucketMap {
-			value := ApplyAggState(agg, state)
+			value := ApplyAggState(agg, state, percentile)
 			result = append(result, Point{
 				Tags:      tags,
 				Value:     value,
@@ -144,7 +145,8 @@ func canonicalTags(tags map[string]string) string {
 }
 
 // ApplyAggState computes the final value for an aggregation state.
-func ApplyAggState(fn AggFunc, state *AggState) float64 {
+// The percentile parameter is used only for AggPercentile (0-100 scale, defaults to 95).
+func ApplyAggState(fn AggFunc, state *AggState, percentile float64) float64 {
 	switch fn {
 	case AggCount:
 		return float64(state.Count)
@@ -182,7 +184,11 @@ func ApplyAggState(fn AggFunc, state *AggState) float64 {
 			return 0
 		}
 		sort.Float64s(state.Values)
-		idx := int(math.Round(0.95 * float64(len(state.Values)-1)))
+		pct := percentile
+		if pct <= 0 || pct > 100 {
+			pct = 95 // default to 95th percentile
+		}
+		idx := int(math.Round((pct / 100) * float64(len(state.Values)-1)))
 		if idx < 0 {
 			idx = 0
 		}

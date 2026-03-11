@@ -35,8 +35,9 @@ type Query struct {
 // Aggregation specifies a downsampling operation applied during query execution.
 // Function selects the reducer (sum, mean, etc.) and Window sets the bucket width.
 type Aggregation struct {
-	Function AggFunc
-	Window   time.Duration
+	Function   AggFunc
+	Window     time.Duration
+	Percentile float64 // percentile value (0-100) for AggPercentile; defaults to 95 if zero
 }
 
 // AggFunc selects the aggregation function applied to each time window.
@@ -129,6 +130,10 @@ func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 		return &Result{Points: []Point{}}, nil
 	}
 
+	if q.Metric == "" {
+		return nil, newQueryError(QueryErrorTypeInvalid, "metric name is required", q, nil)
+	}
+
 	// Pre-compile regex tag filters once before scanning partitions
 	if len(q.TagFilters) > 0 {
 		if err := prepareTagFilters(q.TagFilters); err != nil {
@@ -165,7 +170,8 @@ func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 		buckets := newAggBuckets(db.config.Storage.MaxMemory)
 		window := q.Aggregation.Window
 		if window <= 0 {
-			window = time.Second
+			return nil, newQueryError(QueryErrorTypeInvalid,
+				"aggregation window must be positive", q, nil)
 		}
 		for _, p := range partitions {
 			// Check for context cancellation
@@ -182,7 +188,7 @@ func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 				return nil, err
 			}
 		}
-		points := buckets.finalize(q.Aggregation.Function, window)
+		points := buckets.finalize(q.Aggregation.Function, window, q.Aggregation.Percentile)
 		if q.Limit > 0 && len(points) > q.Limit {
 			points = points[:q.Limit]
 		}

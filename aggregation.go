@@ -19,8 +19,8 @@ func (b *aggBuckets) add(tags map[string]string, timestamp int64, value float64,
 	return b.Add(tags, timestamp, value, window, groupBy, query.AggFunc(agg))
 }
 
-func (b *aggBuckets) finalize(agg AggFunc, window time.Duration) []Point {
-	internalPoints := b.Finalize(query.AggFunc(agg), window)
+func (b *aggBuckets) finalize(agg AggFunc, window time.Duration, percentile float64) []Point {
+	internalPoints := b.Finalize(query.AggFunc(agg), window, percentile)
 	points := make([]Point, len(internalPoints))
 	for i, p := range internalPoints {
 		points[i] = Point{
