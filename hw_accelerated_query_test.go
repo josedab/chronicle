@@ -227,8 +227,8 @@ func TestHWAccelPlanAcceleration(t *testing.T) {
 	cfg.ForceSoftwareFallback = true
 	fallback := NewHWAcceleratedQueryEngine(nil, cfg)
 	plan = fallback.PlanAcceleration(OpSum, 100)
-	if plan.UseSIMD {
-		t.Error("expected SIMD disabled with software fallback")
+	if plan.UseVectorized {
+		t.Error("expected vectorized disabled with software fallback")
 	}
 }
 

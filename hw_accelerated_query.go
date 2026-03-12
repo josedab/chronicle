@@ -94,7 +94,7 @@ type HWProfile struct {
 type AccelPlan struct {
 	Operation        AccelOperation `json:"operation"`
 	InputSize        int            `json:"input_size"`
-	UseSIMD          bool           `json:"use_simd"`
+	UseVectorized    bool           `json:"use_vectorized"` // uses unrolled loops, not hardware SIMD
 	EstimatedSpeedup float64        `json:"estimated_speedup"`
 	BatchCount       int            `json:"batch_count"`
 	ParallelWorkers  int            `json:"parallel_workers"`
@@ -119,7 +119,13 @@ type HWAcceleratedQueryStats struct {
 	OperationsByType   map[string]int64 `json:"operations_by_type"`
 }
 
-// HWAcceleratedQueryEngine provides hardware-accelerated aggregation operations.
+// HWAcceleratedQueryEngine provides optimized aggregation operations using
+// loop unrolling, batch processing, and parallel worker pools.
+//
+// Despite the name, this engine uses portable Go optimizations (4-way unrolled
+// loops for ILP, goroutine-based parallelism) rather than hardware SIMD
+// intrinsics. The hardware capability detection identifies the platform but
+// the execution paths are architecture-independent.
 //
 // 🧪 EXPERIMENTAL: This API may change or be removed without notice.
 // See api_stability.go for stability classifications.
@@ -185,8 +191,11 @@ func (e *HWAcceleratedQueryEngine) DetectCapabilities() HWProfile {
 }
 
 // PlanAcceleration creates an execution plan for the given operation and data size.
+// Note: The current implementation uses loop unrolling and parallelism for
+// acceleration, not hardware SIMD intrinsics. EstimatedSpeedup reflects the
+// benefit from these portable optimizations.
 func (e *HWAcceleratedQueryEngine) PlanAcceleration(op AccelOperation, dataSize int) AccelPlan {
-	useSIMD := e.config.EnableSIMD && !e.config.ForceSoftwareFallback && len(e.profile.Capabilities) > 1
+	useVectorized := e.config.EnableSIMD && !e.config.ForceSoftwareFallback && len(e.profile.Capabilities) > 1
 	batchCount := 1
 	if e.config.EnableBatchProcessing && e.config.BatchSize > 0 {
 		batchCount = (dataSize + e.config.BatchSize - 1) / e.config.BatchSize
@@ -206,9 +215,11 @@ func (e *HWAcceleratedQueryEngine) PlanAcceleration(op AccelOperation, dataSize 
 		}
 	}
 
+	// Speedup from loop unrolling is modest (~1.2-1.5x), not the theoretical
+	// SIMD vector width. Parallelism provides the major gain.
 	speedup := 1.0
-	if useSIMD {
-		speedup = float64(e.profile.VectorWidthBit) / 64.0
+	if useVectorized {
+		speedup = 1.3 // conservative estimate for 4-way loop unrolling
 	}
 	if workers > 1 {
 		speedup *= float64(workers) * 0.8 // account for coordination overhead
@@ -217,7 +228,7 @@ func (e *HWAcceleratedQueryEngine) PlanAcceleration(op AccelOperation, dataSize 
 	return AccelPlan{
 		Operation:        op,
 		InputSize:        dataSize,
-		UseSIMD:          useSIMD,
+		UseVectorized:    useVectorized,
 		EstimatedSpeedup: speedup,
 		BatchCount:       batchCount,
 		ParallelWorkers:  workers,
