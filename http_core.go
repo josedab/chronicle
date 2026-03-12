@@ -214,7 +214,7 @@ func rateLimitMiddleware(rl *rateLimiter, next http.HandlerFunc) http.HandlerFun
 		ip := getClientIP(r)
 		if !rl.allow(ip) {
 			w.Header().Set("Retry-After", "1")
-			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			writeError(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
 		next(w, r)
@@ -247,7 +247,7 @@ func csrfProtectionMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			// Check Origin header for browser requests
 			origin := r.Header.Get("Origin")
 			if origin == "" {
-				http.Error(w, "CSRF validation failed: missing X-Requested-With or Origin header", http.StatusForbidden)
+				writeError(w, "CSRF validation failed: missing X-Requested-With or Origin header", http.StatusForbidden)
 				return
 			}
 			host := r.Host
@@ -255,7 +255,7 @@ func csrfProtectionMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				host = r.URL.Host
 			}
 			if !strings.HasSuffix(origin, "://"+host) {
-				http.Error(w, "CSRF validation failed: origin mismatch", http.StatusForbidden)
+				writeError(w, "CSRF validation failed: origin mismatch", http.StatusForbidden)
 				return
 			}
 		}
@@ -389,7 +389,7 @@ func authMiddleware(auth *authenticator, next http.HandlerFunc) http.HandlerFunc
 		apiKey := extractAPIKey(r)
 		if apiKey == "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			http.Error(w, "authentication required", http.StatusUnauthorized)
+			writeError(w, "authentication required", http.StatusUnauthorized)
 			return
 		}
 
@@ -402,14 +402,14 @@ func authMiddleware(auth *authenticator, next http.HandlerFunc) http.HandlerFunc
 		// Check if it's a read-only key
 		if auth.matchKey(auth.readOnlyKeys, apiKey) {
 			if isWriteOperation(r) {
-				http.Error(w, "read-only API key cannot perform write operations", http.StatusForbidden)
+				writeError(w, "read-only API key cannot perform write operations", http.StatusForbidden)
 				return
 			}
 			next(w, r)
 			return
 		}
 
-		http.Error(w, "invalid API key", http.StatusUnauthorized)
+		writeError(w, "invalid API key", http.StatusUnauthorized)
 	}
 }
 
@@ -425,7 +425,7 @@ func adminOnlyMiddleware(auth *authenticator, next http.HandlerFunc) http.Handle
 		apiKey := extractAPIKey(r)
 		if apiKey == "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			http.Error(w, "authentication required", http.StatusUnauthorized)
+			writeError(w, "authentication required", http.StatusUnauthorized)
 			return
 		}
 
@@ -437,11 +437,11 @@ func adminOnlyMiddleware(auth *authenticator, next http.HandlerFunc) http.Handle
 
 		// Read-only keys or invalid keys are forbidden
 		if auth.matchKey(auth.readOnlyKeys, apiKey) {
-			http.Error(w, "admin access requires a write-capable API key", http.StatusForbidden)
+			writeError(w, "admin access requires a write-capable API key", http.StatusForbidden)
 			return
 		}
 
-		http.Error(w, "invalid API key", http.StatusUnauthorized)
+		writeError(w, "invalid API key", http.StatusUnauthorized)
 	}
 }
 

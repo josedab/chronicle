@@ -136,12 +136,12 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		mux.HandleFunc("/api/v1/anomalies/baseline/", wrap(featureGuard(db, "AnomalyPipeline", func(w http.ResponseWriter, r *http.Request) {
 			metric := r.URL.Path[len("/api/v1/anomalies/baseline/"):]
 			if metric == "" {
-				http.Error(w, "metric name required", http.StatusBadRequest)
+				writeError(w, "metric name required", http.StatusBadRequest)
 				return
 			}
 			b := ap.GetBaseline(metric)
 			if b == nil {
-				http.Error(w, "no baseline for metric", http.StatusNotFound)
+				writeError(w, "no baseline for metric", http.StatusNotFound)
 				return
 			}
 			writeJSON(w, map[string]any{
@@ -170,17 +170,17 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		compiler := db.features.QueryCompiler()
 		mux.HandleFunc("/api/v1/compile", wrap(featureGuard(db, "QueryCompiler", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				http.Error(w, "failed to read body", http.StatusBadRequest)
+				writeError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			plan, err := compiler.Compile(string(body))
 			if err != nil {
-				http.Error(w, "bad request", http.StatusBadRequest)
+				writeError(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			writeJSON(w, plan)
@@ -195,12 +195,12 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		rag := db.features.TSRAG()
 		mux.HandleFunc("/api/v1/rag/ask", wrap(featureGuard(db, "TSRAG", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			var query RAGQuery
 			if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
-				http.Error(w, "invalid request", http.StatusBadRequest)
+				writeError(w, "invalid request", http.StatusBadRequest)
 				return
 			}
 			resp, err := rag.Ask(r.Context(), query)
@@ -263,7 +263,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		})))
 		mux.HandleFunc("/api/v1/retention/evaluate", wrap(featureGuard(db, "SmartRetention", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			recs := sr.Evaluate()
@@ -276,7 +276,7 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		hs := db.features.HardeningSuite()
 		mux.HandleFunc("/api/v1/hardening/run", wrap(featureGuard(db, "HardeningSuite", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			results := hs.RunAll()
@@ -387,17 +387,17 @@ func setupNextGenRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
-		http.Error(w, "failed to read body", http.StatusBadRequest)
+		writeError(w, "failed to read body", http.StatusBadRequest)
 		return
 	}
 	result, err := engine.Execute(r.Context(), string(body))
 	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeError(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, result)
@@ -405,12 +405,12 @@ func handleCQLQuery(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
 
 func handleCQLValidate(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
-		http.Error(w, "failed to read body", http.StatusBadRequest)
+		writeError(w, "failed to read body", http.StatusBadRequest)
 		return
 	}
 	if err := engine.Validate(string(body)); err != nil {
@@ -422,17 +422,17 @@ func handleCQLValidate(engine *CQLEngine, w http.ResponseWriter, r *http.Request
 
 func handleCQLExplain(engine *CQLEngine, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
-		http.Error(w, "failed to read body", http.StatusBadRequest)
+		writeError(w, "failed to read body", http.StatusBadRequest)
 		return
 	}
 	result, err := engine.Explain(string(body))
 	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeError(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, result)
@@ -444,6 +444,6 @@ func handleMaterializedViews(engine *MaterializedViewEngine, w http.ResponseWrit
 		views := engine.ListViews()
 		writeJSON(w, views)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"time"
 )
 
@@ -55,6 +56,17 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	if db.config.ClickHouse != nil && db.config.ClickHouse.Enabled {
 		setupClickHouseRoutes(mux, db, *db.config.ClickHouse, wrap)
 	}
+
+	// Register standard Go pprof handlers for runtime profiling.
+	// These are behind the admin auth middleware when auth is enabled.
+	adminWrap := func(h http.HandlerFunc) http.HandlerFunc {
+		return wrap(adminOnlyMiddleware(auth, h))
+	}
+	mux.HandleFunc("/debug/pprof/", adminWrap(pprof.Index))
+	mux.HandleFunc("/debug/pprof/cmdline", adminWrap(pprof.Cmdline))
+	mux.HandleFunc("/debug/pprof/profile", adminWrap(pprof.Profile))
+	mux.HandleFunc("/debug/pprof/symbol", adminWrap(pprof.Symbol))
+	mux.HandleFunc("/debug/pprof/trace", adminWrap(pprof.Trace))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := net.Listen("tcp", addr)

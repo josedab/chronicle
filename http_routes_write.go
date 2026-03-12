@@ -23,7 +23,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			gz, err := gzip.NewReader(r.Body)
 			if err != nil {
-				http.Error(w, "bad request", http.StatusBadRequest)
+				writeError(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			defer closeQuietly(gz)
@@ -32,7 +32,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 		body, err := io.ReadAll(reader)
 		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if len(body) == 0 {
@@ -44,7 +44,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		if err := json.NewDecoder(bytes.NewReader(body)).Decode(&req); err == nil && len(req.Points) > 0 {
 			for i := range req.Points {
 				if err := ValidatePoint(&req.Points[i]); err != nil {
-					http.Error(w, fmt.Sprintf("invalid point %d: %v", i, err), http.StatusBadRequest)
+					writeErrorf(w, http.StatusBadRequest, "invalid point %d: %v", i, err)
 					return
 				}
 			}
@@ -58,7 +58,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 		points, err := parseLineProtocol(string(body))
 		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if len(points) == 0 {
@@ -67,7 +67,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		}
 		for i := range points {
 			if err := ValidatePoint(&points[i]); err != nil {
-				http.Error(w, fmt.Sprintf("invalid point %d: %v", i, err), http.StatusBadRequest)
+				writeErrorf(w, http.StatusBadRequest, "invalid point %d: %v", i, err)
 				return
 			}
 		}
@@ -89,7 +89,7 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 		var req queryRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 
@@ -98,7 +98,7 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			parser := &QueryParser{}
 			parsed, err := parser.Parse(req.Query)
 			if err != nil {
-				http.Error(w, "bad request", http.StatusBadRequest)
+				writeError(w, "bad request", http.StatusBadRequest)
 				return
 			}
 			q = parsed
@@ -112,14 +112,14 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			if req.Aggregation != "" {
 				agg := parseAggFunc(req.Aggregation)
 				if agg == AggNone {
-					http.Error(w, "invalid aggregation function", http.StatusBadRequest)
+					writeError(w, "invalid aggregation function", http.StatusBadRequest)
 					return
 				}
 				window := time.Minute
 				if req.Window != "" {
 					parsedWindow, err := parseDuration(req.Window)
 					if err != nil {
-						http.Error(w, "invalid aggregation window", http.StatusBadRequest)
+						writeError(w, "invalid aggregation window", http.StatusBadRequest)
 						return
 					}
 					if parsedWindow > 0 {
