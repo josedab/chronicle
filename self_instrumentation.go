@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,6 +47,7 @@ type SelfInstrumentationEngine struct {
 	queryErrors    atomic.Int64
 	pointsWritten  atomic.Int64
 	bytesWritten   atomic.Int64
+	writesRejected atomic.Int64
 
 	// Gauge values (updated periodically)
 	partitionCount int
@@ -53,20 +55,81 @@ type SelfInstrumentationEngine struct {
 	metricCount    int
 	cacheHitRate   float64
 
-	// Latency tracking
+	// Latency tracking (averages)
 	writeLatencySum atomic.Int64
 	queryLatencySum atomic.Int64
+
+	// Latency histograms for percentile computation
+	writeLatencies *latencyHistogram
+	queryLatencies *latencyHistogram
 
 	running bool
 	stopCh  chan struct{}
 }
 
+// latencyHistogram is a lock-free ring buffer for recent latency samples
+// that supports percentile computation.
+type latencyHistogram struct {
+	mu      sync.Mutex
+	samples []float64 // milliseconds
+	pos     int
+	full    bool
+}
+
+func newLatencyHistogram(capacity int) *latencyHistogram {
+	return &latencyHistogram{samples: make([]float64, capacity)}
+}
+
+func (h *latencyHistogram) record(ms float64) {
+	h.mu.Lock()
+	h.samples[h.pos] = ms
+	h.pos++
+	if h.pos >= len(h.samples) {
+		h.pos = 0
+		h.full = true
+	}
+	h.mu.Unlock()
+}
+
+// percentiles returns p50, p95, p99 from the current samples.
+func (h *latencyHistogram) percentiles() (p50, p95, p99 float64) {
+	h.mu.Lock()
+	n := h.pos
+	if h.full {
+		n = len(h.samples)
+	}
+	if n == 0 {
+		h.mu.Unlock()
+		return 0, 0, 0
+	}
+	// Copy for sorting outside lock
+	cp := make([]float64, n)
+	if h.full {
+		copy(cp, h.samples)
+	} else {
+		copy(cp, h.samples[:n])
+	}
+	h.mu.Unlock()
+
+	sort.Float64s(cp)
+	p50 = cp[int(float64(n)*0.5)]
+	p95 = cp[int(float64(n)*0.95)]
+	idx99 := int(float64(n) * 0.99)
+	if idx99 >= n {
+		idx99 = n - 1
+	}
+	p99 = cp[idx99]
+	return p50, p95, p99
+}
+
 // NewSelfInstrumentationEngine creates a new self-instrumentation engine.
 func NewSelfInstrumentationEngine(db *DB, cfg SelfInstrumentationConfig) *SelfInstrumentationEngine {
 	return &SelfInstrumentationEngine{
-		db:     db,
-		config: cfg,
-		stopCh: make(chan struct{}),
+		db:             db,
+		config:         cfg,
+		stopCh:         make(chan struct{}),
+		writeLatencies: newLatencyHistogram(10000),
+		queryLatencies: newLatencyHistogram(10000),
 	}
 }
 
@@ -85,6 +148,7 @@ func (e *SelfInstrumentationEngine) RecordWrite(points int, bytes int64, latency
 	e.pointsWritten.Add(int64(points))
 	e.bytesWritten.Add(bytes)
 	e.writeLatencySum.Add(latencyNs)
+	e.writeLatencies.record(float64(latencyNs) / 1e6) // ns → ms
 	if err { e.writeErrors.Add(1) }
 }
 
@@ -92,7 +156,13 @@ func (e *SelfInstrumentationEngine) RecordWrite(points int, bytes int64, latency
 func (e *SelfInstrumentationEngine) RecordQuery(latencyNs int64, err bool) {
 	e.queriesTotal.Add(1)
 	e.queryLatencySum.Add(latencyNs)
+	e.queryLatencies.record(float64(latencyNs) / 1e6)
 	if err { e.queryErrors.Add(1) }
+}
+
+// RecordRejectedWrite records a write that was rejected (rate limit, validation, etc).
+func (e *SelfInstrumentationEngine) RecordRejectedWrite() {
+	e.writesRejected.Add(1)
 }
 
 // Collect returns all current self-metrics.
@@ -108,6 +178,9 @@ func (e *SelfInstrumentationEngine) Collect() []SelfMetric {
 		avgQueryLatency = float64(e.queryLatencySum.Load()) / float64(queries) / 1e6 // ms
 	}
 
+	wp50, wp95, wp99 := e.writeLatencies.percentiles()
+	qp50, qp95, qp99 := e.queryLatencies.percentiles()
+
 	e.mu.RLock()
 	partitions := e.partitionCount
 	walSize := e.walSizeBytes
@@ -118,12 +191,19 @@ func (e *SelfInstrumentationEngine) Collect() []SelfMetric {
 	return []SelfMetric{
 		{Name: "chronicle_writes_total", Value: float64(writes), Unit: "1", Type: "counter", Description: "Total write operations"},
 		{Name: "chronicle_write_errors_total", Value: float64(e.writeErrors.Load()), Unit: "1", Type: "counter", Description: "Total write errors"},
+		{Name: "chronicle_writes_rejected_total", Value: float64(e.writesRejected.Load()), Unit: "1", Type: "counter", Description: "Total writes rejected by rate limiting or validation"},
 		{Name: "chronicle_queries_total", Value: float64(queries), Unit: "1", Type: "counter", Description: "Total query operations"},
 		{Name: "chronicle_query_errors_total", Value: float64(e.queryErrors.Load()), Unit: "1", Type: "counter", Description: "Total query errors"},
 		{Name: "chronicle_points_written_total", Value: float64(e.pointsWritten.Load()), Unit: "1", Type: "counter", Description: "Total points written"},
 		{Name: "chronicle_bytes_written_total", Value: float64(e.bytesWritten.Load()), Unit: "bytes", Type: "counter", Description: "Total bytes written"},
 		{Name: "chronicle_write_latency_avg_ms", Value: avgWriteLatency, Unit: "ms", Type: "gauge", Description: "Average write latency"},
+		{Name: "chronicle_write_latency_p50_ms", Value: wp50, Unit: "ms", Type: "gauge", Description: "Write latency 50th percentile"},
+		{Name: "chronicle_write_latency_p95_ms", Value: wp95, Unit: "ms", Type: "gauge", Description: "Write latency 95th percentile"},
+		{Name: "chronicle_write_latency_p99_ms", Value: wp99, Unit: "ms", Type: "gauge", Description: "Write latency 99th percentile"},
 		{Name: "chronicle_query_latency_avg_ms", Value: avgQueryLatency, Unit: "ms", Type: "gauge", Description: "Average query latency"},
+		{Name: "chronicle_query_latency_p50_ms", Value: qp50, Unit: "ms", Type: "gauge", Description: "Query latency 50th percentile"},
+		{Name: "chronicle_query_latency_p95_ms", Value: qp95, Unit: "ms", Type: "gauge", Description: "Query latency 95th percentile"},
+		{Name: "chronicle_query_latency_p99_ms", Value: qp99, Unit: "ms", Type: "gauge", Description: "Query latency 99th percentile"},
 		{Name: "chronicle_partitions_count", Value: float64(partitions), Unit: "1", Type: "gauge", Description: "Current partition count"},
 		{Name: "chronicle_wal_size_bytes", Value: float64(walSize), Unit: "bytes", Type: "gauge", Description: "Current WAL size"},
 		{Name: "chronicle_metrics_count", Value: float64(metricCnt), Unit: "1", Type: "gauge", Description: "Number of unique metrics"},
