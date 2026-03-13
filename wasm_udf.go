@@ -327,9 +327,65 @@ func (e *WASMUDFEngine) executeMap(def *UDFDefinition, args map[string]interface
 	if !ok {
 		return values, nil
 	}
-	// Identity map as default — real WASM would apply the user's function
+
+	// Apply configurable map operation from metadata or args
+	operation := "identity"
+	if op, ok := def.Metadata["operation"]; ok {
+		operation = op
+	}
+	if op, ok := args["operation"].(string); ok {
+		operation = op
+	}
+
 	result := make([]float64, len(floats))
-	copy(result, floats)
+	switch operation {
+	case "multiply":
+		factor := 1.0
+		if f, ok := args["factor"].(float64); ok {
+			factor = f
+		} else if f, ok := def.Metadata["factor"]; ok {
+			fmt.Sscanf(f, "%f", &factor)
+		}
+		for i, v := range floats {
+			result[i] = v * factor
+		}
+	case "add":
+		offset := 0.0
+		if o, ok := args["offset"].(float64); ok {
+			offset = o
+		}
+		for i, v := range floats {
+			result[i] = v + offset
+		}
+	case "abs":
+		for i, v := range floats {
+			if v < 0 {
+				result[i] = -v
+			} else {
+				result[i] = v
+			}
+		}
+	case "clamp":
+		minVal := -1e308
+		maxVal := 1e308
+		if m, ok := args["min"].(float64); ok {
+			minVal = m
+		}
+		if m, ok := args["max"].(float64); ok {
+			maxVal = m
+		}
+		for i, v := range floats {
+			if v < minVal {
+				result[i] = minVal
+			} else if v > maxVal {
+				result[i] = maxVal
+			} else {
+				result[i] = v
+			}
+		}
+	default: // identity
+		copy(result, floats)
+	}
 	return result, nil
 }
 
@@ -342,11 +398,63 @@ func (e *WASMUDFEngine) executeReduce(def *UDFDefinition, args map[string]interf
 	if !ok {
 		return 0.0, nil
 	}
-	var sum float64
-	for _, v := range floats {
-		sum += v
+	if len(floats) == 0 {
+		return 0.0, nil
 	}
-	return sum, nil
+
+	// Select reduction operation from metadata or args
+	operation := "sum"
+	if op, ok := def.Metadata["operation"]; ok {
+		operation = op
+	}
+	if op, ok := args["operation"].(string); ok {
+		operation = op
+	}
+
+	switch operation {
+	case "sum":
+		var sum float64
+		for _, v := range floats {
+			sum += v
+		}
+		return sum, nil
+	case "product":
+		product := 1.0
+		for _, v := range floats {
+			product *= v
+		}
+		return product, nil
+	case "min":
+		min := floats[0]
+		for _, v := range floats[1:] {
+			if v < min {
+				min = v
+			}
+		}
+		return min, nil
+	case "max":
+		max := floats[0]
+		for _, v := range floats[1:] {
+			if v > max {
+				max = v
+			}
+		}
+		return max, nil
+	case "count":
+		return float64(len(floats)), nil
+	case "mean":
+		var sum float64
+		for _, v := range floats {
+			sum += v
+		}
+		return sum / float64(len(floats)), nil
+	default:
+		var sum float64
+		for _, v := range floats {
+			sum += v
+		}
+		return sum, nil
+	}
 }
 
 func (e *WASMUDFEngine) executeFilter(def *UDFDefinition, args map[string]interface{}) (interface{}, error) {
@@ -358,13 +466,41 @@ func (e *WASMUDFEngine) executeFilter(def *UDFDefinition, args map[string]interf
 	if !ok {
 		return values, nil
 	}
+
 	threshold := 0.0
 	if t, ok := args["threshold"].(float64); ok {
 		threshold = t
 	}
+
+	// Support configurable comparison operator
+	operator := "gt"
+	if op, ok := def.Metadata["operator"]; ok {
+		operator = op
+	}
+	if op, ok := args["operator"].(string); ok {
+		operator = op
+	}
+
 	var filtered []float64
 	for _, v := range floats {
-		if v > threshold {
+		var keep bool
+		switch operator {
+		case "gt":
+			keep = v > threshold
+		case "gte":
+			keep = v >= threshold
+		case "lt":
+			keep = v < threshold
+		case "lte":
+			keep = v <= threshold
+		case "eq":
+			keep = v == threshold
+		case "neq":
+			keep = v != threshold
+		default:
+			keep = v > threshold
+		}
+		if keep {
 			filtered = append(filtered, v)
 		}
 	}
@@ -378,29 +514,139 @@ func (e *WASMUDFEngine) executeAggregate(def *UDFDefinition, args map[string]int
 	}
 	floats, ok := values.([]float64)
 	if !ok || len(floats) == 0 {
-		return map[string]float64{"sum": 0, "count": 0, "avg": 0}, nil
+		return map[string]float64{"sum": 0, "count": 0, "avg": 0, "min": 0, "max": 0, "stddev": 0}, nil
 	}
+
 	var sum float64
+	min := floats[0]
+	max := floats[0]
 	for _, v := range floats {
 		sum += v
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
 	}
+	count := float64(len(floats))
+	avg := sum / count
+
+	// Standard deviation
+	var varianceSum float64
+	for _, v := range floats {
+		d := v - avg
+		varianceSum += d * d
+	}
+	stddev := 0.0
+	if count > 0 {
+		stddev = varianceSum / count
+		// Use sqrt approximation for stddev
+		if stddev > 0 {
+			x := stddev
+			for i := 0; i < 10; i++ {
+				x = (x + stddev/x) / 2
+			}
+			stddev = x
+		}
+	}
+
 	return map[string]float64{
-		"sum":   sum,
-		"count": float64(len(floats)),
-		"avg":   sum / float64(len(floats)),
+		"sum":    sum,
+		"count":  count,
+		"avg":    avg,
+		"min":    min,
+		"max":    max,
+		"stddev": stddev,
+		"range":  max - min,
 	}, nil
 }
 
 func (e *WASMUDFEngine) executeTransform(def *UDFDefinition, args map[string]interface{}) (interface{}, error) {
-	// Transform passes through by default; WASM module would apply custom logic
-	return args, nil
+	// Transform applies field-level operations configured via metadata
+	result := make(map[string]interface{}, len(args))
+	for k, v := range args {
+		result[k] = v
+	}
+
+	// Apply rename transformations from metadata
+	if renameFrom, ok := def.Metadata["rename_from"]; ok {
+		if renameTo, ok2 := def.Metadata["rename_to"]; ok2 {
+			if val, exists := result[renameFrom]; exists {
+				result[renameTo] = val
+				delete(result, renameFrom)
+			}
+		}
+	}
+
+	// Apply select: keep only specified fields
+	if selectFields, ok := args["select"].([]interface{}); ok && len(selectFields) > 0 {
+		filtered := make(map[string]interface{})
+		for _, field := range selectFields {
+			if fieldName, ok := field.(string); ok {
+				if val, exists := result[fieldName]; exists {
+					filtered[fieldName] = val
+				}
+			}
+		}
+		return filtered, nil
+	}
+
+	// Apply exclude: remove specified fields
+	if excludeFields, ok := args["exclude"].([]interface{}); ok {
+		for _, field := range excludeFields {
+			if fieldName, ok := field.(string); ok {
+				delete(result, fieldName)
+			}
+		}
+	}
+
+	return result, nil
 }
 
 func (e *WASMUDFEngine) executeTrigger(def *UDFDefinition, args map[string]interface{}) (interface{}, error) {
-	// Trigger evaluates a condition; returns whether it fired
+	// Trigger evaluates a condition and returns whether it fired
+	value, hasValue := args["value"].(float64)
+	threshold := 0.0
+	if t, ok := args["threshold"].(float64); ok {
+		threshold = t
+	} else if t, ok := def.Metadata["threshold"]; ok {
+		fmt.Sscanf(t, "%f", &threshold)
+	}
+
+	condition := "gt"
+	if c, ok := def.Metadata["condition"]; ok {
+		condition = c
+	}
+	if c, ok := args["condition"].(string); ok {
+		condition = c
+	}
+
+	triggered := false
+	if hasValue {
+		switch condition {
+		case "gt":
+			triggered = value > threshold
+		case "gte":
+			triggered = value >= threshold
+		case "lt":
+			triggered = value < threshold
+		case "lte":
+			triggered = value <= threshold
+		case "eq":
+			triggered = value == threshold
+		case "neq":
+			triggered = value != threshold
+		case "always":
+			triggered = true
+		}
+	}
+
 	return map[string]interface{}{
-		"triggered": true,
-		"args":      args,
+		"triggered": triggered,
+		"value":     value,
+		"threshold": threshold,
+		"condition": condition,
 	}, nil
 }
 
