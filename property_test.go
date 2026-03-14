@@ -217,18 +217,41 @@ func TestProperty_ConcurrentWriteSafety(t *testing.T) {
 }
 
 func randomMetricName() string {
-	prefixes := []string{"cpu", "memory", "disk", "network", "temperature", "humidity", "pressure", "voltage"}
-	suffixes := []string{"usage", "total", "rate", "count", "avg", "max", "min"}
-	return prefixes[rand.Intn(len(prefixes))] + "." + suffixes[rand.Intn(len(suffixes))]
+	prefixes := []string{
+		"cpu", "memory", "disk", "network", "temperature", "humidity", "pressure", "voltage",
+		"sys.proc", "app_latency", "k8s.pod", "http.req", "db.query",
+	}
+	suffixes := []string{
+		"usage", "total", "rate", "count", "avg", "max", "min",
+		"p99", "bytes_sent", "errors_total", "duration_ms",
+	}
+	name := prefixes[rand.Intn(len(prefixes))] + "." + suffixes[rand.Intn(len(suffixes))]
+	// Occasionally generate a longer metric name with extra segments
+	if rand.Float64() > 0.8 {
+		segments := []string{"prod", "staging", "canary", "primary", "secondary"}
+		name += "." + segments[rand.Intn(len(segments))]
+	}
+	return name
 }
 
 func randomTags() map[string]string {
 	tags := map[string]string{}
-	hosts := []string{"h1", "h2", "h3", "h4", "h5"}
-	regions := []string{"us", "eu", "ap"}
+	hosts := []string{"h1", "h2", "h3", "h4", "h5", "web-01", "api-server", "db-primary"}
+	regions := []string{"us-east-1", "eu-west-1", "ap-south-1", "us-west-2"}
+	envs := []string{"production", "staging", "dev", "canary"}
 	tags["host"] = hosts[rand.Intn(len(hosts))]
-	if rand.Float64() > 0.5 {
+	if rand.Float64() > 0.3 {
 		tags["region"] = regions[rand.Intn(len(regions))]
+	}
+	if rand.Float64() > 0.5 {
+		tags["env"] = envs[rand.Intn(len(envs))]
+	}
+	// Occasionally add tags with special characters (valid per the data model)
+	if rand.Float64() > 0.8 {
+		tags["version"] = "v1.2.3-beta+build.456"
+	}
+	if rand.Float64() > 0.9 {
+		tags["path"] = "/api/v1/users"
 	}
 	return tags
 }
