@@ -78,7 +78,7 @@ func TestAggBuckets_AddAndFinalize(t *testing.T) {
 				}
 			}
 
-			points := buckets.finalize(tt.aggFunc, window)
+			points := buckets.finalize(tt.aggFunc, window, 0)
 			if len(points) != 1 {
 				t.Fatalf("expected 1 point, got %d", len(points))
 			}
@@ -108,7 +108,7 @@ func TestAggBuckets_Stddev(t *testing.T) {
 		}
 	}
 
-	points := buckets.finalize(AggStddev, window)
+	points := buckets.finalize(AggStddev, window, 0)
 	if len(points) != 1 {
 		t.Fatalf("expected 1 point, got %d", len(points))
 	}
@@ -137,7 +137,7 @@ func TestAggBuckets_MultipleWindows(t *testing.T) {
 		}
 	}
 
-	points := buckets.finalize(AggCount, window)
+	points := buckets.finalize(AggCount, window, 0)
 
 	// Should have multiple buckets
 	if len(points) < 2 {
@@ -157,7 +157,7 @@ func TestAggBuckets_GroupBy(t *testing.T) {
 		buckets.add(map[string]string{"host": "server2"}, ts, 2.0, window, []string{"host"}, AggSum)
 	}
 
-	points := buckets.finalize(AggSum, window)
+	points := buckets.finalize(AggSum, window, 0)
 
 	if len(points) != 2 {
 		t.Fatalf("expected 2 points (one per host), got %d", len(points))
@@ -292,7 +292,7 @@ func TestAggBuckets_MemoryBudget(t *testing.T) {
 
 func TestAggBuckets_EmptyInput(t *testing.T) {
 	buckets := newAggBuckets(1024 * 1024)
-	points := buckets.finalize(AggSum, time.Minute)
+	points := buckets.finalize(AggSum, time.Minute, 0)
 
 	if len(points) != 0 {
 		t.Errorf("expected 0 points for empty input, got %d", len(points))

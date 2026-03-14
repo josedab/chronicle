@@ -126,7 +126,7 @@ func TestAggBuckets(t *testing.T) {
 		}
 	}
 
-	points := buckets.Finalize(AggMean, window)
+	points := buckets.Finalize(AggMean, window, 0)
 	if len(points) == 0 {
 		t.Error("expected at least one point")
 	}
@@ -275,7 +275,7 @@ func TestAggBucketsAllFunctions(t *testing.T) {
 				}
 			}
 
-			points := buckets.Finalize(fn, window)
+			points := buckets.Finalize(fn, window, 0)
 			if len(points) == 0 {
 				t.Error("expected at least one point")
 			}
@@ -336,7 +336,7 @@ func TestAggBucketsStddev(t *testing.T) {
 		}
 	}
 
-	points := buckets.Finalize(AggStddev, window)
+	points := buckets.Finalize(AggStddev, window, 0)
 	if len(points) == 0 {
 		t.Error("expected at least one point")
 	}
@@ -373,7 +373,7 @@ func TestAggBucketsRate(t *testing.T) {
 		}
 	}
 
-	points := buckets.Finalize(AggRate, window)
+	points := buckets.Finalize(AggRate, window, 0)
 	if len(points) == 0 {
 		t.Error("expected at least one point")
 	}
