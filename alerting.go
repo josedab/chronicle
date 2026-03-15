@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -324,13 +325,15 @@ func (m *AlertManager) evaluate(rule *AlertRule) {
 			} else {
 				alert.State = AlertStateFiring
 				alert.FiredAt = now
-				go m.notify(alert, "firing")
+				m.wg.Add(1)
+				go func() { defer m.wg.Done(); m.notify(alert, "firing") }()
 			}
 		case AlertStatePending:
 			if now.Sub(alert.PendingSince) >= rule.ForDuration {
 				alert.State = AlertStateFiring
 				alert.FiredAt = now
-				go m.notify(alert, "firing")
+				m.wg.Add(1)
+				go func() { defer m.wg.Done(); m.notify(alert, "firing") }()
 			}
 		case AlertStateFiring:
 			// Still firing
@@ -339,7 +342,8 @@ func (m *AlertManager) evaluate(rule *AlertRule) {
 		if prevState == AlertStateFiring {
 			alert.State = AlertStateOK
 			alert.ResolvedAt = now
-			go m.notify(alert, "resolved")
+			m.wg.Add(1)
+			go func() { defer m.wg.Done(); m.notify(alert, "resolved") }()
 		} else {
 			alert.State = AlertStateOK
 			alert.PendingSince = time.Time{}
@@ -384,8 +388,9 @@ func (m *AlertManager) notify(alert *Alert, status string) {
 	})
 
 	if result.LastErr != nil {
-		// Log webhook failure after all retries exhausted
-		// Silent failure is acceptable for alerting - alerts are still tracked internally
+		slog.Warn("alert webhook delivery failed after retries",
+			"alert", alert.Rule.Name, "url", alert.Rule.WebhookURL,
+			"attempts", result.Attempts, "error", result.LastErr)
 	}
 }
 
