@@ -39,7 +39,7 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			return
 		}
 		points := convertPromWrite(&req)
-		if err := db.WriteBatch(points); err != nil {
+		if err := db.WriteBatchContext(r.Context(), points); err != nil {
 			internalError(w, err, "internal error")
 			return
 		}
@@ -67,6 +67,9 @@ func convertPromWrite(req *prompb.WriteRequest) []Point {
 			} else {
 				tags[label.Name] = label.Value
 			}
+		}
+		if metric == "" {
+			continue // skip timeseries without __name__ label
 		}
 		for _, sample := range ts.Samples {
 			points = append(points, Point{
@@ -173,7 +176,7 @@ func handlePromQuery(db *DB, w http.ResponseWriter, r *http.Request, isRange boo
 		cq.Aggregation.Window = step
 	}
 
-	result, err := db.Execute(cq)
+	result, err := db.ExecuteContext(r.Context(), cq)
 	if err != nil {
 		promError(w, "execution", err.Error())
 		return

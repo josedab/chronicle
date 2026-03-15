@@ -48,7 +48,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 					return
 				}
 			}
-			if err := db.WriteBatch(req.Points); err != nil {
+			if err := db.WriteBatchContext(r.Context(), req.Points); err != nil {
 				internalError(w, err, "internal error")
 				return
 			}
@@ -71,7 +71,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 				return
 			}
 		}
-		if err := db.WriteBatch(points); err != nil {
+		if err := db.WriteBatchContext(r.Context(), points); err != nil {
 			internalError(w, err, "internal error")
 			return
 		}
@@ -133,7 +133,7 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 		}
 
-		result, err := db.Execute(q)
+		result, err := db.ExecuteContext(r.Context(), q)
 		if err != nil {
 			internalError(w, err, "internal error")
 			return
