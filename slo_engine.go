@@ -58,6 +58,13 @@ type SLOEngineConfig struct {
 	Enabled            bool          `json:"enabled"`
 	EvaluationInterval time.Duration `json:"evaluation_interval"`
 	MaxSLOs            int           `json:"max_slos"`
+
+	// PageBurnRate is the fraction of error budget per hour that triggers a page alert.
+	// Default 0.02 (2% of budget in 1 hour).
+	PageBurnRate float64 `json:"page_burn_rate"`
+	// TicketBurnRate is the fraction of error budget per day that triggers a ticket.
+	// Default 0.10 (10% of budget in 1 day).
+	TicketBurnRate float64 `json:"ticket_burn_rate"`
 }
 
 // DefaultSLOEngineConfig returns sensible defaults.
@@ -66,6 +73,8 @@ func DefaultSLOEngineConfig() SLOEngineConfig {
 		Enabled:            true,
 		EvaluationInterval: time.Minute,
 		MaxSLOs:            100,
+		PageBurnRate:       0.02,
+		TicketBurnRate:     0.10,
 	}
 }
 
@@ -80,6 +89,7 @@ type SLOEngine struct {
 
 	running bool
 	stopCh  chan struct{}
+	wg      sync.WaitGroup
 	mu      sync.RWMutex
 }
 
@@ -278,10 +288,11 @@ func (e *SLOEngine) Start() {
 	e.running = true
 	e.mu.Unlock()
 
+	e.wg.Add(1)
 	go e.evaluationLoop()
 }
 
-// Stop stops the SLO engine.
+// Stop stops the SLO engine and waits for the evaluation loop to exit.
 func (e *SLOEngine) Stop() {
 	e.mu.Lock()
 	if !e.running {
@@ -291,9 +302,11 @@ func (e *SLOEngine) Stop() {
 	e.running = false
 	e.mu.Unlock()
 	close(e.stopCh)
+	e.wg.Wait()
 }
 
 func (e *SLOEngine) evaluationLoop() {
+	defer e.wg.Done()
 	ticker := time.NewTicker(e.config.EvaluationInterval)
 	defer ticker.Stop()
 
@@ -449,7 +462,7 @@ func (e *SLOEngine) CreateBurnRateAlerts(am *AlertManager) error {
 			Description: fmt.Sprintf("SLO %s error budget burning at >14.4x rate", slo.Name),
 			Metric:      fmt.Sprintf("slo:%s:budget_remaining", slo.Name),
 			Condition:   AlertConditionBelow,
-			Threshold:   (1.0 - slo.Target) * 100 * 0.02, // 2% of budget in 1h → page
+			Threshold:   (1.0 - slo.Target) * 100 * e.config.PageBurnRate,
 			ForDuration: 5 * time.Minute,
 			EvalInterval: time.Minute,
 			Labels: map[string]string{
@@ -471,7 +484,7 @@ func (e *SLOEngine) CreateBurnRateAlerts(am *AlertManager) error {
 			Description: fmt.Sprintf("SLO %s error budget burning at >3x rate", slo.Name),
 			Metric:      fmt.Sprintf("slo:%s:budget_remaining", slo.Name),
 			Condition:   AlertConditionBelow,
-			Threshold:   (1.0 - slo.Target) * 100 * 0.10, // 10% of budget in 1d → ticket
+			Threshold:   (1.0 - slo.Target) * 100 * e.config.TicketBurnRate,
 			ForDuration: 30 * time.Minute,
 			EvalInterval: 5 * time.Minute,
 			Labels: map[string]string{
