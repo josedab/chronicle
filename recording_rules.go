@@ -33,12 +33,14 @@ type RecordingRule struct {
 // RecordingRulesEngine manages recording rules evaluation.
 type RecordingRulesEngine struct {
 	db      *DB
+	config  RecordingRulesConfig
 	rules   map[string]*ruleState
 	mu      sync.RWMutex
 	parser  *QueryParser
 	stopCh  chan struct{}
 	wg      sync.WaitGroup
 	started bool
+	sem     chan struct{} // concurrency semaphore
 }
 
 type ruleState struct {
@@ -77,11 +79,18 @@ func DefaultRecordingRulesConfig() RecordingRulesConfig {
 
 // NewRecordingRulesEngine creates a recording rules engine.
 func NewRecordingRulesEngine(db *DB) *RecordingRulesEngine {
+	cfg := DefaultRecordingRulesConfig()
+	concurrency := cfg.ConcurrencyLimit
+	if concurrency <= 0 {
+		concurrency = 4
+	}
 	return &RecordingRulesEngine{
 		db:     db,
+		config: cfg,
 		rules:  make(map[string]*ruleState),
 		parser: &QueryParser{},
 		stopCh: make(chan struct{}),
+		sem:    make(chan struct{}, concurrency),
 	}
 }
 
@@ -204,7 +213,16 @@ func (rre *RecordingRulesEngine) evaluateDueRules(ctx context.Context) {
 			continue
 		}
 
-		go rre.evaluateRule(ctx, state)
+		// Acquire semaphore to limit concurrent evaluations.
+		select {
+		case rre.sem <- struct{}{}:
+			go func(s *ruleState) {
+				defer func() { <-rre.sem }()
+				rre.evaluateRule(ctx, s)
+			}(state)
+		default:
+			// All slots busy — skip this evaluation cycle.
+		}
 	}
 }
 
