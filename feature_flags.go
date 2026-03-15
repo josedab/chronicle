@@ -108,10 +108,11 @@ func (e *FeatureFlagEngine) initFlags() {
 }
 
 // IsEnabled checks if a feature is enabled.
+// Unknown features default to disabled for safety.
 func (e *FeatureFlagEngine) IsEnabled(name string) bool {
 	e.mu.RLock(); defer e.mu.RUnlock()
 	if f, ok := e.flags[name]; ok { return f.Enabled }
-	return true // unknown features default to enabled
+	return false
 }
 
 // CheckFeature returns ErrFeatureDisabled if the named feature is disabled.

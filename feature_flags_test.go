@@ -42,9 +42,9 @@ func TestFeatureFlagEngine(t *testing.T) {
 		if !e.IsEnabled("DB") { t.Error("should be enabled") }
 	})
 
-	t.Run("unknown feature defaults enabled", func(t *testing.T) {
+	t.Run("unknown feature defaults disabled", func(t *testing.T) {
 		e := NewFeatureFlagEngine(db, DefaultFeatureFlagConfig())
-		if !e.IsEnabled("nonexistent") { t.Error("unknown should default to enabled") }
+		if e.IsEnabled("nonexistent") { t.Error("unknown should default to disabled for safety") }
 	})
 
 	t.Run("disabled by config", func(t *testing.T) {
