@@ -16,6 +16,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -210,12 +211,26 @@ func (w *WAL) rotateIfNeeded() error {
 
 	rotated := w.path + "." + time.Now().Format("20060102T150405")
 	if err := os.Rename(w.path, rotated); err != nil {
+		// Reopen the original path since file is closed
+		if f, openErr := os.OpenFile(w.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644); openErr == nil {
+			w.file = f
+			w.writer = bufio.NewWriter(f)
+		}
 		return err
 	}
 
 	file, err := os.OpenFile(w.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
-		return err
+		// Rename succeeded but new file creation failed. Try to rename back
+		// to restore a usable state.
+		if renameErr := os.Rename(rotated, w.path); renameErr == nil {
+			if f, openErr := os.OpenFile(w.path, os.O_RDWR|os.O_APPEND, 0o644); openErr == nil {
+				w.file = f
+				w.writer = bufio.NewWriter(f)
+				return fmt.Errorf("WAL rotation: new file creation failed (restored original): %w", err)
+			}
+		}
+		return fmt.Errorf("WAL rotation: new file creation failed (state unrecoverable): %w", err)
 	}
 	w.file = file
 	w.writer = bufio.NewWriter(file)
