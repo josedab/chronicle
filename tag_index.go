@@ -113,7 +113,24 @@ func (idx *TagInvertedIndex) LookupAnd(filters map[string]string) []uint64 {
 	idx.mu.RLock()
 	defer idx.mu.RUnlock()
 
-	if len(filters) == 0 { return nil }
+	if len(filters) == 0 {
+		// No filter means "all series". Collect all unique series IDs.
+		if len(idx.index) == 0 {
+			return nil
+		}
+		seen := make(map[uint64]struct{})
+		for _, pl := range idx.index {
+			for _, id := range pl.Series {
+				seen[id] = struct{}{}
+			}
+		}
+		result := make([]uint64, 0, len(seen))
+		for id := range seen {
+			result = append(result, id)
+		}
+		sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+		return result
+	}
 
 	var sets [][]uint64
 	for k, v := range filters {

@@ -75,7 +75,8 @@ func (db *DB) applySizeRetention() error {
 	if err != nil {
 		return err
 	}
-	for size > db.config.Storage.MaxStorageBytes {
+	const maxIterations = 1000
+	for i := 0; size > db.config.Storage.MaxStorageBytes && i < maxIterations; i++ {
 		db.mu.Lock()
 		removed := db.index.RemoveOldestPartition()
 		db.mu.Unlock()

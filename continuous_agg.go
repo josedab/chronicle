@@ -155,8 +155,9 @@ func (e *ContinuousAggEngine) Ingest(p Point) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// Exactly-once deduplication via point fingerprint
-	fingerprint := fmt.Sprintf("%s:%d:%f", p.Metric, p.Timestamp, p.Value)
+	// Exactly-once deduplication via point fingerprint.
+	// Use %v for full float64 precision (avoids collisions from %f rounding).
+	fingerprint := fmt.Sprintf("%s:%d:%v", p.Metric, p.Timestamp, p.Value)
 	if _, seen := e.processedIDs[fingerprint]; seen {
 		return
 	}
