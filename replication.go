@@ -124,6 +124,7 @@ func (r *replicator) Enqueue(points []Point) {
 		case <-r.stop:
 			return
 		default:
+			r.droppedPoints.Add(1)
 		}
 	}
 }
@@ -256,7 +257,12 @@ func (r *replicator) send(payload []byte) error {
 		return fmt.Errorf("rate limited: status 429")
 	}
 	if resp.StatusCode >= 400 {
-		// Client errors are not retryable
+		// Auth/permission errors (401/403) are returned as errors to trigger
+		// circuit breaker detection of systemic issues.
+		if resp.StatusCode == 401 || resp.StatusCode == 403 {
+			return fmt.Errorf("replication auth error: status %d", resp.StatusCode)
+		}
+		// Other client errors (400, 404, etc.) are not retryable.
 		slog.Warn("replication target returned client error", "status", resp.StatusCode)
 		return nil
 	}

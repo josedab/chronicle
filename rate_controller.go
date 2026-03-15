@@ -149,14 +149,16 @@ func (e *RateControllerEngine) Allow(metric string) bool {
 }
 
 // GetMetricRate returns the current token count for a metric bucket.
+// It refills the bucket first to return an accurate value.
 func (e *RateControllerEngine) GetMetricRate(metric string) float64 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
 	bucket, exists := e.metricBuckets[metric]
 	if !exists {
 		return 0
 	}
+	e.refillBucket(bucket)
 	return bucket.Tokens
 }
 
