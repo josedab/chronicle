@@ -473,7 +473,160 @@ func RequestIDFromContext(ctx context.Context) string {
 	return ""
 }
 
+// HTTPMetrics tracks per-route HTTP request metrics.
+type HTTPMetrics struct {
+	mu             sync.RWMutex
+	totalRequests  int64
+	totalErrors    int64 // 4xx + 5xx
+	statusCounts   map[int]int64
+	routeLatencies map[string]*latencyTracker
+}
+
+type latencyTracker struct {
+	count      int64
+	totalNanos int64
+	maxNanos   int64
+}
+
+// NewHTTPMetrics creates a new HTTPMetrics collector.
+func NewHTTPMetrics() *HTTPMetrics {
+	return &HTTPMetrics{
+		statusCounts:   make(map[int]int64),
+		routeLatencies: make(map[string]*latencyTracker),
+	}
+}
+
+// HTTPMetricsSnapshot is a point-in-time view of HTTP metrics.
+type HTTPMetricsSnapshot struct {
+	TotalRequests int64            `json:"total_requests"`
+	TotalErrors   int64            `json:"total_errors"`
+	StatusCounts  map[int]int64    `json:"status_counts"`
+	RouteStats    map[string]RouteStat `json:"route_stats"`
+}
+
+// RouteStat summarizes latency for a single route.
+type RouteStat struct {
+	Count     int64   `json:"count"`
+	AvgMs     float64 `json:"avg_ms"`
+	MaxMs     float64 `json:"max_ms"`
+}
+
+// Snapshot returns a copy of the current metrics.
+func (m *HTTPMetrics) Snapshot() HTTPMetricsSnapshot {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	sc := make(map[int]int64, len(m.statusCounts))
+	for k, v := range m.statusCounts {
+		sc[k] = v
+	}
+
+	rs := make(map[string]RouteStat, len(m.routeLatencies))
+	for route, lt := range m.routeLatencies {
+		avgMs := float64(0)
+		if lt.count > 0 {
+			avgMs = float64(lt.totalNanos) / float64(lt.count) / 1e6
+		}
+		rs[route] = RouteStat{
+			Count: lt.count,
+			AvgMs: avgMs,
+			MaxMs: float64(lt.maxNanos) / 1e6,
+		}
+	}
+
+	return HTTPMetricsSnapshot{
+		TotalRequests: m.totalRequests,
+		TotalErrors:   m.totalErrors,
+		StatusCounts:  sc,
+		RouteStats:    rs,
+	}
+}
+
+func (m *HTTPMetrics) record(path string, status int, latency time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.totalRequests++
+	m.statusCounts[status]++
+	if status >= 400 {
+		m.totalErrors++
+	}
+
+	lt, ok := m.routeLatencies[path]
+	if !ok {
+		lt = &latencyTracker{}
+		m.routeLatencies[path] = lt
+	}
+	nanos := latency.Nanoseconds()
+	lt.count++
+	lt.totalNanos += nanos
+	if nanos > lt.maxNanos {
+		lt.maxNanos = nanos
+	}
+}
+
+// statusCapture wraps http.ResponseWriter to capture the status code.
+type statusCapture struct {
+	http.ResponseWriter
+	code int
+}
+
+func (sc *statusCapture) WriteHeader(code int) {
+	sc.code = code
+	sc.ResponseWriter.WriteHeader(code)
+}
+
+// httpMetricsMiddleware records request count, latency, and status codes.
+func httpMetricsMiddleware(metrics *HTTPMetrics) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			sc := &statusCapture{ResponseWriter: w, code: http.StatusOK}
+			next(sc, r)
+			metrics.record(r.URL.Path, sc.code, time.Since(start))
+		}
+	}
+}
+
 // middlewareWrapper wraps handlers with authentication and rate limiting
 type middlewareWrapper func(h http.HandlerFunc) http.HandlerFunc
+
+// corsMiddlewareGlobal returns a middleware that adds CORS headers for the
+// configured allowed origins. Preflight OPTIONS requests are handled directly.
+func corsMiddlewareGlobal(allowedOrigins []string) func(http.HandlerFunc) http.HandlerFunc {
+	allowAll := false
+	originSet := make(map[string]bool, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		if o == "*" {
+			allowAll = true
+		}
+		originSet[o] = true
+	}
+
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				next(w, r)
+				return
+			}
+
+			if allowAll || originSet[origin] {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-API-Key")
+				w.Header().Set("Access-Control-Max-Age", "86400")
+				w.Header().Set("Vary", "Origin")
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next(w, r)
+		}
+	}
+}
 
 // setupWriteRoutes configures write-related endpoints

@@ -104,3 +104,99 @@ func TestRequestIDMiddleware(t *testing.T) {
 		}
 	})
 }
+
+func TestCORSMiddlewareGlobal(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	t.Run("no origin header passes through", func(t *testing.T) {
+		m := corsMiddlewareGlobal([]string{"http://example.com"})
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/test", nil)
+		m(handler)(rr, req)
+		if rr.Header().Get("Access-Control-Allow-Origin") != "" {
+			t.Error("expected no CORS header without Origin")
+		}
+	})
+
+	t.Run("allowed origin gets headers", func(t *testing.T) {
+		m := corsMiddlewareGlobal([]string{"http://example.com"})
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://example.com")
+		m(handler)(rr, req)
+		if rr.Header().Get("Access-Control-Allow-Origin") != "http://example.com" {
+			t.Error("expected CORS origin header")
+		}
+	})
+
+	t.Run("wildcard allows any origin", func(t *testing.T) {
+		m := corsMiddlewareGlobal([]string{"*"})
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://anything.com")
+		m(handler)(rr, req)
+		if rr.Header().Get("Access-Control-Allow-Origin") != "http://anything.com" {
+			t.Error("expected wildcard CORS to allow any origin")
+		}
+	})
+
+	t.Run("disallowed origin gets no headers", func(t *testing.T) {
+		m := corsMiddlewareGlobal([]string{"http://example.com"})
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://evil.com")
+		m(handler)(rr, req)
+		if rr.Header().Get("Access-Control-Allow-Origin") != "" {
+			t.Error("expected no CORS header for disallowed origin")
+		}
+	})
+
+	t.Run("preflight OPTIONS returns 204", func(t *testing.T) {
+		m := corsMiddlewareGlobal([]string{"*"})
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("OPTIONS", "/test", nil)
+		req.Header.Set("Origin", "http://example.com")
+		m(handler)(rr, req)
+		if rr.Code != http.StatusNoContent {
+			t.Errorf("expected 204, got %d", rr.Code)
+		}
+	})
+}
+
+func TestHTTPMetricsMiddleware(t *testing.T) {
+	metrics := NewHTTPMetrics()
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/error" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+	mw := httpMetricsMiddleware(metrics)
+
+	rr := httptest.NewRecorder()
+	mw(handler)(rr, httptest.NewRequest("GET", "/ok", nil))
+
+	rr2 := httptest.NewRecorder()
+	mw(handler)(rr2, httptest.NewRequest("GET", "/error", nil))
+
+	snap := metrics.Snapshot()
+	if snap.TotalRequests != 2 {
+		t.Errorf("expected 2 total requests, got %d", snap.TotalRequests)
+	}
+	if snap.TotalErrors != 1 {
+		t.Errorf("expected 1 error, got %d", snap.TotalErrors)
+	}
+	if snap.StatusCounts[200] != 1 {
+		t.Errorf("expected 1x200, got %d", snap.StatusCounts[200])
+	}
+	if snap.StatusCounts[500] != 1 {
+		t.Errorf("expected 1x500, got %d", snap.StatusCounts[500])
+	}
+	if rs, ok := snap.RouteStats["/ok"]; !ok || rs.Count != 1 {
+		t.Error("expected route stats for /ok")
+	}
+}

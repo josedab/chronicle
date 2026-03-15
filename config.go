@@ -186,6 +186,10 @@ type HTTPConfig struct {
 	// PrometheusRemoteWriteEnabled enables the Prometheus remote write endpoint.
 	// Default: false.
 	PrometheusRemoteWriteEnabled bool
+
+	// CORSAllowedOrigins is the list of origins permitted for cross-origin requests.
+	// Use ["*"] to allow all origins. Empty disables CORS headers.
+	CORSAllowedOrigins []string
 }
 
 // normalize populates grouped config from legacy fields when needed.
