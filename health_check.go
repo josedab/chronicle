@@ -13,13 +13,21 @@ import (
 type HealthCheckConfig struct {
 	Enabled       bool          `json:"enabled"`
 	CheckInterval time.Duration `json:"check_interval"`
+
+	// Performance thresholds — when exceeded the component is reported as degraded.
+	MaxWriteLatency time.Duration `json:"max_write_latency"`
+	MaxQueryLatency time.Duration `json:"max_query_latency"`
+	MaxWALSizeBytes int64         `json:"max_wal_size_bytes"`
 }
 
 // DefaultHealthCheckConfig returns sensible defaults.
 func DefaultHealthCheckConfig() HealthCheckConfig {
 	return HealthCheckConfig{
-		Enabled:       true,
-		CheckInterval: 15 * time.Second,
+		Enabled:         true,
+		CheckInterval:   15 * time.Second,
+		MaxWriteLatency: 100 * time.Millisecond,
+		MaxQueryLatency: 500 * time.Millisecond,
+		MaxWALSizeBytes: 256 * 1024 * 1024, // 256 MB
 	}
 }
 
@@ -63,6 +71,8 @@ func NewHealthCheckEngine(db *DB, cfg HealthCheckConfig) *HealthCheckEngine {
 	e.checkers["storage"] = e.checkStorage
 	e.checkers["wal"] = e.checkWAL
 	e.checkers["index"] = e.checkIndex
+	e.checkers["write_latency"] = e.checkWriteLatency
+	e.checkers["query_latency"] = e.checkQueryLatency
 	return e
 }
 
@@ -181,6 +191,11 @@ func (e *HealthCheckEngine) checkWAL() ComponentHealth {
 	pos := e.db.wal.Position()
 	ch.Status = "healthy"
 	ch.Message = fmt.Sprintf("position=%d bytes", pos)
+
+	if e.config.MaxWALSizeBytes > 0 && pos > e.config.MaxWALSizeBytes {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("WAL size %d exceeds threshold %d", pos, e.config.MaxWALSizeBytes)
+	}
 	return ch
 }
 
@@ -195,6 +210,73 @@ func (e *HealthCheckEngine) checkIndex() ComponentHealth {
 	series := e.db.SeriesCount()
 	ch.Status = "healthy"
 	ch.Message = fmt.Sprintf("metrics=%d, series=%d", metrics, series)
+	return ch
+}
+
+func (e *HealthCheckEngine) checkWriteLatency() ComponentHealth {
+	ch := ComponentHealth{Name: "write_latency", LastCheck: time.Now()}
+	if e.db == nil || e.db.isClosed() {
+		ch.Status = "unhealthy"
+		ch.Message = "database unavailable"
+		return ch
+	}
+	probe := Point{
+		Metric:    "__health_probe__",
+		Value:     0,
+		Timestamp: time.Now().UnixNano(),
+		Tags:      map[string]string{"probe": "health"},
+	}
+	start := time.Now()
+	err := e.db.Write(probe)
+	latency := time.Since(start)
+
+	if err != nil {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("write probe failed: %v", err)
+		return ch
+	}
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("latency=%s", latency)
+	if e.config.MaxWriteLatency > 0 && latency > e.config.MaxWriteLatency {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("write latency %s exceeds threshold %s", latency, e.config.MaxWriteLatency)
+	}
+	return ch
+}
+
+func (e *HealthCheckEngine) checkQueryLatency() ComponentHealth {
+	ch := ComponentHealth{Name: "query_latency", LastCheck: time.Now()}
+	if e.db == nil || e.db.isClosed() {
+		ch.Status = "unhealthy"
+		ch.Message = "database unavailable"
+		return ch
+	}
+	metrics := e.db.Metrics()
+	if len(metrics) == 0 {
+		ch.Status = "healthy"
+		ch.Message = "no metrics to probe"
+		return ch
+	}
+	start := time.Now()
+	_, err := e.db.Execute(&Query{
+		Metric: metrics[0],
+		Start:  time.Now().Add(-time.Minute).UnixNano(),
+		End:    time.Now().UnixNano(),
+		Limit:  1,
+	})
+	latency := time.Since(start)
+
+	if err != nil {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("query probe failed: %v", err)
+		return ch
+	}
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("latency=%s", latency)
+	if e.config.MaxQueryLatency > 0 && latency > e.config.MaxQueryLatency {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("query latency %s exceeds threshold %s", latency, e.config.MaxQueryLatency)
+	}
 	return ch
 }
 
