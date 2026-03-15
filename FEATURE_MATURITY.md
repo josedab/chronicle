@@ -52,7 +52,7 @@ Chronicle is pre-1.0. This document provides an honest assessment of every major
 | Grafana datasource plugin | ✅ Production | Backend with streaming, annotations, templates |
 | WebSocket streaming | ✅ Production | Real-time subscriptions with ping/pong |
 | CDC (Change Data Capture) | ✅ Production | Filtered change streams |
-| C/FFI Bindings | ⚠️ Beta | Open/close, write, query, metrics management. `delete_metric` and `compact` not yet implemented. |
+| C/FFI Bindings | ⚠️ Beta | Open/close, write, query, metrics management, delete_metric, compact |
 | Edge Mesh | ⚠️ Beta | Gossip protocol, consistent hash ring, scatter-gather queries, peer health checks |
 
 ## Enterprise Features
@@ -95,7 +95,7 @@ Chronicle is pre-1.0. This document provides an honest assessment of every major
 | Continuous Aggregation | ⚠️ Beta | Incremental materialized aggregations |
 | Data Quality Monitor | ⚠️ Beta | Gap/duplicate/outlier/skew detection |
 | WAL Snapshots | ⚠️ Beta | Snapshot-based WAL compaction |
-| Incremental Backup | ⚠️ Beta | Changed-partition-only backups |
+| Incremental Backup | 📋 Stub | Backup chain manifests, checksum stubs | Actual data capture (sizes hardcoded), persistence across restarts |
 | Prometheus Drop-in | ⚠️ Beta | Full /api/v1/query, /api/v1/query_range |
 | Embedded Cluster | ⚠️ Beta | Gossip-based node discovery |
 
@@ -117,6 +117,9 @@ Chronicle is pre-1.0. This document provides an honest assessment of every major
 | eBPF | 📋 Stub | Probe types | No kernel integration |
 | Zero-Knowledge Proofs | 📋 Stub | Circuit types | No actual cryptographic proofs |
 | Blockchain Audit | 📋 Stub | Chain types | No actual blockchain |
+| Hot Backup | 📋 Stub | Metadata tracking, in-memory manifest | No actual data capture; caller-provided stats; lost on restart |
+| Data Rehydration | 📋 Stub | Cache types, HTTP endpoints | Returns simulated data (hardcoded 10MB); no remote storage integration |
+| Parquet Export | 🧪 Alpha | Custom binary format with PAR1 magic bytes | NOT compatible with Apache Parquet readers (Spark, DuckDB, pandas). Internal round-trip only |
 
 ## How to Read api_stability.go
 
