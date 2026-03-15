@@ -174,3 +174,81 @@ func TestHotBackupCompression(t *testing.T) {
 		t.Error("expected uncompressed when compression disabled")
 	}
 }
+
+func TestHotBackupSnapshotAndRestore(t *testing.T) {
+	db := setupTestDB(t)
+	dir := t.TempDir()
+
+	cfg := DefaultHotBackupConfig()
+	cfg.BackupDir = dir
+
+	engine := NewHotBackupEngine(db, cfg)
+
+	// Write some data.
+	for i := 0; i < 10; i++ {
+		if err := db.Write(Point{
+			Metric:    "cpu.usage",
+			Value:     float64(i),
+			Timestamp: int64(i+1) * 1e9,
+			Tags:      map[string]string{"host": "h1"},
+		}); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	}
+	if err := db.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	manifest, err := engine.SnapshotBackup()
+	if err != nil {
+		t.Fatalf("SnapshotBackup: %v", err)
+	}
+	if manifest.PointCount != 10 {
+		t.Errorf("expected 10 points, got %d", manifest.PointCount)
+	}
+	if manifest.SizeBytes <= 0 {
+		t.Error("expected positive size")
+	}
+	if manifest.Checksum == "" {
+		t.Error("expected non-empty checksum")
+	}
+
+	// Restore into a fresh DB.
+	db2 := setupTestDB(t)
+	engine2 := NewHotBackupEngine(db2, cfg)
+	engine2.backups[manifest.ID] = manifest
+
+	restored, err := engine2.RestoreBackup(manifest.ID)
+	if err != nil {
+		t.Fatalf("RestoreBackup: %v", err)
+	}
+	if restored != 10 {
+		t.Errorf("expected 10 restored points, got %d", restored)
+	}
+
+	// Verify data is in the new DB.
+	if err := db2.Flush(); err != nil {
+		t.Fatalf("Flush db2: %v", err)
+	}
+	result, err := db2.Execute(&Query{Metric: "cpu.usage", Start: 0, End: 100 * 1e9})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(result.Points) != 10 {
+		t.Errorf("expected 10 points in restored DB, got %d", len(result.Points))
+	}
+}
+
+func TestHotBackupRestoreNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	dir := t.TempDir()
+
+	cfg := DefaultHotBackupConfig()
+	cfg.BackupDir = dir
+
+	engine := NewHotBackupEngine(db, cfg)
+	_, err := engine.RestoreBackup("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent backup")
+	}
+}

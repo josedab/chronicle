@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -165,8 +167,125 @@ func (e *HotBackupEngine) DeleteBackup(id string) error {
 	if _, exists := e.backups[id]; !exists {
 		return fmt.Errorf("backup %q not found", id)
 	}
+
+	// Remove data file if it exists on disk.
+	if e.config.BackupDir != "" {
+		dataPath := filepath.Join(e.config.BackupDir, id+".json")
+		os.Remove(dataPath) // best-effort
+		manifestPath := filepath.Join(e.config.BackupDir, id+".manifest.json")
+		os.Remove(manifestPath)
+	}
+
 	delete(e.backups, id)
 	return nil
+}
+
+// SnapshotBackup creates a backup by querying all data from the DB, writing
+// it to the backup directory, and computing a real content checksum.
+func (e *HotBackupEngine) SnapshotBackup() (*HotBackupManifest, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.db == nil {
+		return nil, fmt.Errorf("hot backup: database is nil")
+	}
+	if len(e.backups) >= e.config.MaxBackups {
+		return nil, fmt.Errorf("max backups (%d) reached", e.config.MaxBackups)
+	}
+
+	metrics := e.db.Metrics()
+	var allPoints []Point
+	endTime := time.Now().UnixNano()
+
+	for _, metric := range metrics {
+		result, err := e.db.Execute(&Query{
+			Metric: metric,
+			Start:  0,
+			End:    endTime,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("hot backup: query %q: %w", metric, err)
+		}
+		allPoints = append(allPoints, result.Points...)
+	}
+
+	data, err := json.Marshal(allPoints)
+	if err != nil {
+		return nil, fmt.Errorf("hot backup: marshal: %w", err)
+	}
+
+	checksum := fmt.Sprintf("%x", sha256.Sum256(data))
+
+	e.sequence++
+	id := fmt.Sprintf("backup-%d", e.sequence)
+	now := time.Now()
+
+	// Persist to disk if a backup directory is configured.
+	if e.config.BackupDir != "" {
+		if err := os.MkdirAll(e.config.BackupDir, 0o755); err != nil {
+			return nil, fmt.Errorf("hot backup: mkdir: %w", err)
+		}
+		dataPath := filepath.Join(e.config.BackupDir, id+".json")
+		if err := os.WriteFile(dataPath, data, 0o644); err != nil {
+			return nil, fmt.Errorf("hot backup: write data: %w", err)
+		}
+	}
+
+	manifest := &HotBackupManifest{
+		ID:         id,
+		CreatedAt:  now,
+		SizeBytes:  int64(len(data)),
+		PointCount: int64(len(allPoints)),
+		Checksum:   checksum,
+		Status:     BackupStatusCompleted,
+		Compressed: false,
+	}
+
+	// Persist manifest to disk.
+	if e.config.BackupDir != "" {
+		mdata, _ := json.Marshal(manifest)
+		manifestPath := filepath.Join(e.config.BackupDir, id+".manifest.json")
+		if err := os.WriteFile(manifestPath, mdata, 0o644); err != nil {
+			return nil, fmt.Errorf("hot backup: write manifest: %w", err)
+		}
+	}
+
+	e.backups[id] = manifest
+	return manifest, nil
+}
+
+// RestoreBackup loads a backup by ID from disk and writes all points back to
+// the database.
+func (e *HotBackupEngine) RestoreBackup(id string) (int, error) {
+	e.mu.RLock()
+	_, exists := e.backups[id]
+	e.mu.RUnlock()
+
+	if !exists {
+		return 0, fmt.Errorf("backup %q not found", id)
+	}
+	if e.config.BackupDir == "" {
+		return 0, fmt.Errorf("no backup directory configured")
+	}
+
+	dataPath := filepath.Join(e.config.BackupDir, id+".json")
+	data, err := os.ReadFile(dataPath)
+	if err != nil {
+		return 0, fmt.Errorf("hot backup: read data: %w", err)
+	}
+
+	var points []Point
+	if err := json.Unmarshal(data, &points); err != nil {
+		return 0, fmt.Errorf("hot backup: unmarshal: %w", err)
+	}
+
+	if len(points) > 0 {
+		if err := e.db.WriteBatch(points); err != nil {
+			return 0, fmt.Errorf("hot backup: restore write: %w", err)
+		}
+	}
+
+	return len(points), nil
 }
 
 // Stats returns aggregate backup statistics.
@@ -195,18 +314,9 @@ func (e *HotBackupEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
-		var req struct {
-			PointCount int64 `json:"point_count"`
-			SizeBytes  int64 `json:"size_bytes"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
-			return
-		}
-		manifest, err := e.CreateBackup(req.PointCount, req.SizeBytes)
+		manifest, err := e.SnapshotBackup()
 		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

@@ -222,15 +222,21 @@ func (m *PITRManager) CreateCheckpoint(ctx context.Context) (*PITRCheckpoint, er
 // snapshotData reads all points from the DB and returns them as serialised
 // chunks suitable for content-addressable storage.
 func (m *PITRManager) snapshotData(ctx context.Context) ([][]byte, int64, error) {
-	query := &Query{
-		Metric: "",
-		Start:  0,
-		End:    time.Now().UTC().UnixNano(),
-	}
+	metrics := m.db.Metrics()
 
-	result, err := m.db.ExecuteContext(ctx, query)
-	if err != nil {
-		return nil, 0, fmt.Errorf("pitr: snapshot query: %w", err)
+	endTime := time.Now().UTC().UnixNano()
+	var allPoints []Point
+
+	for _, metric := range metrics {
+		result, err := m.db.ExecuteContext(ctx, &Query{
+			Metric: metric,
+			Start:  0,
+			End:    endTime,
+		})
+		if err != nil {
+			return nil, 0, fmt.Errorf("pitr: snapshot query for %q: %w", metric, err)
+		}
+		allPoints = append(allPoints, result.Points...)
 	}
 
 	maxChunk := m.config.MaxSegmentSizeMB * 1024 * 1024
@@ -239,10 +245,9 @@ func (m *PITRManager) snapshotData(ctx context.Context) ([][]byte, int64, error)
 	}
 
 	var chunks [][]byte
-	var pointCount int64
+	pointCount := int64(len(allPoints))
 
-	batch, _ := json.Marshal(result.Points)
-	pointCount = int64(len(result.Points))
+	batch, _ := json.Marshal(allPoints)
 
 	if len(batch) <= maxChunk {
 		chunks = append(chunks, batch)
