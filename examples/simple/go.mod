@@ -2,7 +2,6 @@ module github.com/chronicle-db/chronicle/examples/simple
 
 go 1.24.0
 
-
 require github.com/chronicle-db/chronicle v0.0.0
 
 require (
