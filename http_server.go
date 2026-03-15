@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -28,6 +29,9 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	// Authentication from config
 	auth := newAuthenticator(db.config.Auth)
 
+	// HTTP request metrics
+	httpMetrics := NewHTTPMetrics()
+
 	// Helper to wrap handlers with middleware
 	wrap := func(h http.HandlerFunc) http.HandlerFunc {
 		h = securityHeadersMiddleware(h)
@@ -35,6 +39,10 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 		h = bodySizeLimitMiddleware(h)
 		h = requestIDMiddleware(h)
 		h = authMiddleware(auth, h)
+		if len(db.config.HTTP.CORSAllowedOrigins) > 0 {
+			h = corsMiddlewareGlobal(db.config.HTTP.CORSAllowedOrigins)(h)
+		}
+		h = httpMetricsMiddleware(httpMetrics)(h)
 		if rl != nil {
 			h = rateLimitMiddleware(rl, h)
 		}
@@ -67,6 +75,12 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 	mux.HandleFunc("/debug/pprof/profile", adminWrap(pprof.Profile))
 	mux.HandleFunc("/debug/pprof/symbol", adminWrap(pprof.Symbol))
 	mux.HandleFunc("/debug/pprof/trace", adminWrap(pprof.Trace))
+
+	// HTTP request metrics endpoint
+	mux.HandleFunc("/api/v1/http/metrics", wrap(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(httpMetrics.Snapshot())
+	}))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := net.Listen("tcp", addr)
