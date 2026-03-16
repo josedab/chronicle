@@ -76,7 +76,7 @@ func (e *MetricCorrelationEngine) Start() {
 }
 
 func (e *MetricCorrelationEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // Ingest adds a data point for correlation analysis.

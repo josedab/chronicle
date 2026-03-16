@@ -234,7 +234,11 @@ func (db *DB) Close() error {
 	db.closed = true
 	db.mu.Unlock()
 
-	close(db.closeCh)
+	select {
+	case <-db.closeCh:
+	default:
+		close(db.closeCh)
+	}
 
 	// Flush buffered points BEFORE stopping HTTP so in-flight writes are persisted.
 	points := db.buffer.Drain()

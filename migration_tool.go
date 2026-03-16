@@ -72,7 +72,7 @@ func (e *ImportEngine) Start() {
 }
 
 func (e *ImportEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // ImportInfluxLineProtocol imports data in InfluxDB line protocol format.

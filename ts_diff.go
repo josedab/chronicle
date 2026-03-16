@@ -88,7 +88,7 @@ func (e *TSDiffEngine) Start() {
 }
 
 func (e *TSDiffEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // Compare compares a metric across two time windows.

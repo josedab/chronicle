@@ -79,7 +79,7 @@ func (e *QueryCostEstimator) Start() {
 }
 
 func (e *QueryCostEstimator) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // Estimate produces a cost estimate for a query without executing it.

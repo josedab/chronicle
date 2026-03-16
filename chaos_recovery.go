@@ -92,7 +92,7 @@ func (e *ChaosRecoveryEngine) Start() {
 }
 
 func (e *ChaosRecoveryEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // AddScenario registers a custom chaos scenario.

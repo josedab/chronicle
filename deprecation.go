@@ -72,7 +72,12 @@ func (e *DeprecationEngine) Start() {
 }
 
 func (e *DeprecationEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false
+	select {
+	case <-e.stopCh:
+	default:
+		close(e.stopCh)
+	}
 }
 
 // AddDeprecation registers a new deprecated symbol.

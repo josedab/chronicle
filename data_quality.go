@@ -116,7 +116,7 @@ func (e *DataQualityEngine) Start() {
 }
 
 func (e *DataQualityEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // Check inspects a point for quality issues. Returns any detected issues.

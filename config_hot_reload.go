@@ -91,7 +91,11 @@ func (e *ConfigReloadEngine) Stop() {
 		return
 	}
 	e.running = false
-	close(e.stopCh)
+	select {
+	case <-e.stopCh:
+	default:
+		close(e.stopCh)
+	}
 }
 
 // watchLoop polls the config file for modifications and applies changes.
@@ -270,6 +274,18 @@ func (e *ConfigReloadEngine) Diff(a, b Config) []ConfigChange {
 func (e *ConfigReloadEngine) Apply(newCfg Config) ([]ConfigChange, error) {
 	if err := newCfg.Validate(); err != nil {
 		return nil, fmt.Errorf("config reload rejected: %w", err)
+	}
+
+	// Additional runtime safety checks for hot-reloaded fields that could
+	// crash a running system even if they pass static validation.
+	if newCfg.Storage.BufferSize <= 0 {
+		return nil, fmt.Errorf("config reload rejected: BufferSize must be positive")
+	}
+	if newCfg.Query.QueryTimeout < 0 {
+		return nil, fmt.Errorf("config reload rejected: QueryTimeout must be non-negative")
+	}
+	if newCfg.RateLimitPerSecond < 0 {
+		return nil, fmt.Errorf("config reload rejected: RateLimitPerSecond must be non-negative")
 	}
 
 	e.mu.Lock()

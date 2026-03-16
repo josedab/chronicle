@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -98,7 +99,7 @@ type QueryProfilerEngine struct {
 	running  bool
 	stopCh   chan struct{}
 	stats    QueryProfilerStats
-	profSeq  int64
+	profSeq  atomic.Int64
 	cacheHits int64
 	cacheMisses int64
 }
@@ -132,7 +133,11 @@ func (e *QueryProfilerEngine) Stop() {
 		return
 	}
 	e.running = false
-	close(e.stopCh)
+	select {
+	case <-e.stopCh:
+	default:
+		close(e.stopCh)
+	}
 }
 
 // Profile executes and profiles a query.
@@ -142,10 +147,10 @@ func (e *QueryProfilerEngine) Profile(queryStr string, queryType string) (*Query
 	}
 
 	start := time.Now()
-	e.profSeq++
+	seq := e.profSeq.Add(1)
 
 	profile := &QueryProfile{
-		ID:        fmt.Sprintf("prof-%d", e.profSeq),
+		ID:        fmt.Sprintf("prof-%d", seq),
 		Query:     queryStr,
 		QueryType: queryType,
 		StartedAt: start,
