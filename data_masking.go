@@ -1,9 +1,11 @@
 package chronicle
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"net/http"
 	"sync"
 	"time"
@@ -14,6 +16,10 @@ type DataMaskingConfig struct {
 	Enabled       bool   `json:"enabled"`
 	DefaultPolicy string `json:"default_policy"` // none, redact, hash
 	MaxRules      int    `json:"max_rules"`
+	// HashSecret is the HMAC key used for the "hash" masking action.
+	// When set, HMAC-SHA256 is used for cryptographically secure, deterministic
+	// hashing. When empty, plain SHA-256 is used as a fallback.
+	HashSecret string `json:"hash_secret,omitempty"`
 }
 
 // DefaultDataMaskingConfig returns sensible defaults.
@@ -200,9 +206,7 @@ func (e *DataMaskingEngine) Apply(points []Point, ctx MaskingContext) ([]Point, 
 					mp.Tags[rule.TagKey] = "***"
 					pointMasked = true
 				case "hash":
-					h := fnv.New64a()
-					h.Write([]byte(mp.Tags[rule.TagKey]))
-					mp.Tags[rule.TagKey] = fmt.Sprintf("%x", h.Sum64())
+					mp.Tags[rule.TagKey] = e.hashValue(mp.Tags[rule.TagKey])
 					pointMasked = true
 				case "truncate":
 					v := mp.Tags[rule.TagKey]
@@ -230,6 +234,18 @@ func (e *DataMaskingEngine) Apply(points []Point, ctx MaskingContext) ([]Point, 
 	return masked, result
 }
 
+// hashValue produces a deterministic, cryptographically secure hash of the
+// input. Uses HMAC-SHA256 when HashSecret is configured, otherwise SHA-256.
+func (e *DataMaskingEngine) hashValue(value string) string {
+	if e.config.HashSecret != "" {
+		mac := hmac.New(sha256.New, []byte(e.config.HashSecret))
+		mac.Write([]byte(value))
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+	h := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(h[:])
+}
+
 func matchesPattern(metric, pattern string) bool {
 	if pattern == "*" {
 		return true
@@ -255,14 +271,65 @@ func (e *DataMaskingEngine) GetStats() DataMaskingStats {
 	return s
 }
 
-// RegisterHTTPHandlers registers HTTP endpoints.
+// RegisterHTTPHandlers registers HTTP endpoints for masking rule management.
 func (e *DataMaskingEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/masking/rules", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(e.ListRules())
+		switch r.Method {
+		case http.MethodGet:
+			if err := json.NewEncoder(w).Encode(e.ListRules()); err != nil {
+				internalError(w, err, "encoding rules")
+			}
+		case http.MethodPost:
+			var rule MaskingRule
+			if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+				writeErrorf(w, http.StatusBadRequest, "invalid request body: %v", err)
+				return
+			}
+			if rule.ID == "" {
+				writeError(w, "rule id is required", http.StatusBadRequest)
+				return
+			}
+			if rule.TagKey == "" {
+				writeError(w, "tag_key is required", http.StatusBadRequest)
+				return
+			}
+			if rule.Action == "" {
+				writeError(w, "action is required", http.StatusBadRequest)
+				return
+			}
+			switch rule.Action {
+			case "redact", "hash", "truncate", "none":
+				// valid
+			default:
+				writeErrorf(w, http.StatusBadRequest, "invalid action %q: must be redact, hash, truncate, or none", rule.Action)
+				return
+			}
+			if err := e.AddRule(rule); err != nil {
+				writeErrorf(w, http.StatusConflict, "%v", err)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(rule)
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if id == "" {
+				writeError(w, "id query parameter is required", http.StatusBadRequest)
+				return
+			}
+			if err := e.RemoveRule(id); err != nil {
+				writeErrorf(w, http.StatusNotFound, "%v", err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			writeErrorf(w, http.StatusMethodNotAllowed, "method %s not allowed", r.Method)
+		}
 	})
 	mux.HandleFunc("/api/v1/masking/stats", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(e.GetStats())
+		if err := json.NewEncoder(w).Encode(e.GetStats()); err != nil {
+			internalError(w, err, "encoding stats")
+		}
 	})
 }
