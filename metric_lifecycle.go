@@ -77,6 +77,7 @@ type MetricLifecycleManager struct {
 	states   map[string]*MetricState
 	running  bool
 	stopCh   chan struct{}
+	wg       sync.WaitGroup
 
 	mu sync.RWMutex
 }
@@ -95,26 +96,31 @@ func NewMetricLifecycleManager(db *DB, cfg MetricLifecycleConfig) *MetricLifecyc
 // Start starts the metric lifecycle manager.
 func (m *MetricLifecycleManager) Start() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.running {
+		m.mu.Unlock()
 		return
 	}
 	m.running = true
+	m.mu.Unlock()
+	m.wg.Add(1)
 	go m.evaluationLoop()
 }
 
-// Stop stops the metric lifecycle manager.
+// Stop stops the metric lifecycle manager and waits for the loop to exit.
 func (m *MetricLifecycleManager) Stop() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if !m.running {
+		m.mu.Unlock()
 		return
 	}
 	m.running = false
+	m.mu.Unlock()
 	close(m.stopCh)
+	m.wg.Wait()
 }
 
 func (m *MetricLifecycleManager) evaluationLoop() {
+	defer m.wg.Done()
 	ticker := time.NewTicker(m.config.EvaluationInterval)
 	defer ticker.Stop()
 

@@ -116,14 +116,22 @@ func TestDataRehydrationEngine(t *testing.T) {
 	t.Run("MaxCacheSize", func(t *testing.T) {
 		db3 := setupTestDB(t)
 		defer db3.Close()
+
+		// Write enough data so fetches produce meaningful sizes.
+		for i := 0; i < 1000; i++ {
+			db3.Write(Point{Metric: "a", Value: float64(i), Timestamp: int64(i + 1)})
+			db3.Write(Point{Metric: "b", Value: float64(i), Timestamp: int64(i + 1)})
+		}
+		db3.Flush()
+
 		smallCfg := DefaultDataRehydrationConfig()
-		smallCfg.CacheSizeMB = 15 // only fits ~1 entry at 10MB each
+		smallCfg.CacheSizeMB = 0 // 0 MB cache forces immediate eviction
 		e3 := NewDataRehydrationEngine(db3, smallCfg)
 		e3.Start()
 		defer e3.Stop()
 
-		e3.Fetch(RehydrationRequest{Metric: "a", Start: 0, End: 1, Source: "s3"})
-		e3.Fetch(RehydrationRequest{Metric: "b", Start: 0, End: 1, Source: "s3"})
+		e3.Fetch(RehydrationRequest{Metric: "a", Start: 0, End: 2000, Source: "s3"})
+		e3.Fetch(RehydrationRequest{Metric: "b", Start: 0, End: 2000, Source: "s3"})
 
 		stats := e3.GetStats()
 		if stats.EvictionCount == 0 {

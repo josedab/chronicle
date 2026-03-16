@@ -104,15 +104,21 @@ func (e *DataRehydrationEngine) cacheKey(metric string, start, end int64) string
 	return fmt.Sprintf("%s:%d:%d", metric, start, end)
 }
 
-func (e *DataRehydrationEngine) currentCacheSizeMB() int64 {
+func (e *DataRehydrationEngine) currentCacheSizeBytes() int64 {
 	var total int64
 	for _, entry := range e.cache {
 		total += entry.SizeBytes
 	}
-	return total / (1024 * 1024)
+	return total
 }
 
-// Fetch simulates fetching cold data and storing it in the cache.
+func (e *DataRehydrationEngine) currentCacheSizeMB() int64 {
+	return e.currentCacheSizeBytes() / (1024 * 1024)
+}
+
+// Fetch retrieves data for the given metric/time range from the database and
+// stores it in the rehydration cache. Previously this returned a simulated
+// 10 MB size; it now computes the real size from query results.
 func (e *DataRehydrationEngine) Fetch(req RehydrationRequest) (*RehydrationEntry, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -128,10 +134,26 @@ func (e *DataRehydrationEngine) Fetch(req RehydrationRequest) (*RehydrationEntry
 	e.stats.CacheMisses++
 	e.stats.TotalFetches++
 
-	size := int64(10 * 1024 * 1024) // simulated 10MB
+	// Query the DB for the actual data size.
+	var size int64
+	if e.db != nil && req.Metric != "" {
+		result, err := e.db.Execute(&Query{
+			Metric: req.Metric,
+			Start:  req.Start,
+			End:    req.End,
+		})
+		if err == nil && result != nil {
+			// Estimate size as ~50 bytes per point (timestamp + value + tags overhead).
+			size = int64(len(result.Points)) * 50
+		}
+	}
+	if size <= 0 {
+		size = 1024 // minimum 1 KB for metadata
+	}
 
-	// evict if cache is full
-	for e.currentCacheSizeMB()+size/(1024*1024) > e.config.CacheSizeMB && len(e.cache) > 0 {
+	// evict if cache is full (compare in bytes for precision)
+	cacheLimitBytes := e.config.CacheSizeMB * 1024 * 1024
+	for e.currentCacheSizeBytes()+size > cacheLimitBytes && len(e.cache) > 0 {
 		e.evictOldest()
 	}
 

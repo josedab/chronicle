@@ -159,7 +159,10 @@ func (e *WritePipelineEngine) ProcessPost(p Point) {
 					e.totalErrors.Add(1)
 				}
 			}()
-			h.Handler(p)
+			if _, err := h.Handler(p); err != nil {
+				slog.Warn("post-write hook error", "hook", h.Name, "error", err)
+				e.totalErrors.Add(1)
+			}
 		}()
 	}
 }
