@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -19,6 +20,7 @@ type PointValidatorConfig struct {
 	MaxTagValueLen   int           `json:"max_tag_value_len"`
 	MaxMetricLen     int           `json:"max_metric_len"`
 	MaxTimestampSkew time.Duration `json:"max_timestamp_skew"`
+	ValidateFormat   bool          `json:"validate_format"`
 }
 
 // DefaultPointValidatorConfig returns sensible defaults.
@@ -32,8 +34,16 @@ func DefaultPointValidatorConfig() PointValidatorConfig {
 		MaxTagValueLen:   256,
 		MaxMetricLen:     256,
 		MaxTimestampSkew: 24 * time.Hour,
+		ValidateFormat:   true,
 	}
 }
+
+// metricNameRe matches valid metric names: alphanumeric, dots, underscores,
+// hyphens, forward slashes, colons. Must start with a letter or underscore.
+var metricNameRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9._\-/:]*$`)
+
+// tagKeyRe matches valid tag keys: alphanumeric, underscores, hyphens, dots.
+var tagKeyRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9._\-]*$`)
 
 // PointValidationError describes a validation issue.
 type PointValidationError struct {
@@ -113,6 +123,14 @@ func (e *PointValidatorEngine) Validate(p Point) []PointValidationError {
 		})
 	}
 
+	if e.config.ValidateFormat && p.Metric != "" && !metricNameRe.MatchString(p.Metric) {
+		errors = append(errors, PointValidationError{
+			Field:    "metric",
+			Message:  "metric name contains invalid characters (must match [a-zA-Z_][a-zA-Z0-9._-/:]*)",
+			Severity: "error",
+		})
+	}
+
 	if e.config.RejectNaN && math.IsNaN(p.Value) {
 		errors = append(errors, PointValidationError{
 			Field:    "value",
@@ -137,12 +155,19 @@ func (e *PointValidatorEngine) Validate(p Point) []PointValidationError {
 		})
 	}
 
-	if e.config.MaxTagValueLen > 0 || e.config.MaxTagKeyLen > 0 {
+	if e.config.MaxTagValueLen > 0 || e.config.MaxTagKeyLen > 0 || e.config.ValidateFormat {
 		for k, v := range p.Tags {
 			if e.config.MaxTagKeyLen > 0 && len(k) > e.config.MaxTagKeyLen {
 				errors = append(errors, PointValidationError{
 					Field:    "tags." + k,
 					Message:  fmt.Sprintf("tag key exceeds max length of %d", e.config.MaxTagKeyLen),
+					Severity: "error",
+				})
+			}
+			if e.config.ValidateFormat && k != "" && !tagKeyRe.MatchString(k) {
+				errors = append(errors, PointValidationError{
+					Field:    "tags." + k,
+					Message:  "tag key contains invalid characters (must match [a-zA-Z_][a-zA-Z0-9._-]*)",
 					Severity: "error",
 				})
 			}

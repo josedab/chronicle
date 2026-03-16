@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/http"
 	"strings"
@@ -284,6 +285,30 @@ func (dc *DataContractEngine) ValidatePoint(p Point) []ContractViolation {
 	dc.updateProfile(p)
 
 	return violations
+}
+
+// CheckPoint validates a point against all active contracts and enforces
+// the configured enforcement mode. Returns an error if the point should be
+// rejected (EnforcementMode == "reject" and violations found).
+func (dc *DataContractEngine) CheckPoint(p Point) error {
+	violations := dc.ValidatePoint(p)
+	if len(violations) == 0 {
+		return nil
+	}
+
+	switch dc.config.EnforcementMode {
+	case ContractEnforceReject:
+		return fmt.Errorf("data contract violation: %s (rule: %s)",
+			violations[0].Message, violations[0].RuleName)
+	case ContractEnforceLog:
+		slog.Warn("data contract violation",
+			"metric", p.Metric, "violations", len(violations),
+			"first", violations[0].Message)
+	case ContractEnforceAlert:
+		slog.Warn("data contract violation (alert)",
+			"metric", p.Metric, "violations", len(violations))
+	}
+	return nil
 }
 
 func (dc *DataContractEngine) evaluateRule(contract *DataContract, rule ContractRule, p Point) *ContractViolation {
