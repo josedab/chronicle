@@ -6,6 +6,10 @@ import (
 	"fmt"
 )
 
+// maxDictionaryEntries is the maximum number of unique strings allowed in a
+// single dictionary. This prevents unbounded memory growth from high-cardinality data.
+const maxDictionaryEntries = 1_000_000
+
 // StringDictionary provides dictionary encoding for repeated strings.
 type StringDictionary struct {
 	index map[string]uint32
@@ -18,12 +22,16 @@ func NewStringDictionary() *StringDictionary {
 }
 
 // Add adds a value to the dictionary and returns its index.
+// Returns 0 if the dictionary is full (maxDictionaryEntries reached).
 func (d *StringDictionary) Add(value string) uint32 {
 	if value == "" {
 		return 0
 	}
 	if idx, ok := d.index[value]; ok {
 		return idx
+	}
+	if len(d.items) >= maxDictionaryEntries {
+		return 0 // dictionary full — return empty index
 	}
 	idx := uint32(len(d.items)) + 1
 	d.items = append(d.items, value)
@@ -136,6 +144,10 @@ func WriteString(buf *bytes.Buffer, s string) error {
 	return nil
 }
 
+// maxStringLen is the maximum allowed length for a decoded string.
+// This prevents OOM from corrupted length fields in binary data.
+const maxStringLen = 10 * 1024 * 1024 // 10MB
+
 // ReadString reads a length-prefixed string from the reader.
 func ReadString(reader *bytes.Reader) (string, error) {
 	var length uint32
@@ -144,6 +156,9 @@ func ReadString(reader *bytes.Reader) (string, error) {
 	}
 	if length == 0 {
 		return "", nil
+	}
+	if length > maxStringLen {
+		return "", fmt.Errorf("string length %d exceeds maximum %d", length, maxStringLen)
 	}
 	if length > uint32(reader.Len()) {
 		return "", fmt.Errorf("invalid string length")

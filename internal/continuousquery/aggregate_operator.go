@@ -75,5 +75,14 @@ func (o *AggregateOperator) RestoreState(state []byte) error {
 		}
 	}
 
+	if counts, ok := data["counts"].(map[string]any); ok {
+		o.counts = make(map[string]int64)
+		for k, v := range counts {
+			if f, ok := v.(float64); ok {
+				o.counts[k] = int64(f)
+			}
+		}
+	}
+
 	return nil
 }

@@ -10,11 +10,21 @@ import (
 	"github.com/chronicle-db/chronicle/internal/encoding"
 )
 
+// Partition codec format versioning.
+const (
+	partitionMagic   = "CHRP" // 4-byte magic identifying a Chronicle partition block
+	partitionVersion = byte(1)
+)
+
 func encodePartition(p *Partition) ([]byte, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	buf := &bytes.Buffer{}
+
+	// Write format header: magic + version
+	buf.WriteString(partitionMagic)
+	buf.WriteByte(partitionVersion)
 
 	dict := newStringDictionary()
 	for _, series := range p.series {
@@ -136,6 +146,22 @@ func decodePartition(data []byte) (*Partition, error) {
 		loaded: true,
 	}
 
+	// Read and validate format header if present.
+	// For backward compatibility, check if data starts with the magic bytes.
+	// If not, assume legacy format (pre-version) and continue.
+	if len(data) >= len(partitionMagic)+1 {
+		if string(data[:len(partitionMagic)]) == partitionMagic {
+			reader.Seek(int64(len(partitionMagic)), 0)
+			version, err := reader.ReadByte()
+			if err != nil {
+				return nil, fmt.Errorf("partition codec: failed to read version: %w", err)
+			}
+			if version > partitionVersion {
+				return nil, fmt.Errorf("partition codec: unsupported version %d (max %d)", version, partitionVersion)
+			}
+		}
+	}
+
 	// Read header fields
 	if err := binary.Read(reader, binary.LittleEndian, &p.id); err != nil {
 		return nil, err
@@ -166,6 +192,10 @@ func decodePartition(data []byte) (*Partition, error) {
 	var seriesCount uint32
 	if err := binary.Read(reader, binary.LittleEndian, &seriesCount); err != nil {
 		return nil, err
+	}
+	const maxSeriesPerPartition = 10_000_000 // 10M series safety limit
+	if seriesCount > maxSeriesPerPartition {
+		return nil, fmt.Errorf("partition codec: series count %d exceeds maximum %d", seriesCount, maxSeriesPerPartition)
 	}
 
 	for i := uint32(0); i < seriesCount; i++ {

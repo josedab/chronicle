@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"time"
 
@@ -531,6 +532,7 @@ func (e *CEPEngine) getPatternState(key string) *patternState {
 
 	var state patternState
 	if err := json.Unmarshal(data, &state); err != nil {
+		slog.Warn("CEP: failed to unmarshal pattern state", "key", key, "err", err)
 		return &patternState{}
 	}
 	return &state
@@ -539,6 +541,7 @@ func (e *CEPEngine) getPatternState(key string) *patternState {
 func (e *CEPEngine) savePatternState(key string, state *patternState) {
 	data, err := json.Marshal(state)
 	if err != nil {
+		slog.Warn("CEP: failed to marshal pattern state", "key", key, "err", err)
 		return
 	}
 
