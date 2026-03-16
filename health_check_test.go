@@ -1,6 +1,9 @@
 package chronicle
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -96,6 +99,145 @@ func TestHealthCheckEngine(t *testing.T) {
 		status := e.Check()
 		if status.Version == "" {
 			t.Error("expected version to be set")
+		}
+	})
+}
+
+func TestHealthCheckMemoryAndDisk(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	e := NewHealthCheckEngine(db, DefaultHealthCheckConfig())
+	e.Start()
+	defer e.Stop()
+
+	t.Run("MemoryCheckerPresent", func(t *testing.T) {
+		status := e.Check()
+		found := false
+		for _, c := range status.Components {
+			if c.Name == "memory" {
+				found = true
+				if c.Status != "healthy" && c.Status != "degraded" {
+					t.Errorf("unexpected memory status: %s", c.Status)
+				}
+				if c.Message == "" {
+					t.Error("expected memory message with stats")
+				}
+			}
+		}
+		if !found {
+			t.Error("expected memory component")
+		}
+	})
+
+	t.Run("DiskSpaceCheckerPresent", func(t *testing.T) {
+		status := e.Check()
+		found := false
+		for _, c := range status.Components {
+			if c.Name == "disk_space" {
+				found = true
+				if c.Status != "healthy" && c.Status != "degraded" {
+					t.Errorf("unexpected disk_space status: %s", c.Status)
+				}
+			}
+		}
+		if !found {
+			t.Error("expected disk_space component")
+		}
+	})
+
+	t.Run("MemoryDegradedOnLowThreshold", func(t *testing.T) {
+		cfg := DefaultHealthCheckConfig()
+		cfg.MaxMemoryBytes = 1 // 1 byte — will always be exceeded
+		e2 := NewHealthCheckEngine(db, cfg)
+		e2.Start()
+		defer e2.Stop()
+
+		status := e2.Check()
+		for _, c := range status.Components {
+			if c.Name == "memory" && c.Status != "degraded" {
+				t.Errorf("expected memory degraded with 1-byte threshold, got %s", c.Status)
+			}
+		}
+	})
+}
+
+func TestHealthCheckHTTPEndpoints(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	e := NewHealthCheckEngine(db, DefaultHealthCheckConfig())
+	e.Start()
+	defer e.Stop()
+
+	mux := http.NewServeMux()
+	e.RegisterHTTPHandlers(mux)
+
+	t.Run("Healthz_Live", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", w.Code)
+		}
+		if w.Body.String() != "ok" {
+			t.Errorf("expected 'ok', got %s", w.Body.String())
+		}
+	})
+
+	t.Run("Readyz_Ready", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("StatusEndpoint", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/health/status", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", w.Code)
+		}
+		var status HealthCheckStatus
+		json.Unmarshal(w.Body.Bytes(), &status)
+		if status.Overall == "" {
+			t.Error("expected overall status")
+		}
+	})
+
+	t.Run("ComponentsEndpoint", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/health/components", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", w.Code)
+		}
+		var components []ComponentHealth
+		json.Unmarshal(w.Body.Bytes(), &components)
+		if len(components) < 6 {
+			t.Errorf("expected at least 6 components (including memory and disk_space), got %d", len(components))
+		}
+	})
+
+	t.Run("Healthz_NotLiveWhenStopped", func(t *testing.T) {
+		e2 := NewHealthCheckEngine(db, DefaultHealthCheckConfig())
+		// Don't start e2 — it should report not live
+		mux2 := http.NewServeMux()
+		e2.RegisterHTTPHandlers(mux2)
+
+		req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+		w := httptest.NewRecorder()
+		mux2.ServeHTTP(w, req)
+
+		if w.Code != http.StatusServiceUnavailable {
+			t.Errorf("expected 503 when not live, got %d", w.Code)
 		}
 	})
 }

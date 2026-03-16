@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -18,16 +21,24 @@ type HealthCheckConfig struct {
 	MaxWriteLatency time.Duration `json:"max_write_latency"`
 	MaxQueryLatency time.Duration `json:"max_query_latency"`
 	MaxWALSizeBytes int64         `json:"max_wal_size_bytes"`
+	// MaxMemoryBytes is the threshold for Go heap allocation (Alloc).
+	// When exceeded, the memory checker reports degraded. Default: 1GB.
+	MaxMemoryBytes uint64 `json:"max_memory_bytes"`
+	// MinDiskFreeBytes is the minimum free disk space on the DB path volume.
+	// When free space drops below this, disk_space reports degraded. Default: 100MB.
+	MinDiskFreeBytes uint64 `json:"min_disk_free_bytes"`
 }
 
 // DefaultHealthCheckConfig returns sensible defaults.
 func DefaultHealthCheckConfig() HealthCheckConfig {
 	return HealthCheckConfig{
-		Enabled:         true,
-		CheckInterval:   15 * time.Second,
-		MaxWriteLatency: 100 * time.Millisecond,
-		MaxQueryLatency: 500 * time.Millisecond,
-		MaxWALSizeBytes: 256 * 1024 * 1024, // 256 MB
+		Enabled:          true,
+		CheckInterval:    15 * time.Second,
+		MaxWriteLatency:  100 * time.Millisecond,
+		MaxQueryLatency:  500 * time.Millisecond,
+		MaxWALSizeBytes:  256 * 1024 * 1024, // 256 MB
+		MaxMemoryBytes:   1024 * 1024 * 1024, // 1 GB
+		MinDiskFreeBytes: 100 * 1024 * 1024,  // 100 MB
 	}
 }
 
@@ -73,6 +84,8 @@ func NewHealthCheckEngine(db *DB, cfg HealthCheckConfig) *HealthCheckEngine {
 	e.checkers["index"] = e.checkIndex
 	e.checkers["write_latency"] = e.checkWriteLatency
 	e.checkers["query_latency"] = e.checkQueryLatency
+	e.checkers["memory"] = e.checkMemory
+	e.checkers["disk_space"] = e.checkDiskSpace
 	return e
 }
 
@@ -280,6 +293,49 @@ func (e *HealthCheckEngine) checkQueryLatency() ComponentHealth {
 	return ch
 }
 
+func (e *HealthCheckEngine) checkMemory() ComponentHealth {
+	ch := ComponentHealth{Name: "memory", LastCheck: time.Now()}
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("alloc=%dMB, sys=%dMB, goroutines=%d",
+		m.Alloc/(1024*1024), m.Sys/(1024*1024), runtime.NumGoroutine())
+
+	if e.config.MaxMemoryBytes > 0 && m.Alloc > e.config.MaxMemoryBytes {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("heap alloc %dMB exceeds threshold %dMB",
+			m.Alloc/(1024*1024), e.config.MaxMemoryBytes/(1024*1024))
+	}
+	return ch
+}
+
+func (e *HealthCheckEngine) checkDiskSpace() ComponentHealth {
+	ch := ComponentHealth{Name: "disk_space", LastCheck: time.Now()}
+	if e.db == nil || e.db.path == "" {
+		ch.Status = "degraded"
+		ch.Message = "no storage path configured"
+		return ch
+	}
+
+	free, total, err := diskUsage(e.db.path)
+	if err != nil {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("disk stat failed: %v", err)
+		return ch
+	}
+
+	ch.Status = "healthy"
+	ch.Message = fmt.Sprintf("free=%dMB, total=%dMB", free/(1024*1024), total/(1024*1024))
+
+	if e.config.MinDiskFreeBytes > 0 && free < e.config.MinDiskFreeBytes {
+		ch.Status = "degraded"
+		ch.Message = fmt.Sprintf("free disk %dMB below threshold %dMB",
+			free/(1024*1024), e.config.MinDiskFreeBytes/(1024*1024))
+	}
+	return ch
+}
+
 // RegisterHTTPHandlers registers HTTP endpoints under /api/v1/health/.
 // Note: /health, /health/ready, /health/live are registered in http_routes_admin.go
 // and delegate to this engine. These endpoints provide the API-versioned alternative.
@@ -293,4 +349,36 @@ func (e *HealthCheckEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(status.Components)
 	})
+	// Kubernetes-compatible probe endpoints
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if e.IsLive() {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("ok"))
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("not live"))
+		}
+	})
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if e.IsReady() {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("ok"))
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("not ready"))
+		}
+	})
+}
+
+// diskUsage returns free and total bytes for the filesystem containing path.
+func diskUsage(path string) (free uint64, total uint64, err error) {
+	// Resolve to an existing directory for the statfs call
+	dir := filepath.Dir(path)
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(dir, &stat); err != nil {
+		return 0, 0, err
+	}
+	total = stat.Blocks * uint64(stat.Bsize)
+	free = stat.Bavail * uint64(stat.Bsize)
+	return free, total, nil
 }
