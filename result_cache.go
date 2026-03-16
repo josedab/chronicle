@@ -2,11 +2,70 @@ package chronicle
 
 import (
 	"container/list"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
+
+// QueryCacheKey produces a canonical cache key for a query by normalising tag
+// filter order and aggregation fields. Two semantically equivalent queries
+// will always produce the same key.
+func QueryCacheKey(q *Query) string {
+	if q == nil {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "m=%s;s=%d;e=%d;l=%d", q.Metric, q.Start, q.End, q.Limit)
+
+	if len(q.Tags) > 0 {
+		keys := make([]string, 0, len(q.Tags))
+		for k := range q.Tags {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		b.WriteString(";t=")
+		for i, k := range keys {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			fmt.Fprintf(&b, "%s:%s", k, q.Tags[k])
+		}
+	}
+
+	if len(q.TagFilters) > 0 {
+		sorted := make([]TagFilter, len(q.TagFilters))
+		copy(sorted, q.TagFilters)
+		sort.Slice(sorted, func(i, j int) bool {
+			if sorted[i].Key != sorted[j].Key {
+				return sorted[i].Key < sorted[j].Key
+			}
+			return strings.Join(sorted[i].Values, "|") < strings.Join(sorted[j].Values, "|")
+		})
+		b.WriteString(";tf=")
+		for i, tf := range sorted {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			vals := make([]string, len(tf.Values))
+			copy(vals, tf.Values)
+			sort.Strings(vals)
+			fmt.Fprintf(&b, "%s:%d:%s", tf.Key, tf.Op, strings.Join(vals, "|"))
+		}
+	}
+
+	if q.Aggregation != nil && q.Aggregation.Function != 0 {
+		fmt.Fprintf(&b, ";agg=%d:%d:%.6f", q.Aggregation.Function, q.Aggregation.Window, q.Aggregation.Percentile)
+	}
+
+	h := sha256.Sum256([]byte(b.String()))
+	return fmt.Sprintf("%x", h[:16])
+}
 
 // ResultCacheConfig configures the query result cache engine.
 type ResultCacheConfig struct {

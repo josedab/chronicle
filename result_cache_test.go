@@ -184,3 +184,66 @@ func TestResultCacheStartStop(t *testing.T) {
 	e.Start() // idempotent
 	e.Stop()
 }
+
+func TestQueryCacheKey(t *testing.T) {
+	t.Run("nil query returns empty", func(t *testing.T) {
+		if k := QueryCacheKey(nil); k != "" {
+			t.Errorf("expected empty, got %q", k)
+		}
+	})
+
+	t.Run("deterministic", func(t *testing.T) {
+		q := &Query{Metric: "cpu", Start: 1, End: 100}
+		k1 := QueryCacheKey(q)
+		k2 := QueryCacheKey(q)
+		if k1 != k2 {
+			t.Errorf("same query produced different keys: %q vs %q", k1, k2)
+		}
+	})
+
+	t.Run("tag order independent", func(t *testing.T) {
+		q1 := &Query{
+			Metric: "cpu",
+			Start:  1, End: 100,
+			Tags: map[string]string{"host": "a", "region": "us"},
+		}
+		q2 := &Query{
+			Metric: "cpu",
+			Start:  1, End: 100,
+			Tags: map[string]string{"region": "us", "host": "a"},
+		}
+		if QueryCacheKey(q1) != QueryCacheKey(q2) {
+			t.Error("equivalent queries with different tag order produced different keys")
+		}
+	})
+
+	t.Run("tag filter order independent", func(t *testing.T) {
+		q1 := &Query{
+			Metric: "cpu",
+			Start:  1, End: 100,
+			TagFilters: []TagFilter{
+				{Key: "host", Op: TagOpEq, Values: []string{"a"}},
+				{Key: "region", Op: TagOpEq, Values: []string{"us"}},
+			},
+		}
+		q2 := &Query{
+			Metric: "cpu",
+			Start:  1, End: 100,
+			TagFilters: []TagFilter{
+				{Key: "region", Op: TagOpEq, Values: []string{"us"}},
+				{Key: "host", Op: TagOpEq, Values: []string{"a"}},
+			},
+		}
+		if QueryCacheKey(q1) != QueryCacheKey(q2) {
+			t.Error("equivalent queries with different filter order produced different keys")
+		}
+	})
+
+	t.Run("different queries produce different keys", func(t *testing.T) {
+		q1 := &Query{Metric: "cpu", Start: 1, End: 100}
+		q2 := &Query{Metric: "mem", Start: 1, End: 100}
+		if QueryCacheKey(q1) == QueryCacheKey(q2) {
+			t.Error("different queries produced same key")
+		}
+	})
+}
