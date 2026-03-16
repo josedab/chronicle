@@ -171,6 +171,7 @@ func (g *OpenAPIGenerator) Generate() *OpenAPISpec {
 	g.buildFeatureFlagEndpoints(spec)
 	g.buildCQLEndpoints(spec)
 	g.buildMetricsEndpoints(spec)
+	g.buildMissingEndpoints(spec)
 
 	g.buildPointSchema(spec)
 	g.buildQuerySchema(spec)

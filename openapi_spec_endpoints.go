@@ -609,3 +609,195 @@ func sortedKeys(m map[string]*OpenAPIPathItem) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// buildMissingEndpoints documents routes that were previously missing from the spec.
+func (g *OpenAPIGenerator) buildMissingEndpoints(spec *OpenAPISpec) {
+	// Alerting
+	spec.Paths["/api/v1/alerts"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listAlerts",
+			Summary:     "List active alerts",
+			Tags:        []string{"alerting"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Alert list", Content: g.jsonContent(&OpenAPISchema{Type: "array", Items: &OpenAPISchema{Type: "object"}})},
+			},
+		},
+	}
+	spec.Paths["/api/v1/rules"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listAlertRules",
+			Summary:     "List alert rules",
+			Tags:        []string{"alerting"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Rule list"},
+			},
+		},
+		Post: &OpenAPIOperation{
+			OperationID: "createAlertRule",
+			Summary:     "Create an alert rule",
+			Tags:        []string{"alerting"},
+			RequestBody: &OpenAPIRequestBody{Required: true, Content: map[string]*OpenAPIMediaType{"application/json": {Schema: &OpenAPISchema{Type: "object"}}}},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Rule created"},
+				"400": {Description: "Invalid rule", Content: g.errorContent()},
+			},
+		},
+	}
+
+	// Anomaly detection
+	spec.Paths["/api/v1/anomalies"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listAnomalies",
+			Summary:     "List detected anomalies",
+			Tags:        []string{"anomaly"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Anomaly list"}},
+		},
+	}
+	spec.Paths["/api/v1/anomalies/stats"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "anomalyStats",
+			Summary:     "Get anomaly detection statistics",
+			Tags:        []string{"anomaly"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Anomaly stats"}},
+		},
+	}
+
+	// Schema registry
+	spec.Paths["/schemas"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listSchemas",
+			Summary:     "List registered metric schemas",
+			Tags:        []string{"schema"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Schema list"}},
+		},
+		Post: &OpenAPIOperation{
+			OperationID: "createSchema",
+			Summary:     "Register a metric schema",
+			Tags:        []string{"schema"},
+			RequestBody: &OpenAPIRequestBody{Required: true, Content: map[string]*OpenAPIMediaType{"application/json": {Schema: &OpenAPISchema{Type: "object"}}}},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Schema registered"},
+				"400": {Description: "Invalid schema", Content: g.errorContent()},
+			},
+		},
+	}
+
+	// Health endpoints
+	spec.Paths["/health/ready"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "healthReady",
+			Summary:     "Kubernetes readiness probe",
+			Tags:        []string{"health"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Ready"},
+				"503": {Description: "Not ready"},
+			},
+		},
+	}
+	spec.Paths["/health/live"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "healthLive",
+			Summary:     "Kubernetes liveness probe",
+			Tags:        []string{"health"},
+			Responses: map[string]*OpenAPIResponse{
+				"200": {Description: "Alive"},
+				"503": {Description: "Not alive"},
+			},
+		},
+	}
+
+	// Prometheus remote write
+	spec.Paths["/prometheus/write"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "prometheusRemoteWrite",
+			Summary:     "Prometheus remote write endpoint",
+			Tags:        []string{"prometheus"},
+			RequestBody: &OpenAPIRequestBody{Required: true, Content: map[string]*OpenAPIMediaType{"application/x-protobuf": {Schema: &OpenAPISchema{Type: "string", Format: "binary"}}}},
+			Responses: map[string]*OpenAPIResponse{
+				"204": {Description: "Write accepted"},
+				"400": {Description: "Invalid payload", Content: g.errorContent()},
+			},
+		},
+	}
+
+	// Connectors
+	spec.Paths["/api/v1/connectors"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listConnectors",
+			Summary:     "List registered connectors",
+			Tags:        []string{"connectors"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Connector list"}},
+		},
+	}
+
+	// Plugins
+	spec.Paths["/api/v1/plugins"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listPlugins",
+			Summary:     "List installed plugins",
+			Tags:        []string{"plugins"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Plugin list"}},
+		},
+	}
+
+	// Notebooks
+	spec.Paths["/api/v1/notebooks"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listNotebooks",
+			Summary:     "List query notebooks",
+			Tags:        []string{"notebooks"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Notebook list"}},
+		},
+	}
+
+	// Incidents
+	spec.Paths["/api/v1/incidents"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listIncidents",
+			Summary:     "List incidents",
+			Tags:        []string{"incidents"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Incident list"}},
+		},
+	}
+
+	// Views
+	spec.Paths["/api/v1/views"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "listViews",
+			Summary:     "List materialized views",
+			Tags:        []string{"views"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "View list"}},
+		},
+	}
+
+	// Histograms
+	spec.Paths["/api/v1/histogram"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "getHistogram",
+			Summary:     "Get histogram data for a metric",
+			Tags:        []string{"metrics"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Histogram data"}},
+		},
+	}
+
+	// Compile (query compilation)
+	spec.Paths["/api/v1/compile"] = &OpenAPIPathItem{
+		Post: &OpenAPIOperation{
+			OperationID: "compileQuery",
+			Summary:     "Compile a query and return the execution plan",
+			Tags:        []string{"query"},
+			RequestBody: &OpenAPIRequestBody{Required: true, Content: map[string]*OpenAPIMediaType{"application/json": {Schema: &OpenAPISchema{Type: "object"}}}},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "Compiled plan"}},
+		},
+	}
+
+	// HTTP metrics
+	spec.Paths["/api/v1/http/metrics"] = &OpenAPIPathItem{
+		Get: &OpenAPIOperation{
+			OperationID: "httpMetrics",
+			Summary:     "Get HTTP request metrics (latency, status codes)",
+			Tags:        []string{"admin"},
+			Responses:   map[string]*OpenAPIResponse{"200": {Description: "HTTP metrics snapshot"}},
+		},
+	}
+}

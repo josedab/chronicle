@@ -109,6 +109,82 @@
         }
       }
     },
+    "/api/v1/alerts": {
+      "get": {
+        "operationId": "listAlerts",
+        "summary": "List active alerts",
+        "tags": [
+          "alerting"
+        ],
+        "responses": {
+          "200": {
+            "description": "Alert list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/anomalies": {
+      "get": {
+        "operationId": "listAnomalies",
+        "summary": "List detected anomalies",
+        "tags": [
+          "anomaly"
+        ],
+        "responses": {
+          "200": {
+            "description": "Anomaly list"
+          }
+        }
+      }
+    },
+    "/api/v1/anomalies/stats": {
+      "get": {
+        "operationId": "anomalyStats",
+        "summary": "Get anomaly detection statistics",
+        "tags": [
+          "anomaly"
+        ],
+        "responses": {
+          "200": {
+            "description": "Anomaly stats"
+          }
+        }
+      }
+    },
+    "/api/v1/compile": {
+      "post": {
+        "operationId": "compileQuery",
+        "summary": "Compile a query and return the execution plan",
+        "tags": [
+          "query"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compiled plan"
+          }
+        }
+      }
+    },
     "/api/v1/config/reload/stats": {
       "get": {
         "operationId": "getConfigReloadStats",
@@ -126,6 +202,20 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors": {
+      "get": {
+        "operationId": "listConnectors",
+        "summary": "List registered connectors",
+        "tags": [
+          "connectors"
+        ],
+        "responses": {
+          "200": {
+            "description": "Connector list"
           }
         }
       }
@@ -523,6 +613,48 @@
         }
       }
     },
+    "/api/v1/histogram": {
+      "get": {
+        "operationId": "getHistogram",
+        "summary": "Get histogram data for a metric",
+        "tags": [
+          "metrics"
+        ],
+        "responses": {
+          "200": {
+            "description": "Histogram data"
+          }
+        }
+      }
+    },
+    "/api/v1/http/metrics": {
+      "get": {
+        "operationId": "httpMetrics",
+        "summary": "Get HTTP request metrics (latency, status codes)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP metrics snapshot"
+          }
+        }
+      }
+    },
+    "/api/v1/incidents": {
+      "get": {
+        "operationId": "listIncidents",
+        "summary": "List incidents",
+        "tags": [
+          "incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Incident list"
+          }
+        }
+      }
+    },
     "/api/v1/labels": {
       "get": {
         "operationId": "listLabels",
@@ -552,6 +684,34 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/notebooks": {
+      "get": {
+        "operationId": "listNotebooks",
+        "summary": "List query notebooks",
+        "tags": [
+          "notebooks"
+        ],
+        "responses": {
+          "200": {
+            "description": "Notebook list"
+          }
+        }
+      }
+    },
+    "/api/v1/plugins": {
+      "get": {
+        "operationId": "listPlugins",
+        "summary": "List installed plugins",
+        "tags": [
+          "plugins"
+        ],
+        "responses": {
+          "200": {
+            "description": "Plugin list"
           }
         }
       }
@@ -699,6 +859,66 @@
         }
       }
     },
+    "/api/v1/rules": {
+      "get": {
+        "operationId": "listAlertRules",
+        "summary": "List alert rules",
+        "tags": [
+          "alerting"
+        ],
+        "responses": {
+          "200": {
+            "description": "Rule list"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAlertRule",
+        "summary": "Create an alert rule",
+        "tags": [
+          "alerting"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule created"
+          },
+          "400": {
+            "description": "Invalid rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/views": {
+      "get": {
+        "operationId": "listViews",
+        "summary": "List materialized views",
+        "tags": [
+          "views"
+        ],
+        "responses": {
+          "200": {
+            "description": "View list"
+          }
+        }
+      }
+    },
     "/api/v1/write": {
       "post": {
         "operationId": "prometheusRemoteWrite",
@@ -764,6 +984,75 @@
         }
       }
     },
+    "/health/live": {
+      "get": {
+        "operationId": "healthLive",
+        "summary": "Kubernetes liveness probe",
+        "tags": [
+          "health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Alive"
+          },
+          "503": {
+            "description": "Not alive"
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "healthReady",
+        "summary": "Kubernetes readiness probe",
+        "tags": [
+          "health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready"
+          },
+          "503": {
+            "description": "Not ready"
+          }
+        }
+      }
+    },
+    "/prometheus/write": {
+      "post": {
+        "operationId": "prometheusRemoteWrite",
+        "summary": "Prometheus remote write endpoint",
+        "tags": [
+          "prometheus"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Write accepted"
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/query": {
       "post": {
         "operationId": "executeQuery",
@@ -806,6 +1095,52 @@
           },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schemas": {
+      "get": {
+        "operationId": "listSchemas",
+        "summary": "List registered metric schemas",
+        "tags": [
+          "schema"
+        ],
+        "responses": {
+          "200": {
+            "description": "Schema list"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSchema",
+        "summary": "Register a metric schema",
+        "tags": [
+          "schema"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schema registered"
+          },
+          "400": {
+            "description": "Invalid schema",
             "content": {
               "application/json": {
                 "schema": {
