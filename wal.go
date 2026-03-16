@@ -17,6 +17,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log/slog"
 	"os"
@@ -25,6 +26,10 @@ import (
 	"sync"
 	"time"
 )
+
+// walMaxEntrySize is the maximum size for a single WAL entry (64MB).
+// Entries larger than this are rejected to prevent OOM from corrupted length fields.
+const walMaxEntrySize = 64 * 1024 * 1024
 
 // WAL is a write-ahead log for crash recovery.
 type WAL struct {
@@ -38,10 +43,18 @@ type WAL struct {
 	maxSize      int64
 	retain       int
 
-	// syncErrors tracks consecutive sync errors for monitoring
+	// syncErrors tracks consecutive sync errors for monitoring.
+	// After walMaxConsecutiveSyncErrors failures, writes are rejected
+	// with ErrWALSync to prevent silent data loss.
 	syncErrors  int
-	onSyncError func(error) // optional callback for sync errors
+	syncFailed  bool         // true when consecutive errors exceed threshold
+	onSyncError func(error)  // optional callback for sync errors
 }
+
+// walMaxConsecutiveSyncErrors is the number of consecutive sync failures
+// before the WAL starts rejecting writes. This prevents silent data loss
+// when the underlying storage is permanently broken.
+const walMaxConsecutiveSyncErrors = 5
 
 // WALOption configures a WAL instance.
 type WALOption func(*WAL)
@@ -108,6 +121,10 @@ func (w *WAL) Write(points []Point) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	if w.syncFailed {
+		return ErrWALSync
+	}
+
 	if err := w.rotateIfNeeded(); err != nil {
 		return err
 	}
@@ -117,7 +134,12 @@ func (w *WAL) Write(points []Point) error {
 		return err
 	}
 
+	// WAL entry format: [4-byte length][4-byte CRC32][payload]
 	if err := binary.Write(w.writer, binary.LittleEndian, uint32(len(payload))); err != nil {
+		return err
+	}
+	checksum := crc32.ChecksumIEEE(payload)
+	if err := binary.Write(w.writer, binary.LittleEndian, checksum); err != nil {
 		return err
 	}
 	if _, err := w.writer.Write(payload); err != nil {
@@ -154,10 +176,30 @@ func (w *WAL) ReadAll() ([]Point, error) {
 		if length == 0 {
 			continue
 		}
+		if length > walMaxEntrySize {
+			slog.Warn("WAL: skipping oversized entry", "length", length, "max", walMaxEntrySize)
+			break // corrupted length field — stop reading
+		}
+
+		var storedChecksum uint32
+		if err := binary.Read(reader, binary.LittleEndian, &storedChecksum); err != nil {
+			if errors.Is(err, io.EOF) {
+				break // truncated entry at EOF
+			}
+			return nil, err
+		}
+
 		payload := make([]byte, length)
 		if _, err := io.ReadFull(reader, payload); err != nil {
 			return nil, err
 		}
+
+		// Validate checksum
+		if crc32.ChecksumIEEE(payload) != storedChecksum {
+			slog.Warn("WAL: checksum mismatch, skipping corrupted entry")
+			continue // skip corrupted entry, try to read next
+		}
+
 		points, err := decodePoints(payload)
 		if err != nil {
 			return nil, err
@@ -284,6 +326,12 @@ func (w *WAL) syncLoop() {
 				syncErr = &WALSyncError{FlushErr: flushErr, SyncErr: fileErr}
 				w.syncErrors++
 
+				if w.syncErrors >= walMaxConsecutiveSyncErrors && !w.syncFailed {
+					w.syncFailed = true
+					slog.Error("WAL sync circuit breaker OPEN: rejecting new writes",
+						"consecutive_errors", w.syncErrors)
+				}
+
 				// Log the error
 				slog.Error("WAL sync error", "count", w.syncErrors, "err", syncErr)
 
@@ -292,8 +340,12 @@ func (w *WAL) syncLoop() {
 					w.onSyncError(syncErr)
 				}
 			} else {
-				// Reset error counter on success
+				// Reset error counter and circuit breaker on success
+				if w.syncFailed {
+					slog.Info("WAL sync recovered, accepting writes again")
+				}
 				w.syncErrors = 0
+				w.syncFailed = false
 			}
 			w.mu.Unlock()
 		}
