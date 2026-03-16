@@ -47,6 +47,9 @@ type ProfileStore struct {
 	mu       sync.RWMutex
 	profiles map[string]*profileSeries
 	config   ProfileConfig
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
+	running  bool
 }
 
 type profileSeries struct {
@@ -97,6 +100,58 @@ func NewProfileStore(db *DB, config ProfileConfig) *ProfileStore {
 		db:       db,
 		profiles: make(map[string]*profileSeries),
 		config:   config,
+		stopCh:   make(chan struct{}),
+	}
+}
+
+// Start begins background profile garbage collection.
+func (ps *ProfileStore) Start() {
+	ps.mu.Lock()
+	if ps.running {
+		ps.mu.Unlock()
+		return
+	}
+	ps.running = true
+	ps.mu.Unlock()
+	ps.wg.Add(1)
+	go ps.gcLoop()
+}
+
+// Stop halts background GC and waits for it to complete.
+func (ps *ProfileStore) Stop() {
+	ps.mu.Lock()
+	if !ps.running {
+		ps.mu.Unlock()
+		return
+	}
+	ps.running = false
+	ps.mu.Unlock()
+	close(ps.stopCh)
+	ps.wg.Wait()
+}
+
+func (ps *ProfileStore) gcLoop() {
+	defer ps.wg.Done()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ps.stopCh:
+			return
+		case <-ticker.C:
+			ps.enforceAllRetention()
+		}
+	}
+}
+
+func (ps *ProfileStore) enforceAllRetention() {
+	if ps.config.RetentionDuration == 0 {
+		return
+	}
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	for _, series := range ps.profiles {
+		ps.enforceRetention(series)
 	}
 }
 

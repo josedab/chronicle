@@ -79,7 +79,10 @@ type SmartRetentionEngine struct {
 	migrations int64
 	lastEval   time.Time
 
-	mu sync.RWMutex
+	running bool
+	stopCh  chan struct{}
+	wg      sync.WaitGroup
+	mu      sync.RWMutex
 }
 
 // NewSmartRetentionEngine creates a new smart retention engine.
@@ -88,6 +91,51 @@ func NewSmartRetentionEngine(db *DB, cfg SmartRetentionConfig) *SmartRetentionEn
 		db:       db,
 		config:   cfg,
 		profiles: make(map[string]*SeriesAccessProfile),
+		stopCh:   make(chan struct{}),
+	}
+}
+
+// Start begins the background evaluation loop.
+func (sre *SmartRetentionEngine) Start() {
+	sre.mu.Lock()
+	if sre.running {
+		sre.mu.Unlock()
+		return
+	}
+	sre.running = true
+	sre.mu.Unlock()
+	sre.wg.Add(1)
+	go sre.evaluationLoop()
+}
+
+// Stop stops the background evaluation and waits for it to finish.
+func (sre *SmartRetentionEngine) Stop() {
+	sre.mu.Lock()
+	if !sre.running {
+		sre.mu.Unlock()
+		return
+	}
+	sre.running = false
+	sre.mu.Unlock()
+	close(sre.stopCh)
+	sre.wg.Wait()
+}
+
+func (sre *SmartRetentionEngine) evaluationLoop() {
+	defer sre.wg.Done()
+	interval := sre.config.EvaluationInterval
+	if interval <= 0 {
+		interval = 5 * time.Minute
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-sre.stopCh:
+			return
+		case <-ticker.C:
+			sre.Evaluate()
+		}
 	}
 }
 

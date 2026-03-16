@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -48,6 +49,7 @@ type Subscription struct {
 	closed  bool
 	mu      sync.Mutex
 	created time.Time
+	dropped atomic.Int64
 }
 
 // C returns the channel for receiving points.
@@ -65,6 +67,30 @@ func (s *Subscription) Close() {
 	s.closed = true
 	close(s.done)
 	close(s.ch)
+}
+
+// IsClosed returns whether the subscription has been closed.
+func (s *Subscription) IsClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
+// trySend attempts to send a point to the subscription channel.
+// Returns false if the buffer is full or the subscription is closed.
+func (s *Subscription) trySend(p Point) (sent bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			sent = false // channel was closed between check and send
+		}
+	}()
+	select {
+	case s.ch <- p:
+		return true
+	default:
+		s.dropped.Add(1)
+		return false
+	}
 }
 
 // StreamHub manages real-time subscriptions.
@@ -132,12 +158,7 @@ func (h *StreamHub) Publish(p Point) {
 		if !h.matches(sub, p) {
 			continue
 		}
-
-		select {
-		case sub.ch <- p:
-		default:
-			// Buffer full, drop the point
-		}
+		sub.trySend(p)
 	}
 }
 
@@ -169,6 +190,17 @@ func (h *StreamHub) Count() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.subs)
+}
+
+// TotalDropped returns the total number of dropped points across all subscriptions.
+func (h *StreamHub) TotalDropped() int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	var total int64
+	for _, sub := range h.subs {
+		total += sub.dropped.Load()
+	}
+	return total
 }
 
 // List returns all active subscription IDs.
