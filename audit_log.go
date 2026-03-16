@@ -1,9 +1,11 @@
 package chronicle
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -15,6 +17,13 @@ type AuditLogConfig struct {
 	LogWrites  bool `json:"log_writes"`
 	LogQueries bool `json:"log_queries"`
 	LogAdmin   bool `json:"log_admin"`
+	// PersistPath is the file path for persisting audit entries as JSON lines.
+	// When set, entries are appended to this file on each Log() call and
+	// replayed on Start(). When empty, entries are in-memory only.
+	PersistPath string `json:"persist_path,omitempty"`
+	// MaxFileSize is the maximum size in bytes before the persist file is
+	// rotated. The old file is renamed with a .1 suffix. Default: 50MB.
+	MaxFileSize int64 `json:"max_file_size,omitempty"`
 }
 
 // DefaultAuditLogConfig returns sensible defaults.
@@ -54,6 +63,7 @@ type AuditLogEngine struct {
 	nextID  int64
 	running bool
 	stopCh  chan struct{}
+	file    *os.File // persist file, nil when PersistPath is empty
 }
 
 // NewAuditLogEngine creates a new engine.
@@ -65,18 +75,26 @@ func NewAuditLogEngine(db *DB, cfg AuditLogConfig) *AuditLogEngine {
 	}
 }
 
-// Start starts the engine.
+// Start starts the engine. If PersistPath is configured, existing entries are
+// replayed from the file.
 func (e *AuditLogEngine) Start() {
 	e.mu.Lock()
+	defer e.mu.Unlock()
 	if e.running {
-		e.mu.Unlock()
 		return
 	}
 	e.running = true
-	e.mu.Unlock()
+
+	if e.config.PersistPath != "" {
+		e.replayFromFile()
+		f, err := os.OpenFile(e.config.PersistPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err == nil {
+			e.file = f
+		}
+	}
 }
 
-// Stop stops the engine.
+// Stop stops the engine and closes the persist file if open.
 func (e *AuditLogEngine) Stop() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -84,6 +102,10 @@ func (e *AuditLogEngine) Stop() {
 		return
 	}
 	e.running = false
+	if e.file != nil {
+		e.file.Close()
+		e.file = nil
+	}
 	close(e.stopCh)
 }
 
@@ -100,7 +122,8 @@ func (e *AuditLogEngine) isActionEnabled(action string) bool {
 	}
 }
 
-// Log records an audit entry.
+// Log records an audit entry. If file persistence is configured, the entry
+// is also appended to the persist file as a JSON line.
 func (e *AuditLogEngine) Log(action, actor, resource, details string, success bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -130,18 +153,61 @@ func (e *AuditLogEngine) Log(action, actor, resource, details string, success bo
 		excess := len(e.entries) - e.config.MaxEntries
 		e.entries = e.entries[excess:]
 	}
+
+	// Persist to file
+	if e.file != nil {
+		data, err := json.Marshal(entry)
+		if err == nil {
+			e.file.Write(append(data, '\n'))
+		}
+		e.maybeRotateFile()
+	}
+}
+
+// AuditQueryFilter provides criteria for filtering audit log entries.
+type AuditQueryFilter struct {
+	Action string    // Filter by action type (empty matches all)
+	Since  time.Time // Only entries at or after this time (zero means no lower bound)
+	Until  time.Time // Only entries at or before this time (zero means no upper bound)
+	Actor  string    // Filter by actor (empty matches all)
+	Limit  int       // Maximum entries to return (0 means default of 100)
 }
 
 // Query returns audit entries filtered by action.
 func (e *AuditLogEngine) Query(action string, limit int) []AuditRecord {
+	return e.QueryWithFilter(AuditQueryFilter{
+		Action: action,
+		Limit:  limit,
+	})
+}
+
+// QueryWithFilter returns audit entries matching the given filter criteria.
+// Results are returned in reverse chronological order (newest first).
+func (e *AuditLogEngine) QueryWithFilter(f AuditQueryFilter) []AuditRecord {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
+	limit := f.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+
 	var result []AuditRecord
 	for i := len(e.entries) - 1; i >= 0 && len(result) < limit; i-- {
-		if action == "" || e.entries[i].Action == action {
-			result = append(result, e.entries[i])
+		entry := e.entries[i]
+		if f.Action != "" && entry.Action != f.Action {
+			continue
 		}
+		if !f.Since.IsZero() && entry.Timestamp.Before(f.Since) {
+			continue
+		}
+		if !f.Until.IsZero() && entry.Timestamp.After(f.Until) {
+			continue
+		}
+		if f.Actor != "" && entry.Actor != f.Actor {
+			continue
+		}
+		result = append(result, entry)
 	}
 	return result
 }
@@ -170,9 +236,30 @@ func (e *AuditLogEngine) GetStats() AuditLogStats {
 // RegisterHTTPHandlers registers HTTP endpoints.
 func (e *AuditLogEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/audit/log/entries", func(w http.ResponseWriter, r *http.Request) {
-		action := sanitizeAuditAction(r.URL.Query().Get("action"))
+		q := r.URL.Query()
+		filter := AuditQueryFilter{
+			Action: sanitizeAuditAction(q.Get("action")),
+			Actor:  q.Get("actor"),
+			Limit:  100,
+		}
+		if sinceStr := q.Get("since"); sinceStr != "" {
+			t, err := time.Parse(time.RFC3339, sinceStr)
+			if err != nil {
+				writeError(w, "invalid since parameter: expected RFC3339 format", http.StatusBadRequest)
+				return
+			}
+			filter.Since = t
+		}
+		if untilStr := q.Get("until"); untilStr != "" {
+			t, err := time.Parse(time.RFC3339, untilStr)
+			if err != nil {
+				writeError(w, "invalid until parameter: expected RFC3339 format", http.StatusBadRequest)
+				return
+			}
+			filter.Until = t
+		}
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(e.Query(action, 100)); err != nil {
+		if err := json.NewEncoder(w).Encode(e.QueryWithFilter(filter)); err != nil {
 			internalError(w, err, "encoding response")
 		}
 	})
@@ -182,6 +269,56 @@ func (e *AuditLogEngine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			internalError(w, err, "encoding response")
 		}
 	})
+}
+
+// replayFromFile reads JSON lines from the persist file and restores entries.
+// Must be called with e.mu held.
+func (e *AuditLogEngine) replayFromFile() {
+	f, err := os.Open(e.config.PersistPath)
+	if err != nil {
+		return // file doesn't exist yet — nothing to replay
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		var entry AuditRecord
+		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
+			continue // skip corrupted lines
+		}
+		e.entries = append(e.entries, entry)
+		e.nextID++
+	}
+
+	// Apply max entries cap after replay
+	if e.config.MaxEntries > 0 && len(e.entries) > e.config.MaxEntries {
+		excess := len(e.entries) - e.config.MaxEntries
+		e.entries = e.entries[excess:]
+	}
+}
+
+// maybeRotateFile rotates the persist file if it exceeds MaxFileSize.
+// Must be called with e.mu held.
+func (e *AuditLogEngine) maybeRotateFile() {
+	maxSize := e.config.MaxFileSize
+	if maxSize <= 0 {
+		maxSize = 50 * 1024 * 1024 // 50MB default
+	}
+
+	info, err := e.file.Stat()
+	if err != nil || info.Size() < maxSize {
+		return
+	}
+
+	e.file.Close()
+	os.Rename(e.config.PersistPath, e.config.PersistPath+".1")
+	f, err := os.OpenFile(e.config.PersistPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err == nil {
+		e.file = f
+	} else {
+		e.file = nil
+	}
 }
 
 // sanitizeAuditAction validates and sanitizes the action query parameter to
