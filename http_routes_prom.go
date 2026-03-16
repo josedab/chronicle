@@ -19,7 +19,7 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			return
 		}
 		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
@@ -142,7 +142,7 @@ func handlePromQuery(db *DB, w http.ResponseWriter, r *http.Request, isRange boo
 			}
 		}
 	} else {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 

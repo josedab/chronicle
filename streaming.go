@@ -46,7 +46,8 @@ type Subscription struct {
 	Tags    map[string]string
 	ch      chan Point
 	done    chan struct{}
-	closed  bool
+	closeOnce sync.Once
+	closedFlag atomic.Bool
 	mu      sync.Mutex
 	created time.Time
 	dropped atomic.Int64
@@ -57,36 +58,31 @@ func (s *Subscription) C() <-chan Point {
 	return s.ch
 }
 
-// Close closes the subscription.
+// Close closes the subscription. Safe to call multiple times.
 func (s *Subscription) Close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return
-	}
-	s.closed = true
-	close(s.done)
-	close(s.ch)
+	s.closeOnce.Do(func() {
+		s.closedFlag.Store(true)
+		close(s.done)
+		close(s.ch)
+	})
 }
 
 // IsClosed returns whether the subscription has been closed.
 func (s *Subscription) IsClosed() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.closed
+	return s.closedFlag.Load()
 }
 
 // trySend attempts to send a point to the subscription channel.
 // Returns false if the buffer is full or the subscription is closed.
-func (s *Subscription) trySend(p Point) (sent bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			sent = false // channel was closed between check and send
-		}
-	}()
+func (s *Subscription) trySend(p Point) bool {
+	if s.closedFlag.Load() {
+		return false
+	}
 	select {
 	case s.ch <- p:
 		return true
+	case <-s.done:
+		return false
 	default:
 		s.dropped.Add(1)
 		return false

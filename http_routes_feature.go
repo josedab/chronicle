@@ -39,7 +39,7 @@ func setupFeatureRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 // handleForecast handles forecast API requests
 func handleForecast(db *DB, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -176,6 +176,6 @@ func handleHistogram(db *DB, w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

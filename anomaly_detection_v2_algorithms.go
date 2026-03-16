@@ -486,7 +486,7 @@ func (e *AnomalyDetectionV2Engine) AsPostWriteHook() WriteHook {
 func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/anomaly/v2/ingest", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var req struct {
@@ -495,7 +495,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 			Tags   map[string]string `json:"tags"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		result := e.Ingest(req.Metric, req.Value, req.Tags, time.Now())
@@ -507,7 +507,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/v1/anomaly/v2/anomalies", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -516,16 +516,16 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/v1/anomaly/v2/feedback", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var fb AnomalyFeedback
 		if err := json.NewDecoder(r.Body).Decode(&fb); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		if err := e.SubmitFeedback(fb); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			writeError(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -534,7 +534,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/v1/anomaly/v2/baselines", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		metric := r.URL.Query().Get("metric")
@@ -557,7 +557,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/v1/anomaly/v2/correlations", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -566,7 +566,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/v1/anomaly/v2/stats", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -575,7 +575,7 @@ func (e *AnomalyDetectionV2Engine) RegisterHTTPHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/v1/anomaly/v2/decompose", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		metric := r.URL.Query().Get("metric")

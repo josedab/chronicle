@@ -15,7 +15,7 @@ import (
 func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	mux.HandleFunc("/write", wrap(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
@@ -83,7 +83,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	mux.HandleFunc("/query", wrap(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)

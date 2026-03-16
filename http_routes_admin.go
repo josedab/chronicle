@@ -55,7 +55,7 @@ func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper, auth *
 
 	mux.HandleFunc("/metrics", wrap(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		writeJSON(w, db.Metrics())
@@ -116,14 +116,14 @@ func handleSchemas(db *DB, w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 // handleAlerts handles alert listing
 func handleAlerts(db *DB, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -199,6 +199,6 @@ func handleRules(db *DB, w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
