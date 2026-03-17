@@ -100,7 +100,11 @@ func (e *PointValidatorEngine) Stop() {
 		return
 	}
 	e.running = false
-	close(e.stopCh)
+	select {
+	case <-e.stopCh:
+	default:
+		close(e.stopCh)
+	}
 }
 
 // Validate checks a point and returns any validation errors.
@@ -157,6 +161,14 @@ func (e *PointValidatorEngine) Validate(p Point) []PointValidationError {
 
 	if e.config.MaxTagValueLen > 0 || e.config.MaxTagKeyLen > 0 || e.config.ValidateFormat {
 		for k, v := range p.Tags {
+			if k == "" {
+				errors = append(errors, PointValidationError{
+					Field:    "tags",
+					Message:  "empty tag key",
+					Severity: "error",
+				})
+				continue
+			}
 			if e.config.MaxTagKeyLen > 0 && len(k) > e.config.MaxTagKeyLen {
 				errors = append(errors, PointValidationError{
 					Field:    "tags." + k,
@@ -181,7 +193,13 @@ func (e *PointValidatorEngine) Validate(p Point) []PointValidationError {
 		}
 	}
 
-	if e.config.MaxTimestampSkew > 0 && p.Timestamp != 0 {
+	if p.Timestamp <= 0 {
+		errors = append(errors, PointValidationError{
+			Field:    "timestamp",
+			Message:  "timestamp must be a positive Unix nanosecond value",
+			Severity: "warning",
+		})
+	} else if e.config.MaxTimestampSkew > 0 {
 		now := time.Now().UnixNano()
 		skew := now - p.Timestamp
 		if skew < 0 {
