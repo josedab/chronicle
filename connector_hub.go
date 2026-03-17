@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -452,6 +453,7 @@ func (h *ConnectorHub) healthCheckLoop() {
 func (h *ConnectorHub) registerBuiltinDrivers() {
 	h.drivers["stdout"] = func() ConnectorDriver { return &stdoutConnectorDriver{} }
 	h.drivers["noop"] = func() ConnectorDriver { return &noopConnectorDriver{} }
+	h.drivers["file"] = func() ConnectorDriver { return &fileConnectorDriver{} }
 }
 
 // stdoutConnectorDriver writes points to stdout as JSON (useful for debugging).
@@ -484,8 +486,64 @@ func (d *noopConnectorDriver) Read(_ int) ([]Point, error)          { return nil
 func (d *noopConnectorDriver) HealthCheck() error                   { return nil }
 func (d *noopConnectorDriver) Close() error                         { return nil }
 
+// fileConnectorDriver writes points as JSON lines to a file (for persistent export).
+type fileConnectorDriver struct {
+	mu   sync.Mutex
+	path string
+	file *os.File
+}
+
+func (d *fileConnectorDriver) Name() string        { return "file" }
+func (d *fileConnectorDriver) Type() ConnectorType  { return ConnectorTypeSink }
+func (d *fileConnectorDriver) HealthCheck() error   { return nil }
+
+func (d *fileConnectorDriver) Initialize(config map[string]string) error {
+	d.path = config["path"]
+	if d.path == "" {
+		return fmt.Errorf("file driver requires 'path' property")
+	}
+	f, err := os.OpenFile(d.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	d.file = f
+	return nil
+}
+
+func (d *fileConnectorDriver) Write(points []Point) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.file == nil {
+		return fmt.Errorf("file driver not initialized")
+	}
+	for _, p := range points {
+		data, err := json.Marshal(p)
+		if err != nil {
+			continue
+		}
+		d.file.Write(append(data, '\n'))
+	}
+	return nil
+}
+
+func (d *fileConnectorDriver) Read(_ int) ([]Point, error) {
+	return nil, fmt.Errorf("file driver is sink-only")
+}
+
+func (d *fileConnectorDriver) Close() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.file != nil {
+		err := d.file.Close()
+		d.file = nil
+		return err
+	}
+	return nil
+}
+
 // Ensure drivers implement the interface.
 var (
 	_ ConnectorDriver = (*stdoutConnectorDriver)(nil)
 	_ ConnectorDriver = (*noopConnectorDriver)(nil)
+	_ ConnectorDriver = (*fileConnectorDriver)(nil)
 )

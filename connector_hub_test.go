@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -180,4 +181,98 @@ func TestConnectorHubGlobalStartStop(t *testing.T) {
 	hub := NewConnectorHub(db, config)
 	hub.Start()
 	hub.Stop()
+}
+
+func TestConnectorHubFileDriver(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	hub := NewConnectorHub(db, DefaultConnectorHubConfig())
+
+	outPath := t.TempDir() + "/export.jsonl"
+
+	t.Run("FileDriverRegistered", func(t *testing.T) {
+		drivers := hub.ListDrivers()
+		found := false
+		for _, d := range drivers {
+			if d == "file" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("expected file driver to be registered")
+		}
+	})
+
+	t.Run("CreateAndStartFileConnector", func(t *testing.T) {
+		err := hub.CreateConnector(ConnectorConfig{
+			Name:   "file-sink",
+			Type:   ConnectorTypeSink,
+			Driver: "file",
+			Properties: map[string]string{
+				"path": outPath,
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateConnector: %v", err)
+		}
+
+		err = hub.StartConnector("file-sink")
+		if err != nil {
+			t.Fatalf("StartConnector: %v", err)
+		}
+
+		inst, ok := hub.GetConnector("file-sink")
+		if !ok {
+			t.Fatal("connector not found")
+		}
+		if inst.Status != ConnectorStatusRunning {
+			t.Errorf("expected running, got %s", inst.Status)
+		}
+
+		hub.StopConnector("file-sink")
+	})
+
+	t.Run("FileDriverMissingPath", func(t *testing.T) {
+		err := hub.CreateConnector(ConnectorConfig{
+			Name:       "file-no-path",
+			Type:       ConnectorTypeSink,
+			Driver:     "file",
+			Properties: map[string]string{},
+		})
+		if err != nil {
+			t.Fatalf("CreateConnector: %v", err)
+		}
+
+		err = hub.StartConnector("file-no-path")
+		if err == nil {
+			t.Error("expected error for missing path")
+		}
+	})
+
+	t.Run("FileDriverDirectWrite", func(t *testing.T) {
+		driver := &fileConnectorDriver{}
+		filePath := t.TempDir() + "/direct.jsonl"
+		err := driver.Initialize(map[string]string{"path": filePath})
+		if err != nil {
+			t.Fatalf("Initialize: %v", err)
+		}
+
+		points := []Point{
+			{Metric: "cpu.usage", Value: 42.5, Timestamp: time.Now().UnixNano()},
+			{Metric: "mem.used", Value: 1024, Timestamp: time.Now().UnixNano()},
+		}
+		if err := driver.Write(points); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+		driver.Close()
+
+		info, err := os.Stat(filePath)
+		if err != nil {
+			t.Fatalf("file not created: %v", err)
+		}
+		if info.Size() == 0 {
+			t.Error("expected non-empty file")
+		}
+	})
 }
