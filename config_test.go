@@ -438,6 +438,30 @@ func TestConfig_Validate_AuthWithKeys(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_ZeroValues(t *testing.T) {
+	cfg := DefaultConfig("/test/path.db")
+	cfg.Storage.PartitionDuration = 0
+	cfg.PartitionDuration = 0 // also clear legacy field to prevent normalize() from restoring
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error for zero PartitionDuration")
+	}
+	if !strings.Contains(err.Error(), "PartitionDuration") {
+		t.Errorf("expected PartitionDuration error, got: %v", err)
+	}
+
+	cfg2 := DefaultConfig("/test/path.db")
+	cfg2.Storage.BufferSize = 0
+	cfg2.BufferSize = 0 // also clear legacy field
+	err = cfg2.Validate()
+	if err == nil {
+		t.Fatal("expected validation error for zero BufferSize")
+	}
+	if !strings.Contains(err.Error(), "BufferSize") {
+		t.Errorf("expected BufferSize error, got: %v", err)
+	}
+}
+
 func TestConfig_Validate_LegacyFields(t *testing.T) {
 	cfg := Config{
 		Path:              "/test/path.db",

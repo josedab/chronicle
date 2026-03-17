@@ -227,3 +227,41 @@ func TestConfigReloadEngine_NoWatchWithoutPath(t *testing.T) {
 		t.Errorf("expected 0 watch errors without path, got %d", stats.WatchErrors)
 	}
 }
+
+func TestConfigReloadEngine_RejectsInvalidHotReload(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	baseCfg := db.config
+	e := NewConfigReloadEngine(db, ConfigReloadConfig{Enabled: true})
+	e.Start()
+	defer e.Stop()
+
+	t.Run("RejectsZeroBufferSize", func(t *testing.T) {
+		badCfg := baseCfg
+		badCfg.Storage.BufferSize = 0
+		badCfg.BufferSize = 0
+		_, err := e.Apply(badCfg)
+		if err == nil {
+			t.Error("expected error for zero BufferSize")
+		}
+	})
+
+	t.Run("RejectsNegativeRateLimit", func(t *testing.T) {
+		badCfg := baseCfg
+		badCfg.RateLimitPerSecond = -1
+		_, err := e.Apply(badCfg)
+		if err == nil {
+			t.Error("expected error for negative RateLimitPerSecond")
+		}
+	})
+
+	t.Run("AcceptsValidReload", func(t *testing.T) {
+		goodCfg := baseCfg
+		goodCfg.RateLimitPerSecond = 2000
+		_, err := e.Apply(goodCfg)
+		if err != nil {
+			t.Errorf("unexpected error for valid reload: %v", err)
+		}
+	})
+}

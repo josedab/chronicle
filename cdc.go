@@ -122,6 +122,7 @@ type CDCEngine struct {
 	buffer   []ChangeEvent
 	bufferMu sync.Mutex
 
+	sequence        atomic.Uint64 // monotonic sequence for gap detection
 	totalEvents     int64
 	eventsPublished int64
 	eventsDropped   int64
@@ -216,6 +217,7 @@ func (e *CDCEngine) Unsubscribe(id string) {
 
 // Emit publishes a change event to all matching subscribers.
 func (e *CDCEngine) Emit(event ChangeEvent) {
+	event.Sequence = e.sequence.Add(1)
 	atomic.AddInt64(&e.totalEvents, 1)
 
 	if !e.matchesGlobalFilter(&event) {

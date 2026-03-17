@@ -89,6 +89,7 @@ type Version struct {
 // ChangeEvent represents a change data capture event.
 type ChangeEvent struct {
 	ID        string            `json:"id"`
+	Sequence  uint64            `json:"sequence"` // monotonic sequence for gap detection
 	Timestamp int64             `json:"timestamp"`
 	Operation CDCOp             `json:"operation"`
 	Metric    string            `json:"metric"`

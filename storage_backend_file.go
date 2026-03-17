@@ -12,6 +12,7 @@ import (
 // FileBackend implements StorageBackend using the local filesystem.
 type FileBackend struct {
 	baseDir string
+	closed  bool
 }
 
 // NewFileBackend creates a new file-based storage backend.
@@ -88,7 +89,10 @@ func (f *FileBackend) List(ctx context.Context, prefix string) ([]string, error)
 			return err
 		}
 		if !info.IsDir() {
-			rel, _ := filepath.Rel(f.baseDir, path)
+			rel, relErr := filepath.Rel(f.baseDir, path)
+			if relErr != nil {
+				return nil // skip entries where relative path cannot be computed
+			}
 			keys = append(keys, rel)
 		}
 		return nil
@@ -110,5 +114,9 @@ func (f *FileBackend) Exists(ctx context.Context, key string) (bool, error) {
 }
 
 func (f *FileBackend) Close() error {
+	if f.closed {
+		return errors.New("file backend already closed")
+	}
+	f.closed = true
 	return nil
 }

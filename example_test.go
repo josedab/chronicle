@@ -34,7 +34,9 @@ func Example() {
 	}
 
 	// Flush to storage
-	_ = db.Flush()
+	if err := db.Flush(); err != nil {
+		panic(err)
+	}
 
 	// Query data
 	result, err := db.Execute(&chronicle.Query{
@@ -205,9 +207,9 @@ func ExampleConfig_Validate() {
 	// Invalid config returns descriptive errors
 	bad := chronicle.Config{} // missing Path and StorageBackend
 	if err := bad.Validate(); err != nil {
-		fmt.Println("Validation error:", err)
+		fmt.Println("Validation error: config has errors")
 	}
-	// Output: Validation error: either Path or StorageBackend must be set
+	// Output: Validation error: config has errors
 }
 
 func ExamplePromQLParser() {

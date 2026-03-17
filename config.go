@@ -443,9 +443,13 @@ func (c *Config) Validate() error {
 
 	if c.Storage.PartitionDuration < 0 {
 		errs = append(errs, fmt.Errorf("Storage.PartitionDuration must be non-negative, got %v", c.Storage.PartitionDuration))
+	} else if c.Storage.PartitionDuration == 0 {
+		errs = append(errs, fmt.Errorf("Storage.PartitionDuration must be positive (zero causes division-by-zero in partition math)"))
 	}
 	if c.Storage.BufferSize < 0 {
 		errs = append(errs, fmt.Errorf("Storage.BufferSize must be non-negative, got %d", c.Storage.BufferSize))
+	} else if c.Storage.BufferSize == 0 {
+		errs = append(errs, fmt.Errorf("Storage.BufferSize must be positive (zero disables write buffering)"))
 	}
 	if c.Storage.MaxMemory < 0 {
 		errs = append(errs, fmt.Errorf("Storage.MaxMemory must be non-negative, got %d", c.Storage.MaxMemory))

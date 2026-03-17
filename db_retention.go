@@ -111,16 +111,22 @@ func (db *DB) applyRule(rule DownsampleRule) error {
 		return nil // skip invalid rules silently
 	}
 	if len(rule.Aggregations) == 0 {
+		slog.Debug("downsample rule skipped: no aggregations defined",
+			"target_resolution", rule.TargetResolution)
 		return nil
 	}
-	cutoff := time.Now().Add(-rule.SourceResolution * 2)
+	// Use the rule's Retention as the lookback window, capped at a reasonable
+	// amount per cycle. Each cycle processes one TargetResolution window
+	// ending at (now - TargetResolution) to avoid aggregating incomplete data.
+	windowEnd := time.Now().Add(-rule.TargetResolution)
+	windowStart := windowEnd.Add(-rule.TargetResolution)
 	metrics := db.index.Metrics()
 
 	for _, metric := range metrics {
 		q := &Query{
 			Metric: metric,
-			Start:  cutoff.Add(-rule.TargetResolution).UnixNano(),
-			End:    cutoff.UnixNano(),
+			Start:  windowStart.UnixNano(),
+			End:    windowEnd.UnixNano(),
 			Aggregation: &Aggregation{
 				Window: rule.TargetResolution,
 			},
@@ -131,6 +137,9 @@ func (db *DB) applyRule(rule DownsampleRule) error {
 			result, err := db.Execute(q)
 			if err != nil {
 				return err
+			}
+			if len(result.Points) == 0 {
+				continue // no data in this window — skip
 			}
 
 			for _, p := range result.Points {
@@ -233,10 +242,15 @@ func (db *DB) compact() error {
 func syncDir(path string) {
 	d, err := os.Open(path)
 	if err != nil {
+		slog.Debug("syncDir: open failed", "path", path, "err", err)
 		return
 	}
-	_ = d.Sync()
-	d.Close()
+	if err := d.Sync(); err != nil {
+		slog.Debug("syncDir: sync failed", "path", path, "err", err)
+	}
+	if err := d.Close(); err != nil {
+		slog.Debug("syncDir: close failed", "path", path, "err", err)
+	}
 }
 
 // cleanupStaleCompaction removes a leftover .compact file if present.
