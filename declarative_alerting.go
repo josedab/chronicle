@@ -377,6 +377,11 @@ func (e *DeclarativeAlertingEngine) EvaluateAlert(name string) (bool, error) {
 }
 
 func (e *DeclarativeAlertingEngine) evaluateConditions(def AlertDefinition) bool {
+	// Check silence windows — skip evaluation if alert is silenced
+	if e.isSilenced(def) {
+		return false
+	}
+
 	logic := strings.ToLower(def.Spec.Logic)
 	if logic == "" {
 		logic = "and"
@@ -412,23 +417,28 @@ func (e *DeclarativeAlertingEngine) evaluateCondition(spec AlertConditionSpec, m
 	}
 
 	now := time.Now()
-	window := 5 * time.Minute
+	window := time.Hour // default lookback for evaluation
 	if spec.Window != "" {
-		if d, err := time.ParseDuration(spec.Window); err == nil {
+		if d, err := time.ParseDuration(spec.Window); err == nil && d > 0 {
 			window = d
 		}
 	}
-	_ = window //nolint:errcheck // window reserved for future use
+	// Ensure minimum lookback covers at least one full partition duration
+	// to prevent missing recently flushed data in the B-tree index.
+	if window < time.Hour {
+		window = time.Hour
+	}
 
-	// Use Start: 0 to ensure BTree range scan finds partitions containing recent writes
+	// Bound query to the evaluation window to prevent full table scans
 	end := now.Add(time.Second).UnixNano()
+	start := now.Add(-window).UnixNano()
 
 	switch spec.Type {
 	case "absent":
 		result, err := e.db.Execute(&Query{
 			Metric: metric,
 			Tags:   tags,
-			Start:  0,
+			Start:  start,
 			End:    end,
 		})
 		if err != nil {
@@ -440,7 +450,7 @@ func (e *DeclarativeAlertingEngine) evaluateCondition(spec AlertConditionSpec, m
 		result, err := e.db.Execute(&Query{
 			Metric: metric,
 			Tags:   tags,
-			Start:  0,
+			Start:  start,
 			End:    end,
 		})
 		if err != nil || len(result.Points) < 2 {
@@ -455,7 +465,7 @@ func (e *DeclarativeAlertingEngine) evaluateCondition(spec AlertConditionSpec, m
 		result, err := e.db.Execute(&Query{
 			Metric: metric,
 			Tags:   tags,
-			Start:  0,
+			Start:  start,
 			End:    end,
 		})
 		if err != nil || len(result.Points) == 0 {
@@ -464,6 +474,37 @@ func (e *DeclarativeAlertingEngine) evaluateCondition(spec AlertConditionSpec, m
 		value := result.Points[len(result.Points)-1].Value
 		return compareValue(value, spec.Operator, spec.Value), nil
 	}
+}
+
+// isSilenced checks whether the alert is in an active silence window.
+func (e *DeclarativeAlertingEngine) isSilenced(def AlertDefinition) bool {
+	now := time.Now()
+	weekday := now.Weekday().String()
+
+	for _, s := range def.Spec.Silences {
+		// Check time-of-day window
+		if s.StartTime != "" && s.EndTime != "" {
+			startT, err1 := time.Parse("15:04", s.StartTime)
+			endT, err2 := time.Parse("15:04", s.EndTime)
+			if err1 == nil && err2 == nil {
+				currentMinutes := now.Hour()*60 + now.Minute()
+				startMinutes := startT.Hour()*60 + startT.Minute()
+				endMinutes := endT.Hour()*60 + endT.Minute()
+				if currentMinutes >= startMinutes && currentMinutes <= endMinutes {
+					return true
+				}
+			}
+		}
+		// Check weekday-based silence
+		if len(s.Weekdays) > 0 {
+			for _, wd := range s.Weekdays {
+				if strings.EqualFold(wd, weekday) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func compareValue(value float64, operator string, threshold float64) bool {

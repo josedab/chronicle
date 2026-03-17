@@ -76,7 +76,7 @@ func NewCrossAlertEngine(db *DB, cfg CrossAlertConfig) *CrossAlertEngine {
 	}
 }
 
-// Start begins the cross-alert engine.
+// Start begins the cross-alert engine with background evaluation.
 func (e *CrossAlertEngine) Start() {
 	e.mu.Lock()
 	if e.running {
@@ -85,6 +85,7 @@ func (e *CrossAlertEngine) Start() {
 	}
 	e.running = true
 	e.mu.Unlock()
+	go e.evaluationLoop()
 }
 
 // Stop halts the cross-alert engine.
@@ -95,7 +96,68 @@ func (e *CrossAlertEngine) Stop() {
 		return
 	}
 	e.running = false
-	close(e.stopCh)
+	select {
+	case <-e.stopCh:
+	default:
+		close(e.stopCh)
+	}
+}
+
+// evaluationLoop runs periodic evaluation of all cross-alert rules.
+func (e *CrossAlertEngine) evaluationLoop() {
+	interval := e.config.EvalInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			e.evaluateFromDB()
+		}
+	}
+}
+
+// evaluateFromDB fetches the latest value for each metric referenced in rules
+// and runs evaluation. This enables automated background alerting.
+func (e *CrossAlertEngine) evaluateFromDB() {
+	if e.db == nil {
+		return
+	}
+	e.mu.RLock()
+	needed := make(map[string]struct{})
+	for _, rule := range e.rules {
+		for _, cond := range rule.Conditions {
+			needed[cond.Metric] = struct{}{}
+		}
+	}
+	e.mu.RUnlock()
+
+	if len(needed) == 0 {
+		return
+	}
+
+	now := time.Now().UnixNano()
+	lookback := time.Now().Add(-5 * time.Minute).UnixNano()
+	metrics := make(map[string]float64, len(needed))
+	for metric := range needed {
+		result, err := e.db.Execute(&Query{
+			Metric: metric,
+			Start:  lookback,
+			End:    now,
+			Limit:  1,
+		})
+		if err != nil || result == nil || len(result.Points) == 0 {
+			continue
+		}
+		metrics[metric] = result.Points[len(result.Points)-1].Value
+	}
+	if len(metrics) > 0 {
+		e.Evaluate(metrics)
+	}
 }
 
 // AddRule registers a new cross-alert rule.
