@@ -233,6 +233,24 @@ func (r *SchemaRegistry) Validate(p Point) error {
 	// Validate value constraints (for the primary value field)
 	for _, fieldSchema := range schema.Fields {
 		if fieldSchema.Name == "value" || fieldSchema.Name == "" {
+			// Check value type compatibility
+			switch fieldSchema.Type {
+			case FieldTypeInt64:
+				if p.Value != float64(int64(p.Value)) {
+					errs = append(errs, ValidationError{
+						Field:   "value",
+						Message: fmt.Sprintf("value %v is not a valid integer", p.Value),
+					})
+				}
+			case FieldTypeBool:
+				if p.Value != 0 && p.Value != 1 {
+					errs = append(errs, ValidationError{
+						Field:   "value",
+						Message: fmt.Sprintf("value %v is not a valid boolean (must be 0 or 1)", p.Value),
+					})
+				}
+			}
+
 			if fieldSchema.MinValue != nil && p.Value < *fieldSchema.MinValue {
 				errs = append(errs, ValidationError{
 					Field:   "value",

@@ -312,6 +312,26 @@ func (dc *DataContractEngine) CheckPoint(p Point) error {
 }
 
 func (dc *DataContractEngine) evaluateRule(contract *DataContract, rule ContractRule, p Point) *ContractViolation {
+	// Dispatch by rule type for non-range rules
+	switch rule.Type {
+	case ContractRuleFreshness:
+		return dc.evaluateFreshnessRule(contract, rule, p)
+	case ContractRuleCardinality:
+		return dc.evaluateCardinalityRule(contract, rule, p)
+	case ContractRuleNotNull:
+		// Check that the point has a valid (non-zero) value
+		if p.Value == 0 && len(p.Tags) == 0 {
+			dc.violationCounter++
+			return &ContractViolation{
+				ID: fmt.Sprintf("cv-%d", dc.violationCounter), ContractID: contract.ID,
+				RuleName: rule.Name, Metric: p.Metric, Severity: rule.Severity,
+				Message: "point has null/zero value with no tags", Timestamp: time.Now(), Tags: p.Tags,
+			}
+		}
+		return nil
+	}
+
+	// Default: range-based evaluation
 	var violated bool
 	actualValue := p.Value
 
@@ -357,6 +377,74 @@ func (dc *DataContractEngine) evaluateRule(contract *DataContract, rule Contract
 		Timestamp:   time.Now(),
 		Tags:        p.Tags,
 	}
+}
+
+// evaluateFreshnessRule checks that the point's timestamp is within the
+// configured threshold of the current time. Threshold is in seconds.
+func (dc *DataContractEngine) evaluateFreshnessRule(contract *DataContract, rule ContractRule, p Point) *ContractViolation {
+	maxAge := time.Duration(rule.Threshold) * time.Second
+	if maxAge <= 0 {
+		maxAge = 5 * time.Minute // default: 5 minutes
+	}
+	pointAge := time.Since(time.Unix(0, p.Timestamp))
+	if pointAge > maxAge {
+		dc.violationCounter++
+		return &ContractViolation{
+			ID: fmt.Sprintf("cv-%d", dc.violationCounter), ContractID: contract.ID,
+			RuleName: rule.Name, Metric: p.Metric, ActualValue: pointAge.Seconds(),
+			Threshold: maxAge.Seconds(), Severity: rule.Severity,
+			Message:  fmt.Sprintf("data freshness violation: point age %.1fs exceeds threshold %.1fs", pointAge.Seconds(), maxAge.Seconds()),
+			Timestamp: time.Now(), Tags: p.Tags,
+		}
+	}
+	return nil
+}
+
+// evaluateCardinalityRule checks that the number of unique tag values for the
+// specified field does not exceed the configured threshold.
+func (dc *DataContractEngine) evaluateCardinalityRule(contract *DataContract, rule ContractRule, p Point) *ContractViolation {
+	maxCardinality := int(rule.Threshold)
+	if maxCardinality <= 0 {
+		return nil
+	}
+	tagKey := rule.Field
+	if tagKey == "" {
+		tagKey = "all" // check total tag count
+	}
+
+	dc.mu.RLock()
+	prof, ok := dc.profiles[p.Metric]
+	dc.mu.RUnlock()
+
+	if !ok || tagKey == "all" {
+		// Check total tag count on this point
+		if len(p.Tags) > maxCardinality {
+			dc.violationCounter++
+			return &ContractViolation{
+				ID: fmt.Sprintf("cv-%d", dc.violationCounter), ContractID: contract.ID,
+				RuleName: rule.Name, Metric: p.Metric,
+				ActualValue: float64(len(p.Tags)), Threshold: rule.Threshold,
+				Severity: rule.Severity,
+				Message:  fmt.Sprintf("cardinality violation: %d tags exceeds threshold %d", len(p.Tags), maxCardinality),
+				Timestamp: time.Now(), Tags: p.Tags,
+			}
+		}
+		return nil
+	}
+
+	// Check profile-tracked cardinality for this metric
+	if prof.Count > int64(maxCardinality) {
+		dc.violationCounter++
+		return &ContractViolation{
+			ID: fmt.Sprintf("cv-%d", dc.violationCounter), ContractID: contract.ID,
+			RuleName: rule.Name, Metric: p.Metric,
+			ActualValue: float64(prof.Count), Threshold: rule.Threshold,
+			Severity: rule.Severity,
+			Message:  fmt.Sprintf("cardinality violation: estimated series count %d exceeds threshold %d", prof.Count, maxCardinality),
+			Timestamp: time.Now(), Tags: p.Tags,
+		}
+	}
+	return nil
 }
 
 func (dc *DataContractEngine) matchMetric(pattern, metric string) bool {
