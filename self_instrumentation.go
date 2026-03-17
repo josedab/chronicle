@@ -63,6 +63,12 @@ type SelfInstrumentationEngine struct {
 	writeLatencies *latencyHistogram
 	queryLatencies *latencyHistogram
 
+	// Optional SLO integration. When set, RecordWrite/RecordQuery
+	// automatically record good/bad events to the SLO engine.
+	sloEngine  *SLOEngine
+	sloWriteName string // SLO name for write availability
+	sloQueryName string // SLO name for query availability
+
 	running bool
 	stopCh  chan struct{}
 }
@@ -139,7 +145,7 @@ func (e *SelfInstrumentationEngine) Start() {
 }
 
 func (e *SelfInstrumentationEngine) Stop() {
-	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; close(e.stopCh)
+	e.mu.Lock(); defer e.mu.Unlock(); if !e.running { return }; e.running = false; select { case <-e.stopCh: default: close(e.stopCh) }
 }
 
 // RecordWrite records a write operation.
@@ -150,6 +156,9 @@ func (e *SelfInstrumentationEngine) RecordWrite(points int, bytes int64, latency
 	e.writeLatencySum.Add(latencyNs)
 	e.writeLatencies.record(float64(latencyNs) / 1e6) // ns → ms
 	if err { e.writeErrors.Add(1) }
+	if e.sloEngine != nil && e.sloWriteName != "" {
+		e.sloEngine.RecordEvent(e.sloWriteName, !err) //nolint:errcheck
+	}
 }
 
 // RecordQuery records a query operation.
@@ -158,11 +167,24 @@ func (e *SelfInstrumentationEngine) RecordQuery(latencyNs int64, err bool) {
 	e.queryLatencySum.Add(latencyNs)
 	e.queryLatencies.record(float64(latencyNs) / 1e6)
 	if err { e.queryErrors.Add(1) }
+	if e.sloEngine != nil && e.sloQueryName != "" {
+		e.sloEngine.RecordEvent(e.sloQueryName, !err) //nolint:errcheck
+	}
 }
 
 // RecordRejectedWrite records a write that was rejected (rate limit, validation, etc).
 func (e *SelfInstrumentationEngine) RecordRejectedWrite() {
 	e.writesRejected.Add(1)
+}
+
+// SetSLOEngine wires an SLO engine for automatic event recording.
+// writeSLO and querySLO are the SLO names to record events for.
+func (e *SelfInstrumentationEngine) SetSLOEngine(slo *SLOEngine, writeSLO, querySLO string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.sloEngine = slo
+	e.sloWriteName = writeSLO
+	e.sloQueryName = querySLO
 }
 
 // Collect returns all current self-metrics.
@@ -188,7 +210,7 @@ func (e *SelfInstrumentationEngine) Collect() []SelfMetric {
 	cacheHit := e.cacheHitRate
 	e.mu.RUnlock()
 
-	return []SelfMetric{
+	metrics := []SelfMetric{
 		{Name: "chronicle_writes_total", Value: float64(writes), Unit: "1", Type: "counter", Description: "Total write operations"},
 		{Name: "chronicle_write_errors_total", Value: float64(e.writeErrors.Load()), Unit: "1", Type: "counter", Description: "Total write errors"},
 		{Name: "chronicle_writes_rejected_total", Value: float64(e.writesRejected.Load()), Unit: "1", Type: "counter", Description: "Total writes rejected by rate limiting or validation"},
@@ -209,6 +231,17 @@ func (e *SelfInstrumentationEngine) Collect() []SelfMetric {
 		{Name: "chronicle_metrics_count", Value: float64(metricCnt), Unit: "1", Type: "gauge", Description: "Number of unique metrics"},
 		{Name: "chronicle_cache_hit_rate", Value: cacheHit, Unit: "ratio", Type: "gauge", Description: "Query cache hit rate"},
 	}
+
+	// Add replication metrics if replicator is active
+	if e.db != nil && e.db.lifecycle != nil && e.db.lifecycle.replicator != nil {
+		r := e.db.lifecycle.replicator
+		metrics = append(metrics,
+			SelfMetric{Name: "chronicle_replication_dropped_total", Value: float64(r.DroppedPoints()), Unit: "1", Type: "counter", Description: "Points permanently lost due to replication DLQ overflow"},
+			SelfMetric{Name: "chronicle_replication_dlq_length", Value: float64(r.DLQLen()), Unit: "1", Type: "gauge", Description: "Points awaiting retry in dead-letter queue"},
+		)
+	}
+
+	return metrics
 }
 
 // PrometheusExposition returns metrics in Prometheus text format.
@@ -245,6 +278,10 @@ func (e *SelfInstrumentationEngine) collectLoop() {
 			e.mu.Lock()
 			if e.db != nil {
 				e.metricCount = len(e.db.Metrics())
+				e.partitionCount = e.db.index.Count()
+				if e.db.wal != nil {
+					e.walSizeBytes = e.db.wal.Position()
+				}
 			}
 			e.mu.Unlock()
 		}

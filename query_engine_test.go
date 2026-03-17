@@ -371,3 +371,80 @@ func TestQueryEngine_WithCBO(t *testing.T) {
 		t.Fatal("expected non-nil result")
 	}
 }
+
+func TestQueryEngine_WithConfig(t *testing.T) {
+	db := setupTestDB(t)
+	writeTestData(t, db, "qe.cfg", 10)
+
+	t.Run("ExecuteWithTimeoutConfig", func(t *testing.T) {
+		qe := NewQueryEngineWithConfig(db, QueryEngineConfig{
+			MaxQueryDuration: 5 * time.Second,
+		})
+		result, err := qe.Execute(&Query{
+			Metric: "qe.cfg",
+			Start:  0,
+			End:    time.Now().Add(time.Hour).UnixNano(),
+		})
+		if err != nil {
+			t.Fatalf("Execute with timeout config: %v", err)
+		}
+		if len(result.Points) != 10 {
+			t.Errorf("expected 10 points, got %d", len(result.Points))
+		}
+	})
+
+	t.Run("ExecuteContextWithTimeoutConfig", func(t *testing.T) {
+		qe := NewQueryEngineWithConfig(db, QueryEngineConfig{
+			MaxQueryDuration: 5 * time.Second,
+		})
+		ctx := context.Background()
+		result, err := qe.ExecuteContext(ctx, &Query{
+			Metric: "qe.cfg",
+			Start:  0,
+			End:    time.Now().Add(time.Hour).UnixNano(),
+		})
+		if err != nil {
+			t.Fatalf("ExecuteContext with timeout config: %v", err)
+		}
+		if len(result.Points) != 10 {
+			t.Errorf("expected 10 points, got %d", len(result.Points))
+		}
+	})
+
+	t.Run("ExecuteContextRespectsExistingDeadline", func(t *testing.T) {
+		qe := NewQueryEngineWithConfig(db, QueryEngineConfig{
+			MaxQueryDuration: 10 * time.Second,
+		})
+		// Set a tighter deadline than MaxQueryDuration
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		result, err := qe.ExecuteContext(ctx, &Query{
+			Metric: "qe.cfg",
+			Start:  0,
+			End:    time.Now().Add(time.Hour).UnixNano(),
+		})
+		if err != nil {
+			t.Fatalf("ExecuteContext with existing deadline: %v", err)
+		}
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+	})
+
+	t.Run("NoTimeoutWhenZero", func(t *testing.T) {
+		qe := NewQueryEngineWithConfig(db, QueryEngineConfig{
+			MaxQueryDuration: 0, // no timeout
+		})
+		result, err := qe.Execute(&Query{
+			Metric: "qe.cfg",
+			Start:  0,
+			End:    time.Now().Add(time.Hour).UnixNano(),
+		})
+		if err != nil {
+			t.Fatalf("Execute without timeout: %v", err)
+		}
+		if len(result.Points) != 10 {
+			t.Errorf("expected 10 points, got %d", len(result.Points))
+		}
+	})
+}

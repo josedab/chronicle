@@ -7,16 +7,30 @@ import (
 	"time"
 )
 
+// QueryEngineConfig configures the query engine behavior.
+type QueryEngineConfig struct {
+	// MaxQueryDuration is the maximum time a query is allowed to run.
+	// When exceeded, the query is canceled with ErrQueryTimeout.
+	// Zero means no timeout (uses the context's deadline if any).
+	MaxQueryDuration time.Duration
+}
+
 // QueryEngine provides additional query functionality on top of the DB.
 // It wraps the DB's Execute methods with additional validation and cost estimation.
 type QueryEngine struct {
-	db  *DB
-	cbo *CostBasedOptimizer
+	db     *DB
+	cbo    *CostBasedOptimizer
+	config QueryEngineConfig
 }
 
 // NewQueryEngine creates a new query engine wrapping the given database.
 func NewQueryEngine(db *DB) *QueryEngine {
 	return &QueryEngine{db: db}
+}
+
+// NewQueryEngineWithConfig creates a query engine with configuration.
+func NewQueryEngineWithConfig(db *DB, cfg QueryEngineConfig) *QueryEngine {
+	return &QueryEngine{db: db, config: cfg}
 }
 
 // NewQueryEngineWithCBO creates a query engine with cost-based optimizer integration.
@@ -29,13 +43,28 @@ func (qe *QueryEngine) Execute(q *Query) (*Result, error) {
 	if err := qe.ValidateQuery(q); err != nil {
 		return nil, err
 	}
+	if qe.config.MaxQueryDuration > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), qe.config.MaxQueryDuration)
+		defer cancel()
+		return qe.db.ExecuteContext(ctx, q)
+	}
 	return qe.db.Execute(q)
 }
 
 // ExecuteContext runs a query with context support. Delegates to DB.ExecuteContext.
+// If MaxQueryDuration is configured and the context has no earlier deadline,
+// a timeout is applied.
 func (qe *QueryEngine) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
 	if err := qe.ValidateQuery(q); err != nil {
 		return nil, err
+	}
+	if qe.config.MaxQueryDuration > 0 {
+		_, hasDeadline := ctx.Deadline()
+		if !hasDeadline {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, qe.config.MaxQueryDuration)
+			defer cancel()
+		}
 	}
 	return qe.db.ExecuteContext(ctx, q)
 }

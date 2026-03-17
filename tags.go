@@ -67,14 +67,29 @@ func matchSeriesTagFilters(seriesTags map[string]string, filters []TagFilter) bo
 			if len(filter.Values) == 0 {
 				return false
 			}
-			re, err := regexp.Compile(filter.Values[0])
-			if err != nil || !re.MatchString(value) {
+			re := filter.compiledRe
+			if re == nil {
+				// Fallback: compile if not precompiled (shouldn't happen in normal path)
+				var err error
+				re, err = regexp.Compile(filter.Values[0])
+				if err != nil {
+					return false
+				}
+			}
+			if !re.MatchString(value) {
 				return false
 			}
 		case TagOpNotRegex:
 			if len(filter.Values) > 0 {
-				re, err := regexp.Compile(filter.Values[0])
-				if err == nil && re.MatchString(value) {
+				re := filter.compiledRe
+				if re == nil {
+					var err error
+					re, err = regexp.Compile(filter.Values[0])
+					if err != nil {
+						continue // can't match — skip
+					}
+				}
+				if re.MatchString(value) {
 					return false
 				}
 			}

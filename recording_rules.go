@@ -366,3 +366,34 @@ func (rre *RecordingRulesEngine) Disable(name string) error {
 	state.rule.Enabled = false
 	return nil
 }
+
+// RecordingRulesSummary provides aggregate statistics across all rules.
+type RecordingRulesSummary struct {
+	TotalRules    int   `json:"total_rules"`
+	EnabledRules  int   `json:"enabled_rules"`
+	TotalEvals    int64 `json:"total_evals"`
+	TotalErrors   int64 `json:"total_errors"`
+	RulesInError  int   `json:"rules_in_error"`
+}
+
+// Summary returns aggregate statistics across all recording rules.
+func (rre *RecordingRulesEngine) Summary() RecordingRulesSummary {
+	rre.mu.RLock()
+	defer rre.mu.RUnlock()
+
+	var s RecordingRulesSummary
+	s.TotalRules = len(rre.rules)
+	for _, state := range rre.rules {
+		state.mu.Lock()
+		if state.rule.Enabled {
+			s.EnabledRules++
+		}
+		s.TotalEvals += state.evalCount
+		s.TotalErrors += state.errorCount
+		if state.lastError != nil {
+			s.RulesInError++
+		}
+		state.mu.Unlock()
+	}
+	return s
+}

@@ -126,6 +126,20 @@ func (db *DB) Execute(q *Query) (*Result, error) {
 
 // ExecuteContext runs a query with context support for cancellation and timeout.
 func (db *DB) ExecuteContext(ctx context.Context, q *Query) (*Result, error) {
+	queryStart := time.Now()
+	result, err := db.executeContextInternal(ctx, q)
+
+	// Record query metrics for self-instrumentation
+	if db.features != nil {
+		if si := db.features.SelfInstrumentation(); si != nil {
+			si.RecordQuery(time.Since(queryStart).Nanoseconds(), err != nil)
+		}
+	}
+
+	return result, err
+}
+
+func (db *DB) executeContextInternal(ctx context.Context, q *Query) (*Result, error) {
 	if q == nil {
 		return &Result{Points: []Point{}}, nil
 	}

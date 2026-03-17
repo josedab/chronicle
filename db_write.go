@@ -40,6 +40,7 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 	if db.isClosed() {
 		return ErrClosed
 	}
+	writeStart := time.Now()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -121,10 +122,24 @@ func (db *DB) WriteContext(ctx context.Context, p Point) error {
 		}
 	}
 
+	// Record data lineage
+	if db.features != nil {
+		if dl := db.features.DataLineage(); dl != nil {
+			dl.RecordWrite(p.Metric, "api", 1, p.Tags)
+		}
+	}
+
 	// Invalidate cached query results for this metric
 	if db.features != nil {
 		if rc := db.features.resultCache; rc != nil {
 			rc.Invalidate(p.Metric)
+		}
+	}
+
+	// Record write metrics for self-instrumentation
+	if db.features != nil {
+		if si := db.features.SelfInstrumentation(); si != nil {
+			si.RecordWrite(1, 0, time.Since(writeStart).Nanoseconds(), false)
 		}
 	}
 
@@ -142,6 +157,7 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 	if db.isClosed() {
 		return ErrClosed
 	}
+	batchStart := time.Now()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -256,6 +272,13 @@ func (db *DB) WriteBatchContext(ctx context.Context, points []Point) error {
 					seen[points[i].Metric] = struct{}{}
 				}
 			}
+		}
+	}
+
+	// Record batch write metrics for self-instrumentation
+	if db.features != nil {
+		if si := db.features.SelfInstrumentation(); si != nil {
+			si.RecordWrite(len(points), 0, time.Since(batchStart).Nanoseconds(), false)
 		}
 	}
 
