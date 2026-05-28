@@ -827,6 +827,50 @@ curl -X POST http://localhost:8086/api/v1/cql \
   -d "SELECT * FROM cpu WHERE host = 'server01' LIMIT 10"
 ```
 
+### CQL Examples
+
+CQL is useful when you want SQL-like syntax with time-series features such as
+windowing, gap filling, alignment, and temporal joins.
+
+| Use case | CQL |
+|----------|-----|
+| Read recent CPU points | `SELECT * FROM cpu LIMIT 10` |
+| Filter by tag | `SELECT value FROM cpu WHERE host = 'web-01'` |
+| Filter by timestamp range | `SELECT value FROM cpu WHERE timestamp >= 1609459200000000000 AND timestamp < 1609462800000000000` |
+| Average by host | `SELECT avg(value) FROM cpu GROUP BY host` |
+| Five-minute CPU windows | `SELECT avg(value) FROM cpu GROUP BY host WINDOW 5m` |
+| Sum request counts per service | `SELECT sum(value) FROM http_requests GROUP BY service WINDOW 1m` |
+| Fill missing points linearly | `SELECT value FROM temperature GAP_FILL linear` |
+| Fill missing points with the previous value | `SELECT value FROM temperature GAP_FILL previous` |
+| Align buckets to calendar boundaries | `SELECT avg(value) FROM cpu WINDOW 1h ALIGN calendar` |
+| Join CPU with memory readings by time | `SELECT value FROM cpu ASOF JOIN memory TOLERANCE 5s` |
+| Compute a request rate | `SELECT rate(value) FROM http_requests WINDOW 5m` |
+| Sort and cap result size | `SELECT value FROM disk_usage ORDER BY timestamp DESC LIMIT 20` |
+
+Execute a windowed aggregation:
+
+```bash
+curl -X POST http://localhost:8086/api/v1/cql \
+  -H "Content-Type: text/plain" \
+  -d "SELECT avg(value) FROM cpu GROUP BY host WINDOW 5m"
+```
+
+Validate without executing:
+
+```bash
+curl -X POST http://localhost:8086/api/v1/cql/validate \
+  -H "Content-Type: text/plain" \
+  -d "SELECT value FROM temperature GAP_FILL linear"
+```
+
+Inspect a query plan:
+
+```bash
+curl -X POST http://localhost:8086/api/v1/cql/explain \
+  -H "Content-Type: text/plain" \
+  -d "SELECT value FROM cpu ASOF JOIN memory TOLERANCE 5s"
+```
+
 ### POST /api/v1/cql/validate
 
 Validate CQL query syntax without executing it.
