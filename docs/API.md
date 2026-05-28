@@ -281,6 +281,39 @@ GET /api/v1/query_range?query=rate(http_requests_total[5m])&start=1609459200&end
 }
 ```
 
+### PromQL Examples
+
+The Prometheus-compatible endpoints accept a PromQL subset for dashboard and
+alerting integrations. Use `/api/v1/query` for instant vector results and
+`/api/v1/query_range` when the query needs a time range.
+
+| Use case | PromQL | Endpoint |
+|----------|--------|----------|
+| Read the latest value for a metric | `cpu_usage` | `/api/v1/query` |
+| Filter by one label | `cpu_usage{host="web-01"}` | `/api/v1/query` |
+| Exclude one label value | `http_requests_total{status!="500"}` | `/api/v1/query` |
+| Sum all series for a metric | `sum(http_requests_total)` | `/api/v1/query` |
+| Average by deployment region | `avg by (region) (cpu_usage)` | `/api/v1/query` |
+| Minimum memory by host | `min by (host) (memory_usage_bytes)` | `/api/v1/query` |
+| Maximum disk usage by device | `max by (device) (disk_usage_bytes)` | `/api/v1/query` |
+| Count active series by job | `count by (job) (up)` | `/api/v1/query` |
+| Per-second request rate | `rate(http_requests_total[5m])` | `/api/v1/query` |
+| Error rate by service | `sum by (service) (rate(http_requests_total{status="500"}[5m]))` | `/api/v1/query` |
+| Drop high-cardinality labels | `sum without (instance) (http_requests_total)` | `/api/v1/query` |
+| Plot CPU over time | `avg by (host) (cpu_usage)` | `/api/v1/query_range` |
+
+Instant query:
+
+```bash
+curl 'http://localhost:8086/api/v1/query?query=sum%20by%20(region)%20(cpu_usage)'
+```
+
+Range query:
+
+```bash
+curl 'http://localhost:8086/api/v1/query_range?query=rate(http_requests_total%5B5m%5D)&start=1609459200&end=1609462800&step=60'
+```
+
 ---
 
 ## Schema Registry
