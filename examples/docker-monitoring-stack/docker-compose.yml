@@ -1,0 +1,85 @@
+version: "3.8"
+
+# Chronicle + Grafana + Alertmanager Monitoring Stack
+# ================================================
+# This stack demonstrates a complete time-series monitoring solution:
+#   1. Chronicle — embedded time-series database (single binary)
+#   2. Grafana  — visualization & alerting dashboard
+#   3. Alertmanager — alert routing & notification (via Chronicle's webhook)
+#
+# Usage:
+#   docker compose up -d
+#   docker compose down -v
+#
+# Services:
+#   Chronicle  → http://localhost:8086
+#   Grafana    → http://localhost:3000 (admin / chronicle)
+#
+# Prerequisites: Docker + Docker Compose
+
+services:
+  # ─── Chronicle TSDB ──────────────────────────────────────────────
+  chronicle:
+    build:
+      context: ../../..
+      dockerfile: k8s/Dockerfile
+    container_name: chronicle-tsdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"       # HTTP API (Prometheus-compatible)
+      - "8087:8087"       # GraphQL playground
+    volumes:
+      - chronicle-data:/data
+    environment:
+      CHRONICLE_DATA_DIR: /data
+      CHRONICLE_HTTP_ENABLED: "true"
+      CHRONICLE_HTTP_PORT: "8086"
+      CHRONICLE_GRAPHQL_ENABLED: "true"
+      CHRONICLE_GRAPHQL_PORT: "8087"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8086/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─── Grafana Dashboard ───────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: chronicle-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: chronicle
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+      GF_ALERTING_ENABLED: "true"
+      GF_NOTIFICATIONS_ALLOW_ALERTING_FROM_UI: "true"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      chronicle:
+        condition: service_healthy
+
+  # ─── Seed Script — generates sample IoT data ────────────────────
+  seed-data:
+    image: curlimages/curl:latest
+    container_name: chronicle-seed
+    restart: "no"
+    volumes:
+      - ./seed-data.sh:/seed-data.sh
+    command: ["/bin/bash", "/seed-data.sh"]
+    depends_on:
+      chronicle:
+        condition: service_healthy
+
+volumes:
+  chronicle-data:
+    driver: local
+  grafana-data:
+    driver: local
