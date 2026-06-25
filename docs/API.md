@@ -283,6 +283,202 @@ GET /api/v1/query_range?query=rate(http_requests_total[5m])&start=1609459200&end
 
 ---
 
+---
+
+## PromQL Examples
+
+Chronicle supports PromQL via the `/api/v1/query` (instant) and `/api/v1/query_range` (range) endpoints.
+These examples assume metrics are ingested via the Prometheus remote write endpoint (`/prometheus/write`).
+
+---
+
+### Basic Selectors
+
+#### 1. Select a metric
+```promql
+http_requests_total
+```
+Returns the current value of all time series with the metric name `http_requests_total`.
+
+```bash
+curl "http://localhost:8086/api/v1/query?query=http_requests_total"
+```
+
+#### 2. Filter by label
+```promql
+http_requests_total{method="GET"}
+```
+Returns only time series where the `method` label equals `GET`.
+
+```bash
+curl "http://localhost:8086/api/v1/query?query=http_requests_total%7Bmethod%3D%22GET%22%7D"
+```
+
+#### 3. Negative label matcher
+```promql
+http_requests_total{method!="OPTIONS"}
+```
+Returns all time series except those with `method="OPTIONS"`.
+
+#### 4. Regex label matcher
+```promql
+http_requests_total{path=~"/api/.*"}
+```
+Matches time series where `path` starts with `/api/`.
+
+#### 5. Negative regex matcher
+```promql
+http_requests_total{path!~"/health.*"}
+```
+Excludes time series matching the `/health.*` pattern.
+
+---
+
+### Rates and Counters
+
+#### 6. Rate of increase (per-second average)
+```promql
+rate(http_requests_total[5m])
+```
+Computes the per-second average rate of increase over the last 5 minutes.
+
+```bash
+curl "http://localhost:8086/api/v1/query?query=rate(http_requests_total%5B5m%5D)"
+```
+
+#### 7. Increase over time window
+```promql
+increase(http_requests_total[1h])
+```
+Returns the total increase in the counter over the last hour.
+
+#### 8. irate — instant rate
+```promql
+irate(http_requests_total[5m])
+```
+Computes the per-second rate using only the two most recent samples.
+
+---
+
+### Aggregation
+
+#### 9. Sum across all instances
+```promql
+sum(rate(http_requests_total[5m]))
+```
+Sums the rate across all label dimensions.
+
+#### 10. Sum by label
+```promql
+sum by (method) (rate(http_requests_total[5m]))
+```
+Sums the rate grouped by `method`.
+
+```bash
+curl "http://localhost:8086/api/v1/query?query=sum+by+(method)+(rate(http_requests_total%5B5m%5D))"
+```
+
+#### 11. Top-k
+```promql
+topk(5, rate(http_requests_total[5m]))
+```
+Returns the 5 time series with the highest per-second rate.
+
+#### 12. Bottom-k
+```promql
+bottomk(5, rate(http_requests_total[5m]))
+```
+Returns the 5 time series with the lowest per-second rate.
+
+---
+
+### Gauge Operations
+
+#### 13. Average over time
+```promql
+avg_over_time(cpu_usage_percent[10m])
+```
+Computes the average of all samples in the last 10 minutes.
+
+#### 14. Max / Min over time
+```promql
+max_over_time(memory_usage_bytes[1h])
+```
+Returns the maximum value observed in the last hour.
+
+```promql
+min_over_time(memory_usage_bytes[1h])
+```
+Returns the minimum value observed in the last hour.
+
+---
+
+### Histograms
+
+#### 15. Histogram quantile
+```promql
+histogram_quantile(0.95, rate(request_duration_seconds_bucket[5m]))
+```
+Computes the 95th percentile of request duration over the last 5 minutes.
+
+```bash
+curl "http://localhost:8086/api/v1/query?query=histogram_quantile(0.95%2C+rate(request_duration_seconds_bucket%5B5m%5D))"
+```
+
+---
+
+### Arithmetic and Prediction
+
+#### 16. Ratio / percentage
+```promql
+rate(http_errors_total[5m]) / rate(http_requests_total[5m])
+```
+Computes the error rate as a fraction of total requests.
+
+#### 17. Predict linear growth
+```promql
+predict_linear(disk_usage_bytes[1h], 86400)
+```
+Predicts disk usage 24 hours from now based on the last hour's trend.
+
+---
+
+### Range Queries
+
+#### 18. Range query with step
+```promql
+rate(http_requests_total[5m])
+```
+When used with `/api/v1/query_range`, returns a matrix over time:
+
+```bash
+curl "http://localhost:8086/api/v1/query_range?query=rate(http_requests_total%5B5m%5D)&start=$(date -d '1 hour ago' +%s)&end=$(date +%s)&step=60"
+```
+
+#### 19. Offset modifier
+```promql
+rate(http_requests_total[5m] offset 1h)
+```
+Compares against the rate from 1 hour ago.
+
+#### 20. Arithmetic between offset series
+```promql
+rate(http_requests_total[5m]) - rate(http_requests_total[5m] offset 1h)
+```
+Shows the delta in request rate compared to 1 hour ago.
+
+---
+
+### Modifiers
+
+#### 21. @ modifier — evaluate at specific time
+```promql
+http_requests_total @ 1717200000
+```
+Evaluates the instant vector at the specified Unix timestamp.
+
+
+
 ## Schema Registry
 
 ### GET /schemas
