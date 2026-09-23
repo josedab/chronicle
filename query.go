@@ -64,6 +64,7 @@ const (
 	TagOpEq       TagOp = iota // Exact match (tag == value)
 	TagOpNotEq                 // Exclusion (tag != value)
 	TagOpIn                    // Set membership (tag in [values...])
+	TagOpNotIn                 // Negated set membership (tag not in [values...])
 	TagOpRegex                 // Regex match (tag =~ pattern)
 	TagOpNotRegex              // Negated regex match (tag !~ pattern)
 )
