@@ -31,6 +31,7 @@ const (
 	TagOpEq TagOp = iota
 	TagOpNotEq
 	TagOpIn
+	TagOpNotIn
 )
 
 // TagFilter represents a tag predicate.
@@ -208,15 +209,63 @@ func (p *Parser) Parse(queryStr string) (*Query, error) {
 				}
 				op = "!="
 			case "NOT":
-				if cursor < len(tokens) && tokens[cursor] == "=" {
+				if cursor < len(tokens) && strings.EqualFold(tokens[cursor], "IN") {
 					cursor++
+					op = "NOT IN"
+				} else if cursor < len(tokens) && strings.HasPrefix(strings.ToUpper(tokens[cursor]), "IN(") {
+					rawOp = tokens[cursor]
+					cursor++
+					op = "NOT IN("
+				} else if cursor < len(tokens) && tokens[cursor] == "=" {
+					cursor++
+					op = "!="
 				}
-				op = "!="
 			case "<", ">":
 				if cursor < len(tokens) && tokens[cursor] == "=" {
 					op += "="
 					cursor++
 				}
+			}
+
+			if strings.HasPrefix(op, "NOT IN(") {
+				values := []string{}
+				first := strings.Trim(rawOp[3:], "'\"")
+				if first != "" {
+					values = append(values, first)
+				}
+				for cursor < len(tokens) {
+					tok := tokens[cursor]
+					cursor++
+					if tok == ")" {
+						break
+					}
+					if tok == "," {
+						continue
+					}
+					values = append(values, strings.Trim(tok, "'\""))
+				}
+				q.TagFilters = append(q.TagFilters, TagFilter{Key: key, Op: TagOpNotIn, Values: values})
+				continue
+			}
+
+			if op == "NOT IN" {
+				values := []string{}
+				if cursor < len(tokens) && tokens[cursor] == "(" {
+					cursor++
+				}
+				for cursor < len(tokens) {
+					tok := tokens[cursor]
+					cursor++
+					if tok == ")" {
+						break
+					}
+					if tok == "," {
+						continue
+					}
+					values = append(values, strings.Trim(tok, "'\""))
+				}
+				q.TagFilters = append(q.TagFilters, TagFilter{Key: key, Op: TagOpNotIn, Values: values})
+				continue
 			}
 
 			if strings.HasPrefix(op, "IN(") {
@@ -341,13 +390,13 @@ func ParseAggFunc(token string) AggFunc {
 		return AggMax
 	case "stddev":
 		return AggStddev
-	case "percentile":
+	case "percentile", "p50", "p90", "p95", "p99":
 		return AggPercentile
 	case "rate":
 		return AggRate
-	case "first":
+	case "first", "first_value":
 		return AggFirst
-	case "last":
+	case "last", "last_value":
 		return AggLast
 	default:
 		return AggNone

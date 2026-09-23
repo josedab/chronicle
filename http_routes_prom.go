@@ -1,6 +1,7 @@
 package chronicle
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -53,6 +54,63 @@ func setupPrometheusRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 	mux.HandleFunc("/api/v1/query_range", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handlePromQuery(db, w, r, true)
 	}))
+
+	// Expose internal metrics in Prometheus exposition format
+	mux.HandleFunc("/metrics", wrap(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+		if db.metrics != nil {
+			snap := db.metrics.Snapshot()
+			writePrometheusMetrics(w, snap)
+		} else {
+			w.Write([]byte("# Chronicle Metrics\n"))
+		}
+	}))
+}
+
+func writePrometheusMetrics(w io.Writer, snap *MetricsSnapshot) {
+	if snap == nil {
+		return
+	}
+	var sb strings.Builder
+	sb.WriteString("# HELP chronicle_uptime_seconds Process uptime in seconds\n")
+	sb.WriteString("# TYPE chronicle_uptime_seconds gauge\n")
+	sb.WriteString(fmt.Sprintf("chronicle_uptime_seconds %f\n\n", snap.Uptime.Seconds()))
+
+	for k, v := range snap.Counters {
+		metricName := sanitizeMetricName("chronicle_counter_" + k)
+		sb.WriteString(fmt.Sprintf("# TYPE %s counter\n", metricName))
+		sb.WriteString(fmt.Sprintf("%s %d\n", metricName, v))
+	}
+	for k, v := range snap.Gauges {
+		metricName := sanitizeMetricName("chronicle_gauge_" + k)
+		sb.WriteString(fmt.Sprintf("# TYPE %s gauge\n", metricName))
+		sb.WriteString(fmt.Sprintf("%s %d\n", metricName, v))
+	}
+	for k, h := range snap.Histograms {
+		metricName := sanitizeMetricName("chronicle_histogram_" + k)
+		sb.WriteString(fmt.Sprintf("# TYPE %s_count counter\n", metricName))
+		sb.WriteString(fmt.Sprintf("%s_count %d\n", metricName, h.Count))
+		sb.WriteString(fmt.Sprintf("# TYPE %s_sum counter\n", metricName))
+		sb.WriteString(fmt.Sprintf("%s_sum %f\n", metricName, h.Sum))
+		sb.WriteString(fmt.Sprintf("# TYPE %s gauge\n", metricName))
+		sb.WriteString(fmt.Sprintf("%s{quantile=\"0.5\"} %f\n", metricName, h.P50))
+		sb.WriteString(fmt.Sprintf("%s{quantile=\"0.9\"} %f\n", metricName, h.P90))
+		sb.WriteString(fmt.Sprintf("%s{quantile=\"0.95\"} %f\n", metricName, h.P95))
+		sb.WriteString(fmt.Sprintf("%s{quantile=\"0.99\"} %f\n", metricName, h.P99))
+	}
+	w.Write([]byte(sb.String()))
+}
+
+func sanitizeMetricName(name string) string {
+	name = strings.ReplaceAll(name, ".", "_")
+	name = strings.ReplaceAll(name, "-", "_")
+	name = strings.ReplaceAll(name, " ", "_")
+	name = strings.ReplaceAll(name, "/", "_")
+	return name
 }
 
 func convertPromWrite(req *prompb.WriteRequest) []Point {

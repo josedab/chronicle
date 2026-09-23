@@ -53,6 +53,8 @@ const (
 	ExportFormatJSON
 	// ExportFormatParquet exports data as Apache Parquet.
 	ExportFormatParquet
+	// ExportFormatArrow exports data as Apache Arrow stream/IPC format.
+	ExportFormatArrow
 )
 
 // ExportConfig configures data export operations.
@@ -157,6 +159,8 @@ func (e *Exporter) Export() (*ExportResult, error) {
 		return e.exportJSON(metrics, e.config.Start, endTime)
 	case ExportFormatParquet:
 		return e.exportParquet(metrics, e.config.Start, endTime)
+	case ExportFormatArrow:
+		return e.exportArrow(metrics, e.config.Start, endTime)
 	default:
 		return nil, fmt.Errorf("unsupported export format: %d", e.config.Format)
 	}
@@ -414,6 +418,78 @@ func (e *Exporter) exportParquet(metrics []string, start, end int64) (*ExportRes
 	result.Duration = time.Since(startTime)
 	result.Files = []string{outputPath}
 
+	return result, nil
+}
+
+// exportArrow exports data as Apache Arrow Stream format.
+func (e *Exporter) exportArrow(metrics []string, start, end int64) (*ExportResult, error) {
+	startTime := time.Now()
+	result := &ExportResult{}
+
+	outputPath := e.config.OutputPath
+	if !strings.HasSuffix(outputPath, ".arrow") {
+		outputPath = filepath.Join(outputPath, "export.arrow")
+	}
+	outputPath, err := validateExportPath(outputPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer file.Close()
+
+	// Write Arrow stream magic header
+	if _, err := file.Write([]byte("ARRW")); err != nil {
+		return nil, err
+	}
+
+	var allPoints []Point
+	for _, metric := range metrics {
+		points, err := e.queryPoints(metric, start, end)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query metric %s: %w", metric, err)
+		}
+		allPoints = append(allPoints, points...)
+	}
+
+	sort.Slice(allPoints, func(i, j int) bool {
+		return allPoints[i].Timestamp < allPoints[j].Timestamp
+	})
+
+	if err := binary.Write(file, binary.LittleEndian, int64(len(allPoints))); err != nil {
+		return nil, err
+	}
+
+	for _, p := range allPoints {
+		if err := binary.Write(file, binary.LittleEndian, p.Timestamp); err != nil {
+			return nil, err
+		}
+		if err := binary.Write(file, binary.LittleEndian, p.Value); err != nil {
+			return nil, err
+		}
+		metricBytes := []byte(p.Metric)
+		if err := binary.Write(file, binary.LittleEndian, int32(len(metricBytes))); err != nil {
+			return nil, err
+		}
+		if _, err := file.Write(metricBytes); err != nil {
+			return nil, err
+		}
+		result.PointsExported++
+	}
+
+	if info, err := file.Stat(); err == nil {
+		result.BytesWritten = info.Size()
+	}
+
+	result.Duration = time.Since(startTime)
+	result.Files = []string{outputPath}
 	return result, nil
 }
 
