@@ -64,6 +64,21 @@ Features demonstrated:
 - Native histograms with percentiles
 - Alerting rules
 
+### [kubernetes-sidecar](./kubernetes-sidecar)
+Deploy Chronicle as a Kubernetes sidecar that scrapes pod metrics from localhost.
+
+```bash
+cd kubernetes-sidecar && go run .
+# Then: curl localhost:9090/metrics && curl localhost:8080/stats
+# Cluster manifests: kubectl apply -f manifests/
+```
+
+Features demonstrated:
+- Chronicle `K8sSidecar` scraping Prometheus text on localhost
+- Downward API pod/namespace/node tags (`POD_*` env vars)
+- Multi-container Deployment + Service manifests
+- Sidecar health/stats endpoints
+
 ### [plugin](./plugin)
 Custom plugin development with aggregator and transformer plugins.
 

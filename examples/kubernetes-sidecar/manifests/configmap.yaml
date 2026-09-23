@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chronicle-sidecar-demo
+  labels:
+    app: chronicle-sidecar-demo
+data:
+  README: |
+    Tune scrape behaviour via container env (see Deployment) or by wrapping
+    chronicle.DefaultK8sSidecarConfig() in your sidecar image entrypoint.
+  scrape_interval: "15s"
+  scrape_path: "/metrics"
+  scrape_port: "9090"
+  retention: "24h"
+  max_storage: "100MB"
