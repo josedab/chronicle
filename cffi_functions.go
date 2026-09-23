@@ -121,9 +121,9 @@ func stringToAggFunc(s string) AggFunc {
 		return AggMax
 	case "count":
 		return AggCount
-	case "first":
+	case "first", "first_value":
 		return AggFirst
-	case "last":
+	case "last", "last_value":
 		return AggLast
 	case "stddev":
 		return AggStddev
