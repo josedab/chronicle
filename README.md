@@ -260,7 +260,7 @@ When `HTTPEnabled: true`, the following endpoints are available:
 | `/health` | GET | Health check |
 | `/write` | POST | Write points (Influx line protocol) |
 | `/query` | POST | Execute SQL-like query |
-| `/metrics` | GET | List all metrics |
+| `/metrics` | GET | Prometheus metrics exposition & metric list |
 | `/api/v1/query` | GET/POST | Prometheus instant query |
 | `/api/v1/query_range` | GET/POST | Prometheus range query |
 | `/api/v1/forecast` | POST | Time-series forecasting |
