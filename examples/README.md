@@ -77,6 +77,21 @@ Features demonstrated:
 - Custom transformer (unit conversion)
 - Plugin invocation via SDK
 
+### [weather-station](./weather-station)
+Meteorological sensor data collection, diurnal environmental modeling, derived biometeorology (Heat Index, Dew Point), storm front detection, and ASCII dashboard visualization.
+
+```bash
+cd weather-station && go run main.go
+```
+
+Features demonstrated:
+- Multi-station environmental sensor telemetry
+- Atmospheric lapse rate elevation adjustments
+- Dew point and NOAA Heat Index calculations
+- Barometric pressure drop storm warning detection
+- Cumulative precipitation tracking
+- ASCII diurnal temperature curve visualization
+
 ## Running All Examples
 
 ```bash
