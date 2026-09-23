@@ -141,6 +141,75 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 		writeJSON(w, queryResponse{Points: result.Points})
 	}))
+
+	// Streaming query endpoint with chunked ndjson response
+	mux.HandleFunc("/query/stream", wrap(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost && r.Method != http.MethodGet {
+			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var q *Query
+		if r.Method == http.MethodPost {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+			var req queryRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeError(w, "bad request", http.StatusBadRequest)
+				return
+			}
+			if req.Query != "" {
+				parser := &QueryParser{}
+				parsed, err := parser.Parse(req.Query)
+				if err != nil {
+					writeError(w, "bad request", http.StatusBadRequest)
+					return
+				}
+				q = parsed
+			} else {
+				q = &Query{
+					Metric: req.Metric,
+					Start:  req.Start,
+					End:    req.End,
+					Tags:   req.Tags,
+				}
+			}
+		} else {
+			rawQuery := r.URL.Query().Get("query")
+			if rawQuery != "" {
+				parser := &QueryParser{}
+				parsed, err := parser.Parse(rawQuery)
+				if err != nil {
+					writeError(w, "bad request", http.StatusBadRequest)
+					return
+				}
+				q = parsed
+			} else {
+				q = &Query{
+					Metric: r.URL.Query().Get("metric"),
+				}
+			}
+		}
+
+		result, err := db.ExecuteContext(r.Context(), q)
+		if err != nil {
+			internalError(w, err, "internal error")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		w.Header().Set("Transfer-Encoding", "chunked")
+		w.WriteHeader(http.StatusOK)
+
+		flusher, ok := w.(http.Flusher)
+		enc := json.NewEncoder(w)
+		for _, pt := range result.Points {
+			if err := enc.Encode(pt); err != nil {
+				break
+			}
+			if ok {
+				flusher.Flush()
+			}
+		}
+	}))
 }
 
 func parseLineProtocol(body string) ([]Point, error) {
