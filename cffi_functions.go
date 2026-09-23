@@ -121,10 +121,12 @@ func stringToAggFunc(s string) AggFunc {
 		return AggMax
 	case "count":
 		return AggCount
-	case "first":
+	case "first", "first_value":
 		return AggFirst
-	case "last":
+	case "last", "last_value":
 		return AggLast
+	case "percentile", "p50", "p90", "p95", "p99":
+		return AggPercentile
 	case "stddev":
 		return AggStddev
 	case "rate":
