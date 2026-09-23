@@ -2,6 +2,8 @@
 
 Common build, setup, and operational issues for Chronicle contributors.
 
+For **API/query/storage error types** (sentinel errors, HTTP envelopes, playbooks), see [ERRORS.md](./ERRORS.md).
+
 ## Build & Setup Issues
 
 ### CGO disabled errors (SQLite dependency)
