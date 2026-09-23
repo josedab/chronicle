@@ -445,9 +445,17 @@ All endpoints return errors in this format:
 ```
 
 Common HTTP status codes:
-- `400 Bad Request`: Invalid request syntax or parameters
+- `400 Bad Request`: Invalid request syntax or parameters (often wraps `ErrInvalidQuery` / `ErrSchemaValidation`)
 - `404 Not Found`: Resource not found
-- `500 Internal Server Error`: Server-side error
+- `500 Internal Server Error`: Server-side error (storage/internal failures; message may be generic)
+
+### Library error catalog
+
+When embedding Chronicle as a Go library, match sentinel and typed errors from `errors.go`
+(`ErrClosed`, `ErrQueryTimeout`, `ErrMemoryBudgetExceeded`, `ErrInvalidQuery`, `ErrQueryCanceled`,
+`ErrSchemaValidation`, `ErrCardinalityLimit`, storage/WAL errors, `QueryError`, `StorageError`, and more).
+
+Full symptom → fix playbooks: **[ERRORS.md](./ERRORS.md)** (Bounty #4 error-messages doc).
 
 ---
 
