@@ -304,10 +304,15 @@ var cqlAggFuncMap = map[string]AggFunc{
 	"mean":   AggMean,
 	"min":    AggMin,
 	"max":    AggMax,
-	"first":  AggFirst,
-	"last":   AggLast,
-	"stddev": AggStddev,
-	"rate":   AggRate,
+	"first":      AggFirst,
+	"last":       AggLast,
+	"stddev":     AggStddev,
+	"rate":       AggRate,
+	"percentile": AggPercentile,
+	"p50":        AggPercentile,
+	"p90":        AggPercentile,
+	"p95":        AggPercentile,
+	"p99":        AggPercentile,
 }
 
 func formatPromDuration(d time.Duration) string {
