@@ -259,7 +259,8 @@ When `HTTPEnabled: true`, the following endpoints are available:
 |----------|--------|-------------|
 | `/health` | GET | Health check |
 | `/write` | POST | Write points (Influx line protocol) |
-| `/query` | POST | Execute SQL-like query |
+| `/query` | POST | Execute SQL-like query (supports chunked streaming) |
+| `/query/stream` | POST | Stream query results via chunked HTTP response |
 | `/metrics` | GET | List all metrics |
 | `/api/v1/query` | GET/POST | Prometheus instant query |
 | `/api/v1/query_range` | GET/POST | Prometheus range query |

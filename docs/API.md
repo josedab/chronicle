@@ -206,17 +206,25 @@ Execute a Chronicle SQL-like query.
 **Response:**
 ```json
 {
-  "series": [
-    {
-      "metric": "cpu",
-      "tags": {"host": "server01"},
-      "points": [
-        {"timestamp": 1609459200000000000, "value": 0.64}
-      ]
-    }
+  "points": [
+    {"metric": "cpu", "tags": {"host": "server01"}, "value": 0.64, "timestamp": 1609459200000000000}
   ]
 }
 ```
+
+### POST /query/stream (or /query with `stream=true`)
+
+Stream large query results via HTTP chunked transfer encoding (Bounty #20).
+
+**Trigger Options:**
+- Request body: `{"metric": "cpu", "stream": true, "format": "json"}`
+- Query parameter: `POST /query?stream=true` or `POST /query/stream`
+- Header: `Accept: application/x-ndjson` (for newline-delimited JSON stream)
+
+**Supported Streaming Formats (`format` parameter or `Accept` header):**
+- `json` (default): Chunked JSON object `{"points":[...]}` streamed as items are scanned.
+- `ndjson` / `jsonl`: Newline-delimited JSON stream where each line is a single JSON point.
+- `csv`: Streaming comma-separated values (`metric,timestamp,value`).
 
 ### GET/POST /api/v1/query
 

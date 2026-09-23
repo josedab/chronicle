@@ -62,6 +62,8 @@ type queryRequest struct {
 	Tags        map[string]string `json:"tags"`
 	Aggregation string            `json:"aggregation,omitempty"`
 	Window      string            `json:"window,omitempty"`
+	Stream      bool              `json:"stream,omitempty"`
+	Format      string            `json:"format,omitempty"`
 }
 
 type queryResponse struct {
@@ -574,6 +576,12 @@ type statusCapture struct {
 func (sc *statusCapture) WriteHeader(code int) {
 	sc.code = code
 	sc.ResponseWriter.WriteHeader(code)
+}
+
+func (sc *statusCapture) Flush() {
+	if f, ok := sc.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // httpMetricsMiddleware records request count, latency, and status codes.
