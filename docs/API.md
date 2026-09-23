@@ -886,6 +886,139 @@ curl -X POST http://localhost:8086/api/v1/cql/explain \
 
 ---
 
+### CQL query examples (Bounty #2)
+
+CQL extends SQL-like SELECT with time-series clauses. The examples below are parser-validated shapes from `internal/cql` (WINDOW, GAP_FILL, ASOF JOIN, ALIGN, LAST, and rate helpers). Use them with `POST /api/v1/cql`, `/api/v1/cql/validate`, or `/api/v1/cql/explain`.
+
+#### WINDOW — time-bucketed aggregation
+
+`WINDOW <duration>` groups aggregate functions into fixed time buckets (for example `5m`, `1h`).
+
+```
+SELECT avg(value)
+FROM cpu
+WHERE host = 'server1'
+GROUP BY host
+WINDOW 5m
+```
+
+```
+SELECT sum(value)
+FROM requests
+GROUP BY host
+WINDOW 1m
+```
+
+```bash
+curl -X POST http://localhost:8086/api/v1/cql \
+  -H 'Content-Type: text/plain' \
+  -d "SELECT avg(value) FROM cpu WHERE host = 'server1' GROUP BY host WINDOW 5m"
+```
+
+#### GAP_FILL — fill missing buckets
+
+`GAP_FILL <method>` fills empty windows after aggregation. Supported methods (see `CQLGapFillClause.Method`): `linear`, `previous`, `zero`, `null`. Method defaults to `linear` when omitted after the keyword in some parser paths; prefer an explicit method.
+
+```
+SELECT value FROM cpu GAP_FILL linear
+```
+
+```
+SELECT value FROM cpu GAP_FILL previous
+```
+
+```
+SELECT value FROM cpu GAP_FILL zero ALIGN calendar
+```
+
+```
+SELECT avg(value) FROM cpu_usage
+WHERE host = 'server1'
+WINDOW 5m
+GAP_FILL linear
+```
+
+```bash
+curl -X POST http://localhost:8086/api/v1/cql/validate \
+  -H 'Content-Type: text/plain' \
+  -d "SELECT value FROM cpu GAP_FILL linear ALIGN calendar"
+```
+
+#### ASOF JOIN — temporal join with optional TOLERANCE
+
+`ASOF JOIN <right_metric>` joins each left-side point to the nearest right-side point at or before the left timestamp. Optional `TOLERANCE <duration>` limits how far back the match may look.
+
+```
+SELECT value FROM cpu ASOF JOIN memory
+```
+
+```
+SELECT value FROM cpu ASOF JOIN memory TOLERANCE 5s
+```
+
+```
+SELECT rate(value) FROM cpu ASOF JOIN memory TOLERANCE 5s
+```
+
+```bash
+curl -X POST http://localhost:8086/api/v1/cql/explain \
+  -H 'Content-Type: text/plain' \
+  -d "SELECT rate(value) FROM cpu ASOF JOIN memory TOLERANCE 5s"
+```
+
+#### ALIGN and LAST helpers
+
+`ALIGN calendar` calendar-aligns buckets. `LAST <duration>` is a shorthand recent-range filter.
+
+```
+SELECT value FROM cpu ALIGN calendar
+```
+
+```
+SELECT value FROM cpu LAST 1h
+```
+
+```
+SELECT value FROM cpu GAP_FILL linear ALIGN calendar
+```
+
+#### Go engine usage
+
+```go
+engine := chronicle.NewCQLEngine(db, chronicle.DefaultCQLConfig())
+
+result, err := engine.Execute(ctx, `
+    SELECT avg(value) FROM cpu_usage
+    WHERE host = 'server1'
+    WINDOW 5m
+    GAP_FILL linear
+`)
+if err != nil {
+    return err
+}
+
+if err := engine.Validate("SELECT value FROM temperature LAST 1h"); err != nil {
+    return err
+}
+
+plan, err := engine.Explain("SELECT sum(value) FROM requests GROUP BY host WINDOW 1m")
+```
+
+#### Feature checklist for this bounty
+
+| Feature | Example fragment | Notes |
+|---------|------------------|-------|
+| WINDOW | `... GROUP BY host WINDOW 5m` | Duration literals like `5m`, `1h` |
+| GAP_FILL | `GAP_FILL linear` | Methods: linear, previous, zero, null |
+| ASOF JOIN | `ASOF JOIN memory TOLERANCE 5s` | Tolerance optional |
+| ALIGN | `ALIGN calendar` | Often paired with GAP_FILL |
+| LAST | `LAST 1h` | Recent-range shorthand |
+| rate/delta/increase | `SELECT rate(value) FROM cpu` | CQL helper functions |
+
+See also the short CQL overview in [FEATURES.md](./FEATURES.md#chronicle-query-language-cql).
+
+---
+
 ## Anomaly Detection
 
 ### GET /api/v1/anomalies
