@@ -81,7 +81,7 @@ func setupWriteRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 
 // setupQueryRoutes configures query-related endpoints
 func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
-	mux.HandleFunc("/query", wrap(func(w http.ResponseWriter, r *http.Request) {
+	queryHandler := wrap(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -133,6 +133,26 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 			}
 		}
 
+		// Determine whether streaming is requested (Bounty #20)
+		isStream := req.Stream ||
+			r.URL.Query().Get("stream") == "true" ||
+			r.URL.Query().Get("stream") == "1" ||
+			strings.Contains(r.Header.Get("Accept"), "application/x-ndjson") ||
+			r.Header.Get("X-Stream") == "true" ||
+			strings.HasSuffix(r.URL.Path, "/stream")
+
+		if isStream {
+			format := req.Format
+			if format == "" {
+				format = r.URL.Query().Get("format")
+			}
+			if format == "" && strings.Contains(r.Header.Get("Accept"), "application/x-ndjson") {
+				format = "ndjson"
+			}
+			streamQueryResults(w, r, db, q, format)
+			return
+		}
+
 		result, err := db.ExecuteContext(r.Context(), q)
 		if err != nil {
 			internalError(w, err, "internal error")
@@ -140,7 +160,11 @@ func setupQueryRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper) {
 		}
 
 		writeJSON(w, queryResponse{Points: result.Points})
-	}))
+	})
+
+	mux.HandleFunc("/query", queryHandler)
+	mux.HandleFunc("/query/stream", queryHandler)
+	mux.HandleFunc("/api/v1/query/stream", queryHandler)
 }
 
 func parseLineProtocol(body string) ([]Point, error) {
