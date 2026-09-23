@@ -51,6 +51,13 @@ Chronicle offers bounties for valuable contributions to accelerate community gro
 | 19 | Add Prometheus metrics exposition | Expose Chronicle internals as /metrics in Prometheus format | $150 | Open |
 | 20 | Implement query result streaming | Stream large query results via chunked HTTP response | $200 | Open |
 
+## Scope and Availability
+
+- **Funding and availability:** A bounty listed as **Open** is currently funded and available to claim. There is no additional approval step before commenting "I'd like to work on this"; the status in the table is the source of truth.
+- **Payment:** Bounties are paid via GitHub Sponsors or PayPal. PayPal remains a supported payout method.
+- **Testing bounties (including #9 "Test on Windows"):** The deliverable is a reproducible compatibility report covering the tested commit, Windows/Go versions, the exact commands run, and any failures with focused reproductions. **Documenting existing failures satisfies the task; fixing every discovered failure is not required for acceptance.** Fixes are welcome but optional.
+- **PR requirements:** The "PRs must include tests and pass CI" rule still applies to the PR itself. A report-only compatibility PR (for example, adding `docs/WINDOWS_TESTING.md` with a reproduction script or a Go test guarded by `runtime.GOOS`/`t.Skip`) satisfies the requirement without requiring all Windows failures to be fixed before merge.
+
 ## Rules
 
 - One person per bounty (first to claim gets it)
