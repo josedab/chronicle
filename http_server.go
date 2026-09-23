@@ -31,6 +31,7 @@ func startHTTPServer(db *DB, port int) (*httpServer, error) {
 
 	// HTTP request metrics
 	httpMetrics := NewHTTPMetrics()
+	SetGlobalHTTPMetrics(httpMetrics, time.Now())
 
 	// Helper to wrap handlers with middleware
 	wrap := func(h http.HandlerFunc) http.HandlerFunc {

@@ -991,13 +991,38 @@ curl http://localhost:8086/api/v1/incidents
 
 ---
 
-## Metrics List
+## Metrics Exposition & List
 
 ### GET /metrics
 
-List all registered metric names.
+Exposes Chronicle internals in standard Prometheus text exposition format (or lists registered metric names in JSON when requested).
 
-**Response:**
+**Prometheus Scrape Response (Default / `Accept: text/plain` / `?format=prometheus`):**
+```text
+# HELP chronicle_build_info Information about the Chronicle build and runtime.
+# TYPE chronicle_build_info gauge
+chronicle_build_info{goversion="go1.24.4",os="linux",arch="amd64"} 1
+# HELP chronicle_uptime_seconds Process uptime in seconds.
+# TYPE chronicle_uptime_seconds gauge
+chronicle_uptime_seconds 42.150
+# HELP chronicle_series_total Total number of active time series stored in the database.
+# TYPE chronicle_series_total gauge
+chronicle_series_total 128
+# HELP chronicle_metrics_total Total number of unique metric names registered.
+# TYPE chronicle_metrics_total gauge
+chronicle_metrics_total 14
+# HELP chronicle_http_requests_total Total number of HTTP requests processed.
+# TYPE chronicle_http_requests_total counter
+chronicle_http_requests_total 1024
+# HELP chronicle_goroutines Number of active Go goroutines.
+# TYPE chronicle_goroutines gauge
+chronicle_goroutines 16
+# HELP chronicle_memory_alloc_bytes Bytes of allocated heap memory currently in use.
+# TYPE chronicle_memory_alloc_bytes gauge
+chronicle_memory_alloc_bytes 2097152
+```
+
+**JSON Metric List (`Accept: application/json` or `?format=json`):**
 ```json
 ["cpu", "memory", "disk", "network"]
 ```

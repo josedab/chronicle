@@ -3,6 +3,7 @@ package chronicle
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 // setupAdminRoutes configures admin and operational endpoints
@@ -58,7 +59,17 @@ func setupAdminRoutes(mux *http.ServeMux, db *DB, wrap middlewareWrapper, auth *
 			writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		writeJSON(w, db.Metrics())
+		// Content negotiation: return JSON when explicitly requested or query parameter format=json
+		format := r.URL.Query().Get("format")
+		accept := r.Header.Get("Accept")
+		if format == "json" || (strings.Contains(accept, "application/json") && !strings.Contains(accept, "text/plain")) {
+			writeJSON(w, db.Metrics())
+			return
+		}
+
+		// Otherwise expose Prometheus metrics exposition format (Bounty #19)
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+		WritePrometheusMetrics(w, db, globalHTTPMetrics, globalStartTime)
 	}))
 
 	mux.HandleFunc("/schemas", wrap(func(w http.ResponseWriter, r *http.Request) {
