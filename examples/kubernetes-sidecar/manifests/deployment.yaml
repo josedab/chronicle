@@ -1,0 +1,104 @@
+# Chronicle Kubernetes sidecar demo (Bounty #11).
+# Replace image names with builds from this example or your registry.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chronicle-sidecar-demo
+  labels:
+    app: chronicle-sidecar-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronicle-sidecar-demo
+  template:
+    metadata:
+      labels:
+        app: chronicle-sidecar-demo
+      annotations:
+        chronicle.io/scrape: "true"
+        chronicle.io/port: "9090"
+        chronicle.io/path: "/metrics"
+    spec:
+      containers:
+        - name: app
+          image: chronicle-sidecar-demo/app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9090
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+
+        - name: chronicle-sidecar
+          image: chronicle-sidecar-demo/sidecar:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: sidecar-http
+              containerPort: 8080
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CHRONICLE_SCRAPE_PORT
+              value: "9090"
+            - name: CHRONICLE_SCRAPE_PATH
+              value: "/metrics"
+            - name: CHRONICLE_HEALTH_PORT
+              value: "8080"
+          volumeMounts:
+            - name: chronicle-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: chronicle-data
+          emptyDir:
+            sizeLimit: 100Mi

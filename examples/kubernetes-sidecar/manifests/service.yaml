@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chronicle-sidecar-demo
+  labels:
+    app: chronicle-sidecar-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: chronicle-sidecar-demo
+  ports:
+    - name: app-http
+      port: 8080
+      targetPort: 8080
+    - name: app-metrics
+      port: 9090
+      targetPort: 9090
+    - name: sidecar-health
+      port: 8081
+      targetPort: 8080
