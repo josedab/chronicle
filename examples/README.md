@@ -77,6 +77,20 @@ Features demonstrated:
 - Custom transformer (unit conversion)
 - Plugin invocation via SDK
 
+### [financial-tick-data](./financial-tick-data)
+High-frequency financial tick data ingestion, VWAP calculation, order book imbalance, and OHLCV candlestick resampling.
+
+```bash
+cd financial-tick-data && go run main.go
+```
+
+Features demonstrated:
+- High-throughput tick data storage
+- Microsecond timestamp resolution
+- Volume-Weighted Average Price (VWAP)
+- Buy vs sell order flow imbalance
+- OHLCV candlestick bars resampling
+
 ## Running All Examples
 
 ```bash
