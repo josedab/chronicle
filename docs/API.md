@@ -1486,3 +1486,81 @@ Serves an interactive Swagger UI for exploring and testing the API.
 Open `http://localhost:8086/swagger` in a browser.
 
 > **Note:** Both `/openapi.json` and `/swagger` are registered automatically when the HTTP server starts. No additional configuration is required.
+
+---
+
+## PromQL Query Examples
+
+Chronicle supports a rich subset of PromQL expressions via the `/api/v1/query` and `/api/v1/query_range` endpoints. Below are 12 production-ready examples:
+
+### 1. Instant Metric Value
+Query the latest recorded value of a metric across all labels:
+```promql
+http_requests_total
+```
+
+### 2. Exact Tag Matching
+Filter series with exact label matches:
+```promql
+cpu_usage_idle{host="server01", region="us-west-2"}
+```
+
+### 3. Negative Tag Matching (!=)
+Exclude specific instances from query results:
+```promql
+disk_free_bytes{environment!="production"}
+```
+
+### 4. Regex Tag Matching (=~)
+Match labels using regular expressions:
+```promql
+http_requests_total{status=~"5..", handler=~"/api/v[12]/.*"}
+```
+
+### 5. Negative Regex Matching (!~)
+Filter out staging and test clusters:
+```promql
+memory_used_bytes{cluster!~"test-.*|staging-.*"}
+```
+
+### 6. Per-Second Rate over Time Window
+Compute per-second rate of increase over a 5-minute window:
+```promql
+rate(http_requests_total[5m])
+```
+
+### 7. Instant Rate of Rapid Counters
+Calculate the per-second rate over the last two data points:
+```promql
+irate(network_receive_bytes_total[1m])
+```
+
+### 8. Range Window Aggregations (Average over Time)
+Calculate the average value over a 15-minute sliding window:
+```promql
+avg_over_time(cpu_temperature_celsius[15m])
+```
+
+### 9. Sum Aggregation Grouped by Label
+Sum total traffic grouped by datacenter region:
+```promql
+sum by (region) (rate(network_transmit_bytes_total[5m]))
+```
+
+### 10. Max Aggregation Preserving Dimensions
+Find peak CPU utilization preserving host labels:
+```promql
+max by (host) (cpu_usage_active)
+```
+
+### 11. Multi-metric Binary Arithmetic
+Calculate memory utilization percentage across hosts:
+```promql
+(memory_used_bytes / memory_total_bytes) * 100
+```
+
+### 12. Alerting Condition Threshold Expression
+Identify nodes where disk free percentage drops below 10%:
+```promql
+(node_filesystem_free_bytes / node_filesystem_size_bytes) * 100 < 10
+```
