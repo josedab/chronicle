@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  chronicle:
+    image: golang:1.24-alpine
+    container_name: chronicle-tsdb
+    working_dir: /app
+    volumes:
+      - ../..:/app
+      - chronicle-data:/data
+    command: >
+      sh -c "go run examples/http-server/main.go -port 8086 -data /data/chronicle.db"
+    ports:
+      - "8086:8086"
+    environment:
+      - CHRONICLE_HTTP_ENABLED=true
+      - CHRONICLE_HTTP_PORT=8086
+      - CHRONICLE_STORAGE_PATH=/data/chronicle.db
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8086/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: chronicle-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      chronicle:
+        condition: service_healthy
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: chronicle-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+
+volumes:
+  chronicle-data:
+  grafana-data:
+  alertmanager-data:
