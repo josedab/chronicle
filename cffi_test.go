@@ -62,6 +62,8 @@ func TestStringToAggFunc(t *testing.T) {
 		{"count", AggCount},
 		{"first", AggFirst},
 		{"last", AggLast},
+		{"last_value", AggLast},
+		{"first_value", AggFirst},
 		{"stddev", AggStddev},
 		{"rate", AggRate},
 		{"unknown", AggNone},

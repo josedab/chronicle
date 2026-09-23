@@ -192,6 +192,8 @@ func TestParseAggFunc(t *testing.T) {
 		{"rate", AggRate},
 		{"first", AggFirst},
 		{"last", AggLast},
+		{"last_value", AggLast},
+		{"first_value", AggFirst},
 		{"unknown", AggNone},
 		{"", AggNone},
 	}

@@ -394,9 +394,9 @@ func ParseAggFunc(token string) AggFunc {
 		return AggPercentile
 	case "rate":
 		return AggRate
-	case "first":
+	case "first", "first_value":
 		return AggFirst
-	case "last":
+	case "last", "last_value":
 		return AggLast
 	default:
 		return AggNone
