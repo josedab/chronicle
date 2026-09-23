@@ -125,6 +125,8 @@ func stringToAggFunc(s string) AggFunc {
 		return AggFirst
 	case "last", "last_value":
 		return AggLast
+	case "percentile", "p50", "p90", "p95", "p99":
+		return AggPercentile
 	case "stddev":
 		return AggStddev
 	case "rate":

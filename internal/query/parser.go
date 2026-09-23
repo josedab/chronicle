@@ -390,7 +390,7 @@ func ParseAggFunc(token string) AggFunc {
 		return AggMax
 	case "stddev":
 		return AggStddev
-	case "percentile":
+	case "percentile", "p50", "p90", "p95", "p99":
 		return AggPercentile
 	case "rate":
 		return AggRate
