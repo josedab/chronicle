@@ -1,0 +1,20 @@
+groups:
+  - name: chronicle-alerts
+    rules:
+      - alert: ChronicleDown
+        expr: up{job="chronicle"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Chronicle service is down"
+          description: "Chronicle instance at {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      - alert: PrometheusScrapeError
+        expr: rate(prometheus_target_scrapes_sample_out_of_order_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus scrape error"
+          description: "Samples arrived out of order during scraping."
