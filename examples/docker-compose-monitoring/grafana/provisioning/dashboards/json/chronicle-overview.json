@@ -1,0 +1,27 @@
+{
+  "title": "Chronicle Monitoring Overview",
+  "uid": "chronicle-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Chronicle Service Status",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "up{job=\"chronicle\"}", "refId": "A" }
+      ],
+      "datasource": { "type": "prometheus", "uid": "Prometheus" }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prometheus Scrape Samples Appended Rate",
+      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "rate(prometheus_tsdb_head_samples_appended_total[1m])", "legendFormat": "samples/s", "refId": "A" }
+      ],
+      "datasource": { "type": "prometheus", "uid": "Prometheus" }
+    }
+  ]
+}
