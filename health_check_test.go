@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 )
 
@@ -101,6 +102,19 @@ func TestHealthCheckEngine(t *testing.T) {
 			t.Error("expected version to be set")
 		}
 	})
+}
+
+func TestDiskUsage(t *testing.T) {
+	free, total, err := diskUsage(filepath.Join(t.TempDir(), "chronicle.db"))
+	if err != nil {
+		t.Fatalf("diskUsage() error = %v", err)
+	}
+	if total == 0 {
+		t.Fatal("diskUsage() returned zero total bytes")
+	}
+	if free > total {
+		t.Fatalf("diskUsage() returned free bytes %d greater than total bytes %d", free, total)
+	}
 }
 
 func TestHealthCheckMemoryAndDisk(t *testing.T) {
