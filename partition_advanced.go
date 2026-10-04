@@ -45,7 +45,8 @@ func NewHashPartitioner(numPartitions int) *HashPartitioner {
 func (hp *HashPartitioner) Partition(metric string) int {
 	h := fnv.New32a()
 	h.Write([]byte(metric))
-	return int(h.Sum32()) % hp.numPartitions
+	// Reduce the unsigned hash before converting to a platform-sized index.
+	return int(uint(h.Sum32()) % uint(hp.numPartitions))
 }
 
 // PartitionPoints distributes points across hash partitions.
@@ -106,7 +107,9 @@ func (rp *RangePartitioner) Partition(tagValue string) int {
 // PartitionPoints distributes points across range partitions.
 func (rp *RangePartitioner) PartitionPoints(points []Point) [][]Point {
 	rp.mu.RLock()
-	n := len(rp.boundaries) + 1
+	// SetBoundaries replaces its copied slice; keep one immutable generation.
+	boundaries := rp.boundaries
+	n := len(boundaries) + 1
 	tagKey := rp.tagKey
 	rp.mu.RUnlock()
 
@@ -120,10 +123,7 @@ func (rp *RangePartitioner) PartitionPoints(points []Point) [][]Point {
 		if p.Tags != nil {
 			tagVal = p.Tags[tagKey]
 		}
-		idx := rp.Partition(tagVal)
-		if idx >= n {
-			idx = n - 1
-		}
+		idx := sort.SearchStrings(boundaries, tagVal)
 		buckets[idx] = append(buckets[idx], p)
 	}
 	return buckets
@@ -508,8 +508,8 @@ func (bf *PartitionBloomFilter) hash(item string, seed uint32) uint32 {
 
 // PartitionPruneResult holds the result of bloom-filter-based partition pruning.
 type PartitionPruneResult struct {
-	ScannedPartitions int `json:"scanned_partitions"`
-	PrunedPartitions  int `json:"pruned_partitions"`
+	ScannedPartitions   int `json:"scanned_partitions"`
+	PrunedPartitions    int `json:"pruned_partitions"`
 	RemainingPartitions int `json:"remaining_partitions"`
 }
 
