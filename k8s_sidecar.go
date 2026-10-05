@@ -1,14 +1,21 @@
+// Modified 2026-10-05: encode qualified pod-label keys and reject mapping collisions
+// before adding metadata to scrape points. See the accompanying source continuation.
 package chronicle
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -100,8 +107,9 @@ type K8sSidecar struct {
 	server *http.Server
 
 	// Scrape targets
-	targets   []ScrapeTarget
-	targetsMu sync.RWMutex
+	targets     []ScrapeTarget
+	targetIndex map[sidecarTargetKey]struct{}
+	targetsMu   sync.RWMutex
 
 	// Pod metadata
 	podInfo *PodInfo
@@ -115,6 +123,12 @@ type K8sSidecar struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
+}
+
+// sidecarTargetKey preserves the existing exact address/port identity.
+type sidecarTargetKey struct {
+	address string
+	port    int
 }
 
 // ScrapeTarget represents a metrics endpoint to scrape.
@@ -193,6 +207,7 @@ func (s *K8sSidecar) Start() error {
 
 	// Start health server
 	if err := s.startHealthServer(); err != nil {
+		s.running.Store(false)
 		return err
 	}
 
@@ -241,7 +256,12 @@ func (s *K8sSidecar) startHealthServer() error {
 		Handler: mux,
 	}
 
-	go s.server.ListenAndServe()
+	listener, err := net.Listen("tcp", s.server.Addr)
+	if err != nil {
+		return fmt.Errorf("listen for sidecar health: %w", err)
+	}
+
+	go s.server.Serve(listener)
 	return nil
 }
 
@@ -295,10 +315,11 @@ func (s *K8sSidecar) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (s *K8sSidecar) handleTargets(w http.ResponseWriter, r *http.Request) {
 	s.targetsMu.RLock()
-	defer s.targetsMu.RUnlock()
+	targets := slices.Clone(s.targets)
+	s.targetsMu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(s.targets)
+	json.NewEncoder(w).Encode(targets)
 }
 
 func (s *K8sSidecar) handleStats(w http.ResponseWriter, r *http.Request) {
@@ -347,10 +368,18 @@ func (s *K8sSidecar) scrapeAll() {
 	wg.Wait()
 }
 
+func sidecarScrapeTargetURL(target ScrapeTarget) string {
+	address := target.Address
+	if len(address) >= 2 && address[0] == '[' && address[len(address)-1] == ']' {
+		address = address[1 : len(address)-1]
+	}
+	return fmt.Sprintf("%s://%s%s", target.Scheme, net.JoinHostPort(address, strconv.Itoa(target.Port)), target.Path)
+}
+
 func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 	start := time.Now()
 
-	url := fmt.Sprintf("%s://%s:%d%s", target.Scheme, target.Address, target.Port, target.Path)
+	url := sidecarScrapeTargetURL(target)
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.config.ScrapeTimeout)
 	defer cancel()
@@ -373,7 +402,7 @@ func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readSidecarScrapeBody(resp.Body, maxSidecarScrapeBodyBytes)
 	if err != nil {
 		s.recordScrapeError(err)
 		return
@@ -384,7 +413,10 @@ func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 
 	if len(points) > 0 {
 		// Add pod metadata tags
-		s.addMetadataTags(points)
+		if err := s.addMetadataTags(points); err != nil {
+			s.recordScrapeError(err)
+			return
+		}
 
 		// Write to Chronicle
 		if err := s.db.WriteBatch(points); err != nil {
@@ -402,6 +434,22 @@ func (s *K8sSidecar) scrapeTarget(target ScrapeTarget) {
 	s.stats.LastScrapeDuration = time.Since(start)
 	s.stats.LastScrapeError = ""
 	s.statsMu.Unlock()
+}
+
+const maxSidecarScrapeBodyBytes int64 = 8 << 20 // 8 MiB
+
+func readSidecarScrapeBody(r io.Reader, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, errors.New("metrics response byte limit must be positive")
+	}
+	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("metrics response exceeds %d byte limit", maxBytes)
+	}
+	return body, nil
 }
 
 func (s *K8sSidecar) parsePrometheusMetrics(data string, extraLabels map[string]string) []Point {
@@ -441,69 +489,141 @@ func (s *K8sSidecar) parseMetricLine(line string, defaultTs int64) (Point, error
 		Timestamp: defaultTs,
 	}
 
-	// Find metric name and labels
+	// Find metric name and labels.
 	braceIdx := strings.Index(line, "{")
-	spaceIdx := strings.Index(line, " ")
+	spaceIdx := strings.IndexAny(line, " \t")
+	var sample string
 
 	if braceIdx != -1 && braceIdx < spaceIdx {
-		// Has labels
 		point.Metric = line[:braceIdx]
-
-		closeBraceIdx := strings.Index(line, "}")
+		closeBraceIdx := sidecarLabelSetEnd(line, braceIdx)
 		if closeBraceIdx == -1 {
 			return point, errors.New("malformed labels")
 		}
-
-		labelStr := line[braceIdx+1 : closeBraceIdx]
-		point.Tags = s.parseLabels(labelStr)
-
-		// Parse value
-		rest := strings.TrimSpace(line[closeBraceIdx+1:])
-		parts := strings.Fields(rest)
-		if len(parts) >= 1 {
-			_, err := fmt.Sscanf(parts[0], "%f", &point.Value)
-			if err != nil {
-				return point, err
-			}
-		}
+		point.Tags = s.parseLabels(line[braceIdx+1 : closeBraceIdx])
+		sample = line[closeBraceIdx+1:]
 	} else if spaceIdx != -1 {
-		// No labels
 		point.Metric = line[:spaceIdx]
-		rest := line[spaceIdx+1:]
-		parts := strings.Fields(rest)
-		if len(parts) >= 1 {
-			_, err := fmt.Sscanf(parts[0], "%f", &point.Value)
-			if err != nil {
-				return point, err
-			}
-		}
+		sample = line[spaceIdx+1:]
 	} else {
 		return point, errors.New("invalid metric line")
 	}
 
+	// Prometheus text samples require a value and allow one millisecond timestamp.
+	parts := strings.Fields(sample)
+	if len(parts) == 0 || len(parts) > 2 {
+		return point, errors.New("expected metric value and optional timestamp")
+	}
+	value, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return point, err
+	}
+	point.Value = value
+	if len(parts) == 2 {
+		timestamp, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return point, fmt.Errorf("invalid metric timestamp: %w", err)
+		}
+		// Point stores nanoseconds; reject an unrepresentable time before multiplying.
+		const nanosPerMilli = int64(time.Millisecond)
+		if timestamp > math.MaxInt64/nanosPerMilli || timestamp < math.MinInt64/nanosPerMilli {
+			return point, errors.New("metric timestamp exceeds nanosecond range")
+		}
+		point.Timestamp = timestamp * nanosPerMilli
+	}
 	return point, nil
 }
+
+// sidecarLabelSetEnd ignores braces inside quoted label values. A backslash
+// escapes the next byte only within a quoted value.
+func sidecarLabelSetEnd(line string, open int) int {
+	quoted := false
+	for i := open + 1; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			if quoted {
+				i++
+			}
+		case '"':
+			quoted = !quoted
+		case '}':
+			if !quoted {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+var sidecarLabelRegex = regexp.MustCompile(`(\w+)="([^"\\]*(?:\\.[^"\\]*)*)"`)
+
+// Replacer consumes the input once, so an escaped backslash followed by n does
+// not become a newline on a second decoding pass.
+var sidecarLabelUnescaper = strings.NewReplacer(`\\`, `\`, `\"`, `"`, `\n`, "\n")
 
 func (s *K8sSidecar) parseLabels(labelStr string) map[string]string {
 	labels := make(map[string]string)
 
 	// Simple label parser
 	// Format: key="value",key2="value2"
-	labelRegex := regexp.MustCompile(`(\w+)="([^"]*)"`)
-	matches := labelRegex.FindAllStringSubmatch(labelStr, -1)
+	matches := sidecarLabelRegex.FindAllStringSubmatch(labelStr, -1)
 
 	for _, match := range matches {
 		if len(match) == 3 {
-			labels[match[1]] = match[2]
+			value := match[2]
+			if strings.Contains(value, "\\") {
+				value = sidecarLabelUnescaper.Replace(value)
+			}
+			labels[match[1]] = value
 		}
 	}
 
 	return labels
 }
 
-func (s *K8sSidecar) addMetadataTags(points []Point) {
+// Kubernetes qualified label keys contain a DNS prefix and a slash, which
+// Chronicle tag keys cannot contain. Preserve literal no-slash names and encode
+// qualified names into a bounded namespace. Callers can mutate GetPodInfo(), so
+// validate qualified keys and check collisions across the complete mapping.
+var sidecarQualifiedLabelPrefix = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+var sidecarQualifiedLabelName = regexp.MustCompile(`^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$`)
+
+func sidecarPodLabelTags(labels map[string]string) (map[string]string, error) {
+	tags := make(map[string]string, len(labels))
+	sources := make(map[string]string, len(labels))
+	for key, value := range labels {
+		tagKey := "pod_label_" + key
+		if strings.Contains(key, "/") {
+			prefix, name, _ := strings.Cut(key, "/")
+			if len(prefix) > 253 || len(name) > 63 ||
+				!sidecarQualifiedLabelPrefix.MatchString(prefix) ||
+				!sidecarQualifiedLabelName.MatchString(name) {
+				return nil, fmt.Errorf("invalid qualified pod label key %q", key)
+			}
+			digest := sha256.Sum256([]byte(key))
+			tagKey = fmt.Sprintf("pod_label_q_%x", digest)
+		}
+		if previous, exists := sources[tagKey]; exists && previous != key {
+			return nil, errors.New("pod label keys map to the same Chronicle tag")
+		}
+		sources[tagKey] = key
+		tags[tagKey] = value
+	}
+	return tags, nil
+}
+
+func (s *K8sSidecar) addMetadataTags(points []Point) error {
 	if s.podInfo == nil {
-		return
+		return nil
+	}
+
+	var podLabels map[string]string
+	if s.config.AddPodLabels {
+		var err error
+		podLabels, err = sidecarPodLabelTags(s.podInfo.Labels)
+		if err != nil {
+			return err
+		}
 	}
 
 	for i := range points {
@@ -517,13 +637,11 @@ func (s *K8sSidecar) addMetadataTags(points []Point) {
 		if s.config.AddNodeName && s.podInfo.NodeName != "" {
 			points[i].Tags["node"] = s.podInfo.NodeName
 		}
-		if s.config.AddPodLabels {
-			for k, v := range s.podInfo.Labels {
-				// Prefix pod labels to avoid conflicts
-				points[i].Tags["pod_label_"+k] = v
-			}
+		for k, v := range podLabels {
+			points[i].Tags[k] = v
 		}
 	}
+	return nil
 }
 
 func (s *K8sSidecar) recordScrapeError(err error) {
@@ -603,14 +721,29 @@ func (s *K8sSidecar) AddTarget(target ScrapeTarget) {
 	s.targetsMu.Lock()
 	defer s.targetsMu.Unlock()
 
-	// Check for duplicate
-	for _, t := range s.targets {
-		if t.Address == target.Address && t.Port == target.Port {
+	if s.targetIndex == nil {
+		// The normal localhost-only sidecar needs no map allocation.
+		if len(s.targets) < 32 {
+			for _, t := range s.targets {
+				if t.Address == target.Address && t.Port == target.Port {
+					return
+				}
+			}
+			s.targets = append(s.targets, target)
 			return
 		}
+		// Include targets seeded by the constructor before switching to lookup.
+		s.targetIndex = make(map[sidecarTargetKey]struct{}, len(s.targets)+1)
+		for _, t := range s.targets {
+			s.targetIndex[sidecarTargetKey{t.Address, t.Port}] = struct{}{}
+		}
 	}
-
+	key := sidecarTargetKey{target.Address, target.Port}
+	if _, exists := s.targetIndex[key]; exists {
+		return
+	}
 	s.targets = append(s.targets, target)
+	s.targetIndex[key] = struct{}{}
 }
 
 // RemoveTarget removes a scrape target.
@@ -625,6 +758,10 @@ func (s *K8sSidecar) RemoveTarget(address string, port int) {
 		}
 	}
 	s.targets = filtered
+	delete(s.targetIndex, sidecarTargetKey{address, port})
+	if len(filtered) == 0 {
+		s.targetIndex = nil
+	}
 }
 
 // GetTargets returns all scrape targets.
