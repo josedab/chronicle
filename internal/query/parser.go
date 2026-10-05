@@ -31,6 +31,7 @@ const (
 	TagOpEq TagOp = iota
 	TagOpNotEq
 	TagOpIn
+	TagOpNotIn
 )
 
 // TagFilter represents a tag predicate.
@@ -197,8 +198,7 @@ func (p *Parser) Parse(queryStr string) (*Query, error) {
 			}
 			key := tokens[cursor]
 			cursor++
-			rawOp := tokens[cursor]
-			op := strings.ToUpper(rawOp)
+			op := strings.ToUpper(tokens[cursor])
 			cursor++
 
 			switch op {
@@ -208,10 +208,16 @@ func (p *Parser) Parse(queryStr string) (*Query, error) {
 				}
 				op = "!="
 			case "NOT":
-				if cursor < len(tokens) && tokens[cursor] == "=" {
+				if cursor < len(tokens) && strings.EqualFold(tokens[cursor], "IN") {
 					cursor++
+					op = "NOT IN"
+
+				} else if cursor < len(tokens) && tokens[cursor] == "=" {
+					cursor++
+					op = "!="
+				} else {
+					op = "!="
 				}
-				op = "!="
 			case "<", ">":
 				if cursor < len(tokens) && tokens[cursor] == "=" {
 					op += "="
@@ -219,44 +225,17 @@ func (p *Parser) Parse(queryStr string) (*Query, error) {
 				}
 			}
 
-			if strings.HasPrefix(op, "IN(") {
-				values := []string{}
-				first := strings.Trim(rawOp[3:], "'\"")
-				if first != "" {
-					values = append(values, first)
+			if op == "IN" || op == "NOT IN" {
+				values, next, err := parseTagMembershipList(tokens, cursor)
+				if err != nil {
+					return nil, err
 				}
-				for cursor < len(tokens) {
-					tok := tokens[cursor]
-					cursor++
-					if tok == ")" {
-						break
-					}
-					if tok == "," {
-						continue
-					}
-					values = append(values, strings.Trim(tok, "'\""))
+				cursor = next
+				tagOp := TagOpIn
+				if op == "NOT IN" {
+					tagOp = TagOpNotIn
 				}
-				q.TagFilters = append(q.TagFilters, TagFilter{Key: key, Op: TagOpIn, Values: values})
-				continue
-			}
-
-			if op == "IN" {
-				values := []string{}
-				if cursor < len(tokens) && tokens[cursor] == "(" {
-					cursor++
-				}
-				for cursor < len(tokens) {
-					tok := tokens[cursor]
-					cursor++
-					if tok == ")" {
-						break
-					}
-					if tok == "," {
-						continue
-					}
-					values = append(values, strings.Trim(tok, "'\""))
-				}
-				q.TagFilters = append(q.TagFilters, TagFilter{Key: key, Op: TagOpIn, Values: values})
+				q.TagFilters = append(q.TagFilters, TagFilter{Key: key, Op: tagOp, Values: values})
 				continue
 			}
 
@@ -324,6 +303,42 @@ func (p *Parser) Parse(queryStr string) (*Query, error) {
 	}
 
 	return q, nil
+}
+
+// parseTagMembershipList consumes one complete parenthesized membership list.
+// Delimiters stay separate in tokenize, including compact IN('value') syntax.
+// Never turn a following AND, GROUP BY, or LIMIT clause into list values when
+// the caller omitted a delimiter. Empty lists retain their existing semantics.
+func parseTagMembershipList(tokens []string, cursor int) ([]string, int, error) {
+	if cursor >= len(tokens) || tokens[cursor] != "(" {
+		return nil, cursor, errors.New("expected ( after IN")
+	}
+	cursor++
+	values := []string{}
+	if cursor < len(tokens) && tokens[cursor] == ")" {
+		return values, cursor + 1, nil
+	}
+
+	for cursor < len(tokens) {
+		token := tokens[cursor]
+		if token == "(" || token == ")" || token == "," {
+			return nil, cursor, errors.New("expected IN list value")
+		}
+		values = append(values, strings.Trim(token, "'\""))
+		cursor++
+		if cursor >= len(tokens) {
+			break
+		}
+		switch tokens[cursor] {
+		case ")":
+			return values, cursor + 1, nil
+		case ",":
+			cursor++
+		default:
+			return nil, cursor, errors.New("expected , or ) after IN list value")
+		}
+	}
+	return nil, cursor, errors.New("unterminated IN list")
 }
 
 // ParseAggFunc parses an aggregation function name.
@@ -426,11 +441,12 @@ func tokenize(input string) []string {
 	}
 	flush()
 
-	// Merge tokens like time(5m)
+	// Merge function tokens like time(5m), but keep membership lists separate.
+	// Merging IN('a') would hide its closing parenthesis from the list parser.
 	var merged []string
 	i := 0
 	for i < len(tokens) {
-		if i+2 < len(tokens) && tokens[i+1] == "(" && tokens[i+2] != ")" {
+		if i+2 < len(tokens) && !strings.EqualFold(tokens[i], "IN") && tokens[i+1] == "(" && tokens[i+2] != ")" {
 			merged = append(merged, tokens[i]+tokens[i+1]+tokens[i+2])
 			i += 3
 			if i < len(tokens) && tokens[i] == ")" {

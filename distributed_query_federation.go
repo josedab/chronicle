@@ -2,6 +2,7 @@ package chronicle
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -84,6 +85,10 @@ type PushablePredicate struct {
 	Field string           `json:"field"`
 	Value string           `json:"value,omitempty"`
 	Safe  bool             `json:"safe"` // always safe to push without changing semantics
+
+	// TagFilter preserves operator and value boundaries after selection or reordering.
+	// Nil retains the legacy Field/Value matching behavior.
+	TagFilter *TagFilter `json:"tag_filter,omitempty"`
 }
 
 // PredicateAnalysis is the result of analysing a query for push-down.
@@ -136,9 +141,12 @@ func (pp *PredicatePushDown) AnalyzePredicates(q *Query) PredicateAnalysis {
 			Field: tf.Key,
 		}
 		switch tf.Op {
-		case TagOpEq, TagOpNotEq, TagOpIn:
+		case TagOpEq, TagOpNotEq, TagOpIn, TagOpNotIn:
 			p.Safe = true
 			p.Value = strings.Join(tf.Values, ",")
+			filter := tf
+			filter.Values = slices.Clone(tf.Values)
+			p.TagFilter = &filter
 			analysis.Pushable = append(analysis.Pushable, p)
 		default:
 			p.Safe = false
@@ -189,6 +197,15 @@ func (pp *PredicatePushDown) CreateRemoteQuery(q *Query, pushable []PushablePred
 		Start:  q.Start,
 		End:    q.End,
 	}
+	type filterKey struct{ key, value string }
+	availableFilters := make(map[filterKey][]TagFilter)
+	for _, tf := range q.TagFilters {
+		switch tf.Op {
+		case TagOpEq, TagOpNotEq, TagOpIn, TagOpNotIn:
+			key := filterKey{tf.Key, strings.Join(tf.Values, ",")}
+			availableFilters[key] = append(availableFilters[key], tf)
+		}
+	}
 	for _, p := range pushable {
 		switch p.Kind {
 		case FedPredicateTagEquality:
@@ -197,11 +214,21 @@ func (pp *PredicatePushDown) CreateRemoteQuery(q *Query, pushable []PushablePred
 			}
 			remote.Tags[p.Field] = p.Value
 		case FedPredicateTagFilter:
-			for _, tf := range q.TagFilters {
-				if tf.Key == p.Field {
-					remote.TagFilters = append(remote.TagFilters, tf)
-					break
+			if !p.Safe {
+				continue
+			}
+			// Value is a display string: operators and comma-bearing values can
+			// collide. Match the exact descriptor when supplied, and consume
+			// only that eligible source occurrence, regardless of selection order.
+			key := filterKey{p.Field, p.Value}
+			filters := availableFilters[key]
+			for i, tf := range filters {
+				if p.TagFilter != nil && (tf.Key != p.TagFilter.Key || tf.Op != p.TagFilter.Op || !slices.Equal(tf.Values, p.TagFilter.Values)) {
+					continue
 				}
+				remote.TagFilters = append(remote.TagFilters, tf)
+				availableFilters[key] = append(filters[:i], filters[i+1:]...)
+				break
 			}
 		case FedPredicateAggregation:
 			if q.Aggregation != nil {
